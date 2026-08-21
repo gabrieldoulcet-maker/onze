@@ -304,6 +304,32 @@
       { nom: "Sélection du District", taille: 5, relevee: true },
     ];
 
+    /* Les Philosophies de club (les augments de TFT) : un choix parmi 3
+       aux manches 4, 7 et 10 — effets définitifs jusqu'à la fin. */
+    const MANCHES_PHILOSOPHIE = [4, 7, 10];
+    const PHILOSOPHIES = [
+      { nom: "Droits TV majorés", emoji: "📺", desc: "+1M de revenu de base à chaque manche." },
+      { nom: "Mécènes", emoji: "🏦", desc: "Tes sponsors suivent jusqu'à +7M d'intérêts (au lieu de 5)." },
+      { nom: "Centre de formation", emoji: "🎓", desc: "+1 XP gratuit supplémentaire par manche." },
+      { nom: "Guichets fermés", emoji: "🎟️", desc: "La prime de victoire passe à +2M." },
+      { nom: "Trésor de guerre", emoji: "💰", desc: "+10M immédiatement." },
+      { nom: "Académie des jeunes", emoji: "🐣", desc: "Un joueur coût 1 gratuit rejoint ton banc chaque manche." },
+      { nom: "Organigramme étoffé", emoji: "🧰", desc: "Une carte staff maintenant, une autre dans 3 manches." },
+      { nom: "Réseau de recruteurs", emoji: "🔭", desc: "Le mercato propose 6 joueurs au lieu de 5." },
+      { nom: "Préparation physique", emoji: "🏃", desc: "+5 Endurance pour toute l'équipe." },
+      { nom: "Culture de la gagne", emoji: "🔥", desc: "+5 Mental pour toute l'équipe." },
+      { nom: "Forteresse", emoji: "🧱", desc: "+4 Tacle et +4 Placement pour toute l'équipe." },
+      { nom: "Jeu de possession", emoji: "🎯", desc: "+4 Passe et +4 Technique pour toute l'équipe." },
+      { nom: "Direction patiente", emoji: "🩹", desc: "+10 prestige immédiatement (plafonné au départ)." },
+    ];
+    const aPhilosophie = (nom) => partie.philosophies.includes(nom);
+    const BOOSTS_PHILOSOPHIES = {
+      "Préparation physique": { endurance: 5 },
+      "Culture de la gagne": { mental: 5 },
+      "Forteresse": { tacle: 4, placement: 4 },
+      "Jeu de possession": { passe: 4, technique: 4 },
+    };
+
     const el = (id) => document.getElementById(id);
     const hasardParmi = (t) => t[Math.floor(Math.random() * t.length)];
     const de2 = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
@@ -321,6 +347,7 @@
         butin: { 1: ["gris", "gris"], 2: ["gris", "bleu"], 3: ["or"] },
         orbesEnAttente: [], verrou: false, dernierAdversaire: null,
         appariement: null, historique: [], exempt: null, matchEnCours: false,
+        philosophies: [], philosophiesVues: [], staffEnRetard: null, tailleBoutique: TAILLE_BOUTIQUE,
       };
       construirePool();
       nouvelleBoutique(false);
@@ -329,6 +356,24 @@
       afficher();
     }
     const moi = () => partie.coachs[0];
+
+    /* L'équipe alignée, avec les boosts de Philosophies appliqués */
+    function equipeDuClub() {
+      const equipe = ONZE.equipeDepuisFiches("Mon Club", "Toi", partie.terrain);
+      for (const nom of partie.philosophies) {
+        const boosts = BOOSTS_PHILOSOPHIES[nom];
+        if (!boosts) continue;
+        for (const j of equipe.joueurs) {
+          for (const [stat, montant] of Object.entries(boosts)) {
+            if (!(stat in j.stats)) continue;
+            j.boosts[stat] = (j.boosts[stat] || 0) + montant;
+            j.stats[stat] = Math.min(99, j.stats[stat] + montant);
+          }
+          j.note = ONZE.noteGlobale(j.stats);
+        }
+      }
+      return equipe;
+    }
 
     /* ================= Pool et boutique ================= */
     function construirePool() {
@@ -348,7 +393,7 @@
     function nouvelleBoutique(rendre = true) {
       if (rendre) for (const c of partie.boutique) if (c) partie.pool.push(c);
       partie.boutique = [];
-      for (let i = 0; i < TAILLE_BOUTIQUE; i++) {
+      for (let i = 0; i < partie.tailleBoutique; i++) {
         const carte = tirerCarte();
         if (carte) partie.pool.splice(partie.pool.indexOf(carte), 1);
         partie.boutique.push(carte);
@@ -560,6 +605,14 @@
     /* ================= Le déroulé des manches ================= */
     function preparerManche() {
       const amical = partie.manche <= DERNIERE_MANCHE_AMICALE;
+      if (aPhilosophie("Académie des jeunes") && partie.banc.length < TAILLE_BANC) {
+        const jeune = piocherJoueur(1);
+        if (jeune) {
+          partie.banc.push({ ...jeune, etoiles: 1 });
+          const fusions = ONZE.fusionnerEffectif(partie.terrain, partie.banc);
+          if (fusions.length) celebrerFusions(fusions);
+        }
+      }
       for (const c of partie.coachs) if (c.ia && c.vivant) c.equipe = genererEquipeIA(c);
       if (amical) {
         partie.appariement = { amical: true, nomAdversaire: "Amical — " + AMICAUX[partie.manche - 1].nom };
@@ -592,7 +645,7 @@
         });
       }
 
-      const monEquipe = ONZE.equipeDepuisFiches("Mon Club", "Toi", partie.terrain);
+      const monEquipe = equipeDuClub();
       const resultat = ONZE.simulerMatch(monEquipe, equipeAdverse);
 
       // Le match se joue SUR le terrain : tableau + journal par-dessus,
@@ -639,14 +692,19 @@
         }
       }
 
-      const sponsors = Math.min(Math.floor(partie.or / 10), 5);
-      const base = droitsTV(partie.manche);
+      const sponsors = Math.min(Math.floor(partie.or / 10), aPhilosophie("Mécènes") ? 7 : 5);
+      const base = droitsTV(partie.manche) + (aPhilosophie("Droits TV majorés") ? 1 : 0);
       const serieAbs = Math.abs(je.serie);
       const bonusSerie = serieAbs >= 6 ? 3 : serieAbs >= 5 ? 2 : serieAbs >= 3 ? 1 : 0;
-      const bonusVictoire = !amical && victoire ? 1 : 0;
+      const bonusVictoire = !amical && victoire ? (aPhilosophie("Guichets fermés") ? 2 : 1) : 0;
       const revenu = sponsors + base + bonusVictoire + bonusSerie;
       partie.or += revenu;
-      gagnerXP(XP_GRATUITE_PAR_MANCHE);
+      gagnerXP(XP_GRATUITE_PAR_MANCHE + (aPhilosophie("Centre de formation") ? 1 : 0));
+      if (partie.staffEnRetard && partie.manche >= partie.staffEnRetard) {
+        partie.staffEnRetard = null;
+        partie.staff.push(tirerCarteStaff());
+        signaler("🧰 La carte staff promise est arrivée !");
+      }
 
       partie.orbesEnAttente = amical
         ? partie.butin[partie.manche].map((rarete) => creerOrbe(rarete))
@@ -711,6 +769,37 @@
       if (!partie.verrou) nouvelleBoutique();
       preparerManche();
       afficher();
+      proposerPhilosophie();
+    }
+
+    function proposerPhilosophie() {
+      if (!MANCHES_PHILOSOPHIE.includes(partie.manche)) return;
+      if (partie.philosophiesVues.includes(partie.manche)) return;
+      partie.philosophiesVues.push(partie.manche);
+      const choix = PHILOSOPHIES.filter((p) => !partie.philosophies.includes(p.nom))
+        .sort(() => Math.random() - 0.5).slice(0, 3);
+      const volet = document.createElement("div");
+      volet.className = "volet";
+      volet.innerHTML = `<div class="panneau" style="text-align:center">
+        <strong>🧭 Choisis la Philosophie de ton club</strong><br>
+        <small style="color:#96A699">Un seul choix — définitif jusqu'à la fin de la partie.</small>
+        ${choix.map((p, i) => `<button class="fermer-volet" style="text-align:left" data-philo="${i}">
+          ${p.emoji} <strong>${p.nom}</strong><br><small style="color:#96A699">${p.desc}</small></button>`).join("")}
+      </div>`;
+      volet.addEventListener("click", (e) => {
+        const bouton = e.target.closest("[data-philo]");
+        if (!bouton) return;
+        const philo = choix[Number(bouton.dataset.philo)];
+        partie.philosophies.push(philo.nom);
+        if (philo.nom === "Trésor de guerre") partie.or += 10;
+        if (philo.nom === "Direction patiente") moi().prestige = Math.min(PRESTIGE_DEPART, moi().prestige + 10);
+        if (philo.nom === "Organigramme étoffé") { partie.staff.push(tirerCarteStaff()); partie.staffEnRetard = partie.manche + 3; }
+        if (philo.nom === "Réseau de recruteurs") { partie.tailleBoutique = 6; nouvelleBoutique(); }
+        volet.remove();
+        signaler(philo.emoji + " " + philo.nom + " adoptée !");
+        afficher();
+      });
+      el("app").appendChild(volet);
     }
 
     /* ================= Volet classement / scouting ================= */
@@ -729,6 +818,7 @@
         <strong>🏆 Le tournoi</strong>
         <div class="classement" style="margin-top:6px">${ligneClassement()}</div>
         <div class="coach" style="margin-top:4px;color:#96A699"><span id="annonce-volet"></span></div>
+        ${partie.philosophies.length ? `<div class="coach" style="margin-top:4px"><span>🧭 ${partie.philosophies.join(" · ")}</span></div>` : ""}
         <details style="margin-top:8px"><summary style="cursor:pointer;color:#96A699;font-size:0.8rem">📜 Historique des manches</summary>
         <div style="font-size:0.76rem;margin-top:4px">${partie.historique.map((h) => `<div class="coach"><span>${h}</span></div>`).join("") || "La saison commence."}</div></details>
         <button class="fermer-volet">Fermer</button>
@@ -749,7 +839,7 @@
     function ouvrirVestiaire(coach) {
       const equipe = coach
         ? (coach.equipe || genererEquipeIA(coach))
-        : ONZE.equipeDepuisFiches("Mon Club", "Toi", partie.terrain);
+        : equipeDuClub();
       const axes = ONZE.adnClub(equipe);
       const valeursAxes = Object.values(axes);
       const maxAxe = Math.max(...valeursAxes), minAxe = Math.min(...valeursAxes);
@@ -847,7 +937,7 @@
         voile.remove();
         if (action === "fiche") {
           let calcule = null;
-          if (nomListe === "terrain") calcule = ONZE.equipeDepuisFiches("Mon Club", "Toi", partie.terrain).joueurs[indice];
+          if (nomListe === "terrain") calcule = equipeDuClub().joueurs[indice];
           ONZE_UI.ouvrirFiche(fiche, calcule);
         }
         if (action === "bouger") basculer(nomListe, indice);
@@ -911,7 +1001,7 @@
       el("btn-verrou").textContent = partie.verrou ? "🔒" : "🔓";
 
       // Synergies + mini ADN
-      const apercu = ONZE.equipeDepuisFiches("Mon Club", "Toi", partie.terrain);
+      const apercu = equipeDuClub();
       el("synergies-club").innerHTML = ONZE_UI.badges(apercu) ||
         `<span style="color:#5A6A5C;font-size:0.68rem">Réunis des joueurs d'une même École ou d'un même archétype.</span>`;
       const axes = ONZE.adnClub(apercu);
