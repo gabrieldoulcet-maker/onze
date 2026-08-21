@@ -40,7 +40,25 @@
       font-size: 0.72rem; color: #96A699;
     }
     .haut .manche-info { cursor: pointer; white-space: nowrap; }
-    .haut .annonce { flex: 1; text-align: center; color: #C9D6C9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* La ligne de progression des manches (la barre de stage de TFT) :
+       « qu'est-ce qui arrive, et dans combien de manches ? » d'un regard. */
+    .progression { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; overflow: hidden; }
+    .rangee-pastilles { display: flex; justify-content: center; align-items: center; gap: 3px; }
+    .chrono-barre { width: 90%; max-width: 300px; height: 4px; background: #182219; border-radius: 2px; overflow: hidden; }
+    .chrono-barre > div { height: 100%; width: 100%; background: #4FC57C; border-radius: 2px; transition: width 0.2s linear; }
+    .chrono-barre.urgent > div { background: #E8654F; animation: pulseUrgent 0.5s ease infinite; }
+    @keyframes pulseUrgent { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .pastille-manche {
+      position: relative; cursor: pointer; text-align: center;
+      font-size: 0.72rem; line-height: 1.1; padding: 1px 2px; border-radius: 6px;
+      opacity: 0.85; min-width: 20px;
+    }
+    .pastille-manche small { display: block; font-size: 0.5rem; color: #96A699; }
+    .pastille-manche.passee { opacity: 0.25; }
+    .pastille-manche.courante {
+      background: #182219; border: 1px solid #4FC57C; opacity: 1;
+      box-shadow: 0 0 8px rgba(79, 197, 124, 0.5); font-size: 0.82rem;
+    }
     .haut button {
       background: #182219; color: #A9DDB6; border: 1px solid #24331F;
       border-radius: 7px; padding: 3px 8px; font-size: 0.68rem; font-weight: 700; cursor: pointer;
@@ -200,11 +218,14 @@
 
   <!-- ===== Barre du haut ===== -->
   <div class="haut">
-    <span class="manche-info" id="btn-historique">📜 M<span id="manche">1</span> ·
+    <span class="manche-info" id="btn-historique">📜
       💚 <span id="prestige">40</span> · Niv <span id="niveau">3</span> ·
       XP <span id="xp">0</span>/<span id="xp-suivant">6</span> ·
-      <span id="serie">—</span> · 🧰 <span id="staff">0</span> · 🔥 <span id="ferveur">0</span></span>
-    <span class="annonce" id="annonce"></span>
+      <span id="serie">—</span> · 🧰 <span id="staff">0</span> · 🔥 <span id="ferveur">0</span><span class="masque" id="manche">1</span></span>
+    <div class="progression">
+      <div class="rangee-pastilles" id="progression"></div>
+      <div class="chrono-barre masque" id="chrono-barre"><div id="chrono-remplissage"></div></div>
+    </div>
     <button id="btn-vitesse" class="masque">⏩ ×2</button>
   </div>
 
@@ -302,6 +323,39 @@
       { nom: "Barrio Bravo", ecole: "La Grinta" },
       { nom: "Le Consortium", ecole: "Les Pros" },
     ];
+    /* Les matchs de coupe (l'équivalent des Krugs/Loups de TFT) :
+       manches PvE intercalées, adversaire scripté à thème, AUCUN dégât
+       de prestige, ~2 composants staff via orbes chacune. */
+    const MANCHES_COUPE = [6, 9, 12, 15];
+    const COUPES = {
+      6: { nom: "Les Loups du Comté", ecole: "Kick & Rush" },
+      9: { nom: "Le Onze des Anciens", ecole: "Catenaccio" },
+      12: { nom: "La Bande du Port", ecole: "École de la Rue" },
+      15: { nom: "Les Légendes Invitées", ecole: "La Grinta" },
+    };
+    const BUTIN_COUPE = {
+      6: ["gris", "bleu"], 9: ["bleu", "bleu"], 12: ["bleu", "or"], 15: ["or", "or"],
+    };
+    function genererEquipeCoupe() {
+      const coupe = COUPES[partie.manche];
+      const niveau = Math.min(3 + Math.floor(partie.manche / 4), 9);
+      const taille = TITULAIRES_PAR_NIVEAU[niveau];
+      let budget = Math.min(1 + 1.35 * partie.manche, 21) * 0.8; // battable
+      const compo = [];
+      const besoins = ["GAR"];
+      for (let i = 0; i < taille - 1; i++) besoins.push(["DÉF", "MIL", "ATT"][i % 3]);
+      for (const poste of besoins) {
+        const coutMax = Math.max(1, Math.min(5, Math.floor(budget - (besoins.length - compo.length - 1))));
+        let candidats = tousLesJoueurs.filter((j) => j.poste === poste && j.cout <= coutMax);
+        const fideles = candidats.filter((j) => j.ecole === coupe.ecole);
+        if (fideles.length && Math.random() < 0.75) candidats = fideles;
+        candidats.sort((a, b) => b.cout - a.cout);
+        const choix = candidats[Math.floor(Math.random() * Math.min(3, candidats.length))] || candidats[0];
+        if (choix) { compo.push(choix); budget -= choix.cout; }
+      }
+      return ONZE.equipeDepuisFiches(coupe.nom, coupe.nom, compo);
+    }
+
     const AMICAUX = [
       { nom: "Espoirs Régionaux", taille: 4 },
       { nom: "AS Vétérans", taille: 5 },
@@ -376,6 +430,7 @@
       preparerManche();
       document.querySelectorAll(".volet").forEach((v) => v.remove());
       afficher();
+      lancerChronoMercato();
     }
     const moi = () => partie.coachs[0];
 
@@ -554,7 +609,7 @@
         3: [{ rarete: "or" }],
       };
       const positions = [[1, 0], [1, 1], [2, 0], [2, 1], [3, 0]]
-        .sort(() => Math.random() - 0.5).slice(0, 2);
+        .sort(() => Math.random() - 0.5).slice(0, 3); // 3 composants garantis
       for (const [manche, indice] of positions) plan[manche][indice].staffGaranti = true;
       return plan;
     }
@@ -732,6 +787,7 @@
     function jouerManche() {
       const verdict = verdictFormation();
       if (verdict) return signaler(verdict);
+      arreterChrono();
       autoCompleter();
       const amical = partie.appariement.amical;
 
@@ -872,7 +928,11 @@
       volet.className = "volet";
       volet.innerHTML = html;
       el("app").appendChild(volet);
-      document.getElementById("btn-continuer").addEventListener("click", () => { volet.remove(); continuer(); });
+      document.getElementById("btn-continuer").addEventListener("click", () => { arreterChrono(); volet.remove(); continuer(); });
+      demarrerChrono(30, () => { // ~30 s puis tout s'ouvre et on continue
+        volet.querySelectorAll(".orbe").forEach((o) => o.click());
+        setTimeout(() => { volet.remove(); continuer(); }, 600);
+      });
 
       if (monAdversaire) partie.dernierAdversaire = monAdversaire.nom;
       const resume = amical
@@ -912,6 +972,7 @@
       afficher();
       proposerPhilosophie();
       proposerMercatoHiver();
+      lancerChronoMercato();
     }
 
     /* Le Mercato d'hiver (le carrousel de TFT) : aux manches 8 et 13,
@@ -948,10 +1009,8 @@
             <small style="color:#96A699">${choix.fiche.ecole || "Sans École"} · ${choix.fiche.archetype}</small></button>`;
         }).join("")}
       </div>`;
-      volet.addEventListener("click", (e) => {
-        const bouton = e.target.closest("[data-hiver]");
-        if (!bouton) return;
-        const choix = etal[Number(bouton.dataset.hiver)];
+      const choisirHiver = (indiceChoix) => {
+        const choix = etal[indiceChoix];
         // les joueurs non choisis retournent dans le pool
         etal.forEach((autre, i) => { if (i !== Number(bouton.dataset.hiver)) partie.pool.push(autre.fiche); });
         const copie = { ...choix.fiche, etoiles: 1 };
@@ -962,8 +1021,16 @@
         volet.remove();
         signaler(`❄️ ${choix.fiche.nom} signe au club${choix.carte ? " avec " + choix.carte : ""} !`);
         afficher();
+        lancerChronoMercato();
+      };
+      volet.addEventListener("click", (e) => {
+        const bouton = e.target.closest("[data-hiver]");
+        if (!bouton) return;
+        arreterChrono();
+        choisirHiver(Number(bouton.dataset.hiver));
       });
       el("app").appendChild(volet);
+      demarrerChrono(30, () => choisirHiver(0)); // ~30 s puis premier choix auto
     }
 
     function proposerPhilosophie() {
@@ -980,10 +1047,7 @@
         ${choix.map((p, i) => `<button class="fermer-volet" style="text-align:left" data-philo="${i}">
           ${p.emoji} <strong>${p.nom}</strong><br><small style="color:#96A699">${p.desc}</small></button>`).join("")}
       </div>`;
-      volet.addEventListener("click", (e) => {
-        const bouton = e.target.closest("[data-philo]");
-        if (!bouton) return;
-        const philo = choix[Number(bouton.dataset.philo)];
+      const choisirPhilo = (philo) => {
         partie.philosophies.push(philo.nom);
         if (philo.nom === "Trésor de guerre") partie.or += 10;
         if (philo.nom === "Direction patiente") moi().prestige = Math.min(PRESTIGE_DEPART, moi().prestige + 10);
@@ -992,8 +1056,16 @@
         volet.remove();
         signaler(philo.emoji + " " + philo.nom + " adoptée !");
         afficher();
+        lancerChronoMercato();
+      };
+      volet.addEventListener("click", (e) => {
+        const bouton = e.target.closest("[data-philo]");
+        if (!bouton) return;
+        arreterChrono();
+        choisirPhilo(choix[Number(bouton.dataset.philo)]);
       });
       el("app").appendChild(volet);
+      demarrerChrono(30, () => choisirPhilo(hasardParmi(choix))); // ~30 s puis choix auto
     }
 
     /* ================= Le panneau de détail d'une famille =================
@@ -1091,6 +1163,7 @@
         <div class="classement" style="margin-top:6px">${ligneClassement()}</div>
         <div class="coach" style="margin-top:4px;color:#96A699"><span id="annonce-volet"></span></div>
         ${partie.philosophies.length ? `<div class="coach" style="margin-top:4px"><span>🧭 ${partie.philosophies.join(" · ")}</span></div>` : ""}
+        <button class="fermer-volet" onclick="basculerDetente(); this.closest('.volet').remove()">${modeDetente ? "⏱ Réactiver le chrono (référence)" : "🧘 Mode détente (sans chrono)"}</button>
         <button class="fermer-volet" style="background:#3A2A24;color:#D4A66B" onclick="if (confirm('Abandonner cette partie ?')) recommencerPartie()">🔁 Nouvelle partie</button>
         <details style="margin-top:8px"><summary style="cursor:pointer;color:#96A699;font-size:0.8rem">📜 Historique des manches</summary>
         <div style="font-size:0.76rem;margin-top:4px">${partie.historique.map((h) => `<div class="coach"><span>${h}</span></div>`).join("") || "La saison commence."}</div></details>
@@ -1282,6 +1355,87 @@
     }
 
     /* ================= Affichage de l'écran unique ================= */
+    /* ================= Le chrono de préparation (décision n°22) =================
+       ~35 s de mercato par manche (20 s pendant les amicaux), coup d'envoi
+       automatique à zéro. Les écrans d'événement ont leur propre ~30 s.
+       Urgence visuelle et sonore sur les 5 dernières secondes. L'app en
+       arrière-plan met en pause. « Mode détente » = sans chrono. */
+    const CLE_DETENTE = "onze-mode-detente";
+    let modeDetente = false;
+    try { modeDetente = localStorage.getItem(CLE_DETENTE) === "1"; } catch (e) {}
+    const chrono = { restant: 0, total: 0, intervalle: null, action: null, dernierBip: -1 };
+    let contexteAudio = null;
+    function bip() {
+      try {
+        contexteAudio = contexteAudio || new (window.AudioContext || window.webkitAudioContext)();
+        const osc = contexteAudio.createOscillator(), gain = contexteAudio.createGain();
+        osc.frequency.value = 880; gain.gain.value = 0.08;
+        osc.connect(gain); gain.connect(contexteAudio.destination);
+        osc.start(); osc.stop(contexteAudio.currentTime + 0.08);
+      } catch (e) { /* silencieux si l'audio est bloqué */ }
+    }
+    function demarrerChrono(secondes, action) {
+      arreterChrono();
+      if (modeDetente) return;
+      chrono.restant = secondes; chrono.total = secondes; chrono.action = action; chrono.dernierBip = -1;
+      el("chrono-barre").classList.remove("masque", "urgent");
+      chrono.intervalle = setInterval(() => {
+        if (document.hidden) return; // l'arrière-plan met en pause
+        chrono.restant -= 0.2;
+        const part = Math.max(0, chrono.restant / chrono.total);
+        el("chrono-remplissage").style.width = (part * 100) + "%";
+        if (chrono.restant <= 5) {
+          el("chrono-barre").classList.add("urgent");
+          const seconde = Math.ceil(chrono.restant);
+          if (seconde !== chrono.dernierBip && seconde > 0) { chrono.dernierBip = seconde; bip(); }
+        }
+        if (chrono.restant <= 0) {
+          const action = chrono.action;
+          arreterChrono();
+          if (action) action();
+        }
+      }, 200);
+    }
+    function arreterChrono() {
+      if (chrono.intervalle) clearInterval(chrono.intervalle);
+      chrono.intervalle = null; chrono.action = null;
+      el("chrono-barre").classList.add("masque");
+      el("chrono-barre").classList.remove("urgent");
+    }
+    /* Le chrono de mercato ne part que si aucun écran d'événement n'est ouvert */
+    function lancerChronoMercato() {
+      if (modeDetente || partie.matchEnCours) return;
+      if (document.querySelector(".volet")) return; // un événement a son propre chrono
+      const secondes = partie.manche <= DERNIERE_MANCHE_AMICALE ? 20 : 35;
+      demarrerChrono(secondes, () => { signaler("⏱ Coup d'envoi !"); jouerManche(); });
+    }
+    function basculerDetente() {
+      modeDetente = !modeDetente;
+      try { localStorage.setItem(CLE_DETENTE, modeDetente ? "1" : "0"); } catch (e) {}
+      if (modeDetente) arreterChrono(); else lancerChronoMercato();
+      signaler(modeDetente ? "🧘 Mode détente : plus de chrono." : "⏱ Chrono réactivé — l'expérience de référence.");
+    }
+
+    /* La ligne de progression : icône et « un mot » par manche */
+    function iconeManche(m) {
+      if (m <= DERNIERE_MANCHE_AMICALE) return "🤝";
+      if (MANCHES_MERCATO_HIVER.includes(m)) return "❄️";
+      if (MANCHES_COUPE.includes(m)) return "🏆";
+      if (MANCHES_PHILOSOPHIE.includes(m)) return "🧭";
+      return "⚔️";
+    }
+    function infoManche(m) {
+      let texte;
+      if (m <= DERNIERE_MANCHE_AMICALE) texte = "Amical : aucun dégât — l'essentiel, c'est le butin.";
+      else if (MANCHES_MERCATO_HIVER.includes(m)) texte = "Mercato d'hiver : un joueur offert — les derniers choisissent en premier.";
+      else if (MANCHES_COUPE.includes(m)) texte = "Coupe : adversaire scripté, aucun dégât, ~2 cartes staff à la clé.";
+      else if (MANCHES_PHILOSOPHIE.includes(m)) texte = "Philosophie : un choix parmi 3, définitif — puis match PvP.";
+      else texte = "Match PvP : le perdant perd du prestige.";
+      if (m === partie.manche && partie.appariement && !partie.appariement.amical && !partie.appariement.coupe)
+        texte = "⚔️ " + partie.appariement.nomAdversaire + " — " + texte;
+      signaler(`Manche ${m} · ${texte}`);
+    }
+
     /* ================= Placer une recrue au club =================
        LE point d'entrée de toute acquisition (achat, orbe, duo, hiver,
        Académie des jeunes). Verrou : jamais deux gardiens sur le
@@ -1393,11 +1547,14 @@
             `<span class="badge${carte === "Passeport" ? " presque" : ""}" style="cursor:pointer;display:block;text-align:left" onclick="assignerStaff(${i})">${carte === "Passeport" ? "🛂" : "🧰"} ${carte}</span>`).join("")
         : "";
 
-      // Annonce du prochain adversaire (barre du haut)
-      el("annonce").textContent = partie.matchEnCours ? ""
-        : partie.appariement.amical
-          ? `🤝 ${partie.appariement.nomAdversaire} (aucun dégât)`
-          : `⚔️ Prochain adversaire : ${partie.appariement.nomAdversaire}`;
+      // La ligne de progression des manches (barre de stage TFT)
+      const debutFenetre = Math.max(1, partie.manche - 2);
+      let pastilles = "";
+      for (let m = debutFenetre; m < debutFenetre + 9; m++) {
+        const classe = m < partie.manche ? "passee" : m === partie.manche ? "courante" : "";
+        pastilles += `<span class="pastille-manche ${classe}" onclick="infoManche(${m})">${iconeManche(m)}<small>${m}</small></span>`;
+      }
+      el("progression").innerHTML = pastilles;
 
       // Classement permanent en colonne droite (copie TFT), tap = scouting
       el("classement-liste").innerHTML = partie.coachs.slice()
@@ -1552,6 +1709,7 @@
         afficher();
         proposerPhilosophie();
         proposerMercatoHiver();
+        lancerChronoMercato();
         signaler("💾 Partie reprise — manche " + partie.manche + ".");
         return true;
       } catch (e) { return false; }
