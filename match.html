@@ -6,10 +6,9 @@
   <title>ONZE — Prototype de match</title>
   <style>
     /* ============================================================
-       ONZE — Prototype de résolution de match (phase 1, sur papier)
-       Décision n°5 : match par phases de possession, ~40 s au total,
-       duels zone par zone, tirs façon xG. Zéro action pendant le match.
-       Mobile-first portrait.
+       ONZE — Prototype match v2 : vraies données + synergies
+       Le moteur vit dans match-moteur.js, les 71 joueurs dans
+       design/joueurs.json. Mobile-first portrait.
        ============================================================ */
     * { box-sizing: border-box; }
     body {
@@ -28,92 +27,70 @@
     header h1 span { color: #4FC57C; }
     header p { color: #96A699; margin: 4px 0 0; font-size: 0.85rem; }
 
-    /* ---- Tableau d'affichage (score) ---- */
     .tableau {
-      width: 100%;
-      max-width: 420px;
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: center;
-      gap: 8px;
-      background: #182219;
-      border: 1px solid #24331F;
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 10px;
+      width: 100%; max-width: 420px;
+      display: grid; grid-template-columns: 1fr auto 1fr;
+      align-items: center; gap: 8px;
+      background: #182219; border: 1px solid #24331F;
+      border-radius: 12px; padding: 12px; margin-bottom: 10px;
     }
-    .equipe-nom { font-weight: 700; font-size: 0.95rem; text-align: center; }
-    .equipe-nom small { display: block; font-weight: 400; color: #96A699; font-size: 0.7rem; margin-top: 2px; }
+    .equipe-nom { font-weight: 700; font-size: 0.9rem; text-align: center; }
+    .equipe-nom small { display: block; font-weight: 400; color: #96A699; font-size: 0.68rem; margin-top: 2px; }
     .score {
-      font-size: 2rem;
-      font-weight: 800;
-      background: #0B100C;
-      border-radius: 8px;
-      padding: 4px 14px;
-      min-width: 92px;
-      text-align: center;
+      font-size: 2rem; font-weight: 800;
+      background: #0B100C; border-radius: 8px;
+      padding: 4px 14px; min-width: 92px; text-align: center;
       font-variant-numeric: tabular-nums;
     }
     .chrono { grid-column: 1 / -1; text-align: center; color: #96A699; font-size: 0.8rem; min-height: 1.1em; }
 
-    /* ---- Effectifs (les deux équipes de test) ---- */
     .effectifs {
-      width: 100%;
-      max-width: 420px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 12px;
+      width: 100%; max-width: 420px;
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 8px; margin-bottom: 12px;
     }
     .effectif {
-      background: #182219;
-      border: 1px solid #24331F;
-      border-radius: 10px;
-      padding: 8px;
-      font-size: 0.78rem;
+      background: #182219; border: 1px solid #24331F;
+      border-radius: 10px; padding: 8px; font-size: 0.76rem;
     }
-    .effectif h2 { font-size: 0.8rem; margin: 0 0 6px; color: #4FC57C; }
+    .effectif h2 { font-size: 0.8rem; margin: 0 0 4px; color: #4FC57C; }
+    .synergies { margin: 0 0 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+    .badge {
+      background: #24331F; color: #A9DDB6;
+      border-radius: 6px; padding: 2px 6px;
+      font-size: 0.66rem; font-weight: 700;
+    }
     .effectif ul { list-style: none; margin: 0; padding: 0; }
-    .effectif li { display: flex; justify-content: space-between; padding: 2px 0; color: #C9D6C9; }
-    .effectif .poste { color: #96A699; font-size: 0.7rem; min-width: 30px; }
+    .effectif li { padding: 2px 0; color: #C9D6C9; display: flex; justify-content: space-between; gap: 4px; }
+    .effectif .poste { color: #96A699; font-size: 0.68rem; min-width: 28px; }
+    .effectif .ecole { color: #7E9483; font-size: 0.62rem; text-align: right; }
 
-    /* ---- Bouton principal ---- */
     button.principal {
-      width: 100%;
-      max-width: 420px;
-      background: #4FC57C;
-      color: #0B100C;
-      border: none;
-      border-radius: 12px;
-      padding: 14px;
-      font-size: 1.05rem;
-      font-weight: 800;
-      cursor: pointer;
-      margin-bottom: 14px;
+      width: 100%; max-width: 420px;
+      background: #4FC57C; color: #0B100C;
+      border: none; border-radius: 12px;
+      padding: 14px; font-size: 1.05rem; font-weight: 800;
+      cursor: pointer; margin-bottom: 14px;
     }
     button.principal:disabled { background: #2A3A2C; color: #6C7A6E; }
 
-    /* ---- Récit du match, phase par phase ---- */
-    .recit {
-      width: 100%;
-      max-width: 420px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
+    .recit { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 8px; }
     .phase {
-      background: #182219;
-      border-left: 3px solid #35502F;
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-size: 0.88rem;
-      line-height: 1.45;
+      background: #182219; border-left: 3px solid #35502F;
+      border-radius: 8px; padding: 10px 12px;
+      font-size: 0.88rem; line-height: 1.45;
       animation: apparait 0.4s ease;
     }
     .phase .titre-phase { color: #96A699; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+    .phase .evenement { margin-top: 4px; animation: apparait 0.4s ease; }
     .phase.but { border-left-color: #4FC57C; background: #1B2E1E; }
-    .phase.but .cri { color: #4FC57C; font-weight: 800; font-size: 1rem; }
+    .phase .cri { color: #4FC57C; font-weight: 800; font-size: 1rem; }
     .phase.final { border-left-color: #E8C547; background: #262516; text-align: center; font-weight: 700; }
+    .tag-synergie {
+      display: inline-block; background: #2A3F5A; color: #9CC4EF;
+      border-radius: 6px; padding: 1px 6px; font-size: 0.68rem;
+      font-weight: 700; margin-left: 4px; vertical-align: 1px;
+    }
     @keyframes apparait {
       from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -124,7 +101,7 @@
 
   <header>
     <h1>ON<span>ZE</span></h1>
-    <p>Prototype — match par phases de possession (~40 s)</p>
+    <p>Prototype — phases de possession + synergies (~40 s)</p>
   </header>
 
   <div class="tableau">
@@ -135,197 +112,137 @@
   </div>
 
   <div class="effectifs">
-    <div class="effectif" id="liste-a"></div>
-    <div class="effectif" id="liste-b"></div>
+    <div class="effectif" id="fiche-a"></div>
+    <div class="effectif" id="fiche-b"></div>
   </div>
 
-  <button class="principal" id="btn-simuler">⚽ Simuler le match</button>
+  <button class="principal" id="btn-simuler" disabled>Chargement…</button>
 
   <div class="recit" id="recit"></div>
 
+  <script src="match-moteur.js"></script>
   <script>
     /* ============================================================
-       DONNÉES DE TEST — deux équipes de 5 titulaires (niveau club 1 :
-       on démarre à 5, décision n°4). Joueurs fictifs, décision n°6.
-       Stats simples pour ce prototype :
-         att = qualité offensive, def = qualité défensive (1 à 10).
-       Le GAR n'utilise que def (il arrête les tirs).
+       Deux équipes de test tirées des 71 vrais joueurs :
+       - La Masia Rebelle : Tiki-Taka (possession) + Créateurs
+       - Fortezza Nero    : Catenaccio (défense/contres) + Murs
+       Deux identités opposées = le meilleur démonstrateur.
        ============================================================ */
-    const EQUIPE_A = {
-      nom: "Racing Portuaire",
-      coach: "Coach Gabriel",
-      joueurs: [
-        { nom: "Le Mur",        poste: "GAR", att: 1, def: 7 },
-        { nom: "Capitaine Roc", poste: "DÉF", att: 2, def: 6 },
-        { nom: "La Faucheuse",  poste: "DÉF", att: 3, def: 5 },
-        { nom: "Métronome",     poste: "MIL", att: 5, def: 5 },
-        { nom: "Le Renard",     poste: "ATT", att: 7, def: 2 },
-      ],
-    };
-    const EQUIPE_B = {
-      nom: "Étoile des Faubourgs",
-      coach: "Coach Fantôme",
-      joueurs: [
-        { nom: "Gants d'Acier", poste: "GAR", att: 1, def: 6 },
-        { nom: "Le Verrou",     poste: "DÉF", att: 2, def: 7 },
-        { nom: "Sentinelle",    poste: "DÉF", att: 2, def: 6 },
-        { nom: "L'Artiste",     poste: "MIL", att: 6, def: 4 },
-        { nom: "Boulet Rouge",  poste: "ATT", att: 8, def: 1 },
-      ],
-    };
+    const COMPO_A = { nom: "La Masia Rebelle", coach: "Coach Gabriel",
+      noms: ["Rubén", "Gorka", "Unai", "Xabi", "Aitor"] };
+    const COMPO_B = { nom: "Fortezza Nero", coach: "Coach Fantôme",
+      noms: ["Gianluca", "Aurelio", "Mattia", "Tommaso", "Federico"] };
 
-    /* ============================================================
-       RÉGLAGES DU MATCH (à trancher en phase 1 — valeurs de départ
-       pour le playtest, faciles à retoucher ici)
-       ============================================================ */
-    const NB_PHASES = 8;          // 8 phases de possession par match
-    const DUREE_CIBLE_MS = 40000; // durée totale visée : ~40 secondes
-    const DELAI_PHASE_MS = DUREE_CIBLE_MS / NB_PHASES; // ~5 s par phase
+    const DELAI_PHASE_MS = 5000;     // 8 phases → ~40 s de match
+    const DELAI_EVENEMENT_MS = 1400; // les actions d'une phase s'égrènent
 
-    // Minutes affichées pour habiller le récit (8 phases sur 90 min)
-    const MINUTES = [7, 19, 31, 44, 52, 63, 77, 89];
-
-    /* ---- Petites aides ---- */
-    const de = (max) => Math.floor(Math.random() * max) + 1; // dé de 1 à max
-    const somme = (js, stat) => js.reduce((t, j) => t + j[stat], 0);
-    const parPoste = (eq, poste) => eq.joueurs.filter(j => j.poste === poste);
-    const hasard = (tableau) => tableau[Math.floor(Math.random() * tableau.length)];
-
-    /* ============================================================
-       RÉSOLUTION D'UNE PHASE DE POSSESSION
-       Trois duels lisibles, comme sur le papier :
-       1. MILIEU  — qui gagne le ballon ? (milieux + un peu de hasard)
-       2. ATTAQUE — l'attaque perce-t-elle la défense adverse ?
-       3. TIR     — façon xG : chance de but selon la qualité de l'occasion
-       Chaque étape peut échouer → la phase raconte où ça s'est arrêté.
-       ============================================================ */
-    function resoudrePhase(eqA, eqB) {
-      // Duel n°1 : le milieu. Le vainqueur prend la possession.
-      const forceMilA = somme(parPoste(eqA, "MIL"), "att") + somme(parPoste(eqA, "MIL"), "def");
-      const forceMilB = somme(parPoste(eqB, "MIL"), "att") + somme(parPoste(eqB, "MIL"), "def");
-      const milieuA = forceMilA + de(8);
-      const milieuB = forceMilB + de(8);
-      const attaque = milieuA >= milieuB ? eqA : eqB;
-      const defense = attaque === eqA ? eqB : eqA;
-
-      const porteur = hasard(parPoste(attaque, "MIL"));
-      const finisseur = hasard(parPoste(attaque, "ATT"));
-
-      // Duel n°2 : percer la défense. Attaque vs ligne défensive adverse.
-      const forceAtt = somme(parPoste(attaque, "ATT"), "att") + somme(parPoste(attaque, "MIL"), "att");
-      const forceDef = somme(parPoste(defense, "DÉF"), "def");
-      const percee = forceAtt + de(10) > forceDef + de(10) + 1; // +1 : léger avantage à la défense
-
-      if (!percee) {
-        const defenseur = hasard(parPoste(defense, "DÉF"));
-        return {
-          attaque, defense, but: false,
-          texte: `${porteur.nom} oriente le jeu pour ${attaque.nom}… mais ${defenseur.nom} ferme la porte. La défense de ${defense.nom} tient bon.`,
-        };
-      }
-
-      // Duel n°3 : le tir, façon xG. Qualité de l'occasion vs gardien.
-      const gardien = parPoste(defense, "GAR")[0];
-      const qualiteOccasion = finisseur.att + de(8);        // occasion : talent + réussite
-      const parade = gardien.def + de(6);                    // parade : niveau du gardien + réflexe
-      const but = qualiteOccasion > parade;
-
-      if (but) {
-        return {
-          attaque, defense, but: true, buteur: finisseur,
-          texte: `${porteur.nom} lance ${finisseur.nom} dans la surface… frappe croisée…`,
-          cri: `BUUUT de ${finisseur.nom} pour ${attaque.nom} !`,
-        };
-      }
-      return {
-        attaque, defense, but: false,
-        texte: `${finisseur.nom} se retrouve en position pour ${attaque.nom}… la frappe part… mais ${gardien.nom} s'envole et détourne ! Quel arrêt !`,
-      };
-    }
-
-    /* ============================================================
-       DÉROULÉ DU MATCH — une phase toutes les ~5 s, récit à l'écran
-       ============================================================ */
     const el = (id) => document.getElementById(id);
+    let equipeA = null, equipeB = null;
 
-    function afficherEffectif(conteneur, eq) {
-      conteneur.innerHTML = `<h2>${eq.nom}</h2><ul>` +
-        eq.joueurs.map(j => `<li><span class="poste">${j.poste}</span><span>${j.nom}</span></li>`).join("") +
+    function afficherFiche(conteneur, eq) {
+      conteneur.innerHTML =
+        `<h2>${eq.nom}</h2>` +
+        `<div class="synergies">` +
+        eq.synergies.map((s) => `<span class="badge">${s.nom} ${s.nb}</span>`).join("") +
+        `</div><ul>` +
+        eq.joueurs.map((j) =>
+          `<li><span class="poste">${j.poste}</span><span>${j.nom}</span><span class="ecole">${j.archetype}</span></li>`
+        ).join("") +
         `</ul>`;
     }
 
-    function ajouterPhase(html, classes = "") {
+    function blocPhase(minute, numero) {
       const bloc = document.createElement("div");
-      bloc.className = "phase " + classes;
-      bloc.innerHTML = html;
+      bloc.className = "phase";
+      bloc.innerHTML = `<div class="titre-phase">${minute}ᵉ — Phase ${numero}</div>`;
       el("recit").appendChild(bloc);
       bloc.scrollIntoView({ behavior: "smooth", block: "end" });
+      return bloc;
     }
 
-    function simulerMatch() {
+    function ajouterEvenement(bloc, ev, scores) {
+      const ligne = document.createElement("div");
+      ligne.className = "evenement";
+      let html = ev.texte;
+      if (ev.synergie) html += ` <span class="tag-synergie">✦ ${ev.synergie}</span>`;
+      if (ev.but) {
+        bloc.classList.add("but");
+        html += `<br><span class="cri">⚽ ${ev.cri}</span> <strong>${scores.a} – ${scores.b}</strong>`;
+        el("score-a").textContent = scores.a;
+        el("score-b").textContent = scores.b;
+      }
+      ligne.innerHTML = html;
+      bloc.appendChild(ligne);
+      ligne.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+
+    /* Rejoue le match calculé par le moteur, au rythme du direct */
+    function jouer() {
       const btn = el("btn-simuler");
       btn.disabled = true;
       btn.textContent = "Match en cours…";
       el("recit").innerHTML = "";
-      let scoreA = 0, scoreB = 0;
       el("score-a").textContent = "0";
       el("score-b").textContent = "0";
 
-      let numero = 0;
+      const resultat = ONZE.simulerMatch(equipeA, equipeB);
+      let scores = { a: 0, b: 0 };
+      let attente = 300;
 
-      function phaseSuivante() {
-        numero++;
-        const minute = MINUTES[numero - 1];
-        el("chrono").textContent = `⏱ ${minute}ᵉ minute — phase ${numero}/${NB_PHASES}`;
+      resultat.phases.forEach((phase) => {
+        setTimeout(() => {
+          el("chrono").textContent = `⏱ ${phase.minute}ᵉ minute — phase ${phase.numero}/${ONZE.NB_PHASES}`;
+        }, attente);
+        let bloc = null;
+        setTimeout(((p) => () => { bloc = blocPhase(p.minute, p.numero); })(phase), attente);
+        phase.evenements.forEach((ev) => {
+          attente += DELAI_EVENEMENT_MS;
+          setTimeout(() => {
+            if (ev.but) { if (ev.equipe === equipeA.nom) scores.a++; else scores.b++; }
+            ajouterEvenement(bloc, ev, scores);
+          }, attente);
+        });
+        attente += Math.max(DELAI_PHASE_MS - phase.evenements.length * DELAI_EVENEMENT_MS, 600);
+      });
 
-        const r = resoudrePhase(EQUIPE_A, EQUIPE_B);
-        if (r.but) {
-          if (r.attaque === EQUIPE_A) scoreA++; else scoreB++;
-          el("score-a").textContent = scoreA;
-          el("score-b").textContent = scoreB;
-          ajouterPhase(
-            `<div class="titre-phase">${minute}ᵉ — Phase ${numero}</div>` +
-            `${r.texte}<br><span class="cri">⚽ ${r.cri}</span> <strong>${scoreA} – ${scoreB}</strong>`,
-            "but"
-          );
-        } else {
-          ajouterPhase(
-            `<div class="titre-phase">${minute}ᵉ — Phase ${numero}</div>${r.texte}`
-          );
-        }
-
-        if (numero < NB_PHASES) {
-          setTimeout(phaseSuivante, DELAI_PHASE_MS);
-        } else {
-          setTimeout(finDeMatch, DELAI_PHASE_MS / 2);
-        }
-      }
-
-      function finDeMatch() {
+      setTimeout(() => {
         el("chrono").textContent = "⏱ Coup de sifflet final";
+        const bloc = document.createElement("div");
+        bloc.className = "phase final";
         let verdict;
-        if (scoreA > scoreB) verdict = `🏆 Victoire de ${EQUIPE_A.nom} !`;
-        else if (scoreB > scoreA) verdict = `🏆 Victoire de ${EQUIPE_B.nom} !`;
+        if (resultat.scoreA > resultat.scoreB) verdict = `🏆 Victoire de ${equipeA.nom} !`;
+        else if (resultat.scoreB > resultat.scoreA) verdict = `🏆 Victoire de ${equipeB.nom} !`;
         else verdict = "🤝 Match nul !";
-        const ecart = Math.abs(scoreA - scoreB);
-        const prestige = ecart > 0 ? `<br><small style="color:#96A699">Dégâts de prestige : ${ecart} (écart de buts)</small>` : "";
-        ajouterPhase(
-          `Score final : <strong>${scoreA} – ${scoreB}</strong><br>${verdict}${prestige}`,
-          "final"
-        );
-        btn.disabled = false;
-        btn.textContent = "🔁 Rejouer le match";
-      }
-
-      phaseSuivante();
+        const prestige = resultat.ecart > 0
+          ? `<br><small style="color:#96A699">Dégâts de prestige : ${resultat.ecart} (écart de buts)</small>` : "";
+        bloc.innerHTML = `Score final : <strong>${resultat.scoreA} – ${resultat.scoreB}</strong><br>${verdict}${prestige}`;
+        el("recit").appendChild(bloc);
+        bloc.scrollIntoView({ behavior: "smooth", block: "end" });
+        const btn2 = el("btn-simuler");
+        btn2.disabled = false;
+        btn2.textContent = "🔁 Rejouer le match";
+      }, attente + 400);
     }
 
-    /* ---- Mise en place au chargement ---- */
-    el("nom-a").innerHTML = `${EQUIPE_A.nom}<small>${EQUIPE_A.coach}</small>`;
-    el("nom-b").innerHTML = `${EQUIPE_B.nom}<small>${EQUIPE_B.coach}</small>`;
-    afficherEffectif(el("liste-a"), EQUIPE_A);
-    afficherEffectif(el("liste-b"), EQUIPE_B);
-    el("btn-simuler").addEventListener("click", simulerMatch);
+    /* ---- Chargement des 71 joueurs puis mise en place ---- */
+    fetch("design/joueurs.json")
+      .then((rep) => rep.json())
+      .then((tous) => {
+        equipeA = ONZE.creerEquipe(COMPO_A.nom, COMPO_A.coach, COMPO_A.noms, tous);
+        equipeB = ONZE.creerEquipe(COMPO_B.nom, COMPO_B.coach, COMPO_B.noms, tous);
+        el("nom-a").innerHTML = `${equipeA.nom}<small>${equipeA.coach}</small>`;
+        el("nom-b").innerHTML = `${equipeB.nom}<small>${equipeB.coach}</small>`;
+        afficherFiche(el("fiche-a"), equipeA);
+        afficherFiche(el("fiche-b"), equipeB);
+        const btn = el("btn-simuler");
+        btn.disabled = false;
+        btn.textContent = "⚽ Simuler le match";
+        btn.addEventListener("click", jouer);
+      })
+      .catch((e) => {
+        el("btn-simuler").textContent = "Erreur de chargement des joueurs";
+        console.error(e);
+      });
   </script>
 
 </body>

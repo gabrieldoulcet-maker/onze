@@ -15,6 +15,8 @@ Registre des décisions actées. Une décision qui n'est pas ici n'existe pas.
 8. **F2P strictement cosmétique.** Pas de pay-to-win, pas de gacha compétitif.
 9. **Multijoueur asynchrone d'abord** (lobbies fantômes) ; temps réel seulement si le jeu le mérite, bien plus tard.
 10. **Les trois tests du fun** (re-clic, récit, spectacle) jugent toute décision.
+11. **Le cœur du fun = draft + synergies + staff.** Le système de Staff (composants → spécialisations, façon objets TFT) est le troisième axe qui rend chaque partie unique — système complet dans `design/staff.md`, à intégrer en phase 4.
+12. **Match animé en 2D stylisée en phase 3.** Le récit texte actuel est l'échafaudage ; la cible spectacle est une animation 2D lisible sur téléphone.
 
 ## À trancher (phase 1 — le jeu sur papier)
 
