@@ -348,6 +348,7 @@
         orbesEnAttente: [], verrou: false, dernierAdversaire: null,
         appariement: null, historique: [], exempt: null, matchEnCours: false,
         philosophies: [], philosophiesVues: [], staffEnRetard: null, tailleBoutique: TAILLE_BOUTIQUE,
+        hiversVus: [],
       };
       construirePool();
       nouvelleBoutique(false);
@@ -755,13 +756,14 @@
       const je = moi();
       const vivants = partie.coachs.filter((c) => c.vivant);
       if (!je.vivant || vivants.length === 1) {
+        try { localStorage.removeItem(CLE_SAUVEGARDE); } catch (e) {}
         const place = je.vivant ? 1 : vivants.length + 1;
         const volet = document.createElement("div");
         volet.className = "volet";
         volet.innerHTML = `<div class="panneau" style="text-align:center">
           <div style="font-size:1.2rem;font-weight:800;margin-bottom:8px">${je.vivant ? "🏆 CHAMPION !" : "💔 Éliminé — " + place + "ᵉ sur 8"}</div>
           <div class="classement">${ligneClassement()}</div>
-          <button class="fermer-volet" onclick="this.closest('.volet').remove(); nouvellePartie()">🔁 Nouvelle partie</button>
+          <button class="fermer-volet" onclick="recommencerPartie()">🔁 Nouvelle partie</button>
         </div>`;
         el("app").appendChild(volet);
         return;
@@ -770,6 +772,60 @@
       preparerManche();
       afficher();
       proposerPhilosophie();
+      proposerMercatoHiver();
+    }
+
+    /* Le Mercato d'hiver (le carrousel de TFT) : aux manches 8 et 13,
+       un étal de joueurs dont certains arrivent avec une carte staff.
+       La priorité va aux clubs en difficulté : mieux tu es classé,
+       moins il reste de choix quand ton tour arrive. */
+    const MANCHES_MERCATO_HIVER = [8, 13];
+    function proposerMercatoHiver() {
+      if (!MANCHES_MERCATO_HIVER.includes(partie.manche)) return;
+      if (partie.hiversVus.includes(partie.manche)) return;
+      partie.hiversVus.push(partie.manche);
+      // ton rang au prestige (0 = dernier → premier servi, tout l'étal)
+      const vivants = partie.coachs.filter((c) => c.vivant);
+      const rang = vivants.slice().sort((a, b) => a.prestige - b.prestige).indexOf(moi());
+      const nbChoix = Math.max(2, 6 - rang);
+      const etal = [];
+      for (let i = 0; i < nbChoix; i++) {
+        const fiche = piocherJoueur(3);
+        if (!fiche) break;
+        etal.push({ fiche, carte: Math.random() < 0.5 ? tirerCarteStaff() : null });
+      }
+      if (!etal.length) return;
+      const volet = document.createElement("div");
+      volet.className = "volet";
+      volet.innerHTML = `<div class="panneau" style="text-align:center">
+        <strong>❄️ Le Mercato d'hiver</strong><br>
+        <small style="color:#96A699">Un joueur offert — les clubs en difficulté ont été servis avant toi${rang > 0 ? " (" + rang + " déjà passés)" : ""}.</small>
+        ${etal.map((choix, i) => {
+          const stats = ONZE.genererStats(choix.fiche);
+          return `<button class="fermer-volet" style="text-align:left" data-hiver="${i}">
+            <strong>${ONZE.noteGlobale(stats)} ${choix.fiche.poste} · ${choix.fiche.nom}</strong> <span style="color:#E8C547">${choix.fiche.cout}M</span>
+            ${choix.carte ? ` + 🧰 ${choix.carte}` : ""}<br>
+            <small style="color:#96A699">${choix.fiche.ecole || "Sans École"} · ${choix.fiche.archetype}</small></button>`;
+        }).join("")}
+      </div>`;
+      volet.addEventListener("click", (e) => {
+        const bouton = e.target.closest("[data-hiver]");
+        if (!bouton) return;
+        const choix = etal[Number(bouton.dataset.hiver)];
+        // les joueurs non choisis retournent dans le pool
+        etal.forEach((autre, i) => { if (i !== Number(bouton.dataset.hiver)) partie.pool.push(autre.fiche); });
+        const copie = { ...choix.fiche, etoiles: 1 };
+        if (choix.carte) ONZE.assignerCarte(copie, choix.carte);
+        if (partie.terrain.length < TITULAIRES_PAR_NIVEAU[partie.niveau]) partie.terrain.push(copie);
+        else if (partie.banc.length < TAILLE_BANC) partie.banc.push(copie);
+        else { partie.pool.push(choix.fiche); signaler("Effectif plein — le transfert a capoté !"); volet.remove(); return; }
+        const fusions = ONZE.fusionnerEffectif(partie.terrain, partie.banc);
+        if (fusions.length) celebrerFusions(fusions);
+        volet.remove();
+        signaler(`❄️ ${choix.fiche.nom} signe au club${choix.carte ? " avec " + choix.carte : ""} !`);
+        afficher();
+      });
+      el("app").appendChild(volet);
     }
 
     function proposerPhilosophie() {
@@ -819,6 +875,7 @@
         <div class="classement" style="margin-top:6px">${ligneClassement()}</div>
         <div class="coach" style="margin-top:4px;color:#96A699"><span id="annonce-volet"></span></div>
         ${partie.philosophies.length ? `<div class="coach" style="margin-top:4px"><span>🧭 ${partie.philosophies.join(" · ")}</span></div>` : ""}
+        <button class="fermer-volet" style="background:#3A2A24;color:#D4A66B" onclick="if (confirm('Abandonner cette partie ?')) recommencerPartie()">🔁 Nouvelle partie</button>
         <details style="margin-top:8px"><summary style="cursor:pointer;color:#96A699;font-size:0.8rem">📜 Historique des manches</summary>
         <div style="font-size:0.76rem;margin-top:4px">${partie.historique.map((h) => `<div class="coach"><span>${h}</span></div>`).join("") || "La saison commence."}</div></details>
         <button class="fermer-volet">Fermer</button>
@@ -1042,6 +1099,43 @@
         el("btn-match").textContent = verdict ? "⚽ " + verdict
           : `⚽ Manche ${partie.manche}` + (formationIncomplete() ? " 😬" : "");
       }
+      sauvegarder();
+    }
+
+    /* ================= Sauvegarde locale =================
+       C'est une app : la partie en cours survit au rechargement.
+       On ne sauvegarde jamais en plein match — au pire on rejoue
+       la manche en cours. */
+    const CLE_SAUVEGARDE = "onze-partie-v1";
+    function sauvegarder() {
+      if (!partie || partie.matchEnCours) return;
+      try {
+        const copie = { ...partie, appariement: null, orbesEnAttente: [] };
+        copie.coachs = partie.coachs.map((c) => { const { equipe, ...reste } = c; return reste; });
+        localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify(copie));
+      } catch (e) { /* stockage indisponible : on joue sans filet */ }
+    }
+    function restaurer() {
+      try {
+        const brut = localStorage.getItem(CLE_SAUVEGARDE);
+        if (!brut) return false;
+        const sauvegarde = JSON.parse(brut);
+        if (!sauvegarde || !sauvegarde.coachs || !sauvegarde.terrain) return false;
+        partie = sauvegarde;
+        partie.matchEnCours = false;
+        partie.orbesEnAttente = [];
+        preparerManche();
+        afficher();
+        proposerPhilosophie();
+        proposerMercatoHiver();
+        signaler("💾 Partie reprise — manche " + partie.manche + ".");
+        return true;
+      } catch (e) { return false; }
+    }
+    function recommencerPartie() {
+      try { localStorage.removeItem(CLE_SAUVEGARDE); } catch (e) {}
+      document.querySelectorAll(".volet, .voile-fiche").forEach((v) => v.remove());
+      nouvellePartie();
     }
 
     /* ================= Mise en place ================= */
@@ -1062,7 +1156,7 @@
           const v = ONZE_UI.basculerVitesse();
           el("btn-vitesse").textContent = v === 2 ? "▶️ ×1" : "⏩ ×2";
         });
-        nouvellePartie();
+        if (!restaurer()) nouvellePartie();
       })
       .catch((e) => {
         el("btn-match").textContent = "Erreur de chargement des joueurs";
