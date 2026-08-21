@@ -64,3 +64,14 @@ Exemples : perdre 0-3 à la manche 5 = 2+3 = **5 dégâts** (au lieu de 15 avec 
 ## Ce que ça change au rythme (pourquoi cette courbe est la bonne)
 
 Les 3 manches amicales pauvres forcent les premiers vrais choix dès la manche 4-5 : monter de niveau, relancer, ou capitaliser pour les sponsors. Les paliers d'XP 20 → 36 → 60 créent les fenêtres de tempo (reroll niveau 5–7 vs fast 8-9) sur lesquelles nos profils d'Écoles sont calés. C'est la courbe que Riot règle depuis sept ans — on la prend entière.
+
+## L'économie des cartes staff (cadence calée sur la structure TFT)
+
+| Source | Manches | Composants |
+|---|---|---|
+| Amicaux (orbes) | 1-3 | **3 garantis** au total (la variance porte sur lesquels) — première spécialisation 🧪 possible dès la manche 4, moment de construction voulu |
+| **Matchs de coupe** (PvE intercalés, équivalent Krugs/Loups — aucun dégât de prestige) | 6, 9, 12, 15 | **~2 chacun** via orbes garantis staff |
+| Mercato d'hiver | 8, 13 | parfois une carte attachée au joueur (comme le carrousel TFT) |
+| Philosophie « Organigramme étoffé » | au choix | +2 étalés |
+
+**Total sur une partie complète : ~12-14 composants (4-5 spécialisations)** — dans la fourchette TFT. Équité stricte : même valeur totale de butin pour les 8 coachs. Garanti en simulation : jamais moins de 10 composants sur une partie complète.

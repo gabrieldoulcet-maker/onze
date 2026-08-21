@@ -681,6 +681,10 @@
         partie.appariement = { amical: true, nomAdversaire: "Amical — " + AMICAUX[partie.manche - 1].nom };
         return;
       }
+      if (MANCHES_COUPE.includes(partie.manche)) {
+        partie.appariement = { amical: false, coupe: true, nomAdversaire: "🏆 Coupe — " + COUPES[partie.manche].nom };
+        return;
+      }
       const autres = partie.coachs.filter((c) => c.vivant && c.ia).sort(() => Math.random() - 0.5);
       let indice = autres.findIndex((c) => c.nom !== partie.dernierAdversaire);
       if (indice === -1) indice = 0;
@@ -734,6 +738,8 @@
       let monAdversaire = null, equipeAdverse, resultatsIA = [];
       if (amical) {
         equipeAdverse = genererEquipeAmicale(partie.manche);
+      } else if (partie.appariement.coupe) {
+        equipeAdverse = genererEquipeCoupe();
       } else {
         monAdversaire = partie.appariement.monAdversaire;
         equipeAdverse = monAdversaire.equipe;
@@ -745,6 +751,7 @@
 
       const monEquipe = equipeDuClub();
       const format = formatDuMatch();
+      if (partie.appariement.coupe) { format.phases = Math.min(format.phases, 6); }
       const resultat = ONZE.simulerMatch(monEquipe, equipeAdverse, format.phases);
 
       // Le match se joue SUR le terrain : tableau + journal par-dessus,
@@ -761,7 +768,7 @@
       ONZE_UI.rejouer(resultat, monEquipe, equipeAdverse, {
         chrono: el("chrono"), scoreA: el("score-a"), scoreB: el("score-b"), recit: el("recit"),
       }, () => finDeManche(resultat, monAdversaire, resultatsIA),
-        { sansPrestige: amical, manche: partie.manche, delaiPhase: format.delaiPhase, delaiEvenement: format.delaiEvenement });
+        { sansPrestige: amical || partie.appariement.coupe, manche: partie.manche, delaiPhase: format.delaiPhase, delaiEvenement: format.delaiEvenement });
     }
 
     function appliquerResultat(gagnant, perdant, ecart) {
@@ -774,7 +781,8 @@
 
     function finDeManche(resultat, monAdversaire, resultatsIA) {
       const je = moi();
-      const amical = partie.manche <= DERNIERE_MANCHE_AMICALE;
+      const coupe = partie.appariement && partie.appariement.coupe;
+      const amical = partie.manche <= DERNIERE_MANCHE_AMICALE || coupe;
       const victoire = resultat.scoreA > resultat.scoreB;
       const serieAvantMatch = je.serie;
 
@@ -834,9 +842,11 @@
         signaler("🧰 La carte staff promise est arrivée !");
       }
 
-      partie.orbesEnAttente = amical
-        ? partie.butin[partie.manche].map((orbe) => creerOrbe(orbe.rarete, orbe.staffGaranti))
-        : [];
+      partie.orbesEnAttente = coupe
+        ? BUTIN_COUPE[partie.manche].map((rarete) => creerOrbe(rarete, true)) // ~2 composants garantis
+        : amical
+          ? partie.butin[partie.manche].map((orbe) => creerOrbe(orbe.rarete, orbe.staffGaranti))
+          : [];
 
       // Panneau de fin de manche par-dessus le terrain
       let html = `<div class="panneau">`;
@@ -852,7 +862,7 @@
         (sponsors ? ` +${sponsors} sponsors` : "") + (bonusSerie ? ` +${bonusSerie} série` : "") +
         (bonusVictoire ? ` +1 victoire` : "") + `)</span></div>`;
       if (partie.orbesEnAttente.length) {
-        html += `<div style="text-align:center;margin-top:8px"><strong>🎁 Le butin de l'amical !</strong><br>` +
+        html += `<div style="text-align:center;margin-top:8px"><strong>🎁 ${coupe ? "Le butin de la coupe !" : "Le butin de l'amical !"}</strong><br>` +
           `<small style="color:#96A699">Touche chaque orbe pour l'ouvrir.</small></div><div class="orbes">` +
           partie.orbesEnAttente.map((o, i) => `<button class="orbe ${o.rarete}" onclick="ouvrirOrbe(this, ${i})">🎁</button>`).join("") +
           `</div>`;
