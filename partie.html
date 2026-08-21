@@ -449,6 +449,19 @@
     const BUTIN_COUPE = {
       6: ["gris", "bleu"], 9: ["bleu", "bleu"], 12: ["bleu", "or"], 15: ["or", "or"],
     };
+    /* L'espace de noms des équipes SCRIPTÉES (amicaux, coupes) : jamais
+       un nom du pool des 71 ni des réservistes — le récit ne doit pas
+       faire jouer « Théo » chez les Loups pendant qu'il est en boutique.
+       On garde les STATS des fiches (l'équilibre calibré) mais on
+       neutralise nom et Unique. */
+    const NOMS_SCRIPTES = ["Aldo", "Brunon", "Casimir", "Darius", "Edgard", "Firmin", "Gaspard",
+      "Honoré", "Igor", "Jonas", "Kléber", "Ludo", "Maxence", "Nestor", "Oswald", "Prosper",
+      "Quentino", "Rémi", "Sachao", "Tobias", "Ulrich", "Wilfried", "Yanis", "Zébulon"];
+    function anonymiserScriptes(fiches) {
+      const depart = Math.floor(Math.random() * NOMS_SCRIPTES.length);
+      return fiches.map((fiche, i) => ({ ...fiche, nom: NOMS_SCRIPTES[(depart + i) % NOMS_SCRIPTES.length], unique: null }));
+    }
+
     function genererEquipeCoupe() {
       const coupe = COUPES[partie.manche];
       const niveau = Math.min(3 + Math.floor(partie.manche / 4), 9);
@@ -466,7 +479,7 @@
         const choix = candidats[Math.floor(Math.random() * Math.min(3, candidats.length))] || candidats[0];
         if (choix) { compo.push(choix); budget -= choix.cout; }
       }
-      return ONZE.equipeDepuisFiches(coupe.nom, coupe.nom, compo);
+      return ONZE.equipeDepuisFiches(coupe.nom, coupe.nom, anonymiserScriptes(compo));
     }
 
     const AMICAUX = [
@@ -835,7 +848,7 @@
       // la Sélection relevée n'aligne que DEUX vrais joueurs (MIL + ATT) :
       // un cran au-dessus, pas un mur
       const fiches = postes.map((poste, i) => gabarit.relevee && (poste === "MIL" || poste === "ATT")
-        ? hasardParmi(tousLesJoueurs.filter((j) => j.poste === poste && j.cout === 1))
+        ? anonymiserScriptes([hasardParmi(tousLesJoueurs.filter((j) => j.poste === poste && j.cout === 1))])[0]
         : { nom: ["Gégé", "Bernard", "Paulo", "Kiki", "Dédé"][i], cout: 0, poste, ecole: "", archetype: "", unique: null });
       return ONZE.equipeDepuisFiches(gabarit.nom, gabarit.nom, fiches); // nom seul dans le récit
     }
@@ -879,7 +892,11 @@
     /* ================= Le déroulé des manches ================= */
     function preparerManche() {
       const amical = partie.manche <= DERNIERE_MANCHE_AMICALE;
-      if (aPhilosophie("Académie des jeunes") && partie.banc.length < TAILLE_BANC) {
+      // IDEMPOTENT par manche : restaurer() rappelle preparerManche — les
+      // effets « une fois par manche » ne doivent PAS se rejouer au reload
+      const dejaPreparee = partie.manchePreparee === partie.manche;
+      partie.manchePreparee = partie.manche;
+      if (!dejaPreparee && aPhilosophie("Académie des jeunes") && partie.banc.length < TAILLE_BANC) {
         const jeune = piocherJoueur(1);
         if (jeune) {
           partie.banc.push({ ...jeune, etoiles: 1 });
@@ -913,6 +930,9 @@
       if (indice === -1) indice = autres.findIndex((c) => c.nom !== partie.dernierAdversaire);
       if (indice === -1) indice = 0;
       const monAdversaire = autres.splice(indice, 1)[0];
+      // au re-tirage de la même manche (reload), remplacer la dernière
+      // entrée de la fenêtre au lieu d'en empiler une seconde
+      if (dejaPreparee && (partie.derniersAdversaires || []).length) partie.derniersAdversaires.pop();
       partie.derniersAdversaires = [...(partie.derniersAdversaires || []), monAdversaire.nom].slice(-5);
       const pairesIA = [];
       while (autres.length >= 2) pairesIA.push([autres.shift(), autres.shift()]);
@@ -1231,7 +1251,7 @@
       const choisirHiver = (indiceChoix) => {
         const choix = etal[indiceChoix];
         // les joueurs non choisis retournent dans le pool
-        etal.forEach((autre, i) => { if (i !== Number(bouton.dataset.hiver)) partie.pool.push(autre.fiche); });
+        etal.forEach((autre, i) => { if (i !== indiceChoix) partie.pool.push(autre.fiche); });
         const copie = { ...choix.fiche, etoiles: 1 };
         if (choix.carte) ONZE.assignerCarte(copie, choix.carte);
         if (!placerAuClub(copie)) { partie.pool.push(choix.fiche); signaler("Effectif plein — le transfert a capoté !"); volet.remove(); return; }
