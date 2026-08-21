@@ -137,7 +137,9 @@ const ONZE_UI = (() => {
         else verdict = "🤝 Match nul !";
         const prestige = resultat.ecart > 0 && !options.sansPrestige
           ? `<br><small style="color:#96A699">Dégâts de prestige : ${ONZE.degatsPrestige(resultat.ecart, options.manche)} (base de période + ${resultat.ecart} d'écart)</small>` : "";
-        bloc.innerHTML = `Score final : <strong>${resultat.scoreA} – ${resultat.scoreB}</strong><br>${verdict}${prestige}`;
+        const hdm = ONZE.statsDuMatch ? ONZE.statsDuMatch(resultat, equipeA, equipeB).hommeDuMatch : null;
+        const ligneHdm = hdm ? `<br><small style="color:#E8C547">🌟 Homme du match : ${hdm.nom} (${hdm.equipe}) — le ⚔️ en haut détaille chaque joueur</small>` : "";
+        bloc.innerHTML = `Score final : <strong>${resultat.scoreA} – ${resultat.scoreB}</strong><br>${verdict}${ligneHdm}${prestige}`;
         elements.recit.appendChild(bloc);
         bloc.scrollIntoView({ behavior: "smooth", block: "end" });
         if (auCoupDeSifflet) auCoupDeSifflet();
@@ -149,6 +151,48 @@ const ONZE_UI = (() => {
       if (!etape) return;
       setTimeout(() => { etape.action(); suivante(); }, etape.delai / vitesse);
     })();
+  }
+
+  /* ⚔️ Le recap du match — contributions par joueur (buts, passes
+     décisives, duels gagnés, arrêts), barres proportionnelles,
+     extensible au camp adverse par les onglets. Ouvrable PENDANT le
+     match (il lit le résultat déjà calculé — on n'affiche que le
+     récap final, comme l'épée de TFT). */
+  function ouvrirRecap(resultat, equipeA, equipeB) {
+    const stats = ONZE.statsDuMatch(resultat, equipeA, equipeB);
+    const voile = document.createElement("div");
+    voile.className = "voile-fiche";
+    let campActif = equipeA.nom;
+    const rendre = () => {
+      const lignes = stats.parEquipe[campActif];
+      const maxScore = Math.max(...lignes.map((l) => l.score), 1);
+      const hdm = stats.hommeDuMatch;
+      voile.innerHTML = `<div class="fiche-joueur" style="max-width:460px">
+        <h3>⚔️ Le recap du match</h3>
+        <div class="sous-titre">${hdm ? `🌟 Homme du match : <strong>${hdm.nom}</strong> (${hdm.equipe})` : "Personne ne s'est illustré…"}</div>
+        <div style="margin:6px 0">
+          ${[equipeA, equipeB].map((eq) =>
+            `<button class="onglet-recap" data-camp="${eq.nom.replace(/"/g, "&quot;")}" style="width:auto;margin:0 4px 0 0;padding:5px 10px;font-size:0.7rem;${eq.nom === campActif ? "background:#2E4E39;border-color:#4FC57C" : ""}">${eq.nom}</button>`).join("")}
+        </div>
+        ${lignes.map((l) => `<div class="ligne-stat">
+          <span class="nom-stat">${hdm && l.nom === hdm.nom && campActif === hdm.equipe ? "🌟 " : ""}${l.nom}</span>
+          <span class="barre-stat"><div style="width:${Math.round(100 * l.score / maxScore)}%"></div></span>
+          <span style="font-size:0.64rem;color:#C8D6C9;white-space:nowrap">${[
+            l.buts ? `⚽×${l.buts}` : "", l.passes ? `🎯×${l.passes}` : "",
+            l.duels ? `⚔️×${l.duels}` : "", l.arrets ? `🧤×${l.arrets}` : "",
+          ].filter(Boolean).join(" ") || "—"}</span>
+        </div>`).join("")}
+        <div style="color:#96A699;font-size:0.66rem;margin-top:8px">⚽ buts · 🎯 passes décisives · ⚔️ duels gagnés · 🧤 arrêts</div>
+        <button class="fermer">Fermer</button>
+      </div>`;
+    };
+    rendre();
+    voile.addEventListener("click", (e) => {
+      const onglet = e.target.closest(".onglet-recap");
+      if (onglet) { campActif = onglet.dataset.camp; rendre(); return; }
+      if (e.target === voile || e.target.classList.contains("fermer")) voile.remove();
+    });
+    (document.getElementById("app") || document.body).appendChild(voile);
   }
 
   /* La fiche complète d'un joueur (au tap sur une carte).
@@ -190,5 +234,5 @@ const ONZE_UI = (() => {
     (document.getElementById("app") || document.body).appendChild(voile);
   }
 
-  return { rejouer, badges, basculerVitesse, ouvrirFiche, GLYPHES, glyphe };
+  return { rejouer, badges, basculerVitesse, ouvrirFiche, ouvrirRecap, GLYPHES, glyphe };
 })();

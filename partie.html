@@ -281,6 +281,7 @@
     </div>
     <button id="btn-calepin">📝</button>
     <button id="btn-plein-ecran">⛶</button>
+    <button id="btn-recap" class="masque">⚔️</button>
     <button id="btn-vitesse" class="masque">⏩ ×2</button>
   </div>
 
@@ -869,6 +870,9 @@
       // Le match se joue SUR le terrain : tableau + journal par-dessus,
       // le tiroir reste ouvert (achats → banc)
       partie.matchEnCours = true;
+      // le recap ⚔️ lit le dernier match joué — pendant ET après le match
+      dernierMatch = { resultat, eqA: monEquipe, eqB: equipeAdverse };
+      el("btn-recap").classList.remove("masque");
       el("terrain-scene").style.paddingTop = "76px"; // laisse la place au tableau
       el("tableau-match").classList.remove("masque");
       el("nom-adversaire-match").textContent = "⚔️ " + (amical ? partie.appariement.nomAdversaire : monAdversaire.nom);
@@ -1529,6 +1533,7 @@
        arrière-plan met en pause. « Mode détente » = sans chrono. */
     const CLE_DETENTE = "onze-mode-detente";
     let modeDetente = false;
+    let dernierMatch = null; // { resultat, eqA, eqB } — pour le recap ⚔️
     try { modeDetente = localStorage.getItem(CLE_DETENTE) === "1"; } catch (e) {}
     const chrono = { restant: 0, total: 0, intervalle: null, action: null, dernierBip: -1 };
     let contexteAudio = null;
@@ -2078,6 +2083,9 @@
         el("btn-historique").addEventListener("click", ouvrirClassement);
         el("btn-legende").addEventListener("click", ouvrirLegende);
         el("btn-calepin").addEventListener("click", ouvrirCalepin);
+        el("btn-recap").addEventListener("click", () => {
+          if (dernierMatch) ONZE_UI.ouvrirRecap(dernierMatch.resultat, dernierMatch.eqA, dernierMatch.eqB);
+        });
         // Plein écran (Fullscreen API au premier geste) + verrou paysage natif
         const standalone = window.matchMedia("(display-mode: fullscreen)").matches ||
           window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;

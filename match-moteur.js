@@ -514,6 +514,11 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
   if (improvise) candidatsTir.push(...attaque.joueurs.filter((j) => ligneDe(j) !== "GAR"));
   const finisseur = choisirParmi(attaque, ctx, candidatsTir);
   const gardien = parPoste(defense, "GAR")[0] || { nom: "la cage vide", stats: { reflexes: 5 }, cageVide: true };
+  // la passe décisive : le porteur de la phase, s'il est du bon camp et
+  // n'est pas lui-même le buteur (contres : le porteur reste adverse → null)
+  const passeurPour = (buteur) =>
+    ctx.dernierPorteur && ctx.dernierPorteur.equipe === attaque.nom && ctx.dernierPorteur.nom !== buteur
+      ? ctx.dernierPorteur.nom : null;
 
   if (aUnique(defense, "Il Professore") && !etatDef.professoreUtilise && proba(0.5)) {
     etatDef.professoreUtilise = true;
@@ -566,7 +571,7 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
   if (but) {
     evenements.push({
       type: "but", acteurs: [finisseur.nom, gardien.nom],
-      but: true, buteur: finisseur.nom, equipe: attaque.nom,
+      but: true, buteur: finisseur.nom, passeur: passeurPour(finisseur.nom), equipe: attaque.nom,
       texte: classe
         ? `${finisseur.nom} invente un geste de classe — le gardien est cloué sur place…`
         : varie(
@@ -586,7 +591,7 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
   if (chanceux && proba(0.06 * chanceux)) {
     evenements.push({
       type: "but", acteurs: [finisseur.nom],
-      but: true, buteur: finisseur.nom, equipe: attaque.nom,
+      but: true, buteur: finisseur.nom, passeur: passeurPour(finisseur.nom), equipe: attaque.nom,
       texte: `La frappe de ${finisseur.nom} est repoussée… non ! Poteau RENTRANT ! La chance ${chanceux >= 2 ? "insolente" : "sourit"} !`,
       cri: `BUUUT de ${finisseur.nom} pour ${attaque.nom} !`, synergie: "Chanceux",
     });
@@ -620,7 +625,7 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
     if (secondTir > secondeParade) {
       evenements.push({
         type: "but", acteurs: [finisseur.nom, gardien.nom],
-        but: true, buteur: finisseur.nom, equipe: attaque.nom,
+        but: true, buteur: finisseur.nom, passeur: passeurPour(finisseur.nom), equipe: attaque.nom,
         texte: `La reprise instantanée…`, cri: `BUUUT de ${finisseur.nom} pour ${attaque.nom} !`, synergie: "Double détente",
       });
       return true;
@@ -639,7 +644,7 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
     if (reprise > paradeReprise) {
       evenements.push({
         type: "but", acteurs: [opportuniste.nom, gardien.nom],
-        but: true, buteur: opportuniste.nom, equipe: attaque.nom,
+        but: true, buteur: opportuniste.nom, passeur: passeurPour(opportuniste.nom), equipe: attaque.nom,
         texte: `Reprise à bout portant…`, cri: `BUUUT de ${opportuniste.nom} pour ${attaque.nom} !`, synergie: null,
       });
       return true;
@@ -746,6 +751,8 @@ function resoudrePhase(eqA, eqB, ctx) {
       ),
       synergie: s(attaque, "Tiki-Taka") && proba(0.25) ? "Tiki-Taka" : null, equipe: attaque.nom,
     });
+    // mémorisé pour créditer la passe décisive si la phase finit au fond
+    ctx.dernierPorteur = { nom: porteur.nom, equipe: attaque.nom };
   }
   const defense = attaque === eqA ? eqB : eqA;
 
@@ -924,12 +931,66 @@ function fusionnerEffectif(terrain, banc) {
   return fusions;
 }
 
+/* ============================================================
+   LE RECAP DU MATCH — contributions par joueur, dérivées du flux
+   d'événements (le moteur reste la seule source de vérité) :
+   buts, passes décisives, duels gagnés (milieu, percées stoppées,
+   gestes), arrêts du gardien. L'« homme du match » est le meilleur
+   score pondéré des deux camps.
+   ============================================================ */
+function statsDuMatch(resultat, eqA, eqB) {
+  const camps = {};
+  const fiches = {}; // nom → { equipe, poste }
+  for (const eq of [eqA, eqB]) {
+    camps[eq.nom] = {};
+    for (const j of eq.joueurs) {
+      fiches[j.nom] = { equipe: eq.nom, poste: j.poste };
+      camps[eq.nom][j.nom] = { nom: j.nom, poste: j.poste, buts: 0, passes: 0, duels: 0, arrets: 0 };
+    }
+  }
+  const ligneDeStat = (nom) => {
+    const f = fiches[nom];
+    return f ? camps[f.equipe][nom] : null; // « la cage vide » et cie → ignorés
+  };
+  for (const phase of resultat.phases) {
+    for (const ev of phase.evenements) {
+      if (ev.but) {
+        const buteur = ligneDeStat(ev.buteur);
+        if (buteur) buteur.buts++;
+        const passeur = ev.passeur && ligneDeStat(ev.passeur);
+        if (passeur) passeur.passes++;
+      } else if (ev.type === "arret") {
+        const gardien = ligneDeStat(ev.acteurs[1]);
+        if (gardien) gardien.arrets++;
+      } else if (ev.type === "possession" || ev.type === "percee_stoppee" ||
+                 ev.type === "interception" || ev.type === "geste") {
+        const acteur = ligneDeStat(ev.acteurs[0]);
+        if (acteur) acteur.duels++;
+      }
+    }
+  }
+  const note = (l) => l.buts * 5 + l.passes * 3 + l.arrets * 2.5 + l.duels * 1.5;
+  let hommeDuMatch = null;
+  const parEquipe = {};
+  for (const eq of [eqA, eqB]) {
+    parEquipe[eq.nom] = Object.values(camps[eq.nom])
+      .map((l) => ({ ...l, score: note(l) }))
+      .sort((a, b) => b.score - a.score);
+    for (const l of parEquipe[eq.nom]) {
+      if (l.score > 0 && (!hommeDuMatch || l.score > hommeDuMatch.score)) {
+        hommeDuMatch = { ...l, equipe: eq.nom };
+      }
+    }
+  }
+  return { parEquipe, hommeDuMatch };
+}
+
 /* ---- Export navigateur + node ---- */
 const ONZE = {
   creerEquipe, equipeDepuisFiches, simulerMatch, calculerSynergies,
   genererStats, noteGlobale, statsSignatures, adnClub, NOMS_STATS,
   fusionnerEffectif, degatsPrestige, NB_PHASES, PALIERS_ECOLES, PALIERS_ARCHETYPES,
-  COMPOSANTS_STAFF, SPECIALISATIONS, EMBLEMES, assignerCarte,
+  COMPOSANTS_STAFF, SPECIALISATIONS, EMBLEMES, assignerCarte, statsDuMatch,
 };
 if (typeof module !== "undefined") module.exports = ONZE;
 if (typeof window !== "undefined") window.ONZE = ONZE;
