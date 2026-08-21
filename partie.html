@@ -226,6 +226,20 @@
     .zone-vente.active { display: flex; }
     .zone-vente.cible { background: #4a2f24; color: #FFD9A0; }
 
+    /* Le Calepin : les joueurs planifiés brillent en boutique ;
+       l'éclat de fusion : ★★ si 2 copies possédées (or si 3★ en vue) */
+    .carte-boutique.planifie { border-color: #9CC4EF; box-shadow: 0 0 10px rgba(156, 196, 239, 0.5); }
+    .carte-boutique.eclat { border-color: #4FC57C; box-shadow: 0 0 12px rgba(79, 197, 124, 0.65); animation: eclatPulse 1.4s ease infinite; }
+    .carte-boutique.eclat-or { border-color: #E8C547; box-shadow: 0 0 14px rgba(232, 197, 71, 0.8); animation: eclatPulse 1.1s ease infinite; }
+    @keyframes eclatPulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.25); } }
+    .badge-eclat { position: absolute; top: 2px; right: 4px; font-size: 0.6rem; color: #E8C547; font-weight: 800; }
+    .galerie { display: flex; flex-wrap: wrap; gap: 4px; }
+    .galerie .carte-galerie {
+      flex: 0 0 31%; background: #182219; border: 1px solid #24331F; border-radius: 8px;
+      padding: 4px; font-size: 0.62rem; cursor: pointer; color: #C9D6C9;
+    }
+    .galerie .carte-galerie.epingle { border-color: #9CC4EF; box-shadow: 0 0 8px rgba(156, 196, 239, 0.5); }
+
     .message-flottant {
       position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%);
       color: #E88C7D; font-size: 0.75rem; z-index: 90; background: #0B100CDD;
@@ -265,6 +279,7 @@
       <div class="rangee-pastilles" id="progression"></div>
       <div class="chrono-barre masque" id="chrono-barre"><div id="chrono-remplissage"></div></div>
     </div>
+    <button id="btn-calepin">📝</button>
     <button id="btn-plein-ecran">⛶</button>
     <button id="btn-vitesse" class="masque">⏩ ×2</button>
   </div>
@@ -457,7 +472,7 @@
         orbesEnAttente: [], verrou: false, dernierAdversaire: null,
         appariement: null, historique: [], exempt: null, matchEnCours: false,
         philosophies: [], philosophiesVues: [], staffEnRetard: null, tailleBoutique: TAILLE_BOUTIQUE,
-        hiversVus: [],
+        hiversVus: [], calepin: [],
         compteurs: { relances: 0, verrous: 0, ventesManche: 0, scoutsManche: 0, orbeOr: 0,
           specsCreees: 0, emblemes: 0, premierHiver: 0, sansEncaisser: 0, onzeInchange: 0,
           derniereCompo: null, aeriensMatch: 0, bourreau: 0, remontada: 0, phenix: 0,
@@ -1167,6 +1182,54 @@
       else ouvrirFamille(nom, equipeDuClub(), false);
     });
 
+    /* ================= 📝 Le Calepin du recruteur (Team Planner) =================
+       Épingle ta compo rêvée (jusqu'à 11) depuis la galerie des 71
+       joueurs (+ Icônes découvertes) : ces joueurs BRILLENT en boutique,
+       et le calepin montre les paliers que ta cible activerait.
+       « Photographier mon équipe » importe l'existant. */
+    function ouvrirCalepin() {
+      const volet = document.createElement("div");
+      volet.className = "volet";
+      const rendre = () => {
+        const cibles = partie.calepin.map((nom) => tousLesJoueurs.find((j) => j.nom === nom)).filter(Boolean);
+        const apercu = cibles.length ? ONZE.equipeDepuisFiches("Cible", "Toi", cibles) : null;
+        const disponibles = [...tousLesJoueurs].sort((a, b) => a.cout - b.cout || a.nom.localeCompare(b.nom));
+        volet.innerHTML = `<div class="panneau" style="max-width:560px">
+          <strong>📝 Le Calepin du recruteur</strong>
+          <small style="color:#96A699">· ${partie.calepin.length}/11 épinglés — ils brilleront en boutique</small>
+          <div style="margin:6px 0">
+            <button class="fermer-volet" style="width:auto;margin:0;padding:6px 10px" data-action="photo">📸 Photographier mon équipe</button>
+            <button class="fermer-volet" style="width:auto;margin:0;padding:6px 10px" data-action="vider">🗑 Vider</button>
+          </div>
+          ${apercu ? `<div class="synergies" style="margin-bottom:6px">${ONZE_UI.badges(apercu)}</div>` : ""}
+          <div class="galerie">${disponibles.map((j) => {
+            const epingle = partie.calepin.includes(j.nom);
+            return `<div class="carte-galerie${epingle ? " epingle" : ""}" data-nom="${j.nom.replace(/"/g, "&quot;")}">
+              <span class="pastille p-${j.poste}">${ONZE_UI.GLYPHES.postes[j.poste]}</span>
+              <strong>${j.nom}</strong> <span style="color:#E8C547">${j.cout}M</span><br>
+              <span class="glyphes-famille">${ONZE_UI.glyphe(j.ecole)}${ONZE_UI.glyphe(j.archetype)}</span></div>`;
+          }).join("")}</div>
+          <button class="fermer-volet" data-action="fermer">Fermer</button>
+        </div>`;
+      };
+      rendre();
+      volet.addEventListener("click", (e) => {
+        if (e.target === volet) return volet.remove();
+        const action = e.target.closest("[data-action]") && e.target.closest("[data-action]").dataset.action;
+        if (action === "fermer") { volet.remove(); afficher(); return; }
+        if (action === "photo") { partie.calepin = partie.terrain.filter((j) => !j.icone || true).map((j) => j.nom.replace(/ ★+$/, "")).slice(0, 11); rendre(); return; }
+        if (action === "vider") { partie.calepin = []; rendre(); return; }
+        const carte = e.target.closest("[data-nom]");
+        if (!carte) return;
+        const nom = carte.dataset.nom;
+        if (partie.calepin.includes(nom)) partie.calepin = partie.calepin.filter((x) => x !== nom);
+        else if (partie.calepin.length < 11) partie.calepin.push(nom);
+        else return signaler("11 épinglés maximum.");
+        rendre();
+      });
+      el("app").appendChild(volet);
+    }
+
     /* La légende complète des pastilles et glyphes */
     function ouvrirLegende() {
       const volet = document.createElement("div");
@@ -1251,7 +1314,19 @@
       el("app").appendChild(voile);
     }
 
-    /* ================= Le staff : assignation ================= */
+    /* ================= Le staff : l'arbre d'assignation =================
+       Tap sur une carte → ses 9 combos, l'aperçu EN DIRECT de ce que
+       chaque joueur deviendrait, et une CONFIRMATION avant toute fusion
+       (elle est définitive). Le Labo 🧪 expose la grille des 36. */
+    function apercuCombo(carteA, carteB) {
+      if (carteA === "Passeport" && carteB === "Passeport") return "🌍 Citoyen du monde";
+      if (carteA === "Passeport" || carteB === "Passeport") {
+        const composant = carteA === "Passeport" ? carteB : carteA;
+        return "🛂 Emblème " + (ONZE.EMBLEMES[composant] || "?");
+      }
+      const combo = ONZE.SPECIALISATIONS[[carteA, carteB].sort().join(" + ")];
+      return combo ? "🧪 " + combo.nom : null;
+    }
     function assignerStaff(indiceCarte) {
       const carte = partie.staff[indiceCarte];
       if (!carte) return;
@@ -1259,37 +1334,88 @@
         ...partie.terrain.map((j, i) => ({ j, ref: "terrain:" + i })),
         ...partie.banc.map((j, i) => ({ j, ref: "banc:" + i })),
       ];
+      const combos = Object.keys(ONZE.COMPOSANTS_STAFF)
+        .map((autre) => `${autre === carte ? "×2" : "+ " + autre} → ${apercuCombo(carte, autre) || "—"}`);
       const voile = document.createElement("div");
       voile.className = "voile-fiche";
-      voile.innerHTML = `<div class="fiche-joueur" style="max-width:320px">
+      voile.innerHTML = `<div class="fiche-joueur" style="max-width:340px">
         <h3>🧰 ${carte}</h3>
         <div class="sous-titre">${carte === "Passeport" ? "Combiné, il donne un emblème d'École." :
-          "Choisis le joueur qui reçoit cette carte (2 cartes = spécialisation)."}</div>
+          "Seule : petit bonus. Deux cartes sur le même joueur = spécialisation DÉFINITIVE."}</div>
+        <details style="margin-bottom:6px"><summary style="cursor:pointer;color:#96A699;font-size:0.72rem">🌳 Ses ${combos.length} combinaisons</summary>
+          <div style="font-size:0.68rem;color:#C9D6C9">${combos.map((c) => `<div>${c}</div>`).join("")}</div></details>
         ${tous.map(({ j, ref }) => {
+          const enAttente = (j.staffCartes || [])[0];
+          const resultat = enAttente ? apercuCombo(enAttente, carte) : null;
           const slots = (j.staffCartes || []).length + (j.specialisations || []).length;
           return `<button class="fermer" style="text-align:left" data-ref="${ref}">
-            ${j.poste} ${j.nom}${(j.etoiles || 1) >= 2 ? " " + "★".repeat(j.etoiles) : ""}
-            ${slots ? " · 🧪" + slots : ""}${j.staffCartes && j.staffCartes.length ? " (" + j.staffCartes.join(", ") + ")" : ""}</button>`;
+            ${j.poste} ${j.nom}${(j.etoiles || 1) >= 2 ? " " + "★".repeat(j.etoiles) : ""}${slots >= 3 ? " · PLEIN" : ""}
+            ${resultat ? `<br><small style="color:#E8C547">⚗️ ${enAttente} + ${carte} → ${resultat}</small>`
+              : enAttente ? `<br><small style="color:#96A699">porte ${enAttente}</small>` : ""}</button>`;
         }).join("")}
+        <button class="fermer" data-ref="labo">🧪 Le Labo (les 36 spécialisations)</button>
         <button class="fermer" data-ref="annuler">Annuler</button>
       </div>`;
       voile.addEventListener("click", (e) => {
-        const ref = e.target.dataset && e.target.dataset.ref;
+        const ref = e.target.closest("[data-ref]") && e.target.closest("[data-ref]").dataset.ref;
         if (e.target === voile) return voile.remove();
         if (!ref) return;
         voile.remove();
         if (ref === "annuler") return;
+        if (ref === "labo") return ouvrirLabo();
         const [nomListe, indice] = ref.split(":");
         const fiche = partie[nomListe][Number(indice)];
-        const resultat = ONZE.assignerCarte(fiche, carte);
-        if (!resultat.ok) return signaler(resultat.raison);
-        partie.staff.splice(indiceCarte, 1);
-        if (resultat.evenement.type === "spec") partie.compteurs.specsCreees++;
-        if (resultat.evenement.type === "embleme") partie.compteurs.emblemes++;
-        celebrerStaff(resultat.evenement);
-        afficher();
+        const enAttente = (fiche.staffCartes || [])[0];
+        const fusion = enAttente ? apercuCombo(enAttente, carte) : null;
+        if (fusion) {
+          // confirmation : une fusion est définitive
+          const confirmation = document.createElement("div");
+          confirmation.className = "voile-fiche";
+          confirmation.innerHTML = `<div class="fiche-joueur" style="max-width:300px;text-align:center">
+            <h3>⚗️ Fusionner ?</h3>
+            <div class="sous-titre">${enAttente} + ${carte} sur ${fiche.nom}<br>→ <strong>${fusion}</strong></div>
+            <div style="color:#E88C7D;font-size:0.72rem;margin-bottom:6px">C'est définitif.</div>
+            <button class="fermer" data-choix="oui" style="background:#4FC57C;color:#0B100C">Fusionner</button>
+            <button class="fermer" data-choix="non">Annuler</button>
+          </div>`;
+          confirmation.addEventListener("click", (e2) => {
+            const choix = e2.target.dataset && e2.target.dataset.choix;
+            if (e2.target === confirmation || choix === "non") return confirmation.remove();
+            if (choix === "oui") { confirmation.remove(); appliquerCarte(fiche, carte, indiceCarte); }
+          });
+          el("app").appendChild(confirmation);
+          return;
+        }
+        appliquerCarte(fiche, carte, indiceCarte);
       });
       el("app").appendChild(voile);
+    }
+    function appliquerCarte(fiche, carte, indiceCarte) {
+      const resultat = ONZE.assignerCarte(fiche, carte);
+      if (!resultat.ok) return signaler(resultat.raison);
+      partie.staff.splice(indiceCarte, 1);
+      if (resultat.evenement.type === "spec") partie.compteurs.specsCreees++;
+      if (resultat.evenement.type === "embleme") partie.compteurs.emblemes++;
+      celebrerStaff(resultat.evenement);
+      afficher();
+    }
+    /* 🧪 Le Labo : la grille des 36 spécialisations + les emblèmes */
+    function ouvrirLabo() {
+      const volet = document.createElement("div");
+      volet.className = "volet";
+      const possedees = new Set([...partie.terrain, ...partie.banc].flatMap((j) => j.specialisations || []));
+      volet.innerHTML = `<div class="panneau">
+        <strong>🧪 Le Labo — les 36 spécialisations</strong>
+        <div style="font-size:0.68rem;margin-top:6px">${Object.entries(ONZE.SPECIALISATIONS).map(([combo, spec]) =>
+          `<div class="coach" style="display:block;margin-top:2px${possedees.has(spec.nom) ? ";border-left:3px solid #4FC57C;padding-left:5px" : ""}">
+            <strong>${spec.nom}</strong> <small style="color:#96A699">(${combo})</small>${spec.effet ? `<br><small style="color:#9CC4EF">${spec.effet}</small>` : ""}</div>`).join("")}</div>
+        <div style="margin-top:8px;font-size:0.68rem"><strong>🛂 Les emblèmes (Passeport +)</strong><br>
+          ${Object.entries(ONZE.EMBLEMES).map(([c, e]) => `${c} → ${e}`).join(" · ")}<br>
+          Passeport ×2 → 🌍 Citoyen du monde</div>
+        <button class="fermer-volet">Fermer</button>
+      </div>`;
+      volet.addEventListener("click", (e) => { if (e.target === volet || e.target.classList.contains("fermer-volet")) volet.remove(); });
+      el("app").appendChild(volet);
     }
     function celebrerStaff(evenement) {
       if (!evenement || evenement.type === "composant") return;
@@ -1542,6 +1668,10 @@
       el("banc").innerHTML = partie.banc.length
         ? partie.banc.map((fiche, i) => jetonHTML(fiche, "banc", i)).join("")
         : `<div class="jeton vide" style="flex:1">Banc vide (${TAILLE_BANC} places)</div>`;
+      const copiesPossedees = (nom) => [...partie.terrain, ...partie.banc]
+        .filter((j) => j.nom === nom && (j.etoiles || 1) === 1 && !j.icone).length;
+      const aDeuxEtoiles = (nom) => [...partie.terrain, ...partie.banc]
+        .some((j) => j.nom === nom && (j.etoiles || 1) === 2);
       el("boutique").innerHTML = partie.boutique.map((fiche, i) => {
         if (!fiche) return `<div class="carte-boutique vendue">—</div>`;
         if (fiche.estIcone) {
@@ -1556,7 +1686,12 @@
         const stats = ONZE.genererStats(fiche);
         const note = ONZE.noteGlobale(stats);
         const signatures = ONZE.statsSignatures(stats).map((x) => `${x.nom} ${x.valeur}`).join(" · ");
-        return `<div class="carte-boutique cout-${fiche.cout}" onclick="ONZE_UI.ouvrirFiche(tousLesJoueurs.find((j) => j.nom === '${fiche.nom.replace(/'/g, "\\'")}'))">
+        const copies = copiesPossedees(fiche.nom);
+        const eclatOr = copies === 2 && aDeuxEtoiles(fiche.nom);
+        const eclat = copies >= 2 ? (eclatOr ? "eclat-or" : "eclat") : "";
+        const planifie = partie.calepin.includes(fiche.nom) ? "planifie" : "";
+        const badgeEclat = copies >= 2 ? `<span class="badge-eclat">${eclatOr ? "★★★" : "★★"}</span>` : (copies === 1 ? `<span class="badge-eclat" style="color:#96A699">•2/3</span>` : "");
+        return `<div class="carte-boutique cout-${fiche.cout} ${eclat} ${planifie}" style="position:relative" onclick="ONZE_UI.ouvrirFiche(tousLesJoueurs.find((j) => j.nom === '${fiche.nom.replace(/'/g, "\\'")}'))">${badgeEclat}
           <span class="haut"><span>${note} ${pastilleHTML(fiche)}</span><span class="prix">${fiche.cout}M</span></span>
           <span><strong>${fiche.nom}</strong></span>
           <span class="signatures">${signatures}</span>
@@ -1942,6 +2077,7 @@
         el("btn-xp").addEventListener("click", acheterXP);
         el("btn-historique").addEventListener("click", ouvrirClassement);
         el("btn-legende").addEventListener("click", ouvrirLegende);
+        el("btn-calepin").addEventListener("click", ouvrirCalepin);
         // Plein écran (Fullscreen API au premier geste) + verrou paysage natif
         const standalone = window.matchMedia("(display-mode: fullscreen)").matches ||
           window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
