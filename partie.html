@@ -255,6 +255,7 @@
 
   <script src="match-moteur.js"></script>
   <script src="icones.js"></script>
+  <script src="synergies-data.js"></script>
   <script src="match-ui.js"></script>
   <script>
     /* ============================================================
@@ -951,6 +952,64 @@
       el("app").appendChild(volet);
     }
 
+    /* ================= Le panneau de détail d'une famille =================
+       Tap sur un badge de synergie (actif ou éteint ✨), chez soi ou en
+       scouting : identité, paliers (actif en surbrillance), contributeurs,
+       et le teaser du palier suivant (boutique ou pool). */
+    function ouvrirFamille(nom, equipe, estAdverse) {
+      const fiche = ONZE_FAMILLES[nom];
+      if (!fiche) return;
+      const type = ONZE_UI.GLYPHES.ecoles[nom] ? "ecole" : "archetype";
+      const paliers = (type === "ecole" ? ONZE.PALIERS_ECOLES[nom] : ONZE.PALIERS_ARCHETYPES[nom]) || [];
+      const appartient = (j) => type === "ecole"
+        ? (j.ecole === nom || j.ecoleBonus === nom)
+        : j.archetype === nom;
+      const compte = equipe.joueurs.filter(appartient).length +
+        (type === "ecole" && !estAdverse ? partie.banc.filter(appartient).length * 0 : 0);
+      // contributeurs : terrain (+ banc pour mon club)
+      const contributeurs = estAdverse
+        ? equipe.joueurs.filter(appartient).map((j) => j.nom)
+        : [...partie.terrain.filter(appartient).map((j) => j.nom + " (titulaire)"),
+           ...partie.banc.filter(appartient).map((j) => j.nom + " (banc)")];
+      const actif = paliers.filter((seuil) => compte >= seuil).length;
+      const palierActif = actif > 0 ? paliers[actif - 1] : null;
+      // le teaser du palier suivant
+      let teaser = "";
+      if (!estAdverse) {
+        const prochain = paliers.find((seuil) => seuil > compte);
+        if (prochain) {
+          const manquant = prochain - compte;
+          const enBoutique = partie.boutique.find((c) => c && !c.estIcone && appartient(c));
+          const auPool = new Set(partie.pool.filter(appartient).map((j) => j.nom)).size;
+          teaser = manquant === 1 && enBoutique
+            ? `✨ Encore 1 — <strong>${enBoutique.nom} (${enBoutique.cout}M)</strong> est en boutique !`
+            : `Encore ${manquant} pour le palier ${prochain} — ${auPool} joueur${auPool > 1 ? "s" : ""} de cette famille encore dans le pool.`;
+        }
+      }
+      const volet = document.createElement("div");
+      volet.className = "volet";
+      volet.innerHTML = `<div class="panneau">
+        <strong>${ONZE_UI.glyphe(nom)} ${nom}</strong> <small style="color:#96A699">· ${compte} aligné${compte > 1 ? "s" : ""}${estAdverse ? " (adversaire)" : ""}</small>
+        <div style="font-style:italic;color:#C9D6C9;font-size:0.78rem;margin:6px 0">${fiche.identite}</div>
+        ${fiche.paliers.map(([seuil, effet]) => `<div class="coach" style="display:block;margin-top:3px;${seuil === palierActif ? "border-left:3px solid #4FC57C;padding-left:6px" : compte >= seuil ? "" : "opacity:0.45"}">
+          <strong>${seuil}</strong> — ${effet}${seuil === palierActif ? " ✅" : ""}</div>`).join("")}
+        ${contributeurs.length ? `<div class="coach" style="display:block;margin-top:6px"><small>👥 ${contributeurs.join(" · ")}</small></div>` : ""}
+        ${teaser ? `<div class="coach" style="display:block;margin-top:6px;color:#9CC4EF"><small>${teaser}</small></div>` : ""}
+        <button class="fermer-volet">Fermer</button>
+      </div>`;
+      volet.addEventListener("click", (e) => { if (e.target === volet || e.target.classList.contains("fermer-volet")) volet.remove(); });
+      el("app").appendChild(volet);
+    }
+    // délégation : tout badge marqué data-famille ouvre le panneau
+    document.addEventListener("click", (e) => {
+      const badge = e.target.closest("[data-famille]");
+      if (!badge) return;
+      const nom = badge.dataset.famille;
+      const vestiaire = badge.closest("[data-equipe-adverse]");
+      if (vestiaire && vestiaire.equipeScoutee) ouvrirFamille(nom, vestiaire.equipeScoutee, true);
+      else ouvrirFamille(nom, equipeDuClub(), false);
+    });
+
     /* La légende complète des pastilles et glyphes */
     function ouvrirLegende() {
       const volet = document.createElement("div");
@@ -1016,6 +1075,8 @@
       const maxAxe = Math.max(...valeursAxes), minAxe = Math.min(...valeursAxes);
       const voile = document.createElement("div");
       voile.className = "voile-fiche";
+      voile.setAttribute("data-equipe-adverse", coach ? "1" : "");
+      voile.equipeScoutee = coach ? equipe : null;
       voile.innerHTML = `<div class="fiche-joueur">
         <h3>🔎 ${equipe.nom}</h3>
         <div class="sous-titre">${coach ? "École " + coach.ecole + " · vestiaire scouté" : "ton propre vestiaire"}</div>
