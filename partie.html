@@ -848,13 +848,35 @@
         partie.appariement = { amical: false, coupe: true, nomAdversaire: "🏆 Coupe — " + COUPES[partie.manche].nom };
         return;
       }
+      // La fenêtre d'appariement dégressive (backlog 2) : pas deux fois le
+      // même adversaire dans les N dernières manches — N = vivants − 3,
+      // borné à 1..5 (donc 5 à 8 vivants, et retour à 1 à 3 survivants).
       const autres = partie.coachs.filter((c) => c.vivant && c.ia).sort(() => Math.random() - 0.5);
-      let indice = autres.findIndex((c) => c.nom !== partie.dernierAdversaire);
+      const fenetre = Math.max(1, Math.min(5, (autres.length + 1) - 3));
+      const recents = (partie.derniersAdversaires || []).slice(-fenetre);
+      let indice = autres.findIndex((c) => !recents.includes(c.nom));
+      if (indice === -1) indice = autres.findIndex((c) => c.nom !== partie.dernierAdversaire);
       if (indice === -1) indice = 0;
       const monAdversaire = autres.splice(indice, 1)[0];
+      partie.derniersAdversaires = [...(partie.derniersAdversaires || []), monAdversaire.nom].slice(-5);
       const pairesIA = [];
       while (autres.length >= 2) pairesIA.push([autres.shift(), autres.shift()]);
-      partie.exempt = autres.length ? autres[0] : null;
+      // Le clone fantôme (backlog 1) : plus d'exempt — le coach en
+      // surnombre affronte l'« Équipe B » (clone) d'un club vivant,
+      // entité à part entière ; le club cloné ne risque rien.
+      partie.exempt = null;
+      if (autres.length) {
+        const seul = autres[0];
+        const sources = partie.coachs.filter((c) => c.vivant && c !== seul);
+        const source = sources[Math.floor(Math.random() * sources.length)];
+        const equipeSource = source.ia ? (source.equipe || genererEquipeIA(source)) : equipeDuClub();
+        const fantome = {
+          nom: "Équipe B — " + source.nom, ia: true, fantome: true, vivant: true,
+          prestige: source.prestige, serie: 0,
+          equipe: { ...equipeSource, nom: "Équipe B — " + source.nom },
+        };
+        pairesIA.push([seul, fantome]);
+      }
       partie.appariement = { amical: false, monAdversaire, pairesIA, nomAdversaire: monAdversaire.nom };
     }
 
@@ -942,6 +964,7 @@
       if (ecart === 0) return; // décision 23 : un nul GÈLE les séries (ni cassées ni allongées)
       gagnant.serie = gagnant.serie > 0 ? gagnant.serie + 1 : 1;
       perdant.serie = perdant.serie < 0 ? perdant.serie - 1 : -1;
+      if (perdant.fantome) return; // l'Équipe B encaisse sans conséquence pour le club cloné
       perdant.prestige = Math.max(0, perdant.prestige - ONZE.degatsPrestige(ecart, partie.manche));
       if (perdant.prestige === 0) perdant.vivant = false;
     }
@@ -983,7 +1006,7 @@
       if (amical) {
         if (victoire) je.serie = je.serie > 0 ? je.serie + 1 : 1;
         else if (resultat.scoreB > resultat.scoreA) je.serie = je.serie < 0 ? je.serie - 1 : -1;
-        else je.serie = 0;
+        // décision 23 : un nul gèle la série, même en amical
       } else {
         if (victoire) appliquerResultat(je, monAdversaire, resultat.ecart);
         else if (resultat.scoreB > resultat.scoreA) appliquerResultat(monAdversaire, je, resultat.ecart);
