@@ -236,6 +236,18 @@
     .zone-vente.active { display: flex; }
     .zone-vente.cible { background: #4a2f24; color: #FFD9A0; }
 
+    /* ---- Le scouting fluide : liseré jaune « tu visites », retour fixe ---- */
+    .col-classement .coach-ligne.visite { border-color: #E8C547; color: #E8C547; }
+    .fiche-joueur.visite { border: 2px solid #E8C547; }
+    .nav-vestiaire { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .fleche-vestiaire { flex: 0 0 34px; background: #182219; color: #A9DDB6; border: 1px solid #24331F;
+      border-radius: 7px; font-size: 0.9rem; padding: 6px 0; cursor: pointer; }
+    .tag-visite { font-size: 0.6rem; color: #E8C547; font-weight: 700; vertical-align: middle; }
+    .fiche-joueur .retour-fixe { position: sticky; bottom: 0; background: #24425E; color: #9CC4EF; }
+    .bandeau-scouting { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; margin: 6px 0; }
+    .bandeau-scouting button { background: #182219; color: #A9DDB6; border: 1px solid #24331F;
+      border-radius: 6px; font-size: 0.62rem; padding: 3px 7px; cursor: pointer; }
+
     /* Le Calepin : les joueurs planifiés brillent en boutique ;
        l'éclat de fusion : ★★ si 2 copies possédées (or si 3★ en vue) */
     .carte-boutique.planifie { border-color: #9CC4EF; box-shadow: 0 0 10px rgba(156, 196, 239, 0.5); }
@@ -1072,6 +1084,8 @@
       volet.innerHTML = `<div class="panneau" style="text-align:center">
         <strong>❄️ Le Mercato d'hiver</strong><br>
         <small style="color:#96A699">Un joueur offert — les clubs en difficulté ont été servis avant toi${rang > 0 ? " (" + rang + " déjà passés)" : ""}.</small>
+        <div class="bandeau-scouting">${partie.coachs.map((c, i) => c.ia && c.vivant
+          ? `<button onclick="scouterIndice(${i})">🔎 ${c.nom.split(" ")[0]}</button>` : "").join("")}</div>
         ${etal.map((choix, i) => {
           const stats = ONZE.genererStats(choix.fiche);
           return `<button class="fermer-volet" style="text-align:left" data-hiver="${i}">
@@ -1302,30 +1316,76 @@
       partie.compteurs.scoutsManche++;
       ouvrirVestiaire(coach);
     }
+    /* Le scouting fluide (copie TFT) : UN voile, navigation entre les
+       clubs vivants par ◀ ▶ ou swipe gauche/droite, liseré jaune
+       « tu visites » (sur le panneau ET dans le classement), bouton
+       bleu de retour fixe vers ton propre vestiaire. Disponible à tout
+       moment : pendant le match et le Mercato d'hiver inclus. */
     function ouvrirVestiaire(coach) {
-      const equipe = coach
-        ? (coach.equipe || genererEquipeIA(coach))
-        : equipeDuClub();
-      const axes = ONZE.adnClub(equipe);
-      const valeursAxes = Object.values(axes);
-      const maxAxe = Math.max(...valeursAxes), minAxe = Math.min(...valeursAxes);
+      const clubs = partie.coachs.filter((c) => c.vivant || !c.ia);
+      let indice = Math.max(0, clubs.indexOf(coach || moi()));
       const voile = document.createElement("div");
       voile.className = "voile-fiche";
-      voile.setAttribute("data-equipe-adverse", coach ? "1" : "");
-      voile.equipeScoutee = coach ? equipe : null;
-      voile.innerHTML = `<div class="fiche-joueur">
-        <h3>🔎 ${equipe.nom}</h3>
-        <div class="sous-titre">${coach ? "École " + coach.ecole + " · vestiaire scouté" : "ton propre vestiaire"}</div>
-        <div class="synergies" style="margin-bottom:8px">${ONZE_UI.badges(equipe)}</div>
-        ${equipe.joueurs.map((j) => `<div class="ligne-stat"><span class="nom-stat"><span class="pastille p-${j.poste}">${ONZE_UI.GLYPHES.postes[j.poste]}</span></span>` +
-          `<span style="flex:1">${j.nom} <span class="glyphes-famille">${ONZE_UI.glyphe(j.ecole)}${ONZE_UI.glyphe(j.archetype)}</span></span><span class="valeur-stat">${j.note}</span></div>`).join("")}
-        <div style="margin-top:8px">${Object.entries(axes).map(([axe, valeur]) => {
-          const classe = valeur === maxAxe && maxAxe > minAxe ? "forte" : valeur === minAxe && maxAxe > minAxe ? "faible" : "";
-          return `<div class="axe"><span class="nom-axe">${axe}</span><span class="barre-axe"><div class="${classe}" style="width:${valeur}%"></div></span><span class="valeur-axe">${valeur}</span></div>`;
-        }).join("")}</div>
-        <button class="fermer">Fermer</button>
-      </div>`;
-      voile.addEventListener("click", (e) => { if (e.target === voile || e.target.classList.contains("fermer")) voile.remove(); });
+      const marquerVisite = () => {
+        document.querySelectorAll("#classement-liste .coach-ligne.visite").forEach((l) => l.classList.remove("visite"));
+        const c = clubs[indice];
+        if (c.ia) {
+          const ligne = document.querySelector(`#classement-liste .coach-ligne[data-indice="${partie.coachs.indexOf(c)}"]`);
+          if (ligne) ligne.classList.add("visite");
+        }
+      };
+      const rendre = () => {
+        const c = clubs[indice];
+        const adverse = !!c.ia;
+        const equipe = adverse ? (c.equipe || genererEquipeIA(c)) : equipeDuClub();
+        voile.setAttribute("data-equipe-adverse", adverse ? "1" : "");
+        voile.equipeScoutee = adverse ? equipe : null;
+        const axes = ONZE.adnClub(equipe);
+        const valeursAxes = Object.values(axes);
+        const maxAxe = Math.max(...valeursAxes), minAxe = Math.min(...valeursAxes);
+        voile.innerHTML = `<div class="fiche-joueur${adverse ? " visite" : ""}">
+          <div class="nav-vestiaire">
+            <button class="fleche-vestiaire" data-nav="-1">◀</button>
+            <h3 style="margin:0">🔎 ${equipe.nom}${adverse ? ` <span class="tag-visite">🟡 tu visites</span>` : ""}</h3>
+            <button class="fleche-vestiaire" data-nav="1">▶</button>
+          </div>
+          <div class="sous-titre">${adverse ? "École " + c.ecole + " · 💚 " + c.prestige + " — swipe pour changer de club" : "ton propre vestiaire — swipe pour visiter les autres"}</div>
+          <div class="synergies" style="margin-bottom:8px">${ONZE_UI.badges(equipe)}</div>
+          ${equipe.joueurs.map((j) => `<div class="ligne-stat"><span class="nom-stat"><span class="pastille p-${j.poste}">${ONZE_UI.GLYPHES.postes[j.poste]}</span></span>` +
+            `<span style="flex:1">${j.nom} <span class="glyphes-famille">${ONZE_UI.glyphe(j.ecole)}${ONZE_UI.glyphe(j.archetype)}</span></span><span class="valeur-stat">${j.note}</span></div>`).join("")}
+          <div style="margin-top:8px">${Object.entries(axes).map(([axe, valeur]) => {
+            const classe = valeur === maxAxe && maxAxe > minAxe ? "forte" : valeur === minAxe && maxAxe > minAxe ? "faible" : "";
+            return `<div class="axe"><span class="nom-axe">${axe}</span><span class="barre-axe"><div class="${classe}" style="width:${valeur}%"></div></span><span class="valeur-axe">${valeur}</span></div>`;
+          }).join("")}</div>
+          <button class="fermer retour-fixe">🔙 Retour à mon club</button>
+        </div>`;
+        marquerVisite();
+      };
+      const aller = (delta) => {
+        indice = (indice + delta + clubs.length) % clubs.length;
+        if (clubs[indice].ia) partie.compteurs.scoutsManche++;
+        rendre();
+      };
+      const fermer = () => {
+        document.querySelectorAll("#classement-liste .coach-ligne.visite").forEach((l) => l.classList.remove("visite"));
+        voile.remove();
+      };
+      let swipeEnCours = false; // le click qui suit un swipe ne ferme pas
+      voile.addEventListener("click", (e) => {
+        if (swipeEnCours) { swipeEnCours = false; return; }
+        const nav = e.target.closest("[data-nav]");
+        if (nav) return aller(Number(nav.dataset.nav));
+        if (e.target === voile || e.target.classList.contains("fermer")) fermer();
+      });
+      // le swipe : un glissé horizontal de 50 px change de club
+      let departX = null;
+      voile.addEventListener("pointerdown", (e) => { departX = e.clientX; });
+      voile.addEventListener("pointerup", (e) => {
+        if (departX === null) return;
+        const delta = e.clientX - departX; departX = null;
+        if (Math.abs(delta) > 50) { swipeEnCours = true; aller(delta < 0 ? 1 : -1); }
+      });
+      rendre();
       el("app").appendChild(voile);
     }
 
@@ -1754,7 +1814,7 @@
           const indice = partie.coachs.indexOf(c);
           const classes = "coach-ligne" + (c.ia ? "" : " moi") + (c.vivant ? "" : " mort");
           const serie = c.serie > 1 ? " 🔥" : c.serie < -1 ? " ❄️" : "";
-          return `<div class="${classes}" onclick="scouterIndice(${indice})">${c.nom}${serie}
+          return `<div class="${classes}" data-indice="${indice}" onclick="scouterIndice(${indice})">${c.nom}${serie}
             <div class="barre-prestige"><div style="width:${Math.round(100 * c.prestige / PRESTIGE_DEPART)}%"></div></div></div>`;
         }).join("");
 
