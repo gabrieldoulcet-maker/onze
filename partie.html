@@ -859,6 +859,11 @@
         let candidats = partie.pool.filter((j) => j.poste === poste && j.cout <= coutMax && !nomsPris.has(j.nom));
         const fideles = candidats.filter((j) => j.ecole === coach.ecole);
         if (fideles.length && Math.random() < 0.75) candidats = fideles;
+        // une entrée par NOM : sans ça, « les 3 meilleurs candidats »
+        // seraient 3 copies du même joueur cher (IA sur-optimisées)
+        const parNom = new Map();
+        for (const j of candidats) if (!parNom.has(j.nom)) parNom.set(j.nom, j);
+        candidats = [...parNom.values()];
         candidats.sort((a, b) => b.cout - a.cout);
         const choix = candidats[Math.floor(Math.random() * Math.min(3, candidats.length))] || candidats[0];
         if (choix) {

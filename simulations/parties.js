@@ -40,26 +40,44 @@ const phasesDeManche = (manche) => manche <= 3 ? 4 : manche <= 9 ? 6 : 8;
 /* ---- La courbe des IA : LE réglage que cette simulation calibre.
    Doit rester identique à genererEquipeIA de partie.html. ---- */
 const NIVEAU_IA = (manche) => Math.min(3 + Math.floor(manche / 4), 9);
-const BUDGET_IA = (manche) => Math.min(1 + 1.35 * manche, 21);
+const BUDGET_IA = (manche) => Math.min(1 + 1.45 * manche, 22);
 
-function genererEquipeIA(coach, manche) {
-  const niveau = NIVEAU_IA(manche);
-  const taille = TITULAIRES_PAR_NIVEAU[niveau];
-  let budget = BUDGET_IA(manche);
-  const compo = [];
-  const besoins = ["GAR"];
-  for (let i = 0; i < taille - 1; i++) besoins.push(["DÉF", "MIL", "ATT"][i % 3]);
-  for (const poste of besoins) {
-    const slotsRestants = besoins.length - compo.length;
-    const coutMax = Math.max(1, Math.min(5, Math.floor(budget - (slotsRestants - 1))));
-    let candidats = joueurs.filter((j) => j.poste === poste && j.cout <= coutMax);
-    const fideles = candidats.filter((j) => j.ecole === coach.ecole);
-    if (fideles.length && Math.random() < 0.75) candidats = fideles;
-    candidats.sort((a, b) => b.cout - a.cout);
-    const choix = candidats[Math.floor(Math.random() * Math.min(3, candidats.length))] || candidats[0];
-    if (choix) { compo.push(choix); budget -= choix.cout; }
+/* Règle fondamentale (backlog 4) : les IA piochent dans le MÊME pool
+   que le bot — copie exacte de genererEquipeIA de partie.html. Les
+   copies sont rendues au pool à la recomposition et à l'élimination. */
+function preparerEquipesIA(coachs, etat, manche) {
+  for (const c of coachs) {
+    if (!c.ia) continue;
+    if (c.copiesPrises) for (const f of c.copiesPrises) etat.pool.push(f);
+    c.copiesPrises = [];
+    if (!c.vivant) { c.equipe = null; continue; }
+    const niveau = NIVEAU_IA(manche);
+    const taille = TITULAIRES_PAR_NIVEAU[niveau];
+    let budget = BUDGET_IA(manche);
+    const compo = [];
+    const besoins = ["GAR"];
+    for (let i = 0; i < taille - 1; i++) besoins.push(["DÉF", "MIL", "ATT"][i % 3]);
+    for (const poste of besoins) {
+      const slotsRestants = besoins.length - compo.length;
+      const coutMax = Math.max(1, Math.min(5, Math.floor(budget - (slotsRestants - 1))));
+      const nomsPris = new Set(compo.map((j) => j.nom));
+      let candidats = etat.pool.filter((j) => j.poste === poste && j.cout <= coutMax && !nomsPris.has(j.nom));
+      const fideles = candidats.filter((j) => j.ecole === c.ecole);
+      if (fideles.length && Math.random() < 0.75) candidats = fideles;
+      // une entrée par nom (sinon top-3 = 3 copies du même joueur cher)
+      const parNom = new Map();
+      for (const j of candidats) if (!parNom.has(j.nom)) parNom.set(j.nom, j);
+      candidats = [...parNom.values()];
+      candidats.sort((a, b) => b.cout - a.cout);
+      const choix = candidats[Math.floor(Math.random() * Math.min(3, candidats.length))] || candidats[0];
+      if (choix) {
+        compo.push(choix); budget -= choix.cout;
+        etat.pool.splice(etat.pool.indexOf(choix), 1);
+        c.copiesPrises.push(choix);
+      }
+    }
+    c.equipe = M.equipeDepuisFiches(c.nom, c.nom, compo);
   }
-  return M.equipeDepuisFiches(coach.nom, coach.nom, compo);
 }
 
 /* ---- Le bot joueur : chasse les paires ET les synergies ---- */
@@ -150,7 +168,7 @@ function unePartie() {
 
   let mancheCourante = 1, premiereElimination = null, finPartie = null;
   const appliquer = (gagnant, perdant, ecart) => {
-    if (ecart === 0) { gagnant.serie = 0; perdant.serie = 0; return; }
+    if (ecart === 0) return; // décision 23 : un nul gèle les séries
     gagnant.serie = gagnant.serie > 0 ? gagnant.serie + 1 : 1;
     perdant.serie = perdant.serie < 0 ? perdant.serie - 1 : -1;
     perdant.prestige = Math.max(0, perdant.prestige - M.degatsPrestige(ecart, mancheCourante));
@@ -164,6 +182,7 @@ function unePartie() {
   for (let manche = 1; manche <= 40 && bot.vivant; manche++) {
     etat.manche = manche; mancheCourante = manche;
     if (coachs.filter((c) => c.vivant).length <= 1) { finPartie = manche; break; }
+    preparerEquipesIA(coachs, etat, manche); // les IA prennent leurs copies AVANT le mercato du bot
     botAchete(etat);
     const monEquipe = M.equipeDepuisFiches("Bot", "Bot", etat.terrain);
     if (manche <= 3) {
@@ -204,7 +223,7 @@ function unePartie() {
       if (vivants.length <= 1) break;
       const autres = vivants.slice(1).sort(() => Math.random() - 0.5);
       const adversaire = autres.shift();
-      const r = M.simulerMatch(monEquipe, genererEquipeIA(adversaire, manche), phasesDeManche(manche));
+      const r = M.simulerMatch(monEquipe, adversaire.equipe, phasesDeManche(manche));
       matchsJoues++;
       if (r.ecart > 3) grosEcarts++;
       if (r.scoreA > r.scoreB) appliquer(bot, adversaire, r.ecart);
@@ -213,7 +232,7 @@ function unePartie() {
       const paires = [];
       while (autres.length >= 2) paires.push([autres.shift(), autres.shift()]);
       for (const [c1, c2] of paires) {
-        const rIA = M.simulerMatch(genererEquipeIA(c1, manche), genererEquipeIA(c2, manche), phasesDeManche(manche));
+        const rIA = M.simulerMatch(c1.equipe, c2.equipe, phasesDeManche(manche));
         if (rIA.scoreA > rIA.scoreB) appliquer(c1, c2, rIA.ecart);
         else if (rIA.scoreB > rIA.scoreA) appliquer(c2, c1, rIA.ecart);
         else appliquer(c1, c2, 0);

@@ -17,6 +17,40 @@ const ODDS_PAR_NIVEAU = {
 const droitsTV = (manche) => [2, 2, 3, 4][manche - 1] ?? 5;
 const XP_POUR_MONTER = { 3: 6, 4: 10, 5: 20 };
 const hasardParmi = (t) => t[Math.floor(Math.random() * t.length)];
+const TITULAIRES_PAR_NIVEAU_IA = { 3: 5, 4: 6, 5: 7, 6: 8, 7: 9, 8: 10, 9: 11 };
+const ECOLES_IA = ["Catenaccio", "Tiki-Taka", "École de la Rue", "Kick & Rush",
+  "Football Total", "La Grinta", "Les Pros"];
+
+/* Les 7 IA consomment le MÊME pool que le bot (backlog 4) — copie de
+   genererEquipeIA de partie.html : copies rendues puis reprises chaque
+   manche. C'est l'effet le plus exposé sur la première fusion. */
+function iaPrennentLeursCopies(ias, pool, manche) {
+  for (const ia of ias) {
+    for (const f of ia.copiesPrises) pool.push(f);
+    ia.copiesPrises = [];
+    const niveau = Math.min(3 + Math.floor(manche / 4), 9);
+    const taille = TITULAIRES_PAR_NIVEAU_IA[niveau];
+    let budget = Math.min(1 + 1.35 * manche, 21);
+    const besoins = ["GAR"];
+    for (let i = 0; i < taille - 1; i++) besoins.push(["DÉF", "MIL", "ATT"][i % 3]);
+    const compo = [];
+    for (const poste of besoins) {
+      const slotsRestants = besoins.length - compo.length;
+      const coutMax = Math.max(1, Math.min(5, Math.floor(budget - (slotsRestants - 1))));
+      const nomsPris = new Set(compo.map((j) => j.nom));
+      let candidats = pool.filter((j) => j.poste === poste && j.cout <= coutMax && !nomsPris.has(j.nom));
+      const fideles = candidats.filter((j) => j.ecole === ia.ecole);
+      if (fideles.length && Math.random() < 0.75) candidats = fideles;
+      // une entrée par nom (sinon top-3 = 3 copies du même joueur cher)
+      const parNom = new Map();
+      for (const j of candidats) if (!parNom.has(j.nom)) parNom.set(j.nom, j);
+      candidats = [...parNom.values()];
+      candidats.sort((a, b) => b.cout - a.cout);
+      const choix = candidats[Math.floor(Math.random() * Math.min(3, candidats.length))] || candidats[0];
+      if (choix) { compo.push(choix); budget -= choix.cout; pool.splice(pool.indexOf(choix), 1); ia.copiesPrises.push(choix); }
+    }
+  }
+}
 
 let minStaff = Infinity, partiesSansDeuxStaff = 0, cartesStaffRecues = 0;
 function unePartie(manchesMax) {
@@ -52,7 +86,9 @@ function unePartie(manchesMax) {
     return false;
   };
 
+  const ias = ECOLES_IA.map((ecole) => ({ ecole, copiesPrises: [] }));
   for (let manche = 1; manche <= manchesMax; manche++) {
+    iaPrennentLeursCopies(ias, pool, manche);
     // ---- phase de boutique : le bot chasse les paires ----
     let boutique = Array.from({ length: 5 }, () => tirerCarte());
     let relances = 0;
