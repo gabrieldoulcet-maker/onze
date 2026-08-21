@@ -1292,6 +1292,17 @@
         setTimeout(() => { volet.remove(); continuer(); }, 600);
       });
 
+      // ---- les stats de SAISON par joueur (l'homme de ta partie) ----
+      partie.statsSaison = partie.statsSaison || {};
+      try {
+        const duMatch = ONZE.statsDuMatch(resultat, dernierMatch.eqA, dernierMatch.eqB).parEquipe["Mon Club"] || [];
+        for (const ligne of duMatch) {
+          const nom = ligne.nom.replace(/ ★+$/, "");
+          const s = partie.statsSaison[nom] = partie.statsSaison[nom] || { buts: 0, passes: 0, duels: 0, arrets: 0 };
+          s.buts += ligne.buts; s.passes += ligne.passes; s.duels += ligne.duels; s.arrets += ligne.arrets;
+        }
+      } catch (e) {}
+
       // ---- les compteurs des Icônes de fin de partie (groupes III-V) ----
       cpt.butsCumules = (cpt.butsCumules || 0) + resultat.scoreA; // le Grand Renard
       const nomsTitulaires = partie.terrain.map((j) => j.nom.replace(/ ★+$/, ""));
@@ -1327,12 +1338,38 @@
       if (!je.vivant || vivants.length === 1) {
         try { localStorage.removeItem(CLE_SAUVEGARDE); } catch (e) {}
         const place = je.vivant ? 1 : vivants.length + 1;
+        // l'homme de ta partie : le joueur qui a le plus pesé sur la saison
+        const saison = Object.entries(partie.statsSaison || {})
+          .map(([nom, s]) => ({ nom, ...s, score: s.buts * 3 + s.passes * 2 + s.arrets * 1.5 + s.duels * 0.5 }))
+          .sort((a, b) => b.score - a.score);
+        const heros = saison.find((s) => s.score > 0);
+        const icones = (partie.icônesDebloquees || []).map((id) => (ONZE_ICONES.parId(id) || {}).nom).filter(Boolean);
+        // le palmarès local : la mémoire du joueur
+        try {
+          const palmares = JSON.parse(localStorage.getItem("onze-palmares") || "[]");
+          palmares.unshift({
+            date: new Date().toISOString().slice(0, 10), place, manche: partie.manche,
+            compo: partie.terrain.slice(0, 5).map((j) => j.nom + ((j.etoiles || 1) >= 2 ? " " + "★".repeat(j.etoiles) : "")),
+            icones,
+          });
+          localStorage.setItem("onze-palmares", JSON.stringify(palmares.slice(0, 20)));
+        } catch (e) {}
+        if (je.vivant) ONZE_JUICE.jouer("icone"); else ONZE_JUICE.jouer("defaite");
         const volet = document.createElement("div");
         volet.className = "volet";
-        volet.innerHTML = `<div class="panneau" style="text-align:center">
-          <div style="font-size:1.2rem;font-weight:800;margin-bottom:8px">${je.vivant ? "🏆 CHAMPION !" : "💔 Éliminé — " + place + "ᵉ sur 8"}</div>
-          <div class="classement">${ligneClassement()}</div>
-          <button class="fermer-volet" onclick="recommencerPartie()">🔁 Nouvelle partie</button>
+        volet.innerHTML = `<div class="panneau" style="text-align:center;max-width:480px">
+          <div style="font-size:1.35rem;font-weight:900;margin-bottom:2px">${je.vivant ? "🏆 CHAMPION !" : "💔 Éliminé"}</div>
+          <div style="color:#96A699;font-size:0.78rem;margin-bottom:8px">${place}ᵉ sur 8 · manche ${partie.manche}</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-bottom:8px">
+            ${partie.terrain.map((j) => `<span class="jeton cout-${j.cout}" style="width:56px;cursor:default">
+              ${pastilleHTML(j)}${(j.etoiles || 1) >= 2 ? `<span class="etoiles">${"★".repeat(j.etoiles)}</span>` : ""}<br>${j.nom.replace(/ ★+$/, "")}</span>`).join("")}
+          </div>
+          ${heros ? `<div class="coach" style="margin-bottom:4px"><span>🌟 L'homme de ta partie : <strong>${heros.nom}</strong> — ${heros.buts} but${heros.buts > 1 ? "s" : ""}, ${heros.passes} passe${heros.passes > 1 ? "s" : ""} décisive${heros.passes > 1 ? "s" : ""}${heros.arrets ? ", " + heros.arrets + " arrêts" : ""}</span></div>` : ""}
+          ${icones.length ? `<div class="coach" style="margin-bottom:4px"><span>🎯 Icônes débloquées : <strong>${icones.join(" · ")}</strong></span></div>` : ""}
+          <details style="margin:4px 0"><summary style="cursor:pointer;color:#96A699;font-size:0.76rem">🏁 Le classement final</summary>
+            <div class="classement" style="margin-top:4px">${ligneClassement()}</div></details>
+          <button class="fermer-volet" style="font-size:1rem" onclick="recommencerPartie()">🔁 Rejouer</button>
+          <button class="fermer-volet" onclick="location.href='index.html'">🏠 Accueil</button>
         </div>`;
         el("app").appendChild(volet);
         return;

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ONZE</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>⚽</text></svg>">
+  <link rel="icon" href="icons/icone-192.png">
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -14,33 +14,93 @@
   <link rel="apple-touch-icon" href="icons/icone-180.png">
   <link rel="stylesheet" href="onze.css">
   <style>
-    body { justify-content: center; }
-    .menu { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 10px; }
-    .menu a {
+    body { justify-content: center; gap: 8px; }
+    header h1 { font-size: 3.4rem; letter-spacing: 4px; }
+    .menu { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 8px; }
+    .bouton-jouer {
       display: block; text-decoration: none; text-align: center;
       background: #4FC57C; color: #0B100C;
-      border-radius: 12px; padding: 16px; font-size: 1.05rem; font-weight: 800;
+      border-radius: 14px; padding: 18px; font-size: 1.2rem; font-weight: 900;
+      box-shadow: 0 4px 18px rgba(79, 197, 124, 0.35);
     }
-    .menu a.secondaire { background: #182219; color: #A9DDB6; border: 1px solid #24331F; }
+    .reglages { display: flex; gap: 6px; }
+    .reglages button {
+      flex: 1; background: #182219; color: #A9DDB6; border: 1px solid #24331F;
+      border-radius: 9px; padding: 9px 4px; font-size: 0.7rem; font-weight: 700; cursor: pointer;
+    }
+    .palmares {
+      background: #141B14; border: 1px solid #24331F; border-radius: 12px;
+      padding: 10px 12px; font-size: 0.74rem; color: #C9D6C9;
+    }
+    .palmares .ligne { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid #1B241B; }
+    .palmares .ligne:last-child { border-bottom: none; }
+    .palmares .place-1 { color: #E8C547; font-weight: 800; }
+    .palmares .place-top4 { color: #4FC57C; }
+    .labo { text-align: center; margin-top: 4px; }
+    .labo a { color: #4A574C; font-size: 0.66rem; text-decoration: none; }
   </style>
 </head>
 <body>
   <header>
     <h1>ON<span>ZE</span></h1>
-    <p>L'auto-battler du football — prototype</p>
+    <p>L'auto-battler du football</p>
   </header>
   <div class="menu">
-    <a href="partie.html">🏆 La Partie — 8 coachs, un seul survivant</a>
-    <a href="draft.html" class="secondaire">🪙 Bac à sable — mercato libre (30M)</a>
-    <a href="match.html" class="secondaire">⚽ Match de démo (équipes préfaites)</a>
-    <a href="#" class="secondaire" style="color:#D4A66B;border-color:#3A2A24"
-       onclick="if (confirm('Effacer la partie en cours et repartir de zéro ?')) { try { localStorage.clear(); } catch (e) {} alert('Jeu réinitialisé.'); } return false;">
-      🧹 Réinitialiser le jeu (efface la partie en cours)</a>
+    <a class="bouton-jouer" href="partie.html">🏆 Jouer</a>
+    <div class="reglages">
+      <button id="btn-sons"></button>
+      <button id="btn-detente"></button>
+      <button id="btn-reset" style="color:#D4A66B;border-color:#3A2A24">🧹 Réinitialiser</button>
+    </div>
+    <div class="palmares" id="palmares" style="display:none"></div>
+    <div class="labo"><a href="draft.html">🧪 labo</a> · <a href="match.html" style="color:#4A574C">match de démo</a></div>
   </div>
   <script>
-    /* L'invite « Ajouter à l'écran d'accueil » : sur l'ACCUEIL uniquement
-       (jamais par-dessus un match), une apparition par session, un tap
-       pour fermer. Rien en mode installé. */
+    /* Les réglages écrivent les mêmes clés que le jeu */
+    const majBoutons = () => {
+      let sons = true, detente = false;
+      try {
+        sons = localStorage.getItem("onze-sons") !== "off";
+        detente = localStorage.getItem("onze-mode-detente") === "1";
+      } catch (e) {}
+      document.getElementById("btn-sons").textContent = sons ? "🔊 Sons : oui" : "🔇 Sons : non";
+      document.getElementById("btn-detente").textContent = detente ? "🧘 Sans chrono" : "⏱ Chrono : oui";
+    };
+    document.getElementById("btn-sons").addEventListener("click", () => {
+      try { localStorage.setItem("onze-sons", localStorage.getItem("onze-sons") === "off" ? "on" : "off"); } catch (e) {}
+      majBoutons();
+    });
+    document.getElementById("btn-detente").addEventListener("click", () => {
+      try { localStorage.setItem("onze-mode-detente", localStorage.getItem("onze-mode-detente") === "1" ? "0" : "1"); } catch (e) {}
+      majBoutons();
+    });
+    document.getElementById("btn-reset").addEventListener("click", () => {
+      if (!confirm("Effacer la partie en cours et repartir de zéro ? (le palmarès est conservé)")) return;
+      try {
+        const palmares = localStorage.getItem("onze-palmares");
+        localStorage.clear();
+        if (palmares) localStorage.setItem("onze-palmares", palmares);
+      } catch (e) {}
+      alert("Jeu réinitialisé.");
+      majBoutons();
+    });
+    majBoutons();
+
+    /* Le palmarès local : la mémoire du joueur */
+    try {
+      const palmares = JSON.parse(localStorage.getItem("onze-palmares") || "[]");
+      if (palmares.length) {
+        const bloc = document.getElementById("palmares");
+        bloc.style.display = "block";
+        bloc.innerHTML = `<strong>📜 Ton palmarès</strong>` + palmares.slice(0, 6).map((p) =>
+          `<div class="ligne"><span class="${p.place === 1 ? "place-1" : p.place <= 4 ? "place-top4" : ""}">${p.place === 1 ? "🏆 Champion" : p.place + "ᵉ"} · M${p.manche}</span>` +
+          `<span style="color:#96A699">${(p.compo || []).slice(0, 3).join(", ")}${p.icones && p.icones.length ? " · 🎯" + p.icones.length : ""}</span>` +
+          `<span style="color:#5A6A5C">${p.date || ""}</span></div>`).join("");
+      }
+    } catch (e) {}
+
+    /* L'invite « Ajouter à l'écran d'accueil » : sur l'ACCUEIL uniquement,
+       une apparition par session, un tap pour fermer. Rien en mode installé. */
     (function () {
       try {
         const standalone = window.matchMedia("(display-mode: fullscreen)").matches ||
@@ -48,8 +108,8 @@
         if (standalone || sessionStorage.getItem("onze-invite-a2hs")) return;
         sessionStorage.setItem("onze-invite-a2hs", "1");
         const invite = document.createElement("div");
-        invite.style.cssText = "margin-top:14px;max-width:420px;background:#243A28;border:1px solid #4FC57C;" +
-          "border-radius:12px;padding:10px 14px;font-size:0.82rem;color:#C9D6C9;cursor:pointer;text-align:center";
+        invite.style.cssText = "margin-top:10px;max-width:400px;background:#243A28;border:1px solid #4FC57C;" +
+          "border-radius:12px;padding:10px 14px;font-size:0.8rem;color:#C9D6C9;cursor:pointer;text-align:center";
         invite.innerHTML = `📲 <strong>Installe ONZE !</strong><br><small style="color:#96A699">« Ajouter à l'écran d'accueil » dans le menu du navigateur = plein écran et icône, comme une vraie app. Touche pour fermer.</small>`;
         invite.addEventListener("click", () => invite.remove());
         document.body.appendChild(invite);
