@@ -106,5 +106,37 @@ const ONZE_UI = (() => {
     })();
   }
 
-  return { rejouer, badges, basculerVitesse };
+  /* La fiche complète d'un joueur (au tap sur une carte).
+     `calcule` : le joueur passé par equipeDepuisFiches si dispo
+     (stats boostées en vert) ; sinon on génère les stats de base. */
+  function ouvrirFiche(fiche, calcule) {
+    const statsBase = calcule ? calcule.statsBase : ONZE.genererStats(fiche);
+    const stats = calcule ? calcule.stats : statsBase;
+    const boosts = calcule ? calcule.boosts : {};
+    const note = ONZE.noteGlobale(stats);
+    const etoiles = (fiche.etoiles || 1) >= 2 ? " " + "★".repeat(fiche.etoiles) : "";
+    const voile = document.createElement("div");
+    voile.className = "voile-fiche";
+    const lignes = Object.entries(stats).map(([stat, valeur]) => {
+      const boost = boosts[stat] || 0;
+      const classe = boost > 0 ? "boostee" : boost < 0 ? "malussee" : "";
+      const detail = boost ? ` (${statsBase[stat]}${boost > 0 ? "+" : ""}${boost})` : "";
+      return `<div class="ligne-stat"><span class="nom-stat">${ONZE.NOMS_STATS[stat]}</span>` +
+        `<span class="valeur-stat ${classe}">${valeur}</span>` +
+        `<span class="barre-stat"><div style="width:${valeur}%"></div></span>` +
+        `<span style="font-size:0.66rem;color:#96A699">${detail}</span></div>`;
+    }).join("");
+    voile.innerHTML = `<div class="fiche-joueur">
+      <h3>${fiche.nom}${etoiles} <span style="float:right;color:#E8C547">${note}</span></h3>
+      <div class="sous-titre">${fiche.poste} · ${fiche.cout}M${fiche.unique ? " · ⭐ " + fiche.unique : ""}${fiche.ecole ? " · " + fiche.ecole : ""}${fiche.archetype ? " · " + fiche.archetype : ""}</div>
+      ${fiche.description ? `<div class="description">${fiche.description}</div>` : ""}
+      ${lignes}
+      <div style="color:#96A699;font-size:0.68rem;margin-top:8px">Valeur <span style="color:#4FC57C">verte</span> = boostée par tes synergies. Chaque duel du match lit 2 de ces stats.</div>
+      <button class="fermer">Fermer</button>
+    </div>`;
+    voile.addEventListener("click", (e) => { if (e.target === voile || e.target.classList.contains("fermer")) voile.remove(); });
+    document.body.appendChild(voile);
+  }
+
+  return { rejouer, badges, basculerVitesse, ouvrirFiche };
 })();

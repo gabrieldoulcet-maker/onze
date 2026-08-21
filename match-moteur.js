@@ -115,13 +115,14 @@ function genererStats(fiche) {
   const profilArchetype = PROFILS_ARCHETYPES[fiche.archetype || ""] || PROFILS_ARCHETYPES[""];
   const stats = {};
   // budget : le coût fait la taille, pas la forme (coût 0 = réserviste)
-  const budgetMoyen = 34 + 8 * (fiche.cout || 0);
+  const budgetMoyen = 38 + 6 * (fiche.cout || 0);
   let sommePoids = 0;
   const poids = {};
   for (const stat of cles) {
     let p = gardien
       ? (PROFIL_BASE_GARDIEN[stat] || 1) * 0.7 + (profilArchetype[stat] || 1) * 0.3
       : (profilArchetype[stat] || 1);
+    p = Math.pow(p, 0.72); // adoucit les pics : profils marqués, pas caricaturaux
     p *= 1 + grainDuNom(fiche.nom, stat);
     poids[stat] = p;
     sommePoids += p;
@@ -317,7 +318,9 @@ function forme(j, ctx, equipe) {
   return fatigue * mental;
 }
 function forceCollective(equipe, joueurs, s1, s2, ctx) {
-  return joueurs.reduce((t, j) => t + duo(j, s1, s2) * forme(j, ctx, equipe), 0);
+  if (!joueurs.length) return 0;
+  const somme = joueurs.reduce((t, j) => t + duo(j, s1, s2) * forme(j, ctx, equipe), 0);
+  return (somme / joueurs.length) * Math.sqrt(joueurs.length);
 }
 
 /* ============================================================
@@ -348,12 +351,12 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
   }
 
   // Le duel du tir : Tir + Placement vs Réflexes (+ Placement des Murs)
-  let qualite = duo(finisseur, "tir", "placement") * forme(finisseur, ctx, attaque) + de(30) + bonusQualite;
+  let qualite = duo(finisseur, "tir", "placement") * forme(finisseur, ctx, attaque) + de(38) + bonusQualite;
   const murs = defense.joueurs.filter((j) => j.archetype === "Mur" && j.poste !== "GAR");
-  const malusMurs = murs.reduce((t, j) => t + (j.stats.placement || 0), 0) * 0.06;
+  const malusMurs = Math.min(murs.reduce((t, j) => t + (j.stats.placement || 0), 0) * 0.05, 8);
   let parade = gardien.cageVide
     ? 10 + de(10)
-    : (gardien.stats.reflexes || 40) * forme(gardien, ctx, defense) + de(24) + malusMurs;
+    : (gardien.stats.reflexes || 40) * 0.65 * forme(gardien, ctx, defense) + de(26) + malusMurs;
 
   let classe = false;
   const virtuose = s(attaque, "Virtuose");
@@ -491,20 +494,29 @@ function resoudrePhase(eqA, eqB, ctx) {
 
   // --- Duel n°1 : le milieu — Passe + Vision des milieux ---
   if (!attaque) {
-    const forceMilieu = (eq) => {
+    // Matrice « passe qui progresse » : Passe+Vision du porteur contre
+    // Placement+Vitesse des milieux adverses (l'interception)
+    const lesMilieux = (eq) => {
       const milieux = parPoste(eq, "MIL");
-      const base = milieux.length
-        ? forceCollective(eq, milieux, "passe", "vision", ctx)
-        : forceCollective(eq, eq.joueurs.filter((j) => j.poste !== "GAR"), "passe", "vision", ctx) * 0.35;
+      return milieux.length ? { joueurs: milieux, facteur: 1 } : { joueurs: eq.joueurs.filter((j) => j.poste !== "GAR"), facteur: 0.55 };
+    };
+    const progression = (eq) => {
+      const m = lesMilieux(eq);
       let bonus = 0;
       if (aUnique(eq, "Don Álvaro")) bonus += 10;
       if (s(eq, "La Grinta") && ctx.scoreDe(eq) < ctx.scoreAdverse(eq)) bonus += 6 * s(eq, "La Grinta");
       if (aUnique(eq, "El Pibe") && ctx.scoreDe(eq) < ctx.scoreAdverse(eq)) bonus += 8;
       if (s(eq, "Kick & Rush") >= 2 && ctx.numero >= 3) bonus += 8;
       if (s(eq, "École de la Rue") >= 2) bonus += Math.min(ctx.etat[eq.nom].flow * 3, 15); // le Flow
-      return base + bonus + de(45);
+      if (ctx.scoreDe(eq) < ctx.scoreAdverse(eq)) bonus += 10; // l'équipe menée pousse
+      return forceCollective(eq, m.joueurs, "passe", "vision", ctx) * m.facteur + bonus;
     };
-    const forceA = forceMilieu(eqA), forceB = forceMilieu(eqB);
+    const interception = (eq) => {
+      const m = lesMilieux(eq);
+      return forceCollective(eq, m.joueurs, "placement", "vitesse", ctx) * m.facteur;
+    };
+    const forceA = progression(eqA) - 0.7 * interception(eqB) + de(70);
+    const forceB = progression(eqB) - 0.7 * interception(eqA) + de(70);
     attaque = forceA >= forceB ? eqA : eqB;
     const milieux = parPoste(attaque, "MIL");
     const autresChamp = attaque.joueurs.filter((j) => j.poste !== "GAR");
@@ -543,8 +555,6 @@ function resoudrePhase(eqA, eqB, ctx) {
         + forceCollective(defense, defenseurs, "placement", "placement", ctx) * 0.5;
     } else {
       forceDef = forceCollective(defense, defenseurs.length ? defenseurs : defense.joueurs.filter((j) => j.poste !== "GAR"), typePercee.def[0], typePercee.def[1], ctx);
-      // l'attaque aligne souvent plus de monde que la ligne défensive : rééquilibrage
-      forceDef *= attaquants.length && defenseurs.length ? Math.max(1, attaquants.length / defenseurs.length) * 0.95 : 1;
     }
     let bonusAtt = 0;
     if (s(attaque, "La Grinta") && ctx.scoreDe(attaque) < ctx.scoreAdverse(attaque)) bonusAtt += 6 * s(attaque, "La Grinta");
@@ -583,7 +593,7 @@ function resoudrePhase(eqA, eqB, ctx) {
   // Contre éclair du Catenaccio après un arrêt
   if (!butMarque) {
     const cate = s(defense, "Catenaccio");
-    if (cate && proba(0.12 * cate)) {
+    if (cate && proba(0.05 * cate)) {
       evenements.push({ type: "contre", acteurs: [], texte: `Récupération et contre éclair de ${defense.nom} — tout le monde est pris de vitesse !`, synergie: "Catenaccio", equipe: defense.nom });
       butMarque = tenterTir(defense, attaque, ctx, evenements, cate >= 2 ? 8 : 0);
     }

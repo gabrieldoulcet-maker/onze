@@ -30,6 +30,7 @@
 
     <div class="section-titre"><span>Titulaires (<span id="nb-titulaires">0</span>/<span id="nb-titulaires-max2">5</span>)</span></div>
     <div class="synergies" id="synergies-club" style="max-width:420px;width:100%;margin-bottom:6px;"></div>
+    <div class="adn" id="adn"><h3>🧬 L'ADN du club</h3><div id="axes-adn"></div></div>
     <div class="groupe-cartes" id="terrain"></div>
 
     <div class="section-titre"><span>Banc</span></div>
@@ -185,37 +186,60 @@
     }
 
     /* ---- Affichage ---- */
-    function carteHTML(fiche, actionsHTML) {
+    /* Carte compacte : note + 2 stats signatures ; tap → fiche complète */
+    function carteHTML(fiche, actionsHTML, refFiche) {
       const etoiles = (fiche.etoiles || 1) >= 2 ? ` <span class="etoiles">${"★".repeat(fiche.etoiles)}</span>` : "";
-      return `<div class="carte cout-${fiche.cout}">
-        <span class="poste-badge">${fiche.poste}</span>
-        <span class="infos"><span class="nom">${fiche.nom}${etoiles}</span> <span style="color:#E8C547">${fiche.cout}M</span><br>
-        <span class="traits">${fiche.unique ? "⭐ " + fiche.unique + " · " : ""}${fiche.ecole ? fiche.ecole + " · " : ""}${fiche.archetype}</span></span>
-        <span class="actions">${actionsHTML}</span>
+      const stats = ONZE.genererStats(fiche);
+      const note = ONZE.noteGlobale(stats);
+      const signatures = ONZE.statsSignatures(stats).map((x) => `${x.nom} ${x.valeur}`).join(" · ");
+      return `<div class="carte cout-${fiche.cout}" onclick="voirFiche(${refFiche})">
+        <span class="note">${note}</span>
+        <span class="infos"><span class="nom">${fiche.poste} · ${fiche.nom}${etoiles}</span> <span style="color:#E8C547">${fiche.cout}M</span><br>
+        <span class="signatures">${signatures}</span>
+        <span class="traits"> ${fiche.unique ? "⭐ " + fiche.unique + " · " : ""}${fiche.ecole ? fiche.ecole + " · " : ""}${fiche.archetype}</span></span>
+        <span class="actions" onclick="event.stopPropagation()">${actionsHTML}</span>
       </div>`;
+    }
+    function voirFiche(ref) {
+      const [nomListe, indice] = ref.split(":");
+      const listes = { boutique, terrain, banc };
+      const fiche = listes[nomListe][indice];
+      if (!fiche) return;
+      let calcule = null;
+      if (nomListe === "terrain") calcule = ONZE.equipeDepuisFiches("Mon Club", "Toi", terrain).joueurs[indice];
+      ONZE_UI.ouvrirFiche(fiche, calcule);
     }
     function afficher() {
       el("or").textContent = or;
       el("boutique").innerHTML = boutique.map((fiche, i) =>
         fiche
-          ? carteHTML(fiche, `<button class="achat" onclick="acheter(${i})" ${or < fiche.cout ? "disabled" : ""}>${fiche.cout}M</button>`)
+          ? carteHTML(fiche, `<button class="achat" onclick="acheter(${i})" ${or < fiche.cout ? "disabled" : ""}>${fiche.cout}M</button>`, `'boutique:${i}'`)
           : `<div class="carte vide">— vendu —</div>`
       ).join("");
       el("btn-refresh").disabled = or < COUT_REFRESH;
       el("nb-titulaires").textContent = terrain.length;
       el("terrain").innerHTML = terrain.length
         ? terrain.map((fiche, i) => carteHTML(fiche,
-            `<button onclick="basculer(terrain, ${i})">Banc</button><button class="vente" onclick="vendre(terrain, ${i})">Vendre</button>`)).join("")
+            `<button onclick="basculer(terrain, ${i})">Banc</button><button class="vente" onclick="vendre(terrain, ${i})">Vendre</button>`, `'terrain:${i}'`)).join("")
         : `<div class="carte vide">Achète des joueurs dans la boutique 👆</div>`;
       el("banc").innerHTML = banc.length
         ? banc.map((fiche, i) => carteHTML(fiche,
-            `<button onclick="basculer(banc, ${i})">Titulariser</button><button class="vente" onclick="vendre(banc, ${i})">Vendre</button>`)).join("")
+            `<button onclick="basculer(banc, ${i})">Titulariser</button><button class="vente" onclick="vendre(banc, ${i})">Vendre</button>`, `'banc:${i}'`)).join("")
         : `<div class="carte vide">Personne sur le banc</div>`;
       // Synergies des titulaires, en direct
       const apercu = ONZE.equipeDepuisFiches("Mon Club", "Toi", terrain);
       el("synergies-club").innerHTML = apercu.synergies.length
         ? ONZE_UI.badges(apercu)
         : `<span style="color:#5A6A5C;font-size:0.72rem">Les synergies s'activent à 2 joueurs de la même École ou du même archétype.</span>`;
+      const axes = ONZE.adnClub(apercu);
+      const valeursAxes = Object.values(axes);
+      const maxAxe = Math.max(...valeursAxes), minAxe = Math.min(...valeursAxes);
+      el("axes-adn").innerHTML = Object.entries(axes).map(([axe, valeur]) => {
+        const classe = valeur === maxAxe && maxAxe > minAxe ? "forte" : valeur === minAxe && maxAxe > minAxe ? "faible" : "";
+        return `<div class="axe"><span class="nom-axe">${axe}</span>` +
+          `<span class="barre-axe"><div class="${classe}" style="width:${valeur}%"></div></span>` +
+          `<span class="valeur-axe">${valeur}</span></div>`;
+      }).join("");
       // Bouton match
       const verdict = verdictFormation();
       el("btn-match").disabled = !!verdict;

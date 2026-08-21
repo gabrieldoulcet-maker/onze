@@ -22,6 +22,7 @@ Registre des décisions actées. Une décision qui n'est pas ici n'existe pas.
 15. **Jouer sans gardien est permis** : la cage vide se paie en pluie de buts encaissés, mais c'est un choix de compo légitime.
 16. **Économie = copie exacte de TFT** (`design/economie.md`) : départ 0M, manches 1-3 amicales PvE sans dégâts, droits TV 2/2/3/4 puis 5M, sponsors avant revenu de base, primes de série 3-4/5/6+, table XP officielle, onze complet au niveau 9.
 17. **Le butin d'ouverture (amicaux) est une proposition d'orientation, l'équité porte sur la valeur totale** : composition aléatoire (or, joueur gratuit, carte Staff) qui peut lancer une École imprévue, valeur équivalente pour les 8 coachs, et chaque récompense s'ouvre comme un petit événement (l'orbe).
+18. **Les 13 stats** (`design/stats.md`) : les boosts (Écoles, staff, philosophies) ciblent des **stats précises**, jamais un pourcentage global ; à coût/étoile égaux, deux joueurs ne sont **jamais interchangeables** (profils d'archétypes contrastés) ; **l'ADN du club** (6 axes en barres) est central au mercato ; hyper-spécialisation et équilibre doivent être **deux stratégies viables** (à vérifier en simulation — premier sondage : l'hyper-spé gagne, contre-mesure à trouver en playtest).
 
 ## Idées retenues pour plus tard (pas avant le polish de la boucle actuelle)
 

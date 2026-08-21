@@ -204,3 +204,52 @@ button.principal:disabled { background: #2A3A2C; color: #6C7A6E; }
   animation: apparait 0.4s ease; max-width: 200px;
 }
 .orbe-revele strong { color: #E8C547; }
+
+/* ---- La carte : note globale + stats signatures ---- */
+.carte .note {
+  font-weight: 800; font-size: 1.05rem; color: #E7EEE7;
+  background: #0B100C; border-radius: 8px; padding: 4px 7px;
+  min-width: 34px; text-align: center;
+}
+.carte .signatures { color: #9CC4EF; font-size: 0.68rem; font-weight: 700; }
+
+/* ---- La fiche complète (au tap sur une carte) ---- */
+.voile-fiche {
+  position: fixed; inset: 0; background: rgba(6, 10, 7, 0.82);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 80; padding: 18px;
+}
+.fiche-joueur {
+  background: #182219; border: 1px solid #35502F; border-radius: 14px;
+  padding: 16px; width: 100%; max-width: 360px; max-height: 82vh; overflow-y: auto;
+  animation: apparait 0.25s ease;
+}
+.fiche-joueur h3 { margin: 0 0 2px; font-size: 1.1rem; }
+.fiche-joueur .sous-titre { color: #96A699; font-size: 0.78rem; margin-bottom: 10px; }
+.fiche-joueur .description { color: #C9D6C9; font-size: 0.8rem; font-style: italic; margin-bottom: 10px; }
+.ligne-stat { display: flex; align-items: center; gap: 8px; padding: 2px 0; font-size: 0.8rem; }
+.ligne-stat .nom-stat { width: 40px; color: #96A699; font-weight: 700; font-size: 0.72rem; }
+.ligne-stat .valeur-stat { width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+.ligne-stat .valeur-stat.boostee { color: #4FC57C; font-weight: 800; }
+.ligne-stat .valeur-stat.malussee { color: #E88C7D; font-weight: 800; }
+.ligne-stat .barre-stat { flex: 1; height: 6px; background: #0B100C; border-radius: 3px; overflow: hidden; }
+.ligne-stat .barre-stat > div { height: 100%; background: #4FC57C; border-radius: 3px; }
+.fiche-joueur .fermer {
+  width: 100%; margin-top: 12px; background: #24331F; color: #A9DDB6;
+  border: none; border-radius: 10px; padding: 10px; font-weight: 700; cursor: pointer;
+}
+
+/* ---- L'ADN du club : 6 axes en barres, mis à jour en direct ---- */
+.adn {
+  width: 100%; max-width: 420px;
+  background: #182219; border: 1px solid #24331F; border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 10px;
+}
+.adn h3 { margin: 0 0 6px; font-size: 0.75rem; color: #96A699; text-transform: uppercase; letter-spacing: 1px; }
+.axe { display: flex; align-items: center; gap: 8px; padding: 2px 0; font-size: 0.72rem; }
+.axe .nom-axe { width: 62px; color: #C9D6C9; }
+.axe .barre-axe { flex: 1; height: 8px; background: #0B100C; border-radius: 4px; overflow: hidden; }
+.axe .barre-axe > div { height: 100%; border-radius: 4px; background: #5F7A64; transition: width 0.4s ease, background 0.3s; }
+.axe .barre-axe > div.forte { background: #4FC57C; }
+.axe .barre-axe > div.faible { background: #E88C7D; }
+.axe .valeur-axe { width: 24px; text-align: right; font-variant-numeric: tabular-nums; color: #96A699; }
