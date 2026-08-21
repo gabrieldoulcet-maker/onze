@@ -84,6 +84,23 @@ const verifier = (nom, ok) => {
       verifier("recap ⚔️ ouvert pendant le match (2 onglets)",
         await page.evaluate(() => document.querySelectorAll(".onglet-recap").length === 2));
       await page.evaluate(() => document.querySelector(".voile-fiche .fermer").click());
+      // la scène animée : pions des 2 camps, ballon focal, bandeau, 📜
+      await page.waitForSelector(".scene-match .ballon");
+      verifier("scène animée : pions des deux camps + ballon", await page.evaluate(() =>
+        document.querySelectorAll(".scene-match .pion.moi").length > 0 &&
+        document.querySelectorAll(".scene-match .pion.eux").length > 0 &&
+        !!document.querySelector(".scene-match .ballon")));
+      const posAvant = await page.$eval(".scene-match .ballon", (b) => b.style.left + b.style.top);
+      await page.waitForTimeout(2500);
+      const posApres = await page.$eval(".scene-match .ballon", (b) => b.style.left + b.style.top);
+      verifier("scène animée : le ballon se déplace (point focal)", posAvant !== posApres);
+      verifier("bandeau compact du récit alimenté, journal replié", await page.evaluate(() =>
+        document.getElementById("bandeau-recit").textContent.length > 0 &&
+        document.getElementById("recit").classList.contains("replie")));
+      await page.click("#btn-journal");
+      verifier("📜 déplie le journal complet", await page.evaluate(() =>
+        !document.getElementById("recit").classList.contains("replie")));
+      await page.click("#btn-journal");
     }
     // attendre le volet de bilan de fin de manche (le match dure ~5-20 s en ×2)
     await page.waitForFunction(() => !!document.getElementById("btn-continuer"), null, { timeout: 120000 });

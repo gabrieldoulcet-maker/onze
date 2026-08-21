@@ -16,7 +16,7 @@ Registre des décisions actées. Une décision qui n'est pas ici n'existe pas.
 9. **Multijoueur asynchrone d'abord** (lobbies fantômes) ; temps réel seulement si le jeu le mérite, bien plus tard.
 10. **Les trois tests du fun** (re-clic, récit, spectacle) jugent toute décision.
 11. **Le cœur du fun = draft + synergies + staff.** Le système de Staff (composants → spécialisations, façon objets TFT) est le troisième axe qui rend chaque partie unique — système complet dans `design/staff.md`, à intégrer en phase 4.
-12. **Match animé en 2D stylisée en phase 3.** Le récit texte actuel est l'échafaudage ; la cible spectacle est une animation 2D lisible sur téléphone.
+12. **Match animé en 2D stylisée en phase 3.** ✅ Fait (août 2026) : la scène `match-scene.js` rejoue les événements du moteur — pions par lignes, ballon point focal unique, duels en micro-événements, synergies en chips colorées ; le récit texte est devenu un bandeau compact (journal complet derrière 📜).
 13. **Le fun principal d'ONZE est LA CONSTRUCTION de l'équipe, pas le match** — le match est la célébration de la construction. Conséquences : le mercato est l'écran prioritaire en polish et en feedback (badges qui s'allument, fusions 3★ mises en scène, arrivée des Uniques), le match reste court et accélérable (×2), et son récit doit nommer les synergies du joueur pour montrer sa compo briller.
 14. **Économie de la vraie partie : on démarre pauvre**, comme dans TFT — c'est la montée progressive des revenus (droits TV + intérêts + séries) qui crée la courbe de tension. Le 30M de départ n'existe qu'en mode bac à sable (draft.html).
 15. **Jouer sans gardien est permis** : la cage vide se paie en pluie de buts encaissés, mais c'est un choix de compo légitime.
