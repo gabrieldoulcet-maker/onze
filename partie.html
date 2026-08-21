@@ -108,6 +108,15 @@
       6: [30, 40, 25, 5, 0], 7: [19, 30, 40, 10, 1], 8: [18, 25, 32, 22, 3],
       9: [10, 20, 25, 35, 10], 10: [5, 10, 20, 40, 25],
     };
+    // L'équipe de départ : 5 réservistes du centre, gratuits, sans aucun
+    // trait (zéro synergie) — juste de quoi jouer la manche 1.
+    const STARTERS = [
+      { nom: "Gus",    cout: 0, poste: "GAR", ecole: "", archetype: "", unique: null },
+      { nom: "Marcel", cout: 0, poste: "DÉF", ecole: "", archetype: "", unique: null },
+      { nom: "Rachid", cout: 0, poste: "DÉF", ecole: "", archetype: "", unique: null },
+      { nom: "Momo",   cout: 0, poste: "MIL", ecole: "", archetype: "", unique: null },
+      { nom: "Titi",   cout: 0, poste: "ATT", ecole: "", archetype: "", unique: null },
+    ];
     const COACHS_IA = [
       { nom: "Fortezza Nero", ecole: "Catenaccio" },
       { nom: "La Masia Rebelle", ecole: "Tiki-Taka" },
@@ -130,7 +139,7 @@
       partie = {
         manche: 1, coachs,
         or: OR_DEPART, niveau: 3, xp: 0,
-        terrain: [], banc: [], boutique: [], pool: [],
+        terrain: STARTERS.map((j) => ({ ...j, etoiles: 1 })), banc: [], boutique: [], pool: [],
         exempt: null,
       };
       construirePool();
@@ -189,7 +198,7 @@
       const copies = Math.pow(3, (fiche.etoiles || 1) - 1); // un 2★ vaut 3 copies
       partie.or += fiche.cout * copies;
       const original = tousLesJoueurs.find((j) => j.nom === fiche.nom);
-      for (let c = 0; c < copies; c++) partie.pool.push(original);
+      if (original) for (let c = 0; c < copies; c++) partie.pool.push(original);
       liste.splice(indice, 1);
       afficherMercato();
     }
@@ -390,7 +399,7 @@
       return `<div class="carte cout-${fiche.cout}">
         <span class="poste-badge">${fiche.poste}</span>
         <span class="infos"><span class="nom">${fiche.nom}${etoiles}</span> <span style="color:#E8C547">${fiche.cout}M</span><br>
-        <span class="traits">${fiche.unique ? "⭐ " + fiche.unique + " · " : ""}${fiche.ecole ? fiche.ecole + " · " : ""}${fiche.archetype}</span></span>
+        <span class="traits">${fiche.unique ? "⭐ " + fiche.unique + " · " : ""}${fiche.ecole ? fiche.ecole + " · " : ""}${fiche.archetype || "réserviste du centre"}</span></span>
         <span class="actions">${actionsHTML}</span>
       </div>`;
     }

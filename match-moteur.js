@@ -111,7 +111,7 @@ function calculerSynergies(equipe) {
   const ecoles = {}, archetypes = {};
   for (const j of equipe.joueurs) {
     if (j.ecole) ecoles[j.ecole] = (ecoles[j.ecole] || 0) + 1;
-    archetypes[j.archetype] = (archetypes[j.archetype] || 0) + 1;
+    if (j.archetype) archetypes[j.archetype] = (archetypes[j.archetype] || 0) + 1;
   }
   // Ruud (« Le Professeur ») compte comme un Football Total de plus
   if (equipe.joueurs.some((j) => j.unique === "Le Professeur")) {

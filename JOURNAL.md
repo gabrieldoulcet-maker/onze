@@ -33,3 +33,9 @@ Trois lignes par session : **fait / bloqué / prochaine tâche**. C'est ce qui p
 - **Fait :** grosse journée. (1) Synergies **v2** intégrées : 11 Écoles aux paliers variés, 12 archétypes (Capitaine unique sinon guerre des égos), traits Uniques joués dans le match (El Santo, La Pantera, The Hammer…), jouer sans gardien permis, match accélérable ×2. (2) **La montée en étoiles** : 3 copies → Titulaire 2★, 3 × 2★ → Légende 3★, fusion automatique banc+terrain confondus, mise en scène (bannière dorée), étoiles affichées partout, revente au prix des copies. (3) **La vraie partie** (`partie.html`) : 8 coachs, économie TFT réelle (3M de départ, revenu 5M + intérêts + séries + victoire, XP 4M et +2/manche, niveaux 3→10, 5→11 titulaires), boutique aux odds par niveau, adversaires IA à thème d'École qui montent en puissance, matchs IA joués pour de vrai, prestige (dégâts 6+3×écart), élimination, classement, écran de fin. Jeu en sous-effectif permis (on démarre pauvre). Le 30M reste dans le bac à sable. Décisions 13-15 actées dans design/decisions.md.
 - **Bloqué :** rien. Équilibrage volontairement sommaire partout (Tiki > Catenaccio connu ; courbe IA à peaufiner) — la vraie séance d'équilibrage viendra quand tout sera posé.
 - **Prochaine tâche :** retours de Gabriel sur la vraie partie (durée, difficulté, moments de fun), puis au choix : quêtes/Icônes + staff (manche d'après, dixit la direction), ou polish du mercato (écran prioritaire, décision 13).
+
+## Session 5 (suite) — 21 août 2026
+
+- **Fait :** l'équipe starter — la vraie partie démarre avec 5 réservistes gratuits (Gus, Marcel, Rachid, Momo, Titi), un par ligne, sans École ni archétype (zéro synergie, stats minimales). Plus de blocage « pas de gardien en boutique » : la manche 1 se joue direct, chaque recrue améliore l'équipe.
+- **Bloqué :** rien.
+- **Prochaine tâche :** inchangée — retours de Gabriel sur la vraie partie, puis quêtes/Icônes + staff ou polish du mercato.
