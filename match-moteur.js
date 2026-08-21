@@ -1,17 +1,19 @@
 /* ============================================================
-   ONZE — Moteur de match v2 (phases de possession + synergies v2)
+   ONZE — Moteur de match v3 : les 13 stats (design/stats.md)
    ------------------------------------------------------------
-   Utilisé par match.html et draft.html (navigateur) ET par les
-   scripts de calibrage (node). Aucune dépendance.
+   Utilisé par les pages du jeu (navigateur) ET par les scripts
+   de calibrage (node). Aucune dépendance.
 
-   Références de design :
-   - design/synergies.md : 11 Écoles (paliers variés), 12 archétypes,
-     12 traits Uniques. Ici on implémente les effets DE MATCH ;
-     les effets d'économie/manches (Académie palier 2, Revanchards,
-     Pros, quêtes, Ferveur…) viendront avec les manches.
-   - design/joueurs.json : les 71 joueurs (source de vérité).
-   Toutes les valeurs chiffrées sont volontairement simples et
-   regroupées ici — l'équilibrage sérieux viendra plus tard.
+   Architecture ferme : le moteur produit une LISTE D'ÉVÉNEMENTS
+   typés (type, acteurs, texte provisoire) — le rendu (match-ui.js
+   aujourd'hui, l'animation 2D en phase 3) s'y branche sans que le
+   moteur change.
+
+   Les stats des joueurs se GÉNÈRENT par formule (jamais à la main) :
+   profil d'archétype × budget de coût × touche d'École, ×1,5 par
+   étoile, variation déterministe par nom (deux joueurs de même
+   coût/étoile ne sont jamais interchangeables). Ajustements manuels
+   réservés aux Uniques. Réglages regroupés ici pour le playtest.
    ============================================================ */
 
 /* ---- Petites aides ---- */
@@ -19,12 +21,10 @@ const de = (max) => Math.floor(Math.random() * max) + 1;
 const hasard = (tableau) => tableau[Math.floor(Math.random() * tableau.length)];
 const parPoste = (equipe, poste) => equipe.joueurs.filter((j) => j.poste === poste);
 const proba = (p) => Math.random() < p;
-// Variantes de textes pour que deux matchs ne se racontent pas pareil
 const varie = (...variantes) => hasard(variantes);
 
-/* Casting tournant : on choisit de préférence un joueur encore peu mis
-   en scène dans ce match, pour que le récit (et demain l'animation)
-   fasse vivre toute l'équipe au lieu de radoter sur deux noms. */
+/* Casting tournant : on met en scène de préférence un joueur encore
+   peu vu dans ce match, pour que tout l'effectif vive à l'écran. */
 function choisirParmi(equipe, ctx, candidats) {
   if (!candidats || candidats.length === 0) return null;
   const apparitions = ctx.etat[equipe.nom].apparitions;
@@ -40,88 +40,159 @@ function choisirParmi(equipe, ctx, candidats) {
 function degatsPrestige(ecart) { return ecart > 0 ? 6 + 3 * ecart : 0; }
 
 /* ============================================================
-   STATS DES JOUEURS — dérivées du coût et du poste
-   Talent de base = 3 + coût (de 4 à 8). À affiner en playtest.
+   GÉNÉRATION DES STATS (design/stats.md)
+   Champ : endurance vitesse technique tir passe dribble tacle
+           placement vision mental
+   Gardien : reflexes pied aerien remplacent tir dribble tacle
    ============================================================ */
-function statsJoueur(j) {
-  const T = 3 + j.cout;
-  // Montée en étoiles : 1★ → 2★ (Titulaire) → 3★ (Légende), façon TFT
-  const facteur = [1, 1.8, 3.2][(j.etoiles || 1) - 1] || 1;
-  const arrondi = (x) => Math.round(x * facteur);
-  switch (j.poste) {
-    case "GAR": return { att: 1, def: arrondi(T + 1) };
-    case "DÉF": return { att: arrondi(Math.max(1, T - 3)), def: arrondi(T) };
-    case "MIL": return { att: arrondi(T - 1), def: arrondi(T - 1) };
-    case "ATT": return { att: arrondi(T), def: arrondi(Math.max(1, T - 4)) };
-    default: return { att: 1, def: 1 };
-  }
+const STATS_CHAMP = ["endurance", "vitesse", "technique", "tir", "passe", "dribble", "tacle", "placement", "vision", "mental"];
+const STATS_GARDIEN = ["endurance", "vitesse", "technique", "reflexes", "passe", "pied", "aerien", "placement", "vision", "mental"];
+const NOMS_STATS = {
+  endurance: "END", vitesse: "VIT", technique: "TEC", tir: "TIR", passe: "PAS",
+  dribble: "DRI", tacle: "TAC", placement: "PLA", vision: "VIS", mental: "MEN",
+  reflexes: "RÉF", pied: "PIE", aerien: "AÉR",
+};
+
+/* Le profil = la forme (poids relatifs) ; le coût = la taille. */
+const PROFILS_ARCHETYPES = {
+  "Virtuose":   { dribble: 3, technique: 3, vitesse: 2, passe: 1.5, tir: 1.5, vision: 1.5, endurance: 1, placement: 1, mental: 1, tacle: 0.5 },
+  "Sentinelle": { tacle: 3, placement: 3, mental: 2, endurance: 1.5, vitesse: 1.5, vision: 1.5, passe: 1, technique: 1, dribble: 0.5, tir: 0.5 },
+  "Créateur":   { passe: 3, vision: 3, technique: 2.5, dribble: 1.5, mental: 1.5, placement: 1, endurance: 1, vitesse: 1, tir: 1, tacle: 0.5 },
+  "Finisseur":  { tir: 3, placement: 3, vitesse: 2, mental: 1.5, technique: 1.5, dribble: 1.5, endurance: 1, passe: 1, vision: 1, tacle: 0.5 },
+  "Moteur":     { endurance: 3, vitesse: 2.5, tacle: 2, passe: 1.5, technique: 1.5, placement: 1.5, mental: 1.5, vision: 1, dribble: 1, tir: 1 },
+  "Mur":        { placement: 3, tacle: 2.5, mental: 2, endurance: 1.5, vitesse: 1, technique: 1, passe: 1, vision: 1, dribble: 0.5, tir: 0.5,
+                  reflexes: 3, aerien: 2.5, pied: 1 },
+  "Renard":     { placement: 3, vitesse: 2.5, tir: 2, mental: 1.5, endurance: 1.5, dribble: 1.5, technique: 1, passe: 1, vision: 1, tacle: 0.5 },
+  "Chanceux":   { mental: 2, placement: 1.8, vitesse: 1.5, technique: 1.5, tir: 1.5, dribble: 1.5, passe: 1.5, vision: 1.5, endurance: 1.5, tacle: 1.2 },
+  "Guerrier":   { mental: 3, endurance: 2.5, tacle: 2, vitesse: 1.5, placement: 1.5, tir: 1, passe: 1, technique: 1, dribble: 1, vision: 1 },
+  "Mentor":     { vision: 3, mental: 3, passe: 2, technique: 1.5, placement: 1.5, endurance: 1, vitesse: 0.8, tacle: 1, dribble: 1, tir: 1 },
+  "Capitaine":  { mental: 3, passe: 2.5, vision: 2, placement: 1.5, endurance: 1.5, tacle: 1.5, technique: 1.5, vitesse: 1, dribble: 0.8, tir: 1,
+                  reflexes: 2.5, aerien: 1.5, pied: 1.5 },
+  "Piston":     { vitesse: 3, endurance: 3, dribble: 1.8, passe: 1.5, tacle: 1.5, placement: 1.5, technique: 1.2, tir: 1, vision: 1, mental: 1 },
+  "":           { endurance: 1, vitesse: 1, technique: 1, tir: 1, passe: 1, dribble: 1, tacle: 1, placement: 1, vision: 1, mental: 1,
+                  reflexes: 1, pied: 1, aerien: 1 }, // les réservistes sans archétype
+};
+/* Chez les gardiens, le profil glisse vers les stats de gardien */
+const PROFIL_BASE_GARDIEN = { reflexes: 3, aerien: 2, pied: 1.8, placement: 2, mental: 1.8, vision: 1.2, passe: 1, technique: 0.8, endurance: 1, vitesse: 0.8 };
+
+/* La touche d'École : petit plus thématique sur des stats PRÉCISES */
+const TOUCHES_ECOLES = {
+  "Tiki-Taka": { passe: 6, technique: 4 },
+  "Catenaccio": { tacle: 6, placement: 4 },
+  "Kick & Rush": { aerien: 6, endurance: 4, placement: 2 },
+  "École de la Rue": { dribble: 6, technique: 4 },
+  "La Grinta": { mental: 8 },
+  "Football Total": { vision: 5, vitesse: 3 },
+  "L'Académie": { technique: 4, mental: 3 },
+  "Les Internationaux": { vision: 4, mental: 3 },
+  "Le Douzième Homme": { mental: 5, placement: 3 },
+  "Les Pros": { placement: 4, technique: 3 },
+  "Les Revanchards": { mental: 5, endurance: 3 },
+};
+
+/* Ajustements à la main : réservés aux Uniques (design/stats.md) */
+const AJUSTEMENTS_UNIQUES = {
+  "El Santo": { reflexes: 8, mental: 6 }, "Le Roc": { tacle: 8, placement: 6 },
+  "Il Professore": { placement: 10, vision: 6 }, "El Pibe": { mental: 10, dribble: 6 },
+  "Don Álvaro": { passe: 10, vision: 6 }, "La Lambretta": { passe: 8, vision: 8 },
+  "La Pantera": { placement: 8, mental: 8 }, "O Rei da Rua": { dribble: 12 },
+  "The Hammer": { aerien: 12, tir: 6 }, "Le Professeur": { vision: 10, placement: 6 },
+  "Caméléon": { mental: 6, technique: 6 }, "Le Crack": { dribble: 8, vitesse: 6 },
+};
+
+/* Variation déterministe par nom : deux joueurs de même coût/étoile
+   ne sont JAMAIS interchangeables, et un joueur garde son visage. */
+function grainDuNom(nom, stat) {
+  let h = 0;
+  const cle = nom + "|" + stat;
+  for (let i = 0; i < cle.length; i++) h = (h * 31 + cle.charCodeAt(i)) % 997;
+  return (h / 997 - 0.5) * 0.18; // ±9 %
 }
 
-/* Fusion des copies au mercato : 3 exemplaires identiques → une étoile
-   de plus (3★ maximum). Modifie terrain/banc sur place et renvoie la
-   liste des fusions, pour que l'interface les mette en scène. */
-function fusionnerEffectif(terrain, banc) {
-  const fusions = [];
-  let encore = true;
-  while (encore) {
-    encore = false;
-    const tout = [
-      ...terrain.map((j) => ({ j, liste: terrain })),
-      ...banc.map((j) => ({ j, liste: banc })),
-    ];
-    const groupes = {};
-    for (const e of tout) {
-      const cle = e.j.nom + "|" + (e.j.etoiles || 1);
-      (groupes[cle] = groupes[cle] || []).push(e);
-    }
-    for (const cle of Object.keys(groupes)) {
-      const groupe = groupes[cle];
-      if (groupe.length >= 3 && (groupe[0].j.etoiles || 1) < 3) {
-        // On garde de préférence l'exemplaire déjà titulaire
-        groupe.sort((a, b) => (a.liste === terrain ? 0 : 1) - (b.liste === terrain ? 0 : 1));
-        const garde = groupe[0].j;
-        garde.etoiles = (garde.etoiles || 1) + 1;
-        for (const e of groupe.slice(1, 3)) e.liste.splice(e.liste.indexOf(e.j), 1);
-        fusions.push({ nom: garde.nom, etoiles: garde.etoiles });
-        encore = true;
-        break;
-      }
-    }
+function genererStats(fiche) {
+  const gardien = fiche.poste === "GAR";
+  const cles = gardien ? STATS_GARDIEN : STATS_CHAMP;
+  const profilArchetype = PROFILS_ARCHETYPES[fiche.archetype || ""] || PROFILS_ARCHETYPES[""];
+  const stats = {};
+  // budget : le coût fait la taille, pas la forme (coût 0 = réserviste)
+  const budgetMoyen = 34 + 8 * (fiche.cout || 0);
+  let sommePoids = 0;
+  const poids = {};
+  for (const stat of cles) {
+    let p = gardien
+      ? (PROFIL_BASE_GARDIEN[stat] || 1) * 0.7 + (profilArchetype[stat] || 1) * 0.3
+      : (profilArchetype[stat] || 1);
+    p *= 1 + grainDuNom(fiche.nom, stat);
+    poids[stat] = p;
+    sommePoids += p;
   }
-  return fusions;
+  const facteurEtoile = Math.pow(1.5, (fiche.etoiles || 1) - 1);
+  const touche = TOUCHES_ECOLES[fiche.ecole] || {};
+  const ajustement = AJUSTEMENTS_UNIQUES[fiche.unique] || {};
+  for (const stat of cles) {
+    let valeur = (poids[stat] / sommePoids) * cles.length * budgetMoyen;
+    valeur += (touche[stat] || 0) + (ajustement[stat] || 0);
+    valeur *= facteurEtoile;
+    stats[stat] = Math.max(10, Math.min(99, Math.round(valeur)));
+  }
+  return stats;
+}
+
+/* Note globale façon FIFA : la moyenne des 6 meilleures stats */
+function noteGlobale(stats) {
+  const valeurs = Object.values(stats).sort((a, b) => b - a).slice(0, 6);
+  return Math.round(valeurs.reduce((t, v) => t + v, 0) / valeurs.length);
+}
+/* Les 2 stats signatures du profil (pour la carte) */
+function statsSignatures(stats) {
+  return Object.entries(stats).sort((a, b) => b[1] - a[1]).slice(0, 2)
+    .map(([stat, valeur]) => ({ stat, nom: NOMS_STATS[stat], valeur }));
 }
 
 /* ============================================================
-   SYNERGIES v2 — paliers variés par famille (design/synergies.md)
-   s = nombre de paliers atteints (0 = famille inactive).
-   Cas spécial Capitaines : 1 seul = aura ; 2+ = guerre des égos (malus).
+   SYNERGIES — paliers (design/synergies.md) et BOOSTS DE STATS
+   PRÉCISES (design/stats.md : jamais de « +X % global »).
+   Les effets à procs (ballon long, contre, gestes…) restent des
+   événements de match, en plus des boosts.
    ============================================================ */
 const PALIERS_ECOLES = {
-  "La Grinta": [3, 6, 9],
-  "Catenaccio": [2, 4, 6, 9],
-  "Kick & Rush": [2, 5],
-  "École de la Rue": [1, 3, 5, 7, 10],
-  "Tiki-Taka": [3, 5, 7],
-  "Football Total": [3, 5, 7, 10],
-  "L'Académie": [2, 3],
-  "Les Internationaux": [2, 3],
-  "Le Douzième Homme": [3, 4, 6],
-  "Les Pros": [2, 3],
-  "Les Revanchards": [2, 3, 4],
+  "La Grinta": [3, 6, 9], "Catenaccio": [2, 4, 6, 9], "Kick & Rush": [2, 5],
+  "École de la Rue": [1, 3, 5, 7, 10], "Tiki-Taka": [3, 5, 7], "Football Total": [3, 5, 7, 10],
+  "L'Académie": [2, 3], "Les Internationaux": [2, 3], "Le Douzième Homme": [3, 4, 6],
+  "Les Pros": [2, 3], "Les Revanchards": [2, 3, 4],
 };
 const PALIERS_ARCHETYPES = {
-  "Mur": [2, 4, 6],
-  "Moteur": [2, 4, 6],
-  "Sentinelle": [2, 4, 6],
-  "Virtuose": [2, 3, 4, 5],
-  "Finisseur": [2, 3, 4, 5],
-  "Créateur": [2, 3, 4, 5],
-  "Piston": [2, 3, 4, 5],
-  "Renard": [2, 3, 4, 5],
-  "Chanceux": [2, 4],
-  "Guerrier": [2, 4, 6],
-  "Mentor": [3, 5, 7],
-  "Capitaine": [1],
+  "Mur": [2, 4, 6], "Moteur": [2, 4, 6], "Sentinelle": [2, 4, 6],
+  "Virtuose": [2, 3, 4, 5], "Finisseur": [2, 3, 4, 5], "Créateur": [2, 3, 4, 5],
+  "Piston": [2, 3, 4, 5], "Renard": [2, 3, 4, 5], "Chanceux": [2, 4],
+  "Guerrier": [2, 4, 6], "Mentor": [3, 5, 7], "Capitaine": [1],
+};
+/* Chaque famille booste des stats précises, ×s (palier atteint) */
+const BOOSTS_FAMILLES = {
+  "Tiki-Taka": { passe: 5, technique: 3 },
+  "Catenaccio": { tacle: 5, placement: 3 },
+  "Kick & Rush": { aerien: 5, endurance: 3 },
+  "École de la Rue": { dribble: 5, technique: 3 },
+  "La Grinta": { mental: 6 },
+  "Football Total": { vision: 4, vitesse: 3 },
+  "L'Académie": { technique: 4, mental: 3 },
+  "Les Internationaux": { vision: 3, mental: 3 },
+  "Le Douzième Homme": { mental: 4, placement: 3 },
+  "Les Pros": { placement: 3, technique: 3 },
+  "Les Revanchards": { mental: 4 },
+  "Mur": { placement: 4, reflexes: 5 },
+  "Moteur": { endurance: 5, vitesse: 3 },
+  "Sentinelle": { placement: 4, tacle: 3 },
+  "Virtuose": { dribble: 4, technique: 3 },
+  "Finisseur": { tir: 5, placement: 2 },
+  "Créateur": { passe: 4, vision: 3 },
+  "Piston": { vitesse: 4, endurance: 3 },
+  "Renard": { placement: 4, vitesse: 2 },
+  "Chanceux": { mental: 3 },
+  "Guerrier": { mental: 4, tacle: 2 },
+  "Mentor": { vision: 4, mental: 2 },
+  "Capitaine": { mental: 4 },
+  "Guerre des égos": { mental: -8 },
 };
 
 function calculerSynergies(equipe) {
@@ -130,51 +201,68 @@ function calculerSynergies(equipe) {
     if (j.ecole) ecoles[j.ecole] = (ecoles[j.ecole] || 0) + 1;
     if (j.archetype) archetypes[j.archetype] = (archetypes[j.archetype] || 0) + 1;
   }
-  // Ruud (« Le Professeur ») compte comme un Football Total de plus
-  if (equipe.joueurs.some((j) => j.unique === "Le Professeur")) {
+  if (equipe.joueurs.some((j) => j.unique === "Le Professeur"))
     ecoles["Football Total"] = (ecoles["Football Total"] || 0) + 1;
-  }
-  // Le Caméléon adopte l'École majoritaire et compte pour +1 dedans
   const nbCameleons = equipe.joueurs.filter((j) => j.unique === "Caméléon").length;
   if (nbCameleons > 0 && Object.keys(ecoles).length > 0) {
     const majoritaire = Object.keys(ecoles).sort((a, b) => ecoles[b] - ecoles[a])[0];
     ecoles[majoritaire] += nbCameleons;
   }
-
   const actives = [];
   for (const [nom, nb] of Object.entries(ecoles)) {
-    const paliers = PALIERS_ECOLES[nom] || [2, 4, 6];
-    const s = paliers.filter((p) => nb >= p).length;
+    const s = (PALIERS_ECOLES[nom] || [2, 4, 6]).filter((p) => nb >= p).length;
     if (s > 0) actives.push({ nom, nb, s, type: "ecole" });
   }
   for (const [nom, nb] of Object.entries(archetypes)) {
     if (nom === "Capitaine") {
-      // Le brassard ne se partage pas : 2+ Capitaines = guerre des égos
       if (nb === 1) actives.push({ nom, nb, s: 1, type: "archetype" });
       if (nb >= 2) actives.push({ nom: "Guerre des égos", nb, s: 1, type: "archetype" });
       continue;
     }
-    const paliers = PALIERS_ARCHETYPES[nom] || [2, 4, 6];
-    const s = paliers.filter((p) => nb >= p).length;
+    const s = (PALIERS_ARCHETYPES[nom] || [2, 4, 6]).filter((p) => nb >= p).length;
     if (s > 0) actives.push({ nom, nb, s, type: "archetype" });
   }
   return actives;
 }
-
 const s = (equipe, nom) => { const sy = equipe.synergies.find((x) => x.nom === nom); return sy ? sy.s : 0; };
 const aUnique = (equipe, nomUnique) => equipe.joueurs.find((j) => j.unique === nomUnique);
 
 /* ============================================================
-   CRÉATION D'ÉQUIPE
+   CRÉATION D'ÉQUIPE — stats générées, puis boosts ciblés
+   (j.statsBase = avant boosts ; j.boosts = le détail, pour que la
+   fiche affiche les valeurs boostées en vert ; j.stats = final)
    ============================================================ */
 function equipeDepuisFiches(nomClub, coach, fiches) {
   const joueurs = fiches.map((fiche) => ({
     ...fiche,
-    ...statsJoueur(fiche),
     nom: (fiche.etoiles || 1) >= 2 ? `${fiche.nom} ${"★".repeat(fiche.etoiles)}` : fiche.nom,
+    statsBase: genererStats(fiche),
   }));
   const equipe = { nom: nomClub, coach, joueurs };
   equipe.synergies = calculerSynergies(equipe);
+
+  for (const j of joueurs) {
+    j.boosts = {};
+    for (const sy of equipe.synergies) {
+      // Un boost d'École ne touche que ses membres ; un boost d'archétype
+      // que ses porteurs ; Capitaine et Guerre des égos touchent l'équipe.
+      const concerne =
+        (sy.type === "ecole" && j.ecole === sy.nom) ||
+        (sy.type === "archetype" && j.archetype === sy.nom) ||
+        sy.nom === "Capitaine" || sy.nom === "Guerre des égos";
+      if (!concerne) continue;
+      const boosts = BOOSTS_FAMILLES[sy.nom] || {};
+      for (const [stat, montant] of Object.entries(boosts)) {
+        if (!(stat in j.statsBase)) continue;
+        j.boosts[stat] = (j.boosts[stat] || 0) + montant * sy.s;
+      }
+    }
+    j.stats = {};
+    for (const [stat, valeur] of Object.entries(j.statsBase))
+      j.stats[stat] = Math.max(5, Math.min(99, valeur + (j.boosts[stat] || 0)));
+    j.note = noteGlobale(j.stats);
+    j.signatures = statsSignatures(j.stats);
+  }
   return equipe;
 }
 function creerEquipe(nomClub, coach, noms, tousLesJoueurs) {
@@ -187,87 +275,55 @@ function creerEquipe(nomClub, coach, noms, tousLesJoueurs) {
 }
 
 /* ============================================================
-   BONUS DE DUEL — chaque bonus garde sa source pour que le récit
-   puisse dire « la synergie X a fait la différence ».
-   L'état de match (Flow de la Rue, confiance des Guerriers,
-   arrêts déjà consommés…) vit dans ctx.etat[nom d'équipe].
+   L'ADN DU CLUB — 6 axes agrégés pour le panneau du mercato
    ============================================================ */
-function bonusCommuns(equipe, ctx) {
-  const liste = [];
-  const etat = ctx.etat[equipe.nom];
-  if (s(equipe, "Capitaine")) liste.push({ nom: "Capitaine", valeur: 1 });
-  if (s(equipe, "Guerre des égos")) liste.push({ nom: "Guerre des égos", valeur: -1.5 });
-  const grinta = s(equipe, "La Grinta");
-  if (grinta && ctx.scoreDe(equipe) < ctx.scoreAdverse(equipe))
-    liste.push({ nom: "La Grinta", valeur: 1.5 * grinta });
-  if (aUnique(equipe, "El Pibe") && ctx.scoreDe(equipe) < ctx.scoreAdverse(equipe))
-    liste.push({ nom: "El Pibe", valeur: 2 });
-  const inter = s(equipe, "Les Internationaux");
-  if (inter) liste.push({ nom: "Les Internationaux", valeur: 0.5 * inter });
-  const academie = s(equipe, "L'Académie");
-  if (academie >= 2) liste.push({ nom: "L'Académie", valeur: 1 });
-  const mentor = s(equipe, "Mentor");
-  if (mentor) liste.push({ nom: "Mentor", valeur: 0.5 * mentor });
-  const guerrier = s(equipe, "Guerrier");
-  if (guerrier && etat.confiance > 0)
-    liste.push({ nom: "Guerrier", valeur: Math.min(0.3 * guerrier * etat.confiance, 3) });
-  const flow = s(equipe, "École de la Rue") >= 2 ? etat.flow : 0; // le Flow dès le palier 3
-  if (flow > 0) liste.push({ nom: "École de la Rue", valeur: Math.min(0.5 * flow, 3) });
-  // Kick & Rush palier 5 : la déferlante à partir de la 3e phase
-  if (s(equipe, "Kick & Rush") >= 2 && ctx.numero >= 3)
-    liste.push({ nom: "Kick & Rush", valeur: 1.5 });
-  return liste;
-}
-function bonusMilieu(equipe, ctx) {
-  const liste = bonusCommuns(equipe, ctx);
-  const tiki = s(equipe, "Tiki-Taka");
-  if (tiki) liste.push({ nom: "Tiki-Taka", valeur: 1.2 * tiki });
-  const moteur = s(equipe, "Moteur");
-  if (moteur) liste.push({ nom: "Moteur", valeur: 1 * moteur });
-  if (aUnique(equipe, "Don Álvaro")) liste.push({ nom: "Don Álvaro", valeur: 1.5 });
-  return liste;
-}
-function bonusPercee(equipe, ctx) {
-  const liste = bonusCommuns(equipe, ctx);
-  const piston = s(equipe, "Piston");
-  if (piston) liste.push({ nom: "Piston", valeur: 1 * piston });
-  const createur = s(equipe, "Créateur");
-  if (createur) liste.push({ nom: "Créateur", valeur: 0.8 * createur });
-  const total = s(equipe, "Football Total");
-  if (total >= 2) liste.push({ nom: "Football Total", valeur: 0.7 * total });
-  return liste;
-}
-function bonusDefense(equipe, ctx) {
-  const liste = bonusCommuns(equipe, ctx);
-  const cate = s(equipe, "Catenaccio");
-  if (cate) liste.push({ nom: "Catenaccio", valeur: 1.6 * cate });
-  const douzieme = s(equipe, "Le Douzième Homme");
-  if (douzieme) {
-    let valeur = 0.8 * douzieme;
-    if (douzieme >= 2 && ctx.scoreDe(equipe) > ctx.scoreAdverse(equipe)) valeur += 0.8; // le stade gronde
-    liste.push({ nom: "Le Douzième Homme", valeur });
+const AXES_ADN = {
+  "Attaque": ["tir", "reflexes"], // les réflexes du gardien comptent à part
+  "Création": ["passe", "vision"],
+  "Dribble": ["dribble", "technique"],
+  "Défense": ["tacle", "placement", "reflexes", "aerien"],
+  "Physique": ["endurance", "vitesse"],
+  "Mental": ["mental"],
+};
+function adnClub(equipe) {
+  const axes = {};
+  for (const [axe, statsAxe] of Object.entries(AXES_ADN)) {
+    let total = 0, compte = 0;
+    for (const j of equipe.joueurs) {
+      for (const stat of statsAxe) {
+        if (axe === "Attaque" && stat === "reflexes") continue; // le gardien n'attaque pas
+        if (stat in (j.stats || {})) { total += j.stats[stat]; compte++; }
+      }
+    }
+    axes[axe] = compte ? Math.round(total / compte) : 0;
   }
-  const total = s(equipe, "Football Total");
-  if (total) liste.push({ nom: "Football Total", valeur: 0.7 * total });
-  return liste;
-}
-const totalBonus = (liste) => liste.reduce((t, b) => t + b.valeur, 0);
-function synergieDecisive(liste, marge) {
-  const positifs = liste.filter((b) => b.valeur > 0);
-  if (positifs.length === 0) return null;
-  const meilleur = positifs.sort((a, b) => b.valeur - a.valeur)[0];
-  // On ne raconte la synergie que si le duel s'est joué dans sa marge,
-  // et pas à chaque fois : c'est un moment fort, pas un bruit de fond.
-  if (marge > meilleur.valeur || Math.random() > 0.4) return null;
-  return meilleur.nom;
+  return axes;
 }
 
 /* ============================================================
-   LE TIR — façon xG, avec toute la ménagerie autour :
-   Il Professore et les Sentinelles coupent avant le tir,
-   les Murs et El Santo bloquent le premier tir cadré de la
-   mi-temps, les Renards rôdent sur les ballons qui traînent,
-   les Chanceux ont des poteaux rentrants.
+   LA MATRICE DES DUELS (design/stats.md) — chaque duel lit
+   2 stats de chaque côté. L'endurance fatigue, le mental
+   module les moments chauds.
+   ============================================================ */
+const duo = (j, s1, s2) => ((j.stats[s1] || 40) + (j.stats[s2] || 40)) / 2;
+
+/* Fatigue : à partir de la mi-match, les stats baissent d'autant plus
+   que l'endurance est basse. Mental : ±15 % dans les moments chauds. */
+function forme(j, ctx, equipe) {
+  const progression = Math.max(0, (ctx.numero - 4) / 8);
+  const fatigue = 1 - progression * (1 - (j.stats.endurance || 50) / 100) * 0.6;
+  let mental = 1;
+  if (ctx.momentChaud()) mental = 0.88 + ((j.stats.mental || 50) / 100) * 0.24;
+  return fatigue * mental;
+}
+function forceCollective(equipe, joueurs, s1, s2, ctx) {
+  return joueurs.reduce((t, j) => t + duo(j, s1, s2) * forme(j, ctx, equipe), 0);
+}
+
+/* ============================================================
+   LE TIR — Tir + Placement contre les Réflexes du gardien
+   (le Placement des Murs pèse en malus d'xG). Autour : Professore,
+   Sentinelles, El Santo, blocs des Murs, Renards, Chanceux.
    ============================================================ */
 function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
   const etatDef = ctx.etat[defense.nom];
@@ -277,36 +333,34 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
   if (milieuxAtt.length && (candidatsTir.length === 0 || proba(0.35))) candidatsTir.push(...milieuxAtt);
   if (candidatsTir.length === 0) candidatsTir.push(...attaque.joueurs.filter((j) => j.poste !== "GAR"));
   const finisseur = choisirParmi(attaque, ctx, candidatsTir);
-  // Jouer sans gardien est permis : la cage est vide, presque tout rentre
-  const gardien = parPoste(defense, "GAR")[0] || { nom: "la cage vide", def: 0, att: 0, cageVide: true };
+  const gardien = parPoste(defense, "GAR")[0] || { nom: "la cage vide", stats: { reflexes: 5 }, cageVide: true };
 
-  // Il Professore : le piège du hors-jeu, une occasion annulée par match
   if (aUnique(defense, "Il Professore") && !etatDef.professoreUtilise && proba(0.5)) {
     etatDef.professoreUtilise = true;
     evenements.push({ type: "hors_jeu", acteurs: [finisseur.nom], texte: `Drapeau levé ! Le piège du hors-jeu d'Il Professore se referme sur ${finisseur.nom}.`, synergie: "Il Professore", equipe: defense.nom });
     return false;
   }
-  // Les Sentinelles peuvent couper la trajectoire
   const sentinelle = s(defense, "Sentinelle");
   if (sentinelle && proba(0.08 * sentinelle)) {
-    const defenseur = hasard(parPoste(defense, "DÉF").length ? parPoste(defense, "DÉF") : defense.joueurs);
+    const defenseur = choisirParmi(defense, ctx, parPoste(defense, "DÉF").length ? parPoste(defense, "DÉF") : defense.joueurs);
     evenements.push({ type: "interception", acteurs: [defenseur.nom, finisseur.nom], texte: `${finisseur.nom} arme son tir… mais ${defenseur.nom} surgit et coupe la trajectoire !`, synergie: "Sentinelle", equipe: defense.nom });
     return false;
   }
 
-  let qualite = finisseur.att + de(8) + bonusQualite;
-  qualite += 0.8 * s(attaque, "Finisseur") + 0.6 * s(attaque, "Créateur");
-  let parade = gardien.cageVide ? 1 + de(2) : gardien.def + de(8) + 1 * s(defense, "Mur");
+  // Le duel du tir : Tir + Placement vs Réflexes (+ Placement des Murs)
+  let qualite = duo(finisseur, "tir", "placement") * forme(finisseur, ctx, attaque) + de(30) + bonusQualite;
+  const murs = defense.joueurs.filter((j) => j.archetype === "Mur" && j.poste !== "GAR");
+  const malusMurs = murs.reduce((t, j) => t + (j.stats.placement || 0), 0) * 0.06;
+  let parade = gardien.cageVide
+    ? 10 + de(10)
+    : (gardien.stats.reflexes || 40) * forme(gardien, ctx, defense) + de(24) + malusMurs;
 
-  // Le Virtuose peut sortir le geste de classe (et nourrir le Flow de la Rue)
   let classe = false;
   const virtuose = s(attaque, "Virtuose");
   if (virtuose && proba(0.08 * virtuose)) { parade /= 2; classe = true; ctx.etat[attaque.nom].flow++; }
 
   let but = qualite > parade;
   let blocage = null;
-
-  // Premier tir cadré de la mi-temps : El Santo (garanti) ou les Murs (palier 4)
   const miTemps = ctx.numero <= 4 ? 1 : 2;
   if (but && aUnique(defense, "El Santo") && !etatDef.santo[miTemps]) {
     etatDef.santo[miTemps] = true; but = false;
@@ -330,23 +384,18 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
           `Enchaînement de ${finisseur.nom} dans la surface…`
         ),
       cri: `BUUUT de ${finisseur.nom} pour ${attaque.nom} !`,
-      synergie: classe ? "Virtuose" : synergieDecisive(
-        [{ nom: "Finisseur", valeur: 0.8 * s(attaque, "Finisseur") }, { nom: "Créateur", valeur: 0.6 * s(attaque, "Créateur") }],
-        qualite - parade
-      ),
+      synergie: classe ? "Virtuose" : (s(attaque, "Finisseur") && qualite - parade <= 5 * s(attaque, "Finisseur") && proba(0.4) ? "Finisseur" : null),
     });
     return true;
   }
 
-  // Tir manqué : les Chanceux peuvent avoir un poteau rentrant…
   const chanceux = s(attaque, "Chanceux");
   if (chanceux && proba(0.06 * chanceux)) {
     evenements.push({
       type: "but", acteurs: [finisseur.nom],
       but: true, buteur: finisseur.nom, equipe: attaque.nom,
       texte: `La frappe de ${finisseur.nom} est repoussée… non ! Poteau RENTRANT ! La chance ${chanceux >= 2 ? "insolente" : "sourit"} !`,
-      cri: `BUUUT de ${finisseur.nom} pour ${attaque.nom} !`,
-      synergie: "Chanceux",
+      cri: `BUUUT de ${finisseur.nom} pour ${attaque.nom} !`, synergie: "Chanceux",
     });
     return true;
   }
@@ -359,29 +408,27 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
       texte: gardien.cageVide
         ? `${finisseur.nom} vise la cage vide… et dévisse ! Incroyable raté !`
         : varie(
-        `${finisseur.nom} frappe… mais ${gardien.nom} s'envole et détourne ! Quel arrêt !`,
-        `${finisseur.nom} arme sa frappe… ${gardien.nom} gagne son face-à-face du bout des gants !`,
-        `La tentative de ${finisseur.nom} est cadrée… mais ${gardien.nom} dit non !`
-      ),
+          `${finisseur.nom} frappe… mais ${gardien.nom} s'envole et détourne ! Quel arrêt !`,
+          `${finisseur.nom} arme sa frappe… ${gardien.nom} gagne son face-à-face du bout des gants !`,
+          `La tentative de ${finisseur.nom} est cadrée… mais ${gardien.nom} dit non !`
+        ),
       equipe: defense.nom,
-      synergie: s(defense, "Mur") && parade - qualite <= s(defense, "Mur") && proba(0.4) ? "Mur" : null,
+      synergie: s(defense, "Mur") && proba(0.3) ? "Mur" : null,
     });
   }
 
-  // …et les Renards rôdent sur le ballon qui traîne
   const renard = s(attaque, "Renard");
   if (renard && proba(0.10 * renard)) {
     const renards = attaque.joueurs.filter((j) => j.archetype === "Renard");
     const opportuniste = renards.length ? choisirParmi(attaque, ctx, renards) : finisseur;
     evenements.push({ type: "rebond", acteurs: [opportuniste.nom], texte: `Le ballon traîne dans la surface… ${opportuniste.nom} a suivi !`, synergie: "Renard", equipe: attaque.nom });
-    const qualiteReprise = opportuniste.att + de(8);
-    const paradeReprise = (gardien.cageVide ? 1 : gardien.def) + de(6);
-    if (qualiteReprise > paradeReprise) {
+    const reprise = duo(opportuniste, "placement", "tir") + de(30);
+    const paradeReprise = (gardien.cageVide ? 10 : gardien.stats.reflexes || 40) + de(24);
+    if (reprise > paradeReprise) {
       evenements.push({
         type: "but", acteurs: [opportuniste.nom, gardien.nom],
         but: true, buteur: opportuniste.nom, equipe: attaque.nom,
-        texte: `Reprise à bout portant…`,
-        cri: `BUUUT de ${opportuniste.nom} pour ${attaque.nom} !`, synergie: null,
+        texte: `Reprise à bout portant…`, cri: `BUUUT de ${opportuniste.nom} pour ${attaque.nom} !`, synergie: null,
       });
       return true;
     }
@@ -391,18 +438,28 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
 }
 
 /* ============================================================
-   UNE PHASE DE POSSESSION — trois duels lisibles :
-   1. MILIEU (Kick & Rush et La Lambretta peuvent le court-circuiter)
-   2. PERCÉE (l'École de la Rue peut relancer d'un geste)
-   3. TIR
-   Un arrêt du Catenaccio peut déclencher un contre éclair.
+   UNE PHASE — 1. le milieu (Passe+Vision, duel de possession)
+   2. la percée, dont le TYPE est tiré au sort et lit la matrice :
+      dribble (Dribble+Technique vs Tacle+Placement)
+      course  (Vitesse+Endurance vs Vitesse+Placement)
+      aérien  (Placement+Mental des deux côtés)
+      centre  (Passe+Technique vs Sortie aérienne du gardien)
+   3. le tir. Les procs d'Écoles et d'Uniques s'y greffent.
    ============================================================ */
+const TYPES_PERCEE = [
+  { type: "dribble", poids: 4, att: ["dribble", "technique"], def: ["tacle", "placement"],
+    reussite: null },
+  { type: "course", poids: 2.5, att: ["vitesse", "endurance"], def: ["vitesse", "placement"] },
+  { type: "aerien", poids: 1.5, att: ["placement", "mental"], def: ["placement", "mental"] },
+  { type: "centre", poids: 2, att: ["passe", "technique"], def: null }, // le gardien sort
+];
+
 function resoudrePhase(eqA, eqB, ctx) {
   const evenements = [];
   let attaque = null;
   let bonusTir = 0;
 
-  // Ballon long du Kick & Rush : un par match au palier 2, la déferlante ensuite
+  // Ballon long du Kick & Rush (un par match au palier 2, déferlante ensuite)
   for (const eq of [eqA, eqB]) {
     const kr = s(eq, "Kick & Rush");
     const etat = ctx.etat[eq.nom];
@@ -411,7 +468,7 @@ function resoudrePhase(eqA, eqB, ctx) {
       etat.ballonLongUtilise = true;
       attaque = eq;
       const hammer = aUnique(eq, "The Hammer");
-      if (hammer) bonusTir += 1.5;
+      if (hammer) bonusTir += 15;
       evenements.push({
         type: "ballon_long", acteurs: [],
         texte: hammer
@@ -421,32 +478,38 @@ function resoudrePhase(eqA, eqB, ctx) {
       });
     }
   }
-  // La Lambretta : la passe par-dessus la défense, tir à bout portant direct
   if (!attaque) {
     for (const eq of [eqA, eqB]) {
       if (aUnique(eq, "La Lambretta") && proba(0.10)) {
         attaque = eq;
-        bonusTir += 1;
+        bonusTir += 10;
         evenements.push({ type: "lambretta", acteurs: [], texte: `La Lambretta décolle — la passe par-dessus la défense trouve son homme à bout portant !`, synergie: "La Lambretta", equipe: eq.nom });
         break;
       }
     }
   }
 
-  // Duel n°1 : le milieu
+  // --- Duel n°1 : le milieu — Passe + Vision des milieux ---
   if (!attaque) {
-    const bA = bonusMilieu(eqA, ctx), bB = bonusMilieu(eqB, ctx);
-    const forceA = parPoste(eqA, "MIL").reduce((t, j) => t + j.att + j.def, 0) + totalBonus(bA) + de(12);
-    const forceB = parPoste(eqB, "MIL").reduce((t, j) => t + j.att + j.def, 0) + totalBonus(bB) + de(12);
+    const forceMilieu = (eq) => {
+      const milieux = parPoste(eq, "MIL");
+      const base = milieux.length
+        ? forceCollective(eq, milieux, "passe", "vision", ctx)
+        : forceCollective(eq, eq.joueurs.filter((j) => j.poste !== "GAR"), "passe", "vision", ctx) * 0.35;
+      let bonus = 0;
+      if (aUnique(eq, "Don Álvaro")) bonus += 10;
+      if (s(eq, "La Grinta") && ctx.scoreDe(eq) < ctx.scoreAdverse(eq)) bonus += 6 * s(eq, "La Grinta");
+      if (aUnique(eq, "El Pibe") && ctx.scoreDe(eq) < ctx.scoreAdverse(eq)) bonus += 8;
+      if (s(eq, "Kick & Rush") >= 2 && ctx.numero >= 3) bonus += 8;
+      if (s(eq, "École de la Rue") >= 2) bonus += Math.min(ctx.etat[eq.nom].flow * 3, 15); // le Flow
+      return base + bonus + de(45);
+    };
+    const forceA = forceMilieu(eqA), forceB = forceMilieu(eqB);
     attaque = forceA >= forceB ? eqA : eqB;
-    const marge = Math.abs(forceA - forceB);
-    const sy = synergieDecisive(attaque === eqA ? bA : bB, marge);
     const milieux = parPoste(attaque, "MIL");
     const autresChamp = attaque.joueurs.filter((j) => j.poste !== "GAR");
-    // 7 fois sur 10 le milieu porte le jeu, sinon un autre joueur de champ
     const candidatsPorteur = milieux.length && !proba(0.3) ? milieux : autresChamp;
     const porteur = choisirParmi(attaque, ctx, candidatsPorteur.length ? candidatsPorteur : attaque.joueurs);
-    ctx.etat[attaque.nom].confiance++;
     evenements.push({
       type: "possession", acteurs: [porteur.nom],
       texte: varie(
@@ -457,52 +520,59 @@ function resoudrePhase(eqA, eqB, ctx) {
         `${porteur.nom} récupère haut et lance l'attaque de ${attaque.nom}.`,
         `Pressing gagnant : ${porteur.nom} arrache le ballon pour ${attaque.nom}.`,
         `${porteur.nom} trouve l'intervalle — ${attaque.nom} s'installe dans le camp adverse.`
-      ), synergie: sy, equipe: attaque.nom,
+      ),
+      synergie: s(attaque, "Tiki-Taka") && proba(0.25) ? "Tiki-Taka" : null, equipe: attaque.nom,
     });
   }
   const defense = attaque === eqA ? eqB : eqA;
 
-  // Duel n°2 : la percée (sautée si le ballon est déjà à bout portant)
-  let percee = bonusTir > 0; // ballon long / Lambretta : occasion déjà créée
+  // --- Duel n°2 : la percée — le type de duel est tiré au sort ---
+  let percee = bonusTir > 0;
   if (!percee) {
-    const bAtt = bonusPercee(attaque, ctx), bDef = bonusDefense(defense, ctx);
-    const forceAtt = parPoste(attaque, "ATT").reduce((t, j) => t + j.att, 0)
-      + parPoste(attaque, "MIL").reduce((t, j) => t + j.att, 0) + totalBonus(bAtt);
-    const forceDef = parPoste(defense, "DÉF").reduce((t, j) => t + j.def, 0) + totalBonus(bDef);
-    percee = forceAtt + de(10) > forceDef + de(10);
+    const totalPoids = TYPES_PERCEE.reduce((t, x) => t + x.poids, 0);
+    let tirage = Math.random() * totalPoids, typePercee = TYPES_PERCEE[0];
+    for (const candidat of TYPES_PERCEE) { tirage -= candidat.poids; if (tirage <= 0) { typePercee = candidat; break; } }
 
-    // L'École de la Rue : un geste peut relancer une percée ratée (et nourrit le Flow)
+    const attaquants = [...parPoste(attaque, "ATT"), ...parPoste(attaque, "MIL")];
+    const defenseurs = parPoste(defense, "DÉF");
+    const gardienDef = parPoste(defense, "GAR")[0];
+    const forceAtt = forceCollective(attaque, attaquants.length ? attaquants : attaque.joueurs, typePercee.att[0], typePercee.att[1], ctx);
+    let forceDef;
+    if (typePercee.type === "centre") {
+      forceDef = (gardienDef ? duo(gardienDef, "aerien", "placement") * 1.6 : 20)
+        + forceCollective(defense, defenseurs, "placement", "placement", ctx) * 0.5;
+    } else {
+      forceDef = forceCollective(defense, defenseurs.length ? defenseurs : defense.joueurs.filter((j) => j.poste !== "GAR"), typePercee.def[0], typePercee.def[1], ctx);
+      // l'attaque aligne souvent plus de monde que la ligne défensive : rééquilibrage
+      forceDef *= attaquants.length && defenseurs.length ? Math.max(1, attaquants.length / defenseurs.length) * 0.95 : 1;
+    }
+    let bonusAtt = 0;
+    if (s(attaque, "La Grinta") && ctx.scoreDe(attaque) < ctx.scoreAdverse(attaque)) bonusAtt += 6 * s(attaque, "La Grinta");
+    percee = forceAtt + bonusAtt + de(50) > forceDef + de(50);
+
     if (!percee) {
       const rue = s(attaque, "École de la Rue");
       if (rue && proba(0.12 * rue)) {
-        const dribbleurs = attaque.joueurs.filter((j) => j.poste !== "GAR");
-        const dribbleur = choisirParmi(attaque, ctx, dribbleurs);
+        const dribbleur = choisirParmi(attaque, ctx, attaque.joueurs.filter((j) => j.poste !== "GAR"));
         ctx.etat[attaque.nom].flow++;
         if (aUnique(attaque, "O Rei da Rua")) ctx.etat[attaque.nom].flow++;
         evenements.push({ type: "geste", acteurs: [dribbleur.nom], texte: `${dribbleur.nom} est bloqué… petit pont ! La rue ne s'arrête jamais.`, synergie: "École de la Rue", equipe: attaque.nom });
-        percee = forceAtt + de(10) + 2 > forceDef + de(10);
+        percee = forceAtt + bonusAtt + 8 + de(50) > forceDef + de(50);
       }
     }
-    if (percee) ctx.etat[attaque.nom].confiance++;
-    else {
-      ctx.etat[defense.nom].confiance++;
-      const defenseurs = parPoste(defense, "DÉF");
-      const candidatsStop = defenseurs.length && !proba(0.25)
-        ? defenseurs : defense.joueurs.filter((j) => j.poste !== "GAR");
+    if (!percee) {
+      const candidatsStop = defenseurs.length && !proba(0.25) ? defenseurs : defense.joueurs.filter((j) => j.poste !== "GAR");
       const defenseur = choisirParmi(defense, ctx, candidatsStop.length ? candidatsStop : defense.joueurs);
-      const sy = totalBonus(bDef) >= 3 && proba(0.25)
-        ? bDef.filter((b) => b.valeur > 0).sort((a, b) => b.valeur - a.valeur)[0].nom : null;
+      const TEXTES_STOP = {
+        dribble: [`${defenseur.nom} ne mord pas dans la feinte et prend le ballon proprement.`, `Tacle parfait de ${defenseur.nom} — le stade apprécie.`],
+        course: [`${defenseur.nom} avale la distance et referme la porte au sprint.`, `Course parfaite de ${defenseur.nom}, l'attaque de ${attaque.nom} meurt dans le couloir.`],
+        aerien: [`${defenseur.nom} monte plus haut que tout le monde et dégage de la tête.`, `Duel aérien gagné par ${defenseur.nom} — rien ne retombe côté ${attaque.nom}.`],
+        centre: [`Le centre est trop long — ${defenseur.nom} couvre et relance.`, `${gardienDef ? gardienDef.nom : defenseur.nom} sort dans les airs et boxe le centre !`],
+      };
       evenements.push({
-        type: "percee_stoppee", acteurs: [defenseur.nom],
-        texte: varie(
-          `${defenseur.nom} ferme la porte — la défense de ${defense.nom} tient bon.`,
-          `${defenseur.nom} jaillit et coupe l'attaque net. Rien ne passe.`,
-          `Tacle parfait de ${defenseur.nom} — le stade apprécie.`,
-          `${defense.nom} recule en bloc, ${defenseur.nom} dégage le danger.`,
-          `${defenseur.nom} lit la passe avant tout le monde et intercepte.`,
-          `Duel d'épaule gagné par ${defenseur.nom} — le public gronde.`,
-          `${defenseur.nom} accompagne l'attaquant jusqu'à la ligne et sort le ballon proprement.`
-        ), synergie: sy, equipe: defense.nom,
+        type: "percee_stoppee", sousType: typePercee.type, acteurs: [defenseur.nom],
+        texte: varie(...TEXTES_STOP[typePercee.type], `${defenseur.nom} ferme la porte — la défense de ${defense.nom} tient bon.`),
+        synergie: s(defense, "Catenaccio") && proba(0.25) ? "Catenaccio" : null, equipe: defense.nom,
       });
     }
   }
@@ -510,20 +580,19 @@ function resoudrePhase(eqA, eqB, ctx) {
   let butMarque = false;
   if (percee) butMarque = tenterTir(attaque, defense, ctx, evenements, bonusTir);
 
-  // Contre éclair du Catenaccio après un arrêt (palier 4 : les contres mordent)
+  // Contre éclair du Catenaccio après un arrêt
   if (!butMarque) {
     const cate = s(defense, "Catenaccio");
     if (cate && proba(0.12 * cate)) {
       evenements.push({ type: "contre", acteurs: [], texte: `Récupération et contre éclair de ${defense.nom} — tout le monde est pris de vitesse !`, synergie: "Catenaccio", equipe: defense.nom });
-      butMarque = tenterTir(defense, attaque, ctx, evenements, cate >= 2 ? 1 : 0);
+      butMarque = tenterTir(defense, attaque, ctx, evenements, cate >= 2 ? 8 : 0);
     }
   }
   return evenements;
 }
 
 /* ============================================================
-   MATCH COMPLET — calcule tout d'avance ; l'interface rejoue
-   ensuite phase par phase (~40 s au total).
+   MATCH COMPLET — le moteur calcule tout, le rendu rejoue.
    ============================================================ */
 const NB_PHASES = 8;
 const MINUTES = [7, 19, 31, 44, 52, 63, 77, 89];
@@ -534,17 +603,16 @@ function simulerMatch(eqA, eqB) {
   const ctx = {
     numero: 0,
     etat: {
-      [eqA.nom]: { flow: 0, confiance: 0, ballonLongUtilise: false, professoreUtilise: false, santo: {}, murs: {}, apparitions: {} },
-      [eqB.nom]: { flow: 0, confiance: 0, ballonLongUtilise: false, professoreUtilise: false, santo: {}, murs: {}, apparitions: {} },
+      [eqA.nom]: { flow: 0, ballonLongUtilise: false, professoreUtilise: false, santo: {}, murs: {}, apparitions: {} },
+      [eqB.nom]: { flow: 0, ballonLongUtilise: false, professoreUtilise: false, santo: {}, murs: {}, apparitions: {} },
     },
     scoreDe: (eq) => (eq === eqA ? scoreA : scoreB),
     scoreAdverse: (eq) => (eq === eqA ? scoreB : scoreA),
+    momentChaud: () => ctx.numero >= 7 || (ctx.numero >= 5 && Math.abs(scoreA - scoreB) <= 1),
   };
   for (let n = 1; n <= NB_PHASES; n++) {
     ctx.numero = n;
     const evenements = resoudrePhase(eqA, eqB, ctx);
-
-    // La Pantera marque d'office si le score est nul à la dernière phase
     if (n === NB_PHASES && scoreA + compterButs(evenements, eqA) === scoreB + compterButs(evenements, eqB)) {
       for (const eq of [eqA, eqB]) {
         const pantera = aUnique(eq, "La Pantera");
@@ -555,11 +623,10 @@ function simulerMatch(eqA, eqB) {
             texte: `Tout le stade retient son souffle… La Pantera surgit de nulle part, comme toujours quand tout est encore possible.`,
             cri: `BUUUT de ${pantera.nom} pour ${eq.nom} !`, synergie: "La Pantera",
           });
-          break; // une seule panthère par soir
+          break;
         }
       }
     }
-
     for (const ev of evenements) {
       if (ev.but) { if (ev.equipe === eqA.nom) scoreA++; else scoreB++; }
     }
@@ -571,7 +638,42 @@ function compterButs(evenements, eq) {
   return evenements.filter((ev) => ev.but && ev.equipe === eq.nom).length;
 }
 
+/* Fusion des copies (3 identiques → une étoile de plus, 3★ max) */
+function fusionnerEffectif(terrain, banc) {
+  const fusions = [];
+  let encore = true;
+  while (encore) {
+    encore = false;
+    const tout = [
+      ...terrain.map((j) => ({ j, liste: terrain })),
+      ...banc.map((j) => ({ j, liste: banc })),
+    ];
+    const groupes = {};
+    for (const e of tout) {
+      const cle = e.j.nom + "|" + (e.j.etoiles || 1);
+      (groupes[cle] = groupes[cle] || []).push(e);
+    }
+    for (const cle of Object.keys(groupes)) {
+      const groupe = groupes[cle];
+      if (groupe.length >= 3 && (groupe[0].j.etoiles || 1) < 3) {
+        groupe.sort((a, b) => (a.liste === terrain ? 0 : 1) - (b.liste === terrain ? 0 : 1));
+        const garde = groupe[0].j;
+        garde.etoiles = (garde.etoiles || 1) + 1;
+        for (const e of groupe.slice(1, 3)) e.liste.splice(e.liste.indexOf(e.j), 1);
+        fusions.push({ nom: garde.nom, etoiles: garde.etoiles });
+        encore = true;
+        break;
+      }
+    }
+  }
+  return fusions;
+}
+
 /* ---- Export navigateur + node ---- */
-const ONZE = { creerEquipe, equipeDepuisFiches, simulerMatch, calculerSynergies, statsJoueur, fusionnerEffectif, degatsPrestige, NB_PHASES, PALIERS_ECOLES, PALIERS_ARCHETYPES };
+const ONZE = {
+  creerEquipe, equipeDepuisFiches, simulerMatch, calculerSynergies,
+  genererStats, noteGlobale, statsSignatures, adnClub, NOMS_STATS,
+  fusionnerEffectif, degatsPrestige, NB_PHASES, PALIERS_ECOLES, PALIERS_ARCHETYPES,
+};
 if (typeof module !== "undefined") module.exports = ONZE;
 if (typeof window !== "undefined") window.ONZE = ONZE;
