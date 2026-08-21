@@ -332,6 +332,16 @@
       "Jeu de possession": { passe: 4, technique: 4 },
     };
 
+    /* Décision n°20 : la durée d'un match est proportionnelle à ses
+       enjeux. Amicaux : 4 phases expédiées (~13 s) — l'essentiel est
+       le butin. Premières manches PvP : 6 phases (~25 s). Pleine
+       durée (8 phases, ~40 s) à partir de la manche 10. */
+    function formatDuMatch() {
+      if (partie.manche <= DERNIERE_MANCHE_AMICALE) return { phases: 4, delaiPhase: 3200, delaiEvenement: 1000 };
+      if (partie.manche <= 9) return { phases: 6, delaiPhase: 4200, delaiEvenement: 1200 };
+      return { phases: 8, delaiPhase: 5000, delaiEvenement: 1400 };
+    }
+
     const el = (id) => document.getElementById(id);
     const hasardParmi = (t) => t[Math.floor(Math.random() * t.length)];
     const de2 = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
@@ -614,7 +624,9 @@
     function genererEquipeAmicale(manche) {
       const gabarit = AMICAUX[manche - 1];
       const postes = ["GAR", "DÉF", "MIL", "ATT", "DÉF"].slice(0, gabarit.taille);
-      const fiches = postes.map((poste, i) => gabarit.relevee && poste !== "GAR"
+      // la Sélection relevée n'aligne que DEUX vrais joueurs (MIL + ATT) :
+      // un cran au-dessus, pas un mur
+      const fiches = postes.map((poste, i) => gabarit.relevee && (poste === "MIL" || poste === "ATT")
         ? hasardParmi(tousLesJoueurs.filter((j) => j.poste === poste && j.cout === 1))
         : { nom: ["Gégé", "Bernard", "Paulo", "Kiki", "Dédé"][i], cout: 0, poste, ecole: "", archetype: "", unique: null });
       return ONZE.equipeDepuisFiches(gabarit.nom, gabarit.nom, fiches); // nom seul dans le récit
@@ -678,13 +690,14 @@
         monAdversaire = partie.appariement.monAdversaire;
         equipeAdverse = monAdversaire.equipe;
         resultatsIA = partie.appariement.pairesIA.map(([c1, c2]) => {
-          const r = ONZE.simulerMatch(c1.equipe, c2.equipe);
+          const r = ONZE.simulerMatch(c1.equipe, c2.equipe, formatDuMatch().phases);
           return { c1, c2, scoreA: r.scoreA, scoreB: r.scoreB };
         });
       }
 
       const monEquipe = equipeDuClub();
-      const resultat = ONZE.simulerMatch(monEquipe, equipeAdverse);
+      const format = formatDuMatch();
+      const resultat = ONZE.simulerMatch(monEquipe, equipeAdverse, format.phases);
 
       // Le match se joue SUR le terrain : tableau + journal par-dessus,
       // le tiroir reste ouvert (achats → banc)
@@ -699,7 +712,8 @@
       afficher();
       ONZE_UI.rejouer(resultat, monEquipe, equipeAdverse, {
         chrono: el("chrono"), scoreA: el("score-a"), scoreB: el("score-b"), recit: el("recit"),
-      }, () => finDeManche(resultat, monAdversaire, resultatsIA), { sansPrestige: amical, manche: partie.manche });
+      }, () => finDeManche(resultat, monAdversaire, resultatsIA),
+        { sansPrestige: amical, manche: partie.manche, delaiPhase: format.delaiPhase, delaiEvenement: format.delaiEvenement });
     }
 
     function appliquerResultat(gagnant, perdant, ecart) {

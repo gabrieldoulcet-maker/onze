@@ -452,7 +452,8 @@ const duo = (j, s1, s2) => ((j.stats[s1] || 40) + (j.stats[s2] || 40)) / 2;
 /* Fatigue : à partir de la mi-match, les stats baissent d'autant plus
    que l'endurance est basse. Mental : ±15 % dans les moments chauds. */
 function forme(j, ctx, equipe) {
-  const progression = Math.max(0, (ctx.numero - 4) / 8);
+  const nb = ctx.nbPhases || NB_PHASES;
+  const progression = Math.max(0, (ctx.numero - nb / 2) / nb);
   const fatigue = 1 - progression * (1 - (j.stats.endurance || 50) / 100) * 0.6;
   let mental = 1;
   if (ctx.momentChaud()) mental = 0.88 + ((j.stats.mental || 50) / 100) * 0.24;
@@ -498,7 +499,10 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
   }
 
   // Le duel du tir : Tir + Placement vs Réflexes (+ Placement des Murs)
-  let qualite = duo(finisseur, "tir", "placement") * forme(finisseur, ctx, attaque) + de(38) + bonusQualite;
+  // Un match court est un condensé : la conversion monte pour garder
+  // un rythme de buts par MATCH comparable (décision n°20)
+  const condense = (NB_PHASES - (ctx.nbPhases || NB_PHASES)) * 2.5;
+  let qualite = duo(finisseur, "tir", "placement") * forme(finisseur, ctx, attaque) + de(38) + bonusQualite + condense;
   // Anti-emballement : un match plié se gère — l'équipe qui mène de 3+
   // lève le pied, le rythme de buts ralentit (écarts fleuves évités)
   const avance = ctx.scoreDe(attaque) - ctx.scoreAdverse(attaque);
@@ -515,7 +519,7 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
 
   let but = qualite > parade;
   let blocage = null;
-  const miTemps = ctx.numero <= 4 ? 1 : 2;
+  const miTemps = ctx.numero <= (ctx.nbPhases || NB_PHASES) / 2 ? 1 : 2;
   if (but && aUnique(defense, "El Santo") && !etatDef.santo[miTemps]) {
     etatDef.santo[miTemps] = true; but = false;
     blocage = { texte: `El Santo s'interpose — le premier tir cadré de la période est pour lui !`, synergie: "El Santo" };
@@ -785,25 +789,34 @@ function resoudrePhase(eqA, eqB, ctx) {
    MATCH COMPLET — le moteur calcule tout, le rendu rejoue.
    ============================================================ */
 const NB_PHASES = 8;
-const MINUTES = [7, 19, 31, 44, 52, 63, 77, 89];
+/* Les minutes affichées selon le format du match (décision n°20 :
+   la durée d'un match est proportionnelle à ses enjeux) */
+const MINUTES_PAR_FORMAT = {
+  4: [12, 35, 61, 88],
+  6: [9, 24, 39, 55, 71, 89],
+  8: [7, 19, 31, 44, 52, 63, 77, 89],
+};
 
-function simulerMatch(eqA, eqB) {
+function simulerMatch(eqA, eqB, nbPhases = NB_PHASES) {
+  const MINUTES = MINUTES_PAR_FORMAT[nbPhases] ||
+    Array.from({ length: nbPhases }, (_, i) => Math.round((90 * (i + 0.5)) / nbPhases));
   let scoreA = 0, scoreB = 0;
   const phases = [];
   const ctx = {
     numero: 0,
+    nbPhases,
     etat: {
       [eqA.nom]: { flow: 0, ballonLongUtilise: false, professoreUtilise: false, professeurStaffUtilise: false, detenteUtilisee: false, santo: {}, murs: {}, apparitions: {} },
       [eqB.nom]: { flow: 0, ballonLongUtilise: false, professoreUtilise: false, professeurStaffUtilise: false, detenteUtilisee: false, santo: {}, murs: {}, apparitions: {} },
     },
     scoreDe: (eq) => (eq === eqA ? scoreA : scoreB),
     scoreAdverse: (eq) => (eq === eqA ? scoreB : scoreA),
-    momentChaud: () => ctx.numero >= 7 || (ctx.numero >= 5 && Math.abs(scoreA - scoreB) <= 1),
+    momentChaud: () => ctx.numero > nbPhases - 2 || (ctx.numero > nbPhases - 4 && Math.abs(scoreA - scoreB) <= 1),
   };
-  for (let n = 1; n <= NB_PHASES; n++) {
+  for (let n = 1; n <= nbPhases; n++) {
     ctx.numero = n;
     const evenements = resoudrePhase(eqA, eqB, ctx);
-    if (n === NB_PHASES && scoreA + compterButs(evenements, eqA) === scoreB + compterButs(evenements, eqB)) {
+    if (n === nbPhases && scoreA + compterButs(evenements, eqA) === scoreB + compterButs(evenements, eqB)) {
       for (const eq of [eqA, eqB]) {
         const pantera = aUnique(eq, "La Pantera");
         if (pantera) {

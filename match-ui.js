@@ -78,6 +78,8 @@ const ONZE_UI = (() => {
   /* File d'étapes jouée en chaîne : la vitesse peut changer en cours
      de match, chaque étape relit `vitesse` au moment de s'armer. */
   function rejouer(resultat, equipeA, equipeB, elements, auCoupDeSifflet, options = {}) {
+    const delaiPhase = options.delaiPhase || DELAI_PHASE_MS;
+    const delaiEvenement = options.delaiEvenement || DELAI_EVENEMENT_MS;
     elements.recit.innerHTML = "";
     elements.scoreA.textContent = "0";
     elements.scoreB.textContent = "0";
@@ -95,14 +97,14 @@ const ONZE_UI = (() => {
       });
       phase.evenements.forEach((ev) => {
         etapes.push({
-          delai: DELAI_EVENEMENT_MS,
+          delai: delaiEvenement,
           action: () => {
             if (ev.but) { if (ev.equipe === equipeA.nom) scores.a++; else scores.b++; }
             ajouterEvenement(elements, blocCourant, ev, scores);
           },
         });
       });
-      const reste = DELAI_PHASE_MS - 400 - phase.evenements.length * DELAI_EVENEMENT_MS;
+      const reste = delaiPhase - 400 - phase.evenements.length * delaiEvenement;
       etapes.push({ delai: Math.max(reste, 200), action: () => {} });
     });
 

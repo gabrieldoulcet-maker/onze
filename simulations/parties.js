@@ -34,6 +34,8 @@ const COACHS_IA = [
   { nom: "Le Consortium", ecole: "Les Pros" },
 ];
 const hasardParmi = (t) => t[Math.floor(Math.random() * t.length)];
+// décision n°20 : durée (nombre de phases) proportionnelle aux enjeux
+const phasesDeManche = (manche) => manche <= 3 ? 4 : manche <= 9 ? 6 : 8;
 
 /* ---- La courbe des IA : LE réglage que cette simulation calibre.
    Doit rester identique à genererEquipeIA de partie.html. ---- */
@@ -168,7 +170,7 @@ function unePartie() {
       // amical + butin (les orbes-joueurs sont approximés par leur valeur)
       const scriptes = [4, 5, 5][manche - 1];
       const amicale = M.equipeDepuisFiches("Amical", "Amical", STARTERS.slice(0, scriptes));
-      const r = M.simulerMatch(monEquipe, amicale);
+      const r = M.simulerMatch(monEquipe, amicale, phasesDeManche(manche));
       if (r.scoreA > r.scoreB) bot.serie = bot.serie > 0 ? bot.serie + 1 : 1;
       for (let n = 0; n < repartition[manche - 1]; n++) {
         const valeur = valeurs.shift();
@@ -202,7 +204,7 @@ function unePartie() {
       if (vivants.length <= 1) break;
       const autres = vivants.slice(1).sort(() => Math.random() - 0.5);
       const adversaire = autres.shift();
-      const r = M.simulerMatch(monEquipe, genererEquipeIA(adversaire, manche));
+      const r = M.simulerMatch(monEquipe, genererEquipeIA(adversaire, manche), phasesDeManche(manche));
       matchsJoues++;
       if (r.ecart > 3) grosEcarts++;
       if (r.scoreA > r.scoreB) appliquer(bot, adversaire, r.ecart);
@@ -211,7 +213,7 @@ function unePartie() {
       const paires = [];
       while (autres.length >= 2) paires.push([autres.shift(), autres.shift()]);
       for (const [c1, c2] of paires) {
-        const rIA = M.simulerMatch(genererEquipeIA(c1, manche), genererEquipeIA(c2, manche));
+        const rIA = M.simulerMatch(genererEquipeIA(c1, manche), genererEquipeIA(c2, manche), phasesDeManche(manche));
         if (rIA.scoreA > rIA.scoreB) appliquer(c1, c2, rIA.ecart);
         else if (rIA.scoreB > rIA.scoreA) appliquer(c2, c1, rIA.ecart);
         else appliquer(c1, c2, 0);

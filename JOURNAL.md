@@ -91,3 +91,8 @@ Trois lignes par session : **fait / bloqué / prochaine tâche**. C'est ce qui p
 
 - **Fait :** retour du playtest complet de Gabriel (tout validé) → un seul correctif, appliqué : **la présence des cartes staff n'est plus une loterie**. Le PLAN de butin des 3 amicaux garantit désormais **au moins 2 orbes-staff** à chaque coach (règle TFT du stage 1) — la variance porte sur lesquels des 5 orbes les portent et sur le reste du butin, jamais sur leur présence. Vérifié sur 1 000 parties simulées : minimum 2 cartes staff reçues avant la manche 4, zéro exception (et les premières fusions restent à ~53 % avant la manche 4). Migration des sauvegardes en cours.
 - **Bloqué :** rien.
+
+## Session 11 — 21 août 2026 : la durée progressive des matchs
+
+- **Fait :** décision 20 actée et appliquée — **la durée d'un match est proportionnelle à ses enjeux**. Amicaux (manches 1-3) : 4 phases, ~14 s mesurées (l'essentiel est le butin). Premières manches PvP (4-9) : 6 phases, ~25 s. Pleine durée (8 phases, ~40 s) dès la manche 10. L'accélérateur ×2 reste partout. Le moteur prend le nombre de phases en paramètre (minutes affichées, fatigue, mi-temps des Murs/El Santo et Pantera calées sur le format) et les matchs courts sont des condensés (conversion relevée pour garder un rythme de buts par match). Corrigé au passage : la Sélection du District (amical 3) n'aligne plus que 2 vrais joueurs — un cran au-dessus, pas un mur (93 % de victoires pour une équipe de manche 3 réaliste, 32 % par 3+ pour la quête du Bourreau). Calibrage re-vérifié avec les formats progressifs : top 4 à 48 %, fin de partie manche ~18, écarts > 3 : 9,8 %.
+- **Bloqué :** rien.
