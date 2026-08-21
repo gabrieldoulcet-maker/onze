@@ -443,9 +443,7 @@
         return signaler("Banc plein — pendant le match, les recrues vont au banc.");
       partie.or -= fiche.cout;
       partie.boutique[indice] = null;
-      const copie = { ...fiche, etoiles: 1 };
-      if (!partie.matchEnCours && partie.terrain.length < max) partie.terrain.push(copie);
-      else partie.banc.push(copie);
+      placerAuClub({ ...fiche, etoiles: 1 });
       const fusions = ONZE.fusionnerEffectif(partie.terrain, partie.banc);
       if (fusions.length) celebrerFusions(fusions);
       afficher();
@@ -475,7 +473,14 @@
       const fiche = liste.splice(indice, 1)[0];
       if (nomListe === "banc") {
         fiche.ligne = undefined;
-        if (fiche.poste === "GAR" && partie.terrain.some((j) => ligneDe(j) === "GAR")) fiche.ligne = "DÉF";
+        const gardienEnPlace = partie.terrain.find((j) => ligneDe(j) === "GAR");
+        if (fiche.poste === "GAR" && gardienEnPlace) {
+          // échange intelligent : le gardien en place redescend au banc
+          partie.terrain.splice(partie.terrain.indexOf(gardienEnPlace), 1);
+          gardienEnPlace.ligne = undefined;
+          partie.banc.push(gardienEnPlace);
+          signaler("🔁 " + gardienEnPlace.nom + " laisse sa place dans les buts.");
+        }
         partie.terrain.push(fiche);
       } else {
         fiche.ligne = undefined;
@@ -615,11 +620,7 @@
           `<br><small>Carte Staff — le système complet arrive bientôt.</small>`;
       } else {
         const nombre = orbe.type === "duo" ? 2 : 1;
-        for (let n = 0; n < nombre; n++) {
-          const copie = { ...orbe.fiche, etoiles: 1 };
-          if (partie.terrain.length < TITULAIRES_PAR_NIVEAU[partie.niveau]) partie.terrain.push(copie);
-          else partie.banc.push(copie);
-        }
+        for (let n = 0; n < nombre; n++) placerAuClub({ ...orbe.fiche, etoiles: 1 });
         const fusions = ONZE.fusionnerEffectif(partie.terrain, partie.banc);
         if (fusions.length) celebrerFusions(fusions);
         revele.innerHTML = orbe.type === "duo"
@@ -690,9 +691,44 @@
       partie.appariement = { amical: false, monAdversaire, pairesIA, nomAdversaire: monAdversaire.nom };
     }
 
+    /* Auto-complétion au coup d'envoi (règle TFT) : les places vides se
+       remplissent depuis le banc, le plus à GAUCHE d'abord — un joueur
+       monte sur sa ligne naturelle, jamais en 2ᵉ gardien. Les réservistes
+       du centre ne servent que si le banc est vide. */
+    const NOMS_RESERVISTES = ["Gilbert", "Norbert", "Fernand", "Marius", "Lucien", "Célestin"];
+    function autoCompleter() {
+      const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
+      const montes = [];
+      let garde = 0;
+      while (partie.terrain.length < max && garde++ < 30) {
+        const gardienPris = partie.terrain.some((j) => ligneDe(j) === "GAR");
+        // le premier du banc qui a le droit de monter (jamais un 2ᵉ GAR)
+        const indice = partie.banc.findIndex((j) => !(j.poste === "GAR" && gardienPris));
+        if (indice === -1) break;
+        const [monte] = partie.banc.splice(indice, 1);
+        monte.ligne = undefined; // sa ligne naturelle (libre par définition, sauf GAR géré ci-dessus)
+        partie.terrain.push(monte);
+        montes.push(monte.nom);
+      }
+      // banc vide : les réservistes du centre dépannent
+      let reserviste = 0;
+      while (partie.terrain.length < max && reserviste < NOMS_RESERVISTES.length) {
+        const gardienPris = partie.terrain.some((j) => ligneDe(j) === "GAR");
+        const poste = !gardienPris ? "GAR" : ["DÉF", "MIL", "ATT"][reserviste % 3];
+        const nom = NOMS_RESERVISTES[reserviste++];
+        partie.terrain.push({ nom, cout: 0, poste, ecole: "", archetype: "", unique: null, etoiles: 1 });
+        montes.push(nom + " (réserviste)");
+      }
+      if (montes.length) {
+        afficher(); // les pions glissent du banc au terrain, visibles avant le coup d'envoi
+        signaler("⬆️ Montent au coup d'envoi : " + montes.join(", "));
+      }
+    }
+
     function jouerManche() {
       const verdict = verdictFormation();
       if (verdict) return signaler(verdict);
+      autoCompleter();
       const amical = partie.appariement.amical;
 
       let monAdversaire = null, equipeAdverse, resultatsIA = [];
@@ -910,9 +946,7 @@
         etal.forEach((autre, i) => { if (i !== Number(bouton.dataset.hiver)) partie.pool.push(autre.fiche); });
         const copie = { ...choix.fiche, etoiles: 1 };
         if (choix.carte) ONZE.assignerCarte(copie, choix.carte);
-        if (partie.terrain.length < TITULAIRES_PAR_NIVEAU[partie.niveau]) partie.terrain.push(copie);
-        else if (partie.banc.length < TAILLE_BANC) partie.banc.push(copie);
-        else { partie.pool.push(choix.fiche); signaler("Effectif plein — le transfert a capoté !"); volet.remove(); return; }
+        if (!placerAuClub(copie)) { partie.pool.push(choix.fiche); signaler("Effectif plein — le transfert a capoté !"); volet.remove(); return; }
         const fusions = ONZE.fusionnerEffectif(partie.terrain, partie.banc);
         if (fusions.length) celebrerFusions(fusions);
         volet.remove();
@@ -1174,6 +1208,10 @@
         const ligneA = ligneDe(jA);
         jA.ligne = ligneDe(jB);
         jB.ligne = ligneA;
+      } else if (a.nomListe === "banc" && b.nomListe === "banc") {
+        // réordonner le banc : la gauche est la priorité de montée
+        const [sorti] = partie.banc.splice(a.indice, 1);
+        partie.banc.splice(b.indice, 0, sorti);
       } else if (a.nomListe !== b.nomListe) {
         // titularisation croisée : l'entrant prend la ligne du sortant
         const terrainRef = a.nomListe === "terrain" ? a : b;
@@ -1234,6 +1272,26 @@
     }
 
     /* ================= Affichage de l'écran unique ================= */
+    /* ================= Placer une recrue au club =================
+       LE point d'entrée de toute acquisition (achat, orbe, duo, hiver,
+       Académie des jeunes). Verrou : jamais deux gardiens sur le
+       terrain — un 2ᵉ GAR va au banc. Renvoie false si tout est plein. */
+    function placerAuClub(fiche) {
+      const copie = fiche.etoiles ? fiche : { ...fiche, etoiles: 1 };
+      const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
+      const gardienEnPlace = partie.terrain.some((j) => ligneDe(j) === "GAR");
+      const versTerrain = !partie.matchEnCours && partie.terrain.length < max &&
+        !(copie.poste === "GAR" && gardienEnPlace);
+      if (versTerrain) { copie.ligne = undefined; partie.terrain.push(copie); return true; }
+      if (partie.banc.length < TAILLE_BANC) { copie.ligne = undefined; partie.banc.push(copie); return true; }
+      // dernier recours : titulaire hors buts si le terrain a la place
+      if (!partie.matchEnCours && partie.terrain.length < max) {
+        copie.ligne = copie.poste === "GAR" ? "DÉF" : undefined;
+        partie.terrain.push(copie); return true;
+      }
+      return false;
+    }
+
     /* La pastille : le poste JOUÉ, en couleur ; liseré d'alerte si le
        joueur est hors-poste (😱 pour un joueur de champ aux buts). */
     function pastilleHTML(fiche) {
@@ -1373,10 +1431,7 @@
       partie.or -= icone.cout;
       partie.garanties = partie.garanties.filter((id) => id !== icone.id);
       partie.boutique[indice] = null;
-      for (const arrivant of arrivants) {
-        if (!partie.matchEnCours && partie.terrain.length < max) partie.terrain.push(arrivant);
-        else partie.banc.push(arrivant);
-      }
+      for (const arrivant of arrivants) placerAuClub(arrivant);
       const banniere = document.createElement("div");
       banniere.className = "fusion-banniere";
       banniere.innerHTML = `✨ ${icone.nom} ${icone.duo ? "arrivent" : "arrive"} au club ! ✨<br><small>${icone.identite}</small>`;
