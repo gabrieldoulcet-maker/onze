@@ -32,7 +32,7 @@
   <div id="vue-mercato" style="width:100%;display:flex;flex-direction:column;align-items:center;">
     <div class="bandeau-club">
       <div>🏟️ <strong>Mon Club</strong> — manche <span id="manche">1</span><br>
-        <span class="ligne2">💚 Prestige <span id="prestige">100</span> ·
+        <span class="ligne2">💚 Prestige <span id="prestige">40</span> ·
         Niv. <span id="niveau">3</span> (<span id="titulaires-max">5</span> tit.) ·
         <span class="xp-barre">XP <span id="xp">0</span>/<span id="xp-suivant">6</span></span> ·
         Série <span id="serie">—</span> · 🧰 <span id="staff">0</span></span></div>
@@ -101,7 +101,7 @@
     const XP_GRATUITE_PAR_MANCHE = 2;
     const TAILLE_BOUTIQUE = 5;
     const TAILLE_BANC = 8;
-    const PRESTIGE_DEPART = 100;
+    const PRESTIGE_DEPART = 40; // calibré en simulation (simulations/parties.js)
     const DERNIERE_MANCHE_AMICALE = 3;
     const POOL_PAR_COUT = { 1: 30, 2: 25, 3: 18, 4: 10, 5: 9 };
     const droitsTV = (manche) => [2, 2, 3, 4][manche - 1] ?? 5;
@@ -363,10 +363,12 @@
     }
 
     /* ---- Les équipes IA : montent en puissance avec les manches ---- */
+    /* Courbe calibrée sur 400 parties simulées : ~50 % de top 4,
+       première élimination vers la manche 12, fin vers la manche 18 */
     function genererEquipeIA(coach) {
-      const niveau = Math.min(3 + Math.floor((partie.manche - 1) / 2), 8);
+      const niveau = Math.min(3 + Math.floor(partie.manche / 4), 9);
       const taille = TITULAIRES_PAR_NIVEAU[niveau];
-      let budget = 4 + 2.5 * partie.manche;
+      let budget = Math.min(1 + 1.35 * partie.manche, 21);
       const compo = [];
       const besoins = ["GAR"];
       const champ = taille - 1;
@@ -422,14 +424,14 @@
       window.scrollTo({ top: 0 });
       ONZE_UI.rejouer(resultat, monEquipe, equipeAdverse, {
         chrono: el("chrono"), scoreA: el("score-a"), scoreB: el("score-b"), recit: el("recit"),
-      }, () => finDeManche(resultat, monAdversaire, resultatsIA));
+      }, () => finDeManche(resultat, monAdversaire, resultatsIA), { sansPrestige: amical, manche: partie.manche });
     }
 
     function appliquerResultat(gagnant, perdant, ecart) {
       if (ecart === 0) { gagnant.serie = 0; perdant.serie = 0; return; }
       gagnant.serie = gagnant.serie > 0 ? gagnant.serie + 1 : 1;
       perdant.serie = perdant.serie < 0 ? perdant.serie - 1 : -1;
-      perdant.prestige = Math.max(0, perdant.prestige - ONZE.degatsPrestige(ecart));
+      perdant.prestige = Math.max(0, perdant.prestige - ONZE.degatsPrestige(ecart, partie.manche));
       if (perdant.prestige === 0) perdant.vivant = false;
     }
 

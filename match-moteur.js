@@ -36,8 +36,20 @@ function choisirParmi(equipe, ctx, candidats) {
   return choix;
 }
 
-/* Dégâts de prestige du perdant — source unique pour le jeu ET l'affichage */
-function degatsPrestige(ecart) { return ecart > 0 ? 6 + 3 * ecart : 0; }
+/* Dégâts de prestige du perdant — copie exacte de TFT (design/economie.md) :
+   base selon la période + 1 par but d'écart. Source unique jeu + affichage. */
+function baseDegats(manche) {
+  if (manche <= 3) return 0;   // amicaux
+  if (manche <= 6) return 2;
+  if (manche <= 9) return 5;
+  if (manche <= 12) return 8;
+  if (manche <= 15) return 10;
+  if (manche <= 18) return 12;
+  return 17;
+}
+function degatsPrestige(ecart, manche = 10) {
+  return ecart > 0 ? baseDegats(manche) + ecart : 0;
+}
 
 /* ============================================================
    GÉNÉRATION DES STATS (design/stats.md)
@@ -352,6 +364,10 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
 
   // Le duel du tir : Tir + Placement vs Réflexes (+ Placement des Murs)
   let qualite = duo(finisseur, "tir", "placement") * forme(finisseur, ctx, attaque) + de(38) + bonusQualite;
+  // Anti-emballement : un match plié se gère — l'équipe qui mène de 3+
+  // lève le pied, le rythme de buts ralentit (écarts fleuves évités)
+  const avance = ctx.scoreDe(attaque) - ctx.scoreAdverse(attaque);
+  if (avance >= 3) qualite *= Math.max(0.45, 1 - 0.2 * (avance - 2));
   const murs = defense.joueurs.filter((j) => j.archetype === "Mur" && j.poste !== "GAR");
   const malusMurs = Math.min(murs.reduce((t, j) => t + (j.stats.placement || 0), 0) * 0.05, 8);
   let parade = gardien.cageVide
@@ -509,6 +525,7 @@ function resoudrePhase(eqA, eqB, ctx) {
       if (s(eq, "Kick & Rush") >= 2 && ctx.numero >= 3) bonus += 8;
       if (s(eq, "École de la Rue") >= 2) bonus += Math.min(ctx.etat[eq.nom].flow * 3, 15); // le Flow
       if (ctx.scoreDe(eq) < ctx.scoreAdverse(eq)) bonus += 10; // l'équipe menée pousse
+      if (ctx.scoreDe(eq) - ctx.scoreAdverse(eq) >= 3) bonus -= 12; // le match est plié, on gère
       return forceCollective(eq, m.joueurs, "passe", "vision", ctx) * m.facteur + bonus;
     };
     const interception = (eq) => {

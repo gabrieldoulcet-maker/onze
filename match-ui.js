@@ -51,7 +51,7 @@ const ONZE_UI = (() => {
 
   /* File d'étapes jouée en chaîne : la vitesse peut changer en cours
      de match, chaque étape relit `vitesse` au moment de s'armer. */
-  function rejouer(resultat, equipeA, equipeB, elements, auCoupDeSifflet) {
+  function rejouer(resultat, equipeA, equipeB, elements, auCoupDeSifflet, options = {}) {
     elements.recit.innerHTML = "";
     elements.scoreA.textContent = "0";
     elements.scoreB.textContent = "0";
@@ -90,8 +90,8 @@ const ONZE_UI = (() => {
         if (resultat.scoreA > resultat.scoreB) verdict = `🏆 Victoire de ${equipeA.nom} !`;
         else if (resultat.scoreB > resultat.scoreA) verdict = `🏆 Victoire de ${equipeB.nom} !`;
         else verdict = "🤝 Match nul !";
-        const prestige = resultat.ecart > 0
-          ? `<br><small style="color:#96A699">Dégâts de prestige : ${ONZE.degatsPrestige(resultat.ecart)} (6 + 3 × ${resultat.ecart} d'écart)</small>` : "";
+        const prestige = resultat.ecart > 0 && !options.sansPrestige
+          ? `<br><small style="color:#96A699">Dégâts de prestige : ${ONZE.degatsPrestige(resultat.ecart, options.manche)} (base de période + ${resultat.ecart} d'écart)</small>` : "";
         bloc.innerHTML = `Score final : <strong>${resultat.scoreA} – ${resultat.scoreB}</strong><br>${verdict}${prestige}`;
         elements.recit.appendChild(bloc);
         bloc.scrollIntoView({ behavior: "smooth", block: "end" });

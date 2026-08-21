@@ -43,6 +43,24 @@ Source : wiki officiel TFT (Gold + Experience), set actuel. Aucune invention : c
 
 (Table XP = celle de TFT niveaux 4→10 : 6 / 10 / 20 / 36 / 60 / 68 / 68. On démarre niveau 3 comme TFT démarre de facto au niveau 3 en standard. Le Douzième Homme au palier 6 ajoute son +1 titulaire par-dessus ce tableau.)
 
+## Les dégâts de prestige (copie exacte de TFT, patch 17.3)
+
+Formule TFT : **dégâts = base selon la période + 1 par unité adverse survivante**. Transposition ONZE : **dégâts = base selon la période + 1 par but d'écart** (l'écart de buts est notre « unités survivantes »). Un stage TFT dure ~6 manches ; ONZE (format Blitz) compresse en blocs de 3 :
+
+| Manches (ONZE) | Équiv. stage TFT | Dégâts de base |
+|---|---|---|
+| 1–3 (amicaux) | Stage 1 | 0 — jamais de dégâts |
+| 4–6 | Stage 2 | **2** |
+| 7–9 | Stage 3 | **5** |
+| 10–12 | Stage 4 | **8** |
+| 13–15 | Stage 5 | **10** |
+| 16–18 | Stage 6 | **12** |
+| 19+ | Stage 7+ | **17** |
+
+Exemples : perdre 0-3 à la manche 5 = 2+3 = **5 dégâts** (au lieu de 15 avec l'ancienne formule). Perdre 1-2 à la manche 14 = 10+1 = **11 dégâts**.
+
+**Pourquoi cette courbe est sacrée** : personne ne meurt avant la manche ~10, donc perdre tôt est un CHOIX stratégique possible — encaisser des petites défaites pour les primes de série, l'économie et la priorité au Mercato d'hiver, puis pivoter. Les Revanchards et la Grinta sont construits sur cette possibilité. Cibles de calibrage : première élimination vers la manche 9–11, partie complète en 15–19 manches, victoire par K.O. précoce impossible.
+
 ## Ce que ça change au rythme (pourquoi cette courbe est la bonne)
 
 Les 3 manches amicales pauvres forcent les premiers vrais choix dès la manche 4-5 : monter de niveau, relancer, ou capitaliser pour les sponsors. Les paliers d'XP 20 → 36 → 60 créent les fenêtres de tempo (reroll niveau 5–7 vs fast 8-9) sur lesquelles nos profils d'Écoles sont calés. C'est la courbe que Riot règle depuis sept ans — on la prend entière.
