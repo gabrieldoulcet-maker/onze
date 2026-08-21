@@ -2,128 +2,231 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>ONZE — La Partie</title>
   <link rel="stylesheet" href="onze.css">
   <style>
-    /* Spécifique à l'écran de partie */
-    .bandeau-club .ligne2 { font-size: 0.72rem; color: #96A699; }
-    .classement {
-      width: 100%; max-width: 420px;
-      background: #182219; border: 1px solid #24331F;
-      border-radius: 10px; padding: 8px 10px; margin-bottom: 10px;
-      font-size: 0.78rem;
+    /* ============================================================
+       Écran unique façon TFT mobile (décision n°19) :
+       le TERRAIN est la scène permanente — le match s'y joue,
+       la boutique est un tiroir toujours ouvert, le classement
+       un volet. Architecture cible du match animé 2D.
+       ============================================================ */
+    html, body { height: 100%; }
+    body { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* ---- Barre du haut : club, manche, or, volet classement ---- */
+    .barre {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; padding: 8px 10px;
+      background: #0B100C; border-bottom: 1px solid #24331F;
+      font-size: 0.78rem; flex: 0 0 auto;
     }
-    .classement .coach { display: flex; justify-content: space-between; padding: 2px 0; }
-    .classement .coach.moi { color: #4FC57C; font-weight: 700; }
-    .classement .coach.mort { color: #5A6A5C; text-decoration: line-through; }
-    .resultats { width: 100%; max-width: 420px; margin-top: 10px; }
-    .xp-barre { color: #9CC4EF; }
+    .barre .infos-club { line-height: 1.3; }
+    .barre .infos-club small { color: #96A699; font-size: 0.68rem; }
+    .barre .or { color: #E8C547; font-weight: 800; font-size: 1rem; white-space: nowrap; }
+    .barre button {
+      background: #182219; color: #A9DDB6; border: 1px solid #24331F;
+      border-radius: 8px; padding: 6px 9px; font-size: 0.72rem; font-weight: 700; cursor: pointer;
+    }
+
+    /* ---- Le terrain ---- */
+    .scene { flex: 1 1 auto; position: relative; min-height: 0; display: flex; flex-direction: column; }
+    .terrain {
+      flex: 1; position: relative; margin: 6px 8px;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05) 0 9%, transparent 9.5%),
+        repeating-linear-gradient(0deg, #1C5A2C 0 12.5%, #1F6330 12.5% 25%),
+        #1C5A2C;
+      border: 2px solid rgba(255,255,255,0.35); border-radius: 10px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: 10px 4px; overflow: hidden;
+    }
+    .terrain::before { /* rond central + ligne médiane */
+      content: ""; position: absolute; left: 0; right: 0; top: 50%;
+      border-top: 2px solid rgba(255,255,255,0.3);
+    }
+    .terrain::after { /* surfaces */
+      content: ""; position: absolute; left: 25%; right: 25%; height: 9%;
+      top: -2px; border: 2px solid rgba(255,255,255,0.3); border-top: none;
+      box-shadow: 0 calc(100% + 0px) 0 0 transparent;
+    }
+    .ligne-terrain {
+      display: flex; justify-content: center; gap: 6px; min-height: 52px;
+      align-items: center; z-index: 1;
+    }
+    .jeton {
+      width: 62px; border-radius: 9px; padding: 3px 2px 2px;
+      background: #182219E6; border: 1px solid #35502F;
+      text-align: center; cursor: pointer; font-size: 0.6rem; color: #C9D6C9;
+      line-height: 1.25;
+    }
+    .jeton .note-jeton { font-weight: 800; font-size: 0.78rem; color: #E7EEE7; }
+    .jeton .etoiles { font-size: 0.6rem; }
+    .jeton.vide { border-style: dashed; color: #ffffff66; background: #0b100c55; min-height: 40px;
+      display: flex; align-items: center; justify-content: center; }
+    .jeton.cout-1 { border-left: 3px solid #8B9E8E; } .jeton.cout-2 { border-left: 3px solid #4FC57C; }
+    .jeton.cout-3 { border-left: 3px solid #4F9EC5; } .jeton.cout-4 { border-left: 3px solid #A66BD4; }
+    .jeton.cout-5 { border-left: 3px solid #E8C547; } .jeton.cout-0 { border-left: 3px solid #5A6A5C; }
+
+    /* ---- Pendant le match : tableau + journal PAR-DESSUS le terrain ---- */
+    .tableau-match {
+      position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+      background: #0B100CE8; border: 1px solid #24331F; border-radius: 10px;
+      padding: 5px 12px; z-index: 5; text-align: center; font-size: 0.72rem;
+      color: #96A699; white-space: nowrap;
+    }
+    .tableau-match .score-match { font-size: 1.1rem; font-weight: 800; color: #E7EEE7; }
+    .journal {
+      position: absolute; left: 8px; right: 8px; bottom: 6px; max-height: 38%;
+      overflow-y: auto; z-index: 5;
+      display: flex; flex-direction: column; gap: 4px;
+      -webkit-mask-image: linear-gradient(to bottom, transparent, black 12%);
+              mask-image: linear-gradient(to bottom, transparent, black 12%);
+    }
+    .journal .phase { padding: 6px 9px; font-size: 0.74rem; line-height: 1.35; background: #182219F0; }
+    .journal .titre-phase { font-size: 0.62rem; margin-bottom: 1px; }
+    .journal .cri { font-size: 0.82rem; }
+    .journal:empty { display: none; }
+
+    /* ---- Bandeau synergies + ADN compact ---- */
+    .bandeau-bas { flex: 0 0 auto; padding: 4px 10px 0; }
+    .bandeau-bas .synergies { margin: 0 0 4px; }
+    .mini-adn { display: flex; gap: 5px; }
+    .mini-adn .axe-mini { flex: 1; text-align: center; font-size: 0.56rem; color: #96A699; }
+    .mini-adn .barre-mini { height: 4px; background: #182219; border-radius: 2px; overflow: hidden; margin-bottom: 1px; }
+    .mini-adn .barre-mini > div { height: 100%; background: #5F7A64; }
+    .mini-adn .barre-mini > div.forte { background: #4FC57C; }
+    .mini-adn .barre-mini > div.faible { background: #E88C7D; }
+
+    /* ---- Le tiroir : action de manche, banc, boutique ---- */
+    .tiroir {
+      flex: 0 0 auto; background: #0B100C; border-top: 1px solid #24331F;
+      padding: 6px 10px calc(8px + env(safe-area-inset-bottom));
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .tiroir .principal { margin: 0; padding: 10px; font-size: 0.95rem; }
+    .rangee-banc { display: flex; gap: 5px; overflow-x: auto; min-height: 46px; padding-bottom: 2px; }
+    .rangee-banc .jeton { flex: 0 0 58px; }
+    .rangee-boutique { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+    .carte-boutique {
+      flex: 0 0 104px; background: #182219; border: 1px solid #24331F; border-radius: 10px;
+      padding: 6px; font-size: 0.62rem; color: #C9D6C9; cursor: pointer; line-height: 1.3;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .carte-boutique .haut { display: flex; justify-content: space-between; font-weight: 800; font-size: 0.72rem; color: #E7EEE7; }
+    .carte-boutique .prix { color: #E8C547; }
+    .carte-boutique .signatures { color: #9CC4EF; font-weight: 700; }
+    .carte-boutique .traits-carte { color: #7E9483; font-size: 0.56rem; }
+    .carte-boutique button {
+      margin-top: auto; background: #4FC57C; color: #0B100C; border: none;
+      border-radius: 7px; padding: 5px; font-weight: 800; font-size: 0.7rem; cursor: pointer;
+    }
+    .carte-boutique button:disabled { background: #2A3A2C; color: #6C7A6E; }
+    .carte-boutique.vendue { opacity: 0.35; justify-content: center; text-align: center; }
+    .carte-boutique.cout-1 { border-top: 3px solid #8B9E8E; } .carte-boutique.cout-2 { border-top: 3px solid #4FC57C; }
+    .carte-boutique.cout-3 { border-top: 3px solid #4F9EC5; } .carte-boutique.cout-4 { border-top: 3px solid #A66BD4; }
+    .carte-boutique.cout-5 { border-top: 3px solid #E8C547; }
+    .rangee-boutons { display: flex; gap: 6px; }
+    .rangee-boutons button {
+      flex: 1; background: #182219; color: #A9DDB6; border: 1px solid #24331F;
+      border-radius: 9px; padding: 8px 4px; font-size: 0.72rem; font-weight: 700; cursor: pointer;
+    }
+    .rangee-boutons button:disabled { color: #5A6A5C; }
+
+    /* ---- Volets et panneaux (classement, résultats, fin) ---- */
+    .volet {
+      position: fixed; inset: 0; background: rgba(6, 10, 7, 0.88);
+      z-index: 60; display: flex; align-items: flex-start; justify-content: center;
+      padding: 40px 14px; overflow-y: auto;
+    }
+    .volet .panneau {
+      background: #131b14; border: 1px solid #35502F; border-radius: 14px;
+      width: 100%; max-width: 400px; padding: 14px; animation: apparait 0.25s ease;
+    }
+    .volet .panneau .classement { border: none; padding: 0; margin: 0 0 8px; background: none; }
+    .volet .fermer-volet {
+      width: 100%; margin-top: 10px; background: #24331F; color: #A9DDB6;
+      border: none; border-radius: 10px; padding: 10px; font-weight: 700; cursor: pointer;
+    }
   </style>
 </head>
 <body>
 
-  <header>
-    <h1>ON<span>ZE</span></h1>
-    <p>La Partie — 8 coachs, un seul survivant</p>
-  </header>
-
-  <!-- ================= VUE MERCATO ================= -->
-  <div id="vue-mercato" style="width:100%;display:flex;flex-direction:column;align-items:center;">
-    <div class="bandeau-club">
-      <div>🏟️ <strong>Mon Club</strong> — manche <span id="manche">1</span><br>
-        <span class="ligne2">💚 Prestige <span id="prestige">40</span> ·
-        Niv. <span id="niveau">3</span> (<span id="titulaires-max">5</span> tit.) ·
-        <span class="xp-barre">XP <span id="xp">0</span>/<span id="xp-suivant">6</span></span> ·
-        Série <span id="serie">—</span> · 🧰 <span id="staff">0</span></span></div>
-      <div class="or"><span id="or">3</span>M 🪙</div>
+  <!-- ===== Barre du haut ===== -->
+  <div class="barre">
+    <div class="infos-club">
+      <strong>Mon Club</strong> · M<span id="manche">1</span><br>
+      <small>💚 <span id="prestige">40</span> · Niv <span id="niveau">3</span> ·
+      XP <span id="xp">0</span>/<span id="xp-suivant">6</span> · Série <span id="serie">—</span> · 🧰 <span id="staff">0</span></small>
     </div>
+    <div class="or"><span id="or">0</span>M 🪙</div>
+    <button id="btn-classement">🏆</button>
+  </div>
 
-    <div class="classement" id="classement"></div>
-    <div class="classement" id="prochain-adversaire" style="text-align:center;cursor:pointer"></div>
-
-    <div class="section-titre"><span>Boutique</span><span id="odds-info"></span></div>
-    <div class="boutique" id="boutique"></div>
-    <div class="ligne-refresh">
-      <button id="btn-refresh">🔄 Boutique (2M)</button>
-      <button id="btn-verrou" style="flex:0 0 52px">🔓</button>
-      <button id="btn-xp">📈 +4 XP (4M)</button>
+  <!-- ===== La scène : le terrain (mercato ET match) ===== -->
+  <div class="scene">
+    <div class="terrain" id="terrain-scene">
+      <div class="ligne-terrain" id="ligne-ATT"></div>
+      <div class="ligne-terrain" id="ligne-MIL"></div>
+      <div class="ligne-terrain" id="ligne-DÉF"></div>
+      <div class="ligne-terrain" id="ligne-GAR"></div>
+      <div class="tableau-match masque" id="tableau-match">
+        <span id="nom-adversaire-match"></span><br>
+        <span class="score-match"><span id="score-a">0</span> – <span id="score-b">0</span></span><br>
+        <span id="chrono"></span>
+      </div>
+      <div class="journal" id="recit"></div>
     </div>
+    <div class="bandeau-bas">
+      <div class="synergies" id="synergies-club"></div>
+      <div class="mini-adn" id="axes-adn"></div>
+    </div>
+  </div>
 
-    <div class="section-titre"><span>Titulaires (<span id="nb-titulaires">0</span>/<span id="titulaires-max2">5</span>)</span></div>
-    <div class="synergies" id="synergies-club" style="max-width:420px;width:100%;margin-bottom:6px;"></div>
-    <div class="adn" id="adn"><h3>🧬 L'ADN du club</h3><div id="axes-adn"></div></div>
-    <div class="groupe-cartes" id="terrain"></div>
-
-    <div class="section-titre"><span>Banc</span></div>
-    <div class="groupe-cartes" id="banc"></div>
-
-    <div class="message-erreur" id="message"></div>
+  <!-- ===== Le tiroir permanent ===== -->
+  <div class="tiroir">
     <button class="principal" id="btn-match">⚽ Jouer la manche</button>
-    <details class="classement" style="margin-top:4px">
-      <summary style="cursor:pointer;color:#96A699;font-size:0.78rem">📜 Historique des manches</summary>
-      <div id="historique"></div>
-    </details>
-  </div>
-
-  <!-- ================= VUE MATCH ================= -->
-  <div id="vue-match" class="masque" style="width:100%;display:flex;flex-direction:column;align-items:center;">
-    <div class="tableau">
-      <div class="equipe-nom" id="nom-a"></div>
-      <div class="score"><span id="score-a">0</span> – <span id="score-b">0</span></div>
-      <div class="equipe-nom" id="nom-b"></div>
-      <div class="chrono" id="chrono"></div>
+    <div class="rangee-banc" id="banc"></div>
+    <div class="rangee-boutique" id="boutique"></div>
+    <div class="rangee-boutons">
+      <button id="btn-refresh">🔄 2M</button>
+      <button id="btn-verrou" style="flex:0 0 46px">🔓</button>
+      <button id="btn-xp">📈 XP 4M</button>
+      <button id="btn-vitesse" class="masque">⏩ ×2</button>
     </div>
-    <button class="principal" id="btn-vitesse" style="background:#24331F;color:#A9DDB6;padding:8px;font-size:0.85rem;">⏩ Accélérer ×2</button>
-    <div class="recit" id="recit"></div>
-    <div class="resultats masque" id="resultats"></div>
-    <button class="principal masque" id="btn-continuer">➡️ Continuer</button>
-  </div>
-
-  <!-- ================= VUE FIN ================= -->
-  <div id="vue-fin" class="masque" style="width:100%;display:flex;flex-direction:column;align-items:center;">
-    <div class="phase final" style="width:100%;max-width:420px;font-size:1.1rem;" id="texte-fin"></div>
-    <div class="classement" id="classement-final" style="margin-top:10px;"></div>
-    <button class="principal" id="btn-rejouer" style="margin-top:10px;">🔁 Nouvelle partie</button>
+    <div class="message-erreur" id="message" style="min-height:1em;margin:0"></div>
   </div>
 
   <script src="match-moteur.js"></script>
   <script src="match-ui.js"></script>
   <script>
     /* ============================================================
-       LA PARTIE — 8 coachs, économie TFT réelle (décision n°14 :
-       on démarre pauvre, la courbe de revenus fait la tension).
-       - Revenu de manche : 5M + intérêts (1M/10M, max 5) + série + victoire
-       - XP : +2 gratuits par manche, 4M → +4 XP (seuils TFT)
-       - Prestige 100, dégâts = 6 + 3 × écart de buts, élimination à 0
-       Pas encore là (manche d'après) : quêtes, Icônes, staff, étoiles.
+       Logique de partie : économie TFT (design/economie.md),
+       calibrage simulations/parties.js. L'INTERFACE est l'écran
+       unique de la décision n°19 : pendant le match, la boutique
+       et le banc restent utilisables (achats → banc), les
+       changements de compo prennent effet à la manche suivante.
        ============================================================ */
-    /* Économie : copie exacte de TFT — voir design/economie.md.
-       Départ 0M, manches 1-3 amicales (PvE, sans dégâts), droits TV
-       2/2/3/4 puis 5M, sponsors avant revenu de base, séries 3-4/5/6+. */
     const OR_DEPART = 0;
     const COUT_REFRESH = 2;
     const COUT_XP = 4;
     const XP_GRATUITE_PAR_MANCHE = 2;
     const TAILLE_BOUTIQUE = 5;
-    const TAILLE_BANC = 9; // TFT : 9 places, pas une de plus
-    const PRESTIGE_DEPART = 40; // calibré en simulation (simulations/parties.js)
+    const TAILLE_BANC = 9;
+    const PRESTIGE_DEPART = 40; // calibré en simulation
     const DERNIERE_MANCHE_AMICALE = 3;
     const POOL_PAR_COUT = { 1: 30, 2: 25, 3: 18, 4: 10, 5: 9 };
     const droitsTV = (manche) => [2, 2, 3, 4][manche - 1] ?? 5;
-    // Table XP officielle TFT (niveaux 4→10 : 6/10/20/36/60/68/68)
     const XP_POUR_MONTER = { 3: 6, 4: 10, 5: 20, 6: 36, 7: 60, 8: 68, 9: 68 };
     const TITULAIRES_PAR_NIVEAU = { 3: 5, 4: 6, 5: 7, 6: 8, 7: 9, 8: 10, 9: 11, 10: 11 };
-    const MEMBRES_STAFF = ["Prépa physique", "Coach mental", "Analyste vidéo", "Coach de finition",
-      "Coach technique", "Kiné", "Adjoint tactique", "Scout"];
-    // Odds officielles TFT par niveau (coûts 1 à 5)
     const ODDS_PAR_NIVEAU = {
       3: [75, 25, 0, 0, 0], 4: [55, 30, 15, 0, 0], 5: [45, 33, 20, 2, 0],
       6: [30, 40, 25, 5, 0], 7: [19, 30, 40, 10, 1], 8: [18, 25, 32, 22, 3],
       9: [10, 20, 25, 35, 10], 10: [5, 10, 20, 40, 25],
     };
-    // L'équipe de départ : 5 réservistes du centre, gratuits, sans aucun
-    // trait (zéro synergie) — juste de quoi jouer la manche 1.
+    const MEMBRES_STAFF = ["Prépa physique", "Coach mental", "Analyste vidéo", "Coach de finition",
+      "Coach technique", "Kiné", "Adjoint tactique", "Scout"];
     const STARTERS = [
       { nom: "Gus",    cout: 0, poste: "GAR", ecole: "", archetype: "", unique: null },
       { nom: "Marcel", cout: 0, poste: "DÉF", ecole: "", archetype: "", unique: null },
@@ -140,33 +243,39 @@
       { nom: "Barrio Bravo", ecole: "La Grinta" },
       { nom: "Le Consortium", ecole: "Les Pros" },
     ];
+    const AMICAUX = [
+      { nom: "Espoirs Régionaux", taille: 4 },
+      { nom: "AS Vétérans", taille: 5 },
+      { nom: "Sélection du District", taille: 5, relevee: true },
+    ];
 
     const el = (id) => document.getElementById(id);
     const hasardParmi = (t) => t[Math.floor(Math.random() * t.length)];
+    const de2 = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
     let tousLesJoueurs = [];
     let partie = null;
 
-    /* ---- État d'une partie ---- */
+    /* ================= État ================= */
     function nouvellePartie() {
       const coachs = [{ nom: "Mon Club", ia: false, prestige: PRESTIGE_DEPART, serie: 0, vivant: true }];
       for (const c of COACHS_IA) coachs.push({ ...c, ia: true, prestige: PRESTIGE_DEPART, serie: 0, vivant: true });
       partie = {
         manche: 1, coachs,
-        or: OR_DEPART, niveau: 3, xp: 0, staff: [], butin: null, orbesEnAttente: [],
-        verrou: false, dernierAdversaire: null, appariement: null, historique: [],
+        or: OR_DEPART, niveau: 3, xp: 0, staff: [],
         terrain: STARTERS.map((j) => ({ ...j, etoiles: 1 })), banc: [], boutique: [], pool: [],
-        exempt: null,
+        butin: { 1: ["gris", "gris"], 2: ["gris", "bleu"], 3: ["or"] },
+        orbesEnAttente: [], verrou: false, dernierAdversaire: null,
+        appariement: null, historique: [], exempt: null, matchEnCours: false,
       };
       construirePool();
-      partie.butin = planifierButin();
       nouvelleBoutique(false);
       preparerManche();
-      montrer("mercato");
-      afficherMercato();
+      document.querySelectorAll(".volet").forEach((v) => v.remove());
+      afficher();
     }
     const moi = () => partie.coachs[0];
 
-    /* ---- Pool et boutique (comme le bac à sable, avec odds par niveau) ---- */
+    /* ================= Pool et boutique ================= */
     function construirePool() {
       partie.pool = [];
       for (const j of tousLesJoueurs)
@@ -191,7 +300,9 @@
       }
     }
 
-    /* ---- Actions du mercato ---- */
+    /* ================= Actions du mercato =================
+       Toujours disponibles, MÊME pendant le match (décision n°19) :
+       les achats vont alors au banc, la compo ne bouge qu'après. */
     function acheter(indice) {
       const fiche = partie.boutique[indice];
       if (!fiche) return;
@@ -199,45 +310,51 @@
       const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
       if (partie.terrain.length + partie.banc.length >= max + TAILLE_BANC)
         return signaler("Effectif complet — vends quelqu'un.");
+      if (partie.matchEnCours && partie.banc.length >= TAILLE_BANC)
+        return signaler("Banc plein — pendant le match, les recrues vont au banc.");
       partie.or -= fiche.cout;
       partie.boutique[indice] = null;
-      // Chaque copie achetée est un exemplaire à soi (1 étoile)
       const copie = { ...fiche, etoiles: 1 };
-      if (partie.terrain.length < max) partie.terrain.push(copie); else partie.banc.push(copie);
-      // 3 copies identiques → fusion automatique, façon TFT
+      if (!partie.matchEnCours && partie.terrain.length < max) partie.terrain.push(copie);
+      else partie.banc.push(copie);
       const fusions = ONZE.fusionnerEffectif(partie.terrain, partie.banc);
       if (fusions.length) celebrerFusions(fusions);
-      afficherMercato();
+      afficher();
     }
     function vendre(nomListe, indice) {
+      if (partie.matchEnCours && nomListe === "terrain")
+        return signaler("Le match se joue — les titulaires ne se vendent pas en plein match.");
       const liste = partie[nomListe];
       const fiche = liste[indice];
-      const copies = Math.pow(3, (fiche.etoiles || 1) - 1); // un 2★ vaut 3 copies
+      const copies = Math.pow(3, (fiche.etoiles || 1) - 1);
       partie.or += fiche.cout * copies;
       const original = tousLesJoueurs.find((j) => j.nom === fiche.nom);
       if (original) for (let c = 0; c < copies; c++) partie.pool.push(original);
       liste.splice(indice, 1);
-      afficherMercato();
+      afficher();
     }
     function basculer(nomListe, indice) {
+      if (partie.matchEnCours)
+        return signaler("⏳ Les changements de compo prendront effet à la manche suivante.");
       const liste = partie[nomListe];
       if (nomListe === "banc" && partie.terrain.length >= TITULAIRES_PAR_NIVEAU[partie.niveau])
         return signaler("Terrain plein — fais descendre quelqu'un.");
       const fiche = liste.splice(indice, 1)[0];
       (nomListe === "banc" ? partie.terrain : partie.banc).push(fiche);
-      afficherMercato();
+      afficher();
     }
     function refresh() {
       if (partie.or < COUT_REFRESH) return signaler("Pas assez d'or.");
       partie.or -= COUT_REFRESH;
+      partie.verrou = false;
       nouvelleBoutique();
-      afficherMercato();
+      afficher();
     }
     function acheterXP() {
       if (partie.or < COUT_XP) return signaler("Pas assez d'or.");
       partie.or -= COUT_XP;
       gagnerXP(4);
-      afficherMercato();
+      afficher();
     }
     function gagnerXP(quantite) {
       if (partie.niveau >= 10) return;
@@ -246,12 +363,23 @@
       while (seuil && partie.xp >= seuil) {
         partie.xp -= seuil;
         partie.niveau++;
-        signaler("🎉 Niveau de club " + partie.niveau + " — " + TITULAIRES_PAR_NIVEAU[partie.niveau] + " titulaires !");
+        signaler("🎉 Niveau " + partie.niveau + " — " + TITULAIRES_PAR_NIVEAU[partie.niveau] + " titulaires !");
         seuil = XP_POUR_MONTER[partie.niveau];
       }
     }
-
-    /* La fusion, mise en scène comme l'événement qu'elle est */
+    function signaler(texte) {
+      el("message").textContent = texte;
+      setTimeout(() => { if (el("message").textContent === texte) el("message").textContent = ""; }, 3000);
+    }
+    function verdictFormation() {
+      if (partie.terrain.length === 0) return "Achète au moins un joueur !";
+      if (partie.terrain.filter((j) => j.poste === "GAR").length > 1) return "Un seul gardien.";
+      return null;
+    }
+    function formationIncomplete() {
+      const nb = (p) => partie.terrain.filter((j) => j.poste === p).length;
+      return nb("DÉF") < 1 || nb("MIL") < 1 || nb("ATT") < 1 || nb("GAR") < 1;
+    }
     function celebrerFusions(fusions) {
       fusions.forEach((f, i) => {
         setTimeout(() => {
@@ -266,48 +394,7 @@
       });
     }
 
-    function signaler(texte) {
-      el("message").textContent = texte;
-      setTimeout(() => { if (el("message").textContent === texte) el("message").textContent = ""; }, 3000);
-    }
-    /* On peut jouer incomplet (on démarre pauvre !) — l'équipe est juste
-       faible. Seules vraies contraintes : au moins 1 joueur, 1 gardien max. */
-    function verdictFormation() {
-      if (partie.terrain.length === 0) return "Achète au moins un joueur !";
-      const nb = (p) => partie.terrain.filter((j) => j.poste === p).length;
-      if (nb("GAR") > 1) return "Un seul gardien.";
-      return null;
-    }
-    function formationIncomplete() {
-      const nb = (p) => partie.terrain.filter((j) => j.poste === p).length;
-      return nb("DÉF") < 1 || nb("MIL") < 1 || nb("ATT") < 1 || nb("GAR") < 1;
-    }
-
-    /* ---- Les amicaux (manches 1-3) : équipes scriptées, façon sbires ---- */
-    const AMICAUX = [
-      { nom: "Espoirs Régionaux", taille: 4 },
-      { nom: "AS Vétérans", taille: 5 },
-      { nom: "Sélection du District", taille: 5, relevee: true },
-    ];
-    function genererEquipeAmicale(manche) {
-      const gabarit = AMICAUX[manche - 1];
-      const postes = ["GAR", "DÉF", "MIL", "ATT", "DÉF"].slice(0, gabarit.taille);
-      const fiches = postes.map((poste, i) => gabarit.relevee && poste !== "GAR"
-        ? hasardParmi(tousLesJoueurs.filter((j) => j.poste === poste && j.cout === 1))
-        : { nom: ["Gégé", "Bernard", "Paulo", "Kiki", "Dédé"][i], cout: 0, poste, ecole: "", archetype: "", unique: null });
-      return ONZE.equipeDepuisFiches("Amical — " + gabarit.nom, gabarit.nom, fiches);
-    }
-
-    /* ---- Le butin des amicaux : orbes façon TFT (design/economie.md).
-       Valeur totale identique pour tout le monde (7M sur les 3 amicaux),
-       la variance porte sur la composition : or, joueur gratuit, ou Staff. ---- */
-    /* Trois raretés d'orbes (gris < bleu < or), tables de butin
-       croissantes — même plan pour les 8 coachs (équité de valeur). */
-    function planifierButin() {
-      return { 1: ["gris", "gris"], 2: ["gris", "bleu"], 3: ["or"] };
-    }
-    /* Les orbes-joueurs orientent : ils visent volontiers une copie d'un
-       joueur déjà au club (le chemin vers la première fusion, façon TFT). */
+    /* ================= Butin des amicaux (orbes) ================= */
     function piocherJoueur(coutMax, coutMin = 1) {
       const possedes = new Set([...partie.terrain, ...partie.banc].map((j) => j.nom));
       let candidats = partie.pool.filter((j) => j.cout >= coutMin && j.cout <= coutMax);
@@ -331,8 +418,7 @@
         const fiche = piocherJoueur(2);
         return fiche ? { rarete, type: "joueur", fiche } : { rarete, type: "or", montant: 3 };
       }
-      // or : le duo du centre de formation domine la table
-      if (tirage < 0.6) {
+      if (tirage < 0.6) { // or : le duo du centre de formation domine
         const possedes = new Set([...partie.terrain, ...partie.banc].map((j) => j.nom));
         let candidats = partie.pool.filter((j) => j.cout === 1 && partie.pool.filter((x) => x.nom === j.nom).length >= 2);
         const doublons = candidats.filter((j) => possedes.has(j.nom));
@@ -349,7 +435,6 @@
       const fiche = piocherJoueur(3, 2);
       return fiche ? { rarete, type: "joueur", fiche } : { rarete, type: "or", montant: 4 };
     }
-    const de2 = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
     function ouvrirOrbe(bouton, indice) {
       const orbe = partie.orbesEnAttente[indice];
       if (!orbe || orbe.ouvert) return;
@@ -379,25 +464,32 @@
           : `⚽ <strong>${orbe.fiche.nom}</strong> signe gratuitement !<br><small>${orbe.fiche.ecole || "Sans École"} · ${orbe.fiche.archetype || "sans archétype"} — une orientation à saisir ?</small>`;
       }
       bouton.replaceWith(revele);
-      if (partie.orbesEnAttente.every((o) => o.ouvert)) el("btn-continuer").classList.remove("masque");
+      afficher();
+      const continuer = document.getElementById("btn-continuer");
+      if (continuer && partie.orbesEnAttente.every((o) => o.ouvert)) continuer.classList.remove("masque");
     }
 
-    /* ---- Les équipes IA : montent en puissance avec les manches ---- */
-    /* Courbe calibrée sur 400 parties simulées : ~50 % de top 4,
-       première élimination vers la manche 12, fin vers la manche 18 */
+    /* ================= Adversaires ================= */
+    function genererEquipeAmicale(manche) {
+      const gabarit = AMICAUX[manche - 1];
+      const postes = ["GAR", "DÉF", "MIL", "ATT", "DÉF"].slice(0, gabarit.taille);
+      const fiches = postes.map((poste, i) => gabarit.relevee && poste !== "GAR"
+        ? hasardParmi(tousLesJoueurs.filter((j) => j.poste === poste && j.cout === 1))
+        : { nom: ["Gégé", "Bernard", "Paulo", "Kiki", "Dédé"][i], cout: 0, poste, ecole: "", archetype: "", unique: null });
+      return ONZE.equipeDepuisFiches("Amical — " + gabarit.nom, gabarit.nom, fiches);
+    }
+    /* Courbe calibrée (simulations/parties.js) : ~50 % de top 4 */
     function genererEquipeIA(coach) {
       const niveau = Math.min(3 + Math.floor(partie.manche / 4), 9);
       const taille = TITULAIRES_PAR_NIVEAU[niveau];
       let budget = Math.min(1 + 1.35 * partie.manche, 21);
       const compo = [];
       const besoins = ["GAR"];
-      const champ = taille - 1;
-      for (let i = 0; i < champ; i++) besoins.push(["DÉF", "MIL", "ATT"][i % 3]);
+      for (let i = 0; i < taille - 1; i++) besoins.push(["DÉF", "MIL", "ATT"][i % 3]);
       for (const poste of besoins) {
         const slotsRestants = besoins.length - compo.length;
         const coutMax = Math.max(1, Math.min(5, Math.floor(budget - (slotsRestants - 1))));
         let candidats = tousLesJoueurs.filter((j) => j.poste === poste && j.cout <= coutMax);
-        // Préférence pour l'École du coach
         const fideles = candidats.filter((j) => j.ecole === coach.ecole);
         if (fideles.length && Math.random() < 0.75) candidats = fideles;
         candidats.sort((a, b) => b.cout - a.cout);
@@ -407,9 +499,7 @@
       return ONZE.equipeDepuisFiches(coach.nom, coach.nom, compo);
     }
 
-    /* ---- La préparation de manche : l'appariement se décide AU MERCATO
-       (façon TFT : le prochain adversaire est annoncé, jamais deux fois
-       le même de suite) et les équipes IA sont figées → scoutables. ---- */
+    /* ================= Le déroulé des manches ================= */
     function preparerManche() {
       const amical = partie.manche <= DERNIERE_MANCHE_AMICALE;
       for (const c of partie.coachs) if (c.ia && c.vivant) c.equipe = genererEquipeIA(c);
@@ -418,7 +508,6 @@
         return;
       }
       const autres = partie.coachs.filter((c) => c.vivant && c.ia).sort(() => Math.random() - 0.5);
-      // pas de revanche immédiate si un autre adversaire est possible
       let indice = autres.findIndex((c) => c.nom !== partie.dernierAdversaire);
       if (indice === -1) indice = 0;
       const monAdversaire = autres.splice(indice, 1)[0];
@@ -428,7 +517,6 @@
       partie.appariement = { amical: false, monAdversaire, pairesIA, nomAdversaire: monAdversaire.nom };
     }
 
-    /* ---- La manche : le match utilise l'appariement annoncé ---- */
     function jouerManche() {
       const verdict = verdictFormation();
       if (verdict) return signaler(verdict);
@@ -440,7 +528,6 @@
       } else {
         monAdversaire = partie.appariement.monAdversaire;
         equipeAdverse = monAdversaire.equipe;
-        // Les matchs des autres coachs se jouent pour de vrai aussi
         resultatsIA = partie.appariement.pairesIA.map(([c1, c2]) => {
           const r = ONZE.simulerMatch(c1.equipe, c2.equipe);
           return { c1, c2, scoreA: r.scoreA, scoreB: r.scoreB };
@@ -450,14 +537,17 @@
       const monEquipe = ONZE.equipeDepuisFiches("Mon Club", "Toi", partie.terrain);
       const resultat = ONZE.simulerMatch(monEquipe, equipeAdverse);
 
-      montrer("match");
-      el("nom-a").innerHTML = `Mon Club<small>Toi</small>`;
-      el("nom-b").innerHTML = amical
-        ? `${equipeAdverse.nom}<small>match amical — aucun dégât</small>`
-        : `${monAdversaire.nom}<small>École ${monAdversaire.ecole}</small>`;
-      el("resultats").classList.add("masque");
-      el("btn-continuer").classList.add("masque");
-      window.scrollTo({ top: 0 });
+      // Le match se joue SUR le terrain : tableau + journal par-dessus,
+      // le tiroir reste ouvert (achats → banc)
+      partie.matchEnCours = true;
+      el("terrain-scene").style.paddingTop = "76px"; // laisse la place au tableau
+      el("tableau-match").classList.remove("masque");
+      el("nom-adversaire-match").textContent = "⚔️ " + (amical ? partie.appariement.nomAdversaire : monAdversaire.nom);
+      el("btn-vitesse").classList.remove("masque");
+      el("btn-match").disabled = true;
+      el("btn-match").textContent = "⏱ Match en cours — la boutique reste ouverte";
+      el("recit").innerHTML = "";
+      afficher();
       ONZE_UI.rejouer(resultat, monEquipe, equipeAdverse, {
         chrono: el("chrono"), scoreA: el("score-a"), scoreB: el("score-b"), recit: el("recit"),
       }, () => finDeManche(resultat, monAdversaire, resultatsIA), { sansPrestige: amical, manche: partie.manche });
@@ -477,7 +567,6 @@
       const victoire = resultat.scoreA > resultat.scoreB;
 
       if (amical) {
-        // Amical : jamais de dégâts, mais la série avance
         if (victoire) je.serie = je.serie > 0 ? je.serie + 1 : 1;
         else if (resultat.scoreB > resultat.scoreA) je.serie = je.serie < 0 ? je.serie - 1 : -1;
         else je.serie = 0;
@@ -492,40 +581,44 @@
         }
       }
 
-      // Revenus, dans l'ordre du barème : sponsors → droits TV → primes
       const sponsors = Math.min(Math.floor(partie.or / 10), 5);
       const base = droitsTV(partie.manche);
       const serieAbs = Math.abs(je.serie);
       const bonusSerie = serieAbs >= 6 ? 3 : serieAbs >= 5 ? 2 : serieAbs >= 3 ? 1 : 0;
-      const bonusVictoire = !amical && victoire ? 1 : 0; // prime PvP uniquement
+      const bonusVictoire = !amical && victoire ? 1 : 0;
       const revenu = sponsors + base + bonusVictoire + bonusSerie;
       partie.or += revenu;
       gagnerXP(XP_GRATUITE_PAR_MANCHE);
 
-      // Affichage des résultats + butin des amicaux
-      let html = `<div class="classement">`;
-      if (!amical) {
-        html += `<strong>Manche ${partie.manche} — les autres terrains :</strong>`;
-        for (const r of resultatsIA)
-          html += `<div class="coach"><span>${r.c1.nom} ${r.scoreA} – ${r.scoreB} ${r.c2.nom}</span></div>`;
-        if (partie.exempt) html += `<div class="coach"><span>${partie.exempt.nom} — exempt</span></div>`;
-      }
-      html += `<div class="coach"><span>💰 Revenus : +${revenu}M (${base} droits TV` +
-        (sponsors ? ` +${sponsors} sponsors` : "") + (bonusSerie ? ` +${bonusSerie} série` : "") +
-        (bonusVictoire ? ` +1 victoire` : "") + `)</span></div></div>`;
-
       partie.orbesEnAttente = amical
         ? partie.butin[partie.manche].map((rarete) => creerOrbe(rarete))
         : [];
+
+      // Panneau de fin de manche par-dessus le terrain
+      let html = `<div class="panneau">`;
+      html += `<strong>Manche ${partie.manche} — ${resultat.scoreA} – ${resultat.scoreB}</strong>`;
+      if (!amical) {
+        html += `<div class="classement" style="margin-top:6px">`;
+        for (const r of resultatsIA)
+          html += `<div class="coach"><span>${r.c1.nom} ${r.scoreA} – ${r.scoreB} ${r.c2.nom}</span></div>`;
+        if (partie.exempt) html += `<div class="coach"><span>${partie.exempt.nom} — exempt</span></div>`;
+        html += `</div>`;
+      }
+      html += `<div class="coach" style="margin-top:6px"><span>💰 +${revenu}M (${base} droits TV` +
+        (sponsors ? ` +${sponsors} sponsors` : "") + (bonusSerie ? ` +${bonusSerie} série` : "") +
+        (bonusVictoire ? ` +1 victoire` : "") + `)</span></div>`;
       if (partie.orbesEnAttente.length) {
-        html += `<div class="classement" style="text-align:center"><strong>🎁 Le butin de l'amical !</strong><br>` +
-          `<small>Touche chaque orbe pour l'ouvrir.</small></div><div class="orbes">` +
+        html += `<div style="text-align:center;margin-top:8px"><strong>🎁 Le butin de l'amical !</strong><br>` +
+          `<small style="color:#96A699">Touche chaque orbe pour l'ouvrir.</small></div><div class="orbes">` +
           partie.orbesEnAttente.map((o, i) => `<button class="orbe ${o.rarete}" onclick="ouvrirOrbe(this, ${i})">🎁</button>`).join("") +
           `</div>`;
       }
-      el("resultats").innerHTML = html;
-      el("resultats").classList.remove("masque");
-      if (!partie.orbesEnAttente.length) el("btn-continuer").classList.remove("masque");
+      html += `<button class="fermer-volet ${partie.orbesEnAttente.length ? "masque" : ""}" id="btn-continuer">➡️ Continuer</button></div>`;
+      const volet = document.createElement("div");
+      volet.className = "volet";
+      volet.innerHTML = html;
+      document.body.appendChild(volet);
+      document.getElementById("btn-continuer").addEventListener("click", () => { volet.remove(); continuer(); });
 
       if (monAdversaire) partie.dernierAdversaire = monAdversaire.nom;
       const resume = amical
@@ -538,25 +631,31 @@
     }
 
     function continuer() {
+      partie.matchEnCours = false;
+      el("terrain-scene").style.paddingTop = "";
+      el("tableau-match").classList.add("masque");
+      el("btn-vitesse").classList.add("masque");
+      el("recit").innerHTML = "";
       const je = moi();
       const vivants = partie.coachs.filter((c) => c.vivant);
       if (!je.vivant || vivants.length === 1) {
-        montrer("fin");
-        const place = je.vivant ? 1 : partie.coachs.filter((c) => c.vivant).length + 1;
-        el("texte-fin").innerHTML = je.vivant
-          ? `🏆 CHAMPION ! Mon Club survit à tous les autres !`
-          : `💔 Éliminé — ${place}ᵉ place sur 8.<br><small>Le prestige est retombé à zéro.</small>`;
-        el("classement-final").innerHTML = ligneClassement();
+        const place = je.vivant ? 1 : vivants.length + 1;
+        const volet = document.createElement("div");
+        volet.className = "volet";
+        volet.innerHTML = `<div class="panneau" style="text-align:center">
+          <div style="font-size:1.2rem;font-weight:800;margin-bottom:8px">${je.vivant ? "🏆 CHAMPION !" : "💔 Éliminé — " + place + "ᵉ sur 8"}</div>
+          <div class="classement">${ligneClassement()}</div>
+          <button class="fermer-volet" onclick="this.closest('.volet').remove(); nouvellePartie()">🔁 Nouvelle partie</button>
+        </div>`;
+        document.body.appendChild(volet);
         return;
       }
-      if (!partie.verrou) nouvelleBoutique(); // 🔒 verrou : la boutique reste
+      if (!partie.verrou) nouvelleBoutique();
       preparerManche();
-      montrer("mercato");
-      afficherMercato();
-      window.scrollTo({ top: 0 });
+      afficher();
     }
 
-    /* ---- Affichages ---- */
+    /* ================= Volet classement / scouting ================= */
     function ligneClassement() {
       return partie.coachs.slice().sort((a, b) => b.prestige - a.prestige).map((c) => {
         const classes = "coach" + (c.ia ? "" : " moi") + (c.vivant ? "" : " mort");
@@ -565,11 +664,27 @@
         return `<div class="${classes}" style="cursor:pointer" onclick="scouterIndice(${indice})"><span>🔎 ${c.nom}${serie}</span><span>💚 ${c.prestige}</span></div>`;
       }).join("");
     }
-    /* Scouting : taper un club du classement ouvre son vestiaire —
-       onze complet, synergies actives, ADN (comme le tien) */
+    function ouvrirClassement() {
+      const volet = document.createElement("div");
+      volet.className = "volet";
+      volet.innerHTML = `<div class="panneau">
+        <strong>🏆 Le tournoi</strong>
+        <div class="classement" style="margin-top:6px">${ligneClassement()}</div>
+        <div class="coach" style="margin-top:4px;color:#96A699"><span id="annonce-volet"></span></div>
+        <details style="margin-top:8px"><summary style="cursor:pointer;color:#96A699;font-size:0.8rem">📜 Historique des manches</summary>
+        <div style="font-size:0.76rem;margin-top:4px">${partie.historique.map((h) => `<div class="coach"><span>${h}</span></div>`).join("") || "La saison commence."}</div></details>
+        <button class="fermer-volet">Fermer</button>
+      </div>`;
+      volet.addEventListener("click", (e) => { if (e.target === volet || e.target.classList.contains("fermer-volet")) volet.remove(); });
+      document.body.appendChild(volet);
+      const annonce = partie.appariement.amical
+        ? `🤝 Prochain match : ${partie.appariement.nomAdversaire} (aucun dégât)`
+        : `⚔️ Prochain adversaire : ${partie.appariement.nomAdversaire} — touche-le pour scouter`;
+      document.getElementById("annonce-volet").textContent = annonce;
+    }
     function scouterIndice(indice) {
       const coach = partie.coachs[indice];
-      if (!coach.ia) return ouvrirVestiaire(null); // toi-même
+      if (!coach.ia) return ouvrirVestiaire(null);
       if (!coach.vivant) return signaler(coach.nom + " a déjà quitté le tournoi.");
       ouvrirVestiaire(coach);
     }
@@ -597,34 +712,47 @@
       voile.addEventListener("click", (e) => { if (e.target === voile || e.target.classList.contains("fermer")) voile.remove(); });
       document.body.appendChild(voile);
     }
-    /* Carte compacte : note globale + 2 stats signatures, jamais plus
-       (design/stats.md). Tap sur la carte → fiche complète. */
-    function carteHTML(fiche, actionsHTML, refFiche) {
-      const etoiles = (fiche.etoiles || 1) >= 2 ? ` <span class="etoiles">${"★".repeat(fiche.etoiles)}</span>` : "";
+
+    /* ================= Le menu d'un joueur (jeton ou banc) ================= */
+    function menuJoueur(nomListe, indice) {
+      const fiche = partie[nomListe][indice];
+      if (!fiche) return;
+      const valeurVente = fiche.cout * Math.pow(3, (fiche.etoiles || 1) - 1);
+      const voile = document.createElement("div");
+      voile.className = "voile-fiche";
+      voile.innerHTML = `<div class="fiche-joueur" style="max-width:280px;text-align:center">
+        <h3>${fiche.nom}${(fiche.etoiles || 1) >= 2 ? " " + "★".repeat(fiche.etoiles) : ""}</h3>
+        <div class="sous-titre">${fiche.poste}${fiche.ecole ? " · " + fiche.ecole : ""}${fiche.archetype ? " · " + fiche.archetype : ""}</div>
+        <button class="fermer" data-action="fiche">📋 Voir la fiche</button>
+        <button class="fermer" data-action="bouger">${nomListe === "terrain" ? "🪑 Envoyer au banc" : "⬆️ Titulariser"}</button>
+        <button class="fermer" style="background:#3A2A24;color:#D4A66B" data-action="vendre">💰 Vendre (${valeurVente}M)</button>
+        <button class="fermer" data-action="rien">Annuler</button>
+      </div>`;
+      voile.addEventListener("click", (e) => {
+        const action = e.target.dataset && e.target.dataset.action;
+        if (e.target === voile) return voile.remove();
+        if (!action) return;
+        voile.remove();
+        if (action === "fiche") {
+          let calcule = null;
+          if (nomListe === "terrain") calcule = ONZE.equipeDepuisFiches("Mon Club", "Toi", partie.terrain).joueurs[indice];
+          ONZE_UI.ouvrirFiche(fiche, calcule);
+        }
+        if (action === "bouger") basculer(nomListe, indice);
+        if (action === "vendre") vendre(nomListe, indice);
+      });
+      document.body.appendChild(voile);
+    }
+
+    /* ================= Affichage de l'écran unique ================= */
+    function jetonHTML(fiche, nomListe, indice) {
       const stats = ONZE.genererStats(fiche);
       const note = ONZE.noteGlobale(stats);
-      const signatures = ONZE.statsSignatures(stats).map((x) => `${x.nom} ${x.valeur}`).join(" · ");
-      return `<div class="carte cout-${fiche.cout}" onclick="voirFiche(${refFiche})">
-        <span class="note">${note}</span>
-        <span class="infos"><span class="nom">${fiche.poste} · ${fiche.nom}${etoiles}</span> <span style="color:#E8C547">${fiche.cout}M</span><br>
-        <span class="signatures">${signatures}</span>
-        <span class="traits"> ${fiche.unique ? "⭐ " + fiche.unique + " · " : ""}${fiche.ecole ? fiche.ecole + " · " : ""}${fiche.archetype || "réserviste"}</span></span>
-        <span class="actions" onclick="event.stopPropagation()">${actionsHTML}</span>
-      </div>`;
+      const etoiles = (fiche.etoiles || 1) >= 2 ? `<span class="etoiles">${"★".repeat(fiche.etoiles)}</span>` : "";
+      return `<div class="jeton cout-${fiche.cout}" onclick="menuJoueur('${nomListe}', ${indice})">
+        <span class="note-jeton">${note}</span> ${etoiles}<br>${fiche.nom}</div>`;
     }
-    /* Le tap ouvre la fiche ; les titulaires montrent leurs boosts en vert */
-    function voirFiche(ref) {
-      const [liste, indice] = ref.split(":");
-      const fiche = liste === "boutique" ? partie.boutique[indice] : partie[liste][indice];
-      if (!fiche) return;
-      let calcule = null;
-      if (liste === "terrain") {
-        const apercu = ONZE.equipeDepuisFiches("Mon Club", "Toi", partie.terrain);
-        calcule = apercu.joueurs[indice];
-      }
-      ONZE_UI.ouvrirFiche(fiche, calcule);
-    }
-    function afficherMercato() {
+    function afficher() {
       const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
       el("manche").textContent = partie.manche;
       el("prestige").textContent = moi().prestige;
@@ -632,84 +760,80 @@
       el("niveau").textContent = partie.niveau;
       el("xp").textContent = partie.xp;
       el("xp-suivant").textContent = XP_POUR_MONTER[partie.niveau] || "MAX";
-      el("titulaires-max").textContent = max;
-      el("titulaires-max2").textContent = max;
-      el("serie").textContent = moi().serie > 0 ? "🔥 " + moi().serie : moi().serie < 0 ? "❄️ " + (-moi().serie) : "—";
+      el("serie").textContent = moi().serie > 0 ? "🔥" + moi().serie : moi().serie < 0 ? "❄️" + (-moi().serie) : "—";
       el("staff").textContent = partie.staff.length;
-      el("classement").innerHTML = ligneClassement();
-      // ⚔️ l'adversaire annoncé (tap = scouting de son vestiaire)
-      if (partie.appariement) {
-        el("prochain-adversaire").innerHTML = partie.appariement.amical
-          ? `🤝 Prochain match : <strong>${partie.appariement.nomAdversaire}</strong> <small>(aucun dégât)</small>`
-          : `⚔️ Prochain adversaire : <strong>${partie.appariement.nomAdversaire}</strong> <small>· touche pour scouter</small>`;
-        el("prochain-adversaire").onclick = partie.appariement.amical ? null
-          : () => ouvrirVestiaire(partie.appariement.monAdversaire);
-      }
-      el("btn-verrou").textContent = partie.verrou ? "🔒" : "🔓";
-      el("btn-verrou").style.background = partie.verrou ? "#4a3d18" : "";
-      el("historique").innerHTML = partie.historique.length
-        ? partie.historique.map((h) => `<div class="coach"><span>${h}</span></div>`).join("")
-        : `<div class="coach"><span>Rien encore — la saison commence.</span></div>`;
-      const odds = ODDS_PAR_NIVEAU[Math.min(partie.niveau, 10)];
-      el("odds-info").textContent = odds.map((v, i) => v ? `${v}%c${i + 1}` : null).filter(Boolean).join(" ");
-      el("boutique").innerHTML = partie.boutique.map((fiche, i) =>
-        fiche
-          ? carteHTML(fiche, `<button class="achat" onclick="acheter(${i})" ${partie.or < fiche.cout ? "disabled" : ""}>${fiche.cout}M</button>`, `'boutique:${i}'`)
-          : `<div class="carte vide">— vendu —</div>`
-      ).join("");
+
+      // Le terrain : les titulaires à leur ligne + les places libres
+      for (const poste of ["GAR", "DÉF", "MIL", "ATT"]) el("ligne-" + poste).innerHTML = "";
+      partie.terrain.forEach((fiche, i) => {
+        el("ligne-" + fiche.poste).insertAdjacentHTML("beforeend", jetonHTML(fiche, "terrain", i));
+      });
+      const libres = max - partie.terrain.length;
+      for (let i = 0; i < libres; i++)
+        el("ligne-MIL").insertAdjacentHTML("beforeend", `<div class="jeton vide">+</div>`);
+
+      // Banc et boutique dans le tiroir
+      el("banc").innerHTML = partie.banc.length
+        ? partie.banc.map((fiche, i) => jetonHTML(fiche, "banc", i)).join("")
+        : `<div class="jeton vide" style="flex:1">Banc vide (${TAILLE_BANC} places)</div>`;
+      el("boutique").innerHTML = partie.boutique.map((fiche, i) => {
+        if (!fiche) return `<div class="carte-boutique vendue">—</div>`;
+        const stats = ONZE.genererStats(fiche);
+        const note = ONZE.noteGlobale(stats);
+        const signatures = ONZE.statsSignatures(stats).map((x) => `${x.nom} ${x.valeur}`).join(" · ");
+        return `<div class="carte-boutique cout-${fiche.cout}" onclick="ONZE_UI.ouvrirFiche(tousLesJoueurs.find((j) => j.nom === '${fiche.nom.replace(/'/g, "\\'")}'))">
+          <span class="haut"><span>${note} ${fiche.poste}</span><span class="prix">${fiche.cout}M</span></span>
+          <span><strong>${fiche.nom}</strong></span>
+          <span class="signatures">${signatures}</span>
+          <span class="traits-carte">${fiche.unique ? "⭐ " + fiche.unique : (fiche.ecole || "")}<br>${fiche.archetype || ""}</span>
+          <button onclick="event.stopPropagation(); acheter(${i})" ${partie.or < fiche.cout ? "disabled" : ""}>Recruter ${fiche.cout}M</button>
+        </div>`;
+      }).join("");
+
       el("btn-refresh").disabled = partie.or < COUT_REFRESH;
       el("btn-xp").disabled = partie.or < COUT_XP || partie.niveau >= 10;
-      el("nb-titulaires").textContent = partie.terrain.length;
-      el("terrain").innerHTML = partie.terrain.length
-        ? partie.terrain.map((fiche, i) => carteHTML(fiche,
-            `<button onclick="basculer('terrain', ${i})">Banc</button><button class="vente" onclick="vendre('terrain', ${i})">Vendre</button>`, `'terrain:${i}'`)).join("")
-        : `<div class="carte vide">Achète des joueurs dans la boutique 👆</div>`;
-      el("banc").innerHTML = partie.banc.length
-        ? partie.banc.map((fiche, i) => carteHTML(fiche,
-            `<button onclick="basculer('banc', ${i})">Titulariser</button><button class="vente" onclick="vendre('banc', ${i})">Vendre</button>`, `'banc:${i}'`)).join("")
-        : `<div class="carte vide">Personne sur le banc</div>`;
+      el("btn-verrou").textContent = partie.verrou ? "🔒" : "🔓";
+
+      // Synergies + mini ADN
       const apercu = ONZE.equipeDepuisFiches("Mon Club", "Toi", partie.terrain);
-      el("synergies-club").innerHTML = apercu.synergies.length
-        ? ONZE_UI.badges(apercu)
-        : `<span style="color:#5A6A5C;font-size:0.72rem">Réunis des joueurs de la même École ou du même archétype pour allumer des synergies.</span>`;
-      // L'ADN du club : 6 axes, force en vert, trou en rouge
+      el("synergies-club").innerHTML = ONZE_UI.badges(apercu) ||
+        `<span style="color:#5A6A5C;font-size:0.68rem">Réunis des joueurs d'une même École ou d'un même archétype.</span>`;
       const axes = ONZE.adnClub(apercu);
       const valeursAxes = Object.values(axes);
       const maxAxe = Math.max(...valeursAxes), minAxe = Math.min(...valeursAxes);
       el("axes-adn").innerHTML = Object.entries(axes).map(([axe, valeur]) => {
         const classe = valeur === maxAxe && maxAxe > minAxe ? "forte" : valeur === minAxe && maxAxe > minAxe ? "faible" : "";
-        return `<div class="axe"><span class="nom-axe">${axe}</span>` +
-          `<span class="barre-axe"><div class="${classe}" style="width:${valeur}%"></div></span>` +
-          `<span class="valeur-axe">${valeur}</span></div>`;
+        return `<div class="axe-mini"><div class="barre-mini"><div class="${classe}" style="width:${valeur}%"></div></div>${axe}</div>`;
       }).join("");
-      const verdict = verdictFormation();
-      const amical = partie.manche <= DERNIERE_MANCHE_AMICALE ? " (amical)" : "";
-      el("btn-match").textContent = verdict ? "⚽ " + verdict
-        : formationIncomplete() ? "😬 Jouer la manche " + partie.manche + amical + " — équipe incomplète !"
-        : "⚽ Jouer la manche " + partie.manche + amical;
-    }
-    function montrer(vue) {
-      for (const v of ["mercato", "match", "fin"]) el("vue-" + v).classList.toggle("masque", v !== vue);
+
+      // Bouton de manche
+      if (!partie.matchEnCours) {
+        const verdict = verdictFormation();
+        const amical = partie.appariement && partie.appariement.amical;
+        el("btn-match").disabled = !!verdict;
+        el("btn-match").textContent = verdict ? "⚽ " + verdict
+          : `⚽ Manche ${partie.manche}${amical ? " (amical)" : " — ⚔️ " + partie.appariement.nomAdversaire}` +
+            (formationIncomplete() ? " 😬" : "");
+      }
     }
 
-    /* ---- Mise en place ---- */
+    /* ================= Mise en place ================= */
     fetch("design/joueurs.json")
       .then((rep) => rep.json())
       .then((donnees) => {
         tousLesJoueurs = donnees;
         el("btn-match").addEventListener("click", jouerManche);
-        el("btn-continuer").addEventListener("click", continuer);
         el("btn-refresh").addEventListener("click", refresh);
+        el("btn-xp").addEventListener("click", acheterXP);
+        el("btn-classement").addEventListener("click", ouvrirClassement);
         el("btn-verrou").addEventListener("click", () => {
           partie.verrou = !partie.verrou;
-          signaler(partie.verrou ? "🔒 Boutique verrouillée : elle t'attendra à la prochaine manche." : "🔓 Boutique déverrouillée.");
-          afficherMercato();
+          signaler(partie.verrou ? "🔒 La boutique t'attendra à la prochaine manche." : "🔓 Boutique déverrouillée.");
+          afficher();
         });
-        el("btn-xp").addEventListener("click", acheterXP);
-        el("btn-rejouer").addEventListener("click", nouvellePartie);
         el("btn-vitesse").addEventListener("click", () => {
           const v = ONZE_UI.basculerVitesse();
-          el("btn-vitesse").textContent = v === 2 ? "▶️ Vitesse normale" : "⏩ Accélérer ×2";
+          el("btn-vitesse").textContent = v === 2 ? "▶️ ×1" : "⏩ ×2";
         });
         nouvellePartie();
       })
