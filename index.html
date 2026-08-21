@@ -26,6 +26,9 @@
     <a href="partie.html">🏆 La Partie — 8 coachs, un seul survivant</a>
     <a href="draft.html" class="secondaire">🪙 Bac à sable — mercato libre (30M)</a>
     <a href="match.html" class="secondaire">⚽ Match de démo (équipes préfaites)</a>
+    <a href="#" class="secondaire" style="color:#D4A66B;border-color:#3A2A24"
+       onclick="if (confirm('Effacer la partie en cours et repartir de zéro ?')) { try { localStorage.clear(); } catch (e) {} alert('Jeu réinitialisé.'); } return false;">
+      🧹 Réinitialiser le jeu (efface la partie en cours)</a>
   </div>
 </body>
 </html>

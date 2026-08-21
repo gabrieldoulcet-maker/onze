@@ -1453,10 +1453,13 @@
        On ne sauvegarde jamais en plein match — au pire on rejoue
        la manche en cours. */
     const CLE_SAUVEGARDE = "onze-partie-v1";
+    // Incrémenter quand le schéma de partie change : une sauvegarde d'une
+    // autre version est écartée au chargement (plus jamais de partie coincée)
+    const VERSION_SAUVEGARDE = 2;
     function sauvegarder() {
       if (!partie || partie.matchEnCours) return;
       try {
-        const copie = { ...partie, appariement: null, orbesEnAttente: [] };
+        const copie = { ...partie, appariement: null, orbesEnAttente: [], version: VERSION_SAUVEGARDE };
         copie.coachs = partie.coachs.map((c) => { const { equipe, ...reste } = c; return reste; });
         localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify(copie));
       } catch (e) { /* stockage indisponible : on joue sans filet */ }
@@ -1467,6 +1470,7 @@
         if (!brut) return false;
         const sauvegarde = JSON.parse(brut);
         if (!sauvegarde || !sauvegarde.coachs || !sauvegarde.terrain) return false;
+        if (sauvegarde.version !== VERSION_SAUVEGARDE) return false; // schéma trop ancien
         partie = sauvegarde;
         partie.matchEnCours = false;
         partie.orbesEnAttente = [];
