@@ -47,6 +47,7 @@
       <div class="equipe-nom" id="nom-b"></div>
       <div class="chrono" id="chrono"></div>
     </div>
+    <button class="principal" id="btn-vitesse" style="background:#24331F;color:#A9DDB6;padding:8px;font-size:0.85rem;">⏩ Accélérer ×2</button>
     <button class="principal masque" id="btn-retour">↩ Retour au mercato</button>
     <div class="recit" id="recit"></div>
   </div>
@@ -153,11 +154,11 @@
     function verdictFormation() {
       if (terrain.length !== TITULAIRES_MAX) return "Aligne " + TITULAIRES_MAX + " titulaires.";
       const nb = (poste) => terrain.filter((j) => j.poste === poste).length;
-      if (nb("GAR") !== 1) return "Il faut exactement 1 gardien.";
+      if (nb("GAR") > 1) return "Un seul gardien sur le terrain.";
       if (nb("DÉF") < 1) return "Il faut au moins 1 défenseur.";
       if (nb("MIL") < 1) return "Il faut au moins 1 milieu.";
       if (nb("ATT") < 1) return "Il faut au moins 1 attaquant.";
-      return null; // formation valable
+      return null; // formation valable (0 gardien permis : cage vide !)
     }
 
     /* ---- Affichage ---- */
@@ -165,7 +166,7 @@
       return `<div class="carte cout-${fiche.cout}">
         <span class="poste-badge">${fiche.poste}</span>
         <span class="infos"><span class="nom">${fiche.nom}</span> <span style="color:#E8C547">${fiche.cout}M</span><br>
-        <span class="traits">${fiche.ecole} · ${fiche.archetype}</span></span>
+        <span class="traits">${fiche.unique ? "⭐ " + fiche.unique + " · " : ""}${fiche.ecole ? fiche.ecole + " · " : ""}${fiche.archetype}</span></span>
         <span class="actions">${actionsHTML}</span>
       </div>`;
     }
@@ -194,12 +195,14 @@
       // Bouton match
       const verdict = verdictFormation();
       el("btn-match").disabled = !!verdict;
-      el("btn-match").textContent = verdict ? "⚽ " + verdict : "⚽ Jouer le match !";
+      const sansGardien = !verdict && terrain.filter((j) => j.poste === "GAR").length === 0;
+      el("btn-match").textContent = verdict ? "⚽ " + verdict
+        : sansGardien ? "😱 Jouer SANS gardien !" : "⚽ Jouer le match !";
     }
 
     /* ---- Le match : ton équipe contre un adversaire de test ---- */
     const ADVERSAIRES = [
-      { nom: "La Masia Rebelle", coach: "Coach Fantôme", noms: ["Rubén", "Gorka", "Unai", "Xabi", "Aitor"] },
+      { nom: "La Masia Rebelle", coach: "Coach Fantôme", noms: ["Rubén", "Unai", "Xabi", "Andoni", "Aitor"] },
       { nom: "Fortezza Nero", coach: "Coach Fantôme", noms: ["Gianluca", "Aurelio", "Mattia", "Tommaso", "Federico"] },
       { nom: "Union Bitume", coach: "Coach Fantôme", noms: ["Bakary", "Nino", "Ratko", "Brahim", "Rodrigo"] },
     ];
@@ -236,6 +239,10 @@
           Object.entries(ODDS).filter(([, v]) => v > 0).map(([c, v]) => v + "% coût " + c).join(" · ");
         el("btn-match").addEventListener("click", jouerMatch);
         el("btn-retour").addEventListener("click", retourMercato);
+        el("btn-vitesse").addEventListener("click", () => {
+          const v = ONZE_UI.basculerVitesse();
+          el("btn-vitesse").textContent = v === 2 ? "▶️ Vitesse normale" : "⏩ Accélérer ×2";
+        });
         el("btn-refresh").addEventListener("click", refresh);
         afficher();
       })

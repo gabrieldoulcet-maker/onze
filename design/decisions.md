@@ -7,7 +7,7 @@ Registre des décisions actées. Une décision qui n'est pas ici n'existe pas.
 
 1. **Squelette TFT assumé** : 8 coachs, boutique/mercato, synergies à paliers, économie, augments (Philosophies), carrousel (Mercato d'hiver), PvE (amicaux). On ne réinvente que là où le foot l'exige.
 2. **Chiffres TFT repris tels quels** : pool 30/25/18/10/9 copies ; 71 joueurs en 15/15/15/15/11 ; refresh 2M ; XP 4M ; intérêts +1M/10M (max +5) ; odds de boutique officielles par niveau. Retouche uniquement sur données de playtest.
-3. **Trois identités par joueur** : poste (GAR/DÉF/MIL/ATT, contrainte de formation, pas une synergie), École (origine), archétype (classe). Paliers 2/4/6.
+3. **Trois identités par joueur** : poste (GAR/DÉF/MIL/ATT, contrainte de formation, pas une synergie), École (origine), archétype (classe). ~~Paliers 2/4/6~~ → **v2 : échelles de paliers variées par famille** (11 Écoles, 12 archétypes, 12 traits Uniques, Capitaine unique sinon guerre des égos) — le détail dans `design/synergies.md`.
 4. **Montée 5 → 11 titulaires** liée au niveau de club (onze complet au niveau 8 ; niveaux 9–10 = accès aux coûts 4–5).
 5. **Match par phases de possession** : ~40 s, terrain en zones (3 lignes × 5 couloirs par moitié), duels zone par zone, tirs façon xG, dégâts de prestige = écart de buts. Zéro action pendant le match.
 6. **Joueurs fictifs** (archétypes), pas de licences. Un seul unique : L'Enfant du Pays (Caméléon).
@@ -17,6 +17,9 @@ Registre des décisions actées. Une décision qui n'est pas ici n'existe pas.
 10. **Les trois tests du fun** (re-clic, récit, spectacle) jugent toute décision.
 11. **Le cœur du fun = draft + synergies + staff.** Le système de Staff (composants → spécialisations, façon objets TFT) est le troisième axe qui rend chaque partie unique — système complet dans `design/staff.md`, à intégrer en phase 4.
 12. **Match animé en 2D stylisée en phase 3.** Le récit texte actuel est l'échafaudage ; la cible spectacle est une animation 2D lisible sur téléphone.
+13. **Le fun principal d'ONZE est LA CONSTRUCTION de l'équipe, pas le match** — le match est la célébration de la construction. Conséquences : le mercato est l'écran prioritaire en polish et en feedback (badges qui s'allument, fusions 3★ mises en scène, arrivée des Uniques), le match reste court et accélérable (×2), et son récit doit nommer les synergies du joueur pour montrer sa compo briller.
+14. **Économie de la vraie partie : on démarre pauvre**, comme dans TFT — c'est la montée progressive des revenus (droits TV + intérêts + séries) qui crée la courbe de tension. Le 30M de départ n'existe qu'en mode bac à sable (draft.html).
+15. **Jouer sans gardien est permis** : la cage vide se paie en pluie de buts encaissés, mais c'est un choix de compo légitime.
 
 ## À trancher (phase 1 — le jeu sur papier)
 

@@ -3,8 +3,9 @@
     "nom": "Sam",
     "cout": 1,
     "poste": "GAR",
-    "ecole": "Kick & Rush",
+    "ecole": "Les Revanchards",
     "archetype": "Mur",
+    "unique": null,
     "description": "Six mètres, grand coup de botte, tout le monde monte."
   },
   {
@@ -13,6 +14,7 @@
     "poste": "GAR",
     "ecole": "L'Académie",
     "archetype": "Mur",
+    "unique": null,
     "description": "Sorti du centre à 17 ans : réflexes purs, encore tendre sur les centres."
   },
   {
@@ -21,6 +23,7 @@
     "poste": "DÉF",
     "ecole": "Catenaccio",
     "archetype": "Sentinelle",
+    "unique": null,
     "description": "Tacle d'abord, discute ensuite."
   },
   {
@@ -29,14 +32,16 @@
     "poste": "DÉF",
     "ecole": "Kick & Rush",
     "archetype": "Mur",
+    "unique": null,
     "description": "Dégage tout ce qui entre dans la surface, attaquants compris."
   },
   {
     "nom": "Sékou",
     "cout": 1,
     "poste": "DÉF",
-    "ecole": "L'Académie",
+    "ecole": "Le Douzième Homme",
     "archetype": "Mur",
+    "unique": null,
     "description": "Colosse tranquille : gagne ses duels aériens sans forcer."
   },
   {
@@ -45,6 +50,7 @@
     "poste": "DÉF",
     "ecole": "Tiki-Taka",
     "archetype": "Piston",
+    "unique": null,
     "description": "Latéral qui relance court : toujours proposé, jamais pressé."
   },
   {
@@ -53,6 +59,7 @@
     "poste": "MIL",
     "ecole": "L'Académie",
     "archetype": "Moteur",
+    "unique": null,
     "description": "Court les 40 secondes du match, puis demande la prolongation."
   },
   {
@@ -61,6 +68,7 @@
     "poste": "MIL",
     "ecole": "École de la Rue",
     "archetype": "Virtuose",
+    "unique": null,
     "description": "Le petit pont est une politesse — il en fait deux."
   },
   {
@@ -69,14 +77,16 @@
     "poste": "MIL",
     "ecole": "Tiki-Taka",
     "archetype": "Créateur",
+    "unique": null,
     "description": "Métronome d'entrée de gamme : simple, propre, dans le tempo."
   },
   {
     "nom": "Harry",
     "cout": 1,
     "poste": "MIL",
-    "ecole": "Kick & Rush",
+    "ecole": "Les Pros",
     "archetype": "Moteur",
+    "unique": null,
     "description": "Ratisse, remet, repart. Zéro geste inutile."
   },
   {
@@ -85,6 +95,7 @@
     "poste": "MIL",
     "ecole": "Football Total",
     "archetype": "Moteur",
+    "unique": null,
     "description": "Bouche les trous que les autres créent — à n'importe quel poste."
   },
   {
@@ -92,7 +103,8 @@
     "cout": 1,
     "poste": "ATT",
     "ecole": "École de la Rue",
-    "archetype": "Finisseur",
+    "archetype": "Renard",
+    "unique": null,
     "description": "Renard des surfaces formé sur le bitume."
   },
   {
@@ -101,6 +113,7 @@
     "poste": "ATT",
     "ecole": "Kick & Rush",
     "archetype": "Finisseur",
+    "unique": null,
     "description": "Avant-centre d'appui : pivot, remise, tête."
   },
   {
@@ -108,15 +121,17 @@
     "cout": 1,
     "poste": "ATT",
     "ecole": "La Grinta",
-    "archetype": "Finisseur",
+    "archetype": "Renard",
+    "unique": null,
     "description": "Petit, teigneux : des buts moches qui comptent double."
   },
   {
     "nom": "Karim",
     "cout": 1,
     "poste": "ATT",
-    "ecole": "L'Académie",
+    "ecole": "Les Revanchards",
     "archetype": "Virtuose",
+    "unique": null,
     "description": "Ailier de poche, accélération en sortie de dribble."
   },
   {
@@ -124,7 +139,8 @@
     "cout": 2,
     "poste": "GAR",
     "ecole": "Catenaccio",
-    "archetype": "Mur",
+    "archetype": "Capitaine",
+    "unique": null,
     "description": "« Le Verrou ». Sur sa ligne, il ferme boutique."
   },
   {
@@ -133,6 +149,7 @@
     "poste": "DÉF",
     "ecole": "Catenaccio",
     "archetype": "Mur",
+    "unique": null,
     "description": "Marquage individuel à l'ancienne, mémoire d'éléphant."
   },
   {
@@ -141,14 +158,16 @@
     "poste": "DÉF",
     "ecole": "Football Total",
     "archetype": "Piston",
+    "unique": null,
     "description": "Latéral qui finit les matchs en ailier — personne n'a osé lui dire non."
   },
   {
     "nom": "Ratko",
     "cout": 2,
     "poste": "DÉF",
-    "ecole": "La Grinta",
+    "ecole": "Le Douzième Homme",
     "archetype": "Sentinelle",
+    "unique": null,
     "description": "Chaque duel perdu est une affaire personnelle."
   },
   {
@@ -157,6 +176,7 @@
     "poste": "DÉF",
     "ecole": "Kick & Rush",
     "archetype": "Piston",
+    "unique": null,
     "description": "Monte, centre, redescend. Cent fois par match."
   },
   {
@@ -165,6 +185,7 @@
     "poste": "MIL",
     "ecole": "La Grinta",
     "archetype": "Moteur",
+    "unique": null,
     "description": "Joue chaque ballon comme une finale."
   },
   {
@@ -172,7 +193,8 @@
     "cout": 2,
     "poste": "MIL",
     "ecole": "École de la Rue",
-    "archetype": "Piston",
+    "archetype": "Chanceux",
+    "unique": null,
     "description": "Ailier reconverti : le couloir est sa rue."
   },
   {
@@ -181,14 +203,16 @@
     "poste": "MIL",
     "ecole": "Tiki-Taka",
     "archetype": "Créateur",
+    "unique": null,
     "description": "Une touche, deux touches, jamais trois."
   },
   {
     "nom": "Dennis",
     "cout": 2,
     "poste": "MIL",
-    "ecole": "Kick & Rush",
+    "ecole": "Les Internationaux",
     "archetype": "Capitaine",
+    "unique": null,
     "description": "Gueulard magnifique : autour de lui, tout le monde joue plus fort."
   },
   {
@@ -196,7 +220,8 @@
     "cout": 2,
     "poste": "ATT",
     "ecole": "Football Total",
-    "archetype": "Virtuose",
+    "archetype": "Chanceux",
+    "unique": null,
     "description": "Permute avec tout le monde — même le gardien s'inquiète."
   },
   {
@@ -204,7 +229,8 @@
     "cout": 2,
     "poste": "ATT",
     "ecole": "Kick & Rush",
-    "archetype": "Finisseur",
+    "archetype": "Renard",
+    "unique": null,
     "description": "Vit dans les six mètres, une tête sur chaque centre."
   },
   {
@@ -213,6 +239,7 @@
     "poste": "ATT",
     "ecole": "École de la Rue",
     "archetype": "Virtuose",
+    "unique": null,
     "description": "Feinte de corps héritée du futsal : défenseurs vendus par paire."
   },
   {
@@ -221,22 +248,25 @@
     "poste": "ATT",
     "ecole": "L'Académie",
     "archetype": "Finisseur",
+    "unique": null,
     "description": "Pur produit du centre : appels parfaits, sang-froid clinique."
   },
   {
     "nom": "Gorka",
     "cout": 2,
     "poste": "DÉF",
-    "ecole": "Tiki-Taka",
-    "archetype": "Mur",
+    "ecole": "Les Pros",
+    "archetype": "Guerrier",
+    "unique": null,
     "description": "Central formé à la relance : sous pression, il joue comme à l'entraînement."
   },
   {
     "nom": "Ciro",
     "cout": 2,
     "poste": "MIL",
-    "ecole": "Catenaccio",
+    "ecole": "Les Pros",
     "archetype": "Moteur",
+    "unique": null,
     "description": "Milieu de devoir : trois poumons, zéro plainte."
   },
   {
@@ -245,6 +275,7 @@
     "poste": "GAR",
     "ecole": "Tiki-Taka",
     "archetype": "Créateur",
+    "unique": null,
     "description": "Gardien-relanceur : sa première passe vaut un milieu de plus."
   },
   {
@@ -253,6 +284,7 @@
     "poste": "DÉF",
     "ecole": "Catenaccio",
     "archetype": "Capitaine",
+    "unique": null,
     "description": "Organise la ligne à la voix. Le hors-jeu, c'est lui."
   },
   {
@@ -260,7 +292,8 @@
     "cout": 3,
     "poste": "DÉF",
     "ecole": "Football Total",
-    "archetype": "Mur",
+    "archetype": "Mentor",
+    "unique": null,
     "description": "Libéro moderne : défend en avançant."
   },
   {
@@ -269,14 +302,16 @@
     "poste": "DÉF",
     "ecole": "École de la Rue",
     "archetype": "Piston",
+    "unique": null,
     "description": "Latéral carioca : défendre, d'accord — mais après le centre."
   },
   {
     "nom": "Abdou",
     "cout": 3,
     "poste": "DÉF",
-    "ecole": "L'Académie",
+    "ecole": "Les Pros",
     "archetype": "Sentinelle",
+    "unique": null,
     "description": "Interceptions chirurgicales, relance sobre."
   },
   {
@@ -285,30 +320,34 @@
     "poste": "MIL",
     "ecole": "Catenaccio",
     "archetype": "Sentinelle",
+    "unique": null,
     "description": "Regista défensif : casse le jeu adverse, lance les contres."
   },
   {
     "nom": "Joris",
     "cout": 3,
     "poste": "MIL",
-    "ecole": "Football Total",
+    "ecole": "Les Pros",
     "archetype": "Créateur",
+    "unique": null,
     "description": "Distribue des deux pieds, change d'aile d'une seule passe."
   },
   {
     "nom": "Moussa",
     "cout": 3,
     "poste": "MIL",
-    "ecole": "L'Académie",
+    "ecole": "Les Revanchards",
     "archetype": "Moteur",
+    "unique": null,
     "description": "Box-to-box en pleine ascension, double poumon."
   },
   {
     "nom": "Milan",
     "cout": 3,
     "poste": "MIL",
-    "ecole": "La Grinta",
-    "archetype": "Capitaine",
+    "ecole": "Les Internationaux",
+    "archetype": "Mentor",
+    "unique": null,
     "description": "Capitaine de tranchée : à ses côtés, l'équipe ne lâche jamais."
   },
   {
@@ -316,7 +355,8 @@
     "cout": 3,
     "poste": "ATT",
     "ecole": "École de la Rue",
-    "archetype": "Finisseur",
+    "archetype": "Virtuose",
+    "unique": null,
     "description": "Feu follet : surgit côté faible, conclut du premier contact."
   },
   {
@@ -324,15 +364,17 @@
     "cout": 3,
     "poste": "ATT",
     "ecole": "La Grinta",
-    "archetype": "Finisseur",
+    "archetype": "Renard",
+    "unique": null,
     "description": "Attaquant de combat : provoque, pèse, punit."
   },
   {
     "nom": "Yannick",
     "cout": 3,
     "poste": "ATT",
-    "ecole": "L'Académie",
-    "archetype": "Piston",
+    "ecole": "Les Internationaux",
+    "archetype": "Chanceux",
+    "unique": null,
     "description": "Fusée : le couloir entier en trois foulées."
   },
   {
@@ -341,6 +383,7 @@
     "poste": "ATT",
     "ecole": "Catenaccio",
     "archetype": "Finisseur",
+    "unique": null,
     "description": "L'arme du contre : trois ballons touchés, deux buts."
   },
   {
@@ -349,6 +392,7 @@
     "poste": "ATT",
     "ecole": "Kick & Rush",
     "archetype": "Finisseur",
+    "unique": null,
     "description": "Avant-centre de devoir : pivot dos au but, remises pour les percuteurs."
   },
   {
@@ -356,7 +400,8 @@
     "cout": 3,
     "poste": "ATT",
     "ecole": "Football Total",
-    "archetype": "Piston",
+    "archetype": "Moteur",
+    "unique": null,
     "description": "Ailier propriétaire de son couloir — dans les deux sens."
   },
   {
@@ -364,7 +409,8 @@
     "cout": 4,
     "poste": "GAR",
     "ecole": "Football Total",
-    "archetype": "Mur",
+    "archetype": "Mentor",
+    "unique": null,
     "description": "Onzième joueur de champ. Signature : sort jouer à 30 mètres, relance dans les pieds."
   },
   {
@@ -373,6 +419,7 @@
     "poste": "DÉF",
     "ecole": "Catenaccio",
     "archetype": "Mur",
+    "unique": null,
     "description": "« La Muraille ». Signature : sa surface devient zone interdite — malus xG massif."
   },
   {
@@ -380,15 +427,17 @@
     "cout": 4,
     "poste": "DÉF",
     "ecole": "Football Total",
-    "archetype": "Capitaine",
+    "archetype": "Mentor",
+    "unique": null,
     "description": "Libéro-chef. Signature : monte au milieu à la possession, crée le surnombre."
   },
   {
     "nom": "Facundo",
     "cout": 4,
     "poste": "DÉF",
-    "ecole": "La Grinta",
+    "ecole": "Le Douzième Homme",
     "archetype": "Sentinelle",
+    "unique": null,
     "description": "Guerrier. Signature : gagne d'office son premier duel quand le club est mené."
   },
   {
@@ -397,14 +446,16 @@
     "poste": "MIL",
     "ecole": "Tiki-Taka",
     "archetype": "Créateur",
+    "unique": null,
     "description": "« El Reloj ». Signature : chaque phase de possession gagnée accélère toute l'équipe."
   },
   {
     "nom": "Djibril",
     "cout": 4,
     "poste": "MIL",
-    "ecole": "L'Académie",
+    "ecole": "Les Internationaux",
     "archetype": "Moteur",
+    "unique": null,
     "description": "Présent dans les deux surfaces. Signature : un deuxième duel gratuit par phase."
   },
   {
@@ -413,14 +464,16 @@
     "poste": "MIL",
     "ecole": "École de la Rue",
     "archetype": "Virtuose",
+    "unique": null,
     "description": "Nº10 de rue. Signature : un grand pont qui élimine une zone entière."
   },
   {
     "nom": "Wim",
     "cout": 4,
     "poste": "MIL",
-    "ecole": "Football Total",
+    "ecole": "Les Revanchards",
     "archetype": "Capitaine",
+    "unique": null,
     "description": "Chef d'orchestre. Signature : redistribue les postes en cours de match."
   },
   {
@@ -428,15 +481,17 @@
     "cout": 4,
     "poste": "ATT",
     "ecole": "École de la Rue",
-    "archetype": "Finisseur",
+    "archetype": "Guerrier",
+    "unique": null,
     "description": "« O Fenômeno ». Signature : si son tir est arrêté, il en tente immédiatement un second."
   },
   {
     "nom": "Marcus",
     "cout": 4,
     "poste": "ATT",
-    "ecole": "Kick & Rush",
+    "ecole": "Les Internationaux",
     "archetype": "Finisseur",
+    "unique": null,
     "description": "« Le Bulldozer ». Signature : emporte le Mur adverse avec lui sur ballon long."
   },
   {
@@ -444,23 +499,26 @@
     "cout": 4,
     "poste": "ATT",
     "ecole": "Tiki-Taka",
-    "archetype": "Créateur",
+    "archetype": "Virtuose",
+    "unique": null,
     "description": "Faux neuf. Signature : attire les Murs hors de la surface, ouvre l'autoroute."
   },
   {
     "nom": "Enzo",
     "cout": 4,
     "poste": "MIL",
-    "ecole": "La Grinta",
-    "archetype": "Créateur",
+    "ecole": "Les Revanchards",
+    "archetype": "Guerrier",
+    "unique": null,
     "description": "Nº10 de barrio. Signature : la passe cachée qui arrive quand le club est mené."
   },
   {
     "nom": "Lorenzo",
     "cout": 4,
     "poste": "DÉF",
-    "ecole": "Catenaccio",
+    "ecole": "Les Pros",
     "archetype": "Piston",
+    "unique": null,
     "description": "Latéral à l'italienne. Signature : revient toujours — annule le premier centre adverse."
   },
   {
@@ -468,15 +526,17 @@
     "cout": 4,
     "poste": "ATT",
     "ecole": "Football Total",
-    "archetype": "Finisseur",
+    "archetype": "Chanceux",
+    "unique": null,
     "description": "Avant-centre total. Signature : échange sa position avec un coéquipier à l'instant du tir."
   },
   {
     "nom": "Kwame",
     "cout": 4,
     "poste": "ATT",
-    "ecole": "L'Académie",
-    "archetype": "Virtuose",
+    "ecole": "",
+    "archetype": "Guerrier",
+    "unique": "Le Crack",
     "description": "Diplômé de l'académie d'Accra. Signature : élimine son vis-à-vis dès le premier dribble de chaque phase."
   },
   {
@@ -485,14 +545,16 @@
     "poste": "GAR",
     "ecole": "La Grinta",
     "archetype": "Capitaine",
+    "unique": "El Santo",
     "description": "« El Santo ». Signature : arrête le premier tir cadré de chaque période — chaque arrêt rend de la Grinta au club."
   },
   {
     "nom": "Tiémoko",
     "cout": 5,
     "poste": "DÉF",
-    "ecole": "L'Académie",
+    "ecole": "",
     "archetype": "Mur",
+    "unique": "Le Roc",
     "description": "« Le Roc ». Signature : imperdable en duel tant qu'un Espoir joue à ses côtés — et le fait progresser."
   },
   {
@@ -501,6 +563,7 @@
     "poste": "DÉF",
     "ecole": "Catenaccio",
     "archetype": "Sentinelle",
+    "unique": "Il Professore",
     "description": "« Il Professore ». Signature : le piège du hors-jeu — annule une occasion adverse par match."
   },
   {
@@ -508,7 +571,8 @@
     "cout": 5,
     "poste": "MIL",
     "ecole": "La Grinta",
-    "archetype": "Virtuose",
+    "archetype": "Guerrier",
+    "unique": "El Pibe",
     "description": "« El Pibe ». Signature : à prestige critique, il prend le match à son compte — tout est bonifié."
   },
   {
@@ -516,7 +580,8 @@
     "cout": 5,
     "poste": "MIL",
     "ecole": "Tiki-Taka",
-    "archetype": "Capitaine",
+    "archetype": "Mentor",
+    "unique": "Don Álvaro",
     "description": "« Don Álvaro ». Signature : la possession ne se perd jamais sur la première passe."
   },
   {
@@ -524,7 +589,8 @@
     "cout": 5,
     "poste": "ATT",
     "ecole": "La Grinta",
-    "archetype": "Finisseur",
+    "archetype": "Renard",
+    "unique": "La Pantera",
     "description": "« La Pantera ». Signature : marque d'office si le score est nul à la dernière phase."
   },
   {
@@ -533,6 +599,7 @@
     "poste": "ATT",
     "ecole": "École de la Rue",
     "archetype": "Virtuose",
+    "unique": "O Rei da Rua",
     "description": "« O Rei da Rua ». Signature : chaque dribble réussi ajoute un duel bonus à la phase — le chaos devient un plan."
   },
   {
@@ -541,6 +608,7 @@
     "poste": "MIL",
     "ecole": "École de la Rue",
     "archetype": "Créateur",
+    "unique": "La Lambretta",
     "description": "« La Lambretta ». Signature : sa passe par-dessus la défense crée un tir à bout portant."
   },
   {
@@ -549,6 +617,7 @@
     "poste": "ATT",
     "ecole": "Kick & Rush",
     "archetype": "Finisseur",
+    "unique": "The Hammer",
     "description": "« The Hammer ». Signature : son duel aérien gagné sur ballon long devient directement un tir."
   },
   {
@@ -556,15 +625,17 @@
     "cout": 5,
     "poste": "DÉF",
     "ecole": "Football Total",
-    "archetype": "Capitaine",
+    "archetype": "Mentor",
+    "unique": "Le Professeur",
     "description": "« Le Professeur ». Signature : choisit son poste au coup d'envoi et offre un palier Football Total gratuit."
   },
   {
     "nom": "L'Enfant du Pays",
     "cout": 5,
     "poste": "ATT",
-    "ecole": "Caméléon",
+    "ecole": "",
     "archetype": "Capitaine",
+    "unique": "Caméléon",
     "description": "Unique. Adopte l'École majoritaire de ton club et en active un palier de plus."
   }
 ]

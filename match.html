@@ -26,6 +26,7 @@
   </div>
 
   <button class="principal" id="btn-simuler" disabled>Chargement…</button>
+  <button class="principal secondaire-vitesse" id="btn-vitesse" style="display:none;background:#24331F;color:#A9DDB6;padding:8px;font-size:0.85rem;">⏩ Accélérer ×2</button>
 
   <div class="recit" id="recit"></div>
 
@@ -37,7 +38,7 @@
        - La Masia Rebelle : Tiki-Taka (possession) + Créateurs
        - Fortezza Nero    : Catenaccio (défense/contres) + Murs */
     const COMPO_A = { nom: "La Masia Rebelle", coach: "Coach Gabriel",
-      noms: ["Rubén", "Gorka", "Unai", "Xabi", "Aitor"] };
+      noms: ["Rubén", "Unai", "Xabi", "Andoni", "Aitor"] };
     const COMPO_B = { nom: "Fortezza Nero", coach: "Coach Fantôme",
       noms: ["Gianluca", "Aurelio", "Mattia", "Tommaso", "Federico"] };
 
@@ -58,12 +59,14 @@
       const btn = el("btn-simuler");
       btn.disabled = true;
       btn.textContent = "Match en cours…";
+      el("btn-vitesse").style.display = "block";
       const resultat = ONZE.simulerMatch(equipeA, equipeB);
       ONZE_UI.rejouer(resultat, equipeA, equipeB, {
         chrono: el("chrono"), scoreA: el("score-a"), scoreB: el("score-b"), recit: el("recit"),
       }, () => {
         btn.disabled = false;
         btn.textContent = "🔁 Rejouer le match";
+        el("btn-vitesse").style.display = "none";
       });
     }
 
@@ -80,6 +83,10 @@
         btn.disabled = false;
         btn.textContent = "⚽ Simuler le match";
         btn.addEventListener("click", jouer);
+        el("btn-vitesse").addEventListener("click", () => {
+          const v = ONZE_UI.basculerVitesse();
+          el("btn-vitesse").textContent = v === 2 ? "▶️ Vitesse normale" : "⏩ Accélérer ×2";
+        });
       })
       .catch((e) => {
         el("btn-simuler").textContent = "Erreur de chargement des joueurs";
