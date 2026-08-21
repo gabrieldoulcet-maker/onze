@@ -18,6 +18,7 @@ const droitsTV = (manche) => [2, 2, 3, 4][manche - 1] ?? 5;
 const XP_POUR_MONTER = { 3: 6, 4: 10, 5: 20 };
 const hasardParmi = (t) => t[Math.floor(Math.random() * t.length)];
 
+let minStaff = Infinity, partiesSansDeuxStaff = 0, cartesStaffRecues = 0;
 function unePartie(manchesMax) {
   // pool
   let pool = [];
@@ -25,8 +26,12 @@ function unePartie(manchesMax) {
   let or = 0, niveau = 3, xp = 0, serie = 0;
   const effectif = []; // copies possédées
   let mancheFusion = null;
-  // plan de butin (comme partie.html) : gris/gris, gris/bleu, or
-  const PLAN_BUTIN = { 1: ["gris", "gris"], 2: ["gris", "bleu"], 3: ["or"] };
+  // plan de butin (comme partie.html) : gris/gris, gris/bleu, or —
+  // avec 2 cartes staff GARANTIES (règle TFT du stage 1)
+  const PLAN_BUTIN = { 1: [{ r: "gris" }, { r: "gris" }], 2: [{ r: "gris" }, { r: "bleu" }], 3: [{ r: "or" }] };
+  const positionsStaff = [[1, 0], [1, 1], [2, 0], [2, 1], [3, 0]].sort(() => Math.random() - 0.5).slice(0, 2);
+  for (const [m, i] of positionsStaff) PLAN_BUTIN[m][i].staffGaranti = true;
+  // (compteur global : déclaré en tête de fichier)
 
   const tirerCarte = () => {
     const odds = ODDS_PAR_NIVEAU[Math.min(niveau, 5)];
@@ -67,7 +72,7 @@ function unePartie(manchesMax) {
       if (or >= 2 && relances < 20) { or -= 2; relances++; boutique = Array.from({ length: 5 }, () => tirerCarte()); continue; }
       break;
     }
-    if (mancheFusion !== null) return mancheFusion;
+    if (mancheFusion !== null && manche > 3) { finDePartieStaff(); return mancheFusion; }
 
     // ---- fin de manche : match (50 % de victoire), revenus, XP, butin ----
     const victoire = Math.random() < 0.5;
@@ -91,10 +96,12 @@ function unePartie(manchesMax) {
         const fusions = M.fusionnerEffectif(effectif, []);
         if (fusions.length && mancheFusion === null) mancheFusion = manche;
       };
-      for (const rarete of PLAN_BUTIN[manche]) {
+      for (const orbe of PLAN_BUTIN[manche]) {
+        const rarete = orbe.r;
+        if (orbe.staffGaranti) { cartesStaffRecues++; if (rarete === "or") or += 2; continue; }
         const tirage = Math.random();
         if (rarete === "gris") { if (tirage < 0.5) or += 1 + Math.round(Math.random()); else ajouterJoueur(1); }
-        else if (rarete === "bleu") { if (tirage < 0.35) or += 2 + Math.round(Math.random()); else if (tirage < 0.65) { /* staff */ } else ajouterJoueur(2); }
+        else if (rarete === "bleu") { if (tirage < 0.35) or += 2 + Math.round(Math.random()); else if (tirage < 0.65) { cartesStaffRecues++; } else ajouterJoueur(2); }
         else { // or : duo 60 %
           if (tirage < 0.6) {
             const possedes = new Set(effectif.map((j) => j.nom));
@@ -110,14 +117,20 @@ function unePartie(manchesMax) {
               const fusions = M.fusionnerEffectif(effectif, []);
               if (fusions.length && mancheFusion === null) mancheFusion = manche;
             }
-          } else if (tirage < 0.8) { or += 2; /* staff */ }
+          } else if (tirage < 0.8) { or += 2; cartesStaffRecues++; }
           else ajouterJoueur(3, 2);
         }
       }
     }
-    if (mancheFusion !== null) return mancheFusion;
+    if (mancheFusion !== null && manche >= 3) { finDePartieStaff(); return mancheFusion; }
   }
+  finDePartieStaff();
   return null;
+}
+function finDePartieStaff() {
+  minStaff = Math.min(minStaff, cartesStaffRecues);
+  if (cartesStaffRecues < 2) partiesSansDeuxStaff++;
+  cartesStaffRecues = 0;
 }
 
 const N = Number(process.argv[2]) || 500;
@@ -134,3 +147,4 @@ console.log(`Fusion 2★ avant la manche 4 : ${(100 * avant4 / N).toFixed(1)} %`
 const repartition = {};
 for (const m of premieres) repartition[m] = (repartition[m] || 0) + 1;
 console.log("Première fusion par manche :", Object.entries(repartition).map(([m, n]) => `M${m}: ${(100 * n / N).toFixed(0)}%`).join("  "), jamais ? `— jamais: ${(100 * jamais / N).toFixed(0)}%` : "");
+console.log(`Cartes staff avant la manche 4 — minimum : ${minStaff} | parties sous la garantie de 2 : ${partiesSansDeuxStaff} (attendu 0)`);

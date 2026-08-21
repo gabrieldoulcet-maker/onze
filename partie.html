@@ -346,7 +346,7 @@
         manche: 1, coachs,
         or: OR_DEPART, niveau: 3, xp: 0, staff: [],
         terrain: STARTERS.map((j) => ({ ...j, etoiles: 1 })), banc: [], boutique: [], pool: [],
-        butin: { 1: ["gris", "gris"], 2: ["gris", "bleu"], 3: ["or"] },
+        butin: planifierButin(),
         orbesEnAttente: [], verrou: false, dernierAdversaire: null,
         appariement: null, historique: [], exempt: null, matchEnCours: false,
         philosophies: [], philosophiesVues: [], staffEnRetard: null, tailleBoutique: TAILLE_BOUTIQUE,
@@ -516,7 +516,21 @@
       });
     }
 
-    /* ================= Butin des amicaux (orbes) ================= */
+    /* ================= Butin des amicaux (orbes) =================
+       Règle TFT du stage 1 : AU MOINS 2 cartes staff garanties pour
+       chaque coach sur les 3 amicaux — la variance porte sur lesquelles
+       et sur le reste du butin, jamais sur leur présence. */
+    function planifierButin() {
+      const plan = {
+        1: [{ rarete: "gris" }, { rarete: "gris" }],
+        2: [{ rarete: "gris" }, { rarete: "bleu" }],
+        3: [{ rarete: "or" }],
+      };
+      const positions = [[1, 0], [1, 1], [2, 0], [2, 1], [3, 0]]
+        .sort(() => Math.random() - 0.5).slice(0, 2);
+      for (const [manche, indice] of positions) plan[manche][indice].staffGaranti = true;
+      return plan;
+    }
     function piocherJoueur(coutMax, coutMin = 1) {
       const possedes = new Set([...partie.terrain, ...partie.banc].map((j) => j.nom));
       let candidats = partie.pool.filter((j) => j.cout >= coutMin && j.cout <= coutMax);
@@ -527,7 +541,11 @@
       partie.pool.splice(partie.pool.indexOf(fiche), 1);
       return fiche;
     }
-    function creerOrbe(rarete) {
+    function creerOrbe(rarete, staffGaranti = false) {
+      if (staffGaranti) {
+        // l'orbe porte sa carte staff quoi qu'il arrive (l'or y ajoute sa prime)
+        return { rarete, type: "staff", membre: tirerCarteStaff(), montantBonus: rarete === "or" ? 2 : 0 };
+      }
       const tirage = Math.random();
       if (rarete === "gris") {
         if (tirage < 0.5) return { rarete, type: "or", montant: de2(1, 2) };
@@ -755,7 +773,7 @@
       }
 
       partie.orbesEnAttente = amical
-        ? partie.butin[partie.manche].map((rarete) => creerOrbe(rarete))
+        ? partie.butin[partie.manche].map((orbe) => creerOrbe(orbe.rarete, orbe.staffGaranti))
         : [];
 
       // Panneau de fin de manche par-dessus le terrain
@@ -1291,6 +1309,8 @@
         partie.quetesVisibles = partie.quetesVisibles || ["gus-et-titi"];
         partie.icônesDebloquees = partie.icônesDebloquees || [];
         partie.garanties = partie.garanties || [];
+        for (const manche of Object.keys(partie.butin || {}))
+          partie.butin[manche] = partie.butin[manche].map((o) => typeof o === "string" ? { rarete: o } : o);
         preparerManche();
         afficher();
         proposerPhilosophie();
