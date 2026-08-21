@@ -213,6 +213,7 @@
     <div class="col-synergies">
       <div id="synergies-club"></div>
       <div class="mini-adn" id="axes-adn"></div>
+      <div id="inventaire-staff" style="margin-top:6px;display:flex;flex-direction:column;gap:3px"></div>
     </div>
     <div class="plateau">
       <div class="terrain" id="terrain-scene">
@@ -279,6 +280,8 @@
     };
     const MEMBRES_STAFF = ["Prépa physique", "Coach mental", "Analyste vidéo", "Coach de finition",
       "Coach technique", "Kiné", "Adjoint tactique", "Scout"];
+    // Le Passeport est rare (l'équivalent de la Spatule)
+    const tirerCarteStaff = () => Math.random() < 0.1 ? "Passeport" : hasardParmi(MEMBRES_STAFF);
     const STARTERS = [
       { nom: "Gus",    cout: 0, poste: "GAR", ecole: "", archetype: "", unique: null },
       { nom: "Marcel", cout: 0, poste: "DÉF", ecole: "", archetype: "", unique: null },
@@ -378,6 +381,9 @@
         return signaler("Le match se joue — les titulaires ne se vendent pas en plein match.");
       const liste = partie[nomListe];
       const fiche = liste[indice];
+      // le staff du joueur vendu revient à l'inventaire
+      for (const carte of fiche.staffCartes || []) partie.staff.push(carte);
+      for (const spec of fiche.specialisations || []) partie.staff.push(spec);
       const copies = Math.pow(3, (fiche.etoiles || 1) - 1);
       partie.or += fiche.cout * copies;
       const original = tousLesJoueurs.find((j) => j.nom === fiche.nom);
@@ -466,7 +472,7 @@
       }
       if (rarete === "bleu") {
         if (tirage < 0.35) return { rarete, type: "or", montant: de2(2, 3) };
-        if (tirage < 0.65) return { rarete, type: "staff", membre: hasardParmi(MEMBRES_STAFF) };
+        if (tirage < 0.65) return { rarete, type: "staff", membre: tirerCarteStaff() };
         const fiche = piocherJoueur(2);
         return fiche ? { rarete, type: "joueur", fiche } : { rarete, type: "or", montant: 3 };
       }
@@ -483,7 +489,7 @@
           return { rarete, type: "duo", fiche };
         }
       }
-      if (tirage < 0.8) return { rarete, type: "staff", membre: hasardParmi(MEMBRES_STAFF), montantBonus: 2 };
+      if (tirage < 0.8) return { rarete, type: "staff", membre: tirerCarteStaff(), montantBonus: 2 };
       const fiche = piocherJoueur(3, 2);
       return fiche ? { rarete, type: "joueur", fiche } : { rarete, type: "or", montant: 4 };
     }
@@ -765,6 +771,60 @@
       el("app").appendChild(voile);
     }
 
+    /* ================= Le staff : assignation ================= */
+    function assignerStaff(indiceCarte) {
+      const carte = partie.staff[indiceCarte];
+      if (!carte) return;
+      const tous = [
+        ...partie.terrain.map((j, i) => ({ j, ref: "terrain:" + i })),
+        ...partie.banc.map((j, i) => ({ j, ref: "banc:" + i })),
+      ];
+      const voile = document.createElement("div");
+      voile.className = "voile-fiche";
+      voile.innerHTML = `<div class="fiche-joueur" style="max-width:320px">
+        <h3>🧰 ${carte}</h3>
+        <div class="sous-titre">${carte === "Passeport" ? "Combiné, il donne un emblème d'École." :
+          "Choisis le joueur qui reçoit cette carte (2 cartes = spécialisation)."}</div>
+        ${tous.map(({ j, ref }) => {
+          const slots = (j.staffCartes || []).length + (j.specialisations || []).length;
+          return `<button class="fermer" style="text-align:left" data-ref="${ref}">
+            ${j.poste} ${j.nom}${(j.etoiles || 1) >= 2 ? " " + "★".repeat(j.etoiles) : ""}
+            ${slots ? " · 🧪" + slots : ""}${j.staffCartes && j.staffCartes.length ? " (" + j.staffCartes.join(", ") + ")" : ""}</button>`;
+        }).join("")}
+        <button class="fermer" data-ref="annuler">Annuler</button>
+      </div>`;
+      voile.addEventListener("click", (e) => {
+        const ref = e.target.dataset && e.target.dataset.ref;
+        if (e.target === voile) return voile.remove();
+        if (!ref) return;
+        voile.remove();
+        if (ref === "annuler") return;
+        const [nomListe, indice] = ref.split(":");
+        const fiche = partie[nomListe][Number(indice)];
+        const resultat = ONZE.assignerCarte(fiche, carte);
+        if (!resultat.ok) return signaler(resultat.raison);
+        partie.staff.splice(indiceCarte, 1);
+        celebrerStaff(resultat.evenement);
+        afficher();
+      });
+      el("app").appendChild(voile);
+    }
+    function celebrerStaff(evenement) {
+      if (!evenement || evenement.type === "composant") return;
+      const banniere = document.createElement("div");
+      banniere.className = "fusion-banniere";
+      if (evenement.type === "spec") {
+        const spec = Object.values(ONZE.SPECIALISATIONS).find((x) => x.nom === evenement.nom);
+        banniere.innerHTML = `🧪 SPÉCIALISATION ! 🧪<br>${evenement.joueur} devient <strong>${evenement.nom}</strong><small>${spec && spec.effet ? spec.effet : "Deux cartes staff fusionnées — définitif."}</small>`;
+      } else if (evenement.type === "embleme") {
+        banniere.innerHTML = `🛂 EMBLÈME ! 🛂<br>${evenement.joueur} rejoint <strong>${evenement.ecole}</strong><small>Le Passeport a parlé — il compte dans l'École.</small>`;
+      } else {
+        banniere.innerHTML = `🌍 CITOYEN DU MONDE ! 🌍<br>${evenement.joueur} compte dans TOUTES tes Écoles actives.`;
+      }
+      el("app").appendChild(banniere);
+      setTimeout(() => banniere.remove(), 3000);
+    }
+
     /* ================= Le menu d'un joueur (jeton ou banc) ================= */
     function menuJoueur(nomListe, indice) {
       const fiche = partie[nomListe][indice];
@@ -801,8 +861,12 @@
       const stats = ONZE.genererStats(fiche);
       const note = ONZE.noteGlobale(stats);
       const etoiles = (fiche.etoiles || 1) >= 2 ? `<span class="etoiles">${"★".repeat(fiche.etoiles)}</span>` : "";
+      const nbSpecs = (fiche.specialisations || []).length;
+      const nbCartes = (fiche.staffCartes || []).length;
+      const staff = nbSpecs || nbCartes
+        ? `<br><span style="font-size:0.5rem">${"🧪".repeat(nbSpecs)}${"🧰".repeat(nbCartes)}${fiche.ecoleBonus ? "🛂" : ""}</span>` : "";
       return `<div class="jeton cout-${fiche.cout}" onclick="menuJoueur('${nomListe}', ${indice})">
-        <span class="note-jeton">${note}</span> ${etoiles}<br>${fiche.nom}</div>`;
+        <span class="note-jeton">${note}</span> ${etoiles}<br>${fiche.nom}${staff}</div>`;
     }
     function afficher() {
       const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
@@ -857,6 +921,13 @@
         const classe = valeur === maxAxe && maxAxe > minAxe ? "forte" : valeur === minAxe && maxAxe > minAxe ? "faible" : "";
         return `<div class="axe-mini"><div class="barre-mini"><div class="${classe}" style="width:${valeur}%"></div></div>${axe}</div>`;
       }).join("");
+
+      // L'inventaire staff (colonne gauche) — tap = assigner
+      el("inventaire-staff").innerHTML = partie.staff.length
+        ? `<span style="color:#96A699;font-size:0.58rem;text-transform:uppercase;letter-spacing:1px">🧰 Staff à assigner</span>` +
+          partie.staff.map((carte, i) =>
+            `<span class="badge${carte === "Passeport" ? " presque" : ""}" style="cursor:pointer;display:block;text-align:left" onclick="assignerStaff(${i})">${carte === "Passeport" ? "🛂" : "🧰"} ${carte}</span>`).join("")
+        : "";
 
       // Annonce du prochain adversaire (barre du haut)
       el("annonce").textContent = partie.matchEnCours ? ""

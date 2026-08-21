@@ -163,6 +163,117 @@ function statsSignatures(stats) {
 }
 
 /* ============================================================
+   LE STAFF (design/staff.md) — les « objets » d'ONZE.
+   Un composant seul donne un petit boost de stats précises ;
+   deux composants sur le même joueur fusionnent en SPÉCIALISATION
+   (36 combos), définitive et plus puissante. Le Passeport combiné
+   donne un emblème d'École. Quelques spécialisations portent en
+   plus un effet de match (proc) géré par le moteur.
+   ============================================================ */
+const COMPOSANTS_STAFF = {
+  "Prépa physique":    { endurance: 6 },
+  "Coach mental":      { mental: 6 },
+  "Analyste vidéo":    { placement: 4, vision: 3 },
+  "Coach de finition": { tir: 6 },
+  "Coach technique":   { technique: 4, dribble: 3 },
+  "Kiné":              { endurance: 3, vitesse: 4 },
+  "Adjoint tactique":  { placement: 5, tacle: 2 },
+  "Scout":             { vision: 6 },
+  "Passeport":         {}, // rien seul — combiné : emblème d'École
+};
+const cleCombo = (a, b) => [a, b].sort().join(" + ");
+const SPECIALISATIONS = {}; // clé "A + B" triée → fiche de spécialisation
+function defSpec(a, b, nom, boosts, proc, effet) {
+  SPECIALISATIONS[cleCombo(a, b)] = { nom, boosts, proc: proc || null, effet: effet || "" };
+}
+defSpec("Prépa physique", "Prépa physique", "Marathonien", { endurance: 18, vitesse: 6 }, null, "Aucune baisse de régime");
+defSpec("Prépa physique", "Coach mental", "Ironman", { endurance: 10, mental: 10 });
+defSpec("Prépa physique", "Analyste vidéo", "Pressing machine", { endurance: 8, placement: 8, tacle: 5 });
+defSpec("Prépa physique", "Coach de finition", "Percuteur", { tir: 10, vitesse: 8, endurance: 4 });
+defSpec("Prépa physique", "Coach technique", "Second souffle", { dribble: 9, endurance: 9, technique: 4 });
+defSpec("Prépa physique", "Kiné", "Increvable", { endurance: 14, vitesse: 8 });
+defSpec("Prépa physique", "Adjoint tactique", "Soldat", { tacle: 9, placement: 8, endurance: 6 });
+defSpec("Prépa physique", "Scout", "Contre-attaquant", { vitesse: 10, vision: 6 }, "contre", "Contre éclair sur ballon récupéré");
+defSpec("Coach mental", "Coach mental", "Capitaine d'acier", { mental: 20 });
+defSpec("Coach mental", "Analyste vidéo", "Joueur d'échecs", { mental: 9, vision: 9, placement: 5 });
+defSpec("Coach mental", "Coach de finition", "Tueur froid", { tir: 10, mental: 10 });
+defSpec("Coach mental", "Coach technique", "Maître du tempo", { technique: 9, mental: 9, passe: 5 });
+defSpec("Coach mental", "Kiné", "Roc mental", { mental: 12, endurance: 8 });
+defSpec("Coach mental", "Adjoint tactique", "Général", { mental: 10, placement: 8, tacle: 4 });
+defSpec("Coach mental", "Scout", "Vista", { vision: 12, passe: 8, mental: 4 });
+defSpec("Analyste vidéo", "Analyste vidéo", "Professeur", { placement: 10, vision: 10 }, "annulation", "Annule la première occasion adverse du match");
+defSpec("Analyste vidéo", "Coach de finition", "Charognard", { placement: 10, tir: 8 }, "rebond", "Les ballons qui traînent deviennent ses tirs");
+defSpec("Analyste vidéo", "Coach technique", "Relance éclair", { vision: 8, technique: 8, passe: 6 });
+defSpec("Analyste vidéo", "Kiné", "Couverture", { placement: 10, vitesse: 8 });
+defSpec("Analyste vidéo", "Adjoint tactique", "Cerveau", { placement: 12, tacle: 6, vision: 5 });
+defSpec("Analyste vidéo", "Scout", "Directeur sportif", { vision: 14 }, null, "Révèle la compo adverse (déjà couvert par le scouting)");
+defSpec("Coach de finition", "Coach de finition", "Sniper", { tir: 20 });
+defSpec("Coach de finition", "Coach technique", "Feuille morte", { tir: 10, technique: 10 });
+defSpec("Coach de finition", "Kiné", "Double détente", { tir: 8, placement: 6 }, "detente", "Si son tir est arrêté, il retente immédiatement");
+defSpec("Coach de finition", "Adjoint tactique", "Point de fixation", { tir: 8, placement: 10 });
+defSpec("Coach de finition", "Scout", "Appel parfait", { placement: 12, tir: 6, vitesse: 5 });
+defSpec("Coach technique", "Coach technique", "Magicien", { dribble: 14, technique: 10 });
+defSpec("Coach technique", "Kiné", "Porteur d'eau de luxe", { technique: 10, passe: 8, endurance: 6 });
+defSpec("Coach technique", "Adjoint tactique", "Métronome", { passe: 10, technique: 8, placement: 5 });
+defSpec("Coach technique", "Scout", "Chef d'orchestre", { passe: 10, vision: 10, technique: 5 });
+defSpec("Kiné", "Kiné", "Immortel", { endurance: 16, mental: 6 });
+defSpec("Kiné", "Adjoint tactique", "Libéro", { placement: 9, tacle: 7, vitesse: 6 });
+defSpec("Kiné", "Scout", "Relanceur", { vision: 8, passe: 8, vitesse: 6 });
+defSpec("Adjoint tactique", "Adjoint tactique", "Verrou", { tacle: 12, placement: 12 });
+defSpec("Adjoint tactique", "Scout", "Capitaine de vestiaire", { vision: 8, mental: 8, placement: 6 });
+defSpec("Scout", "Scout", "Œil de lynx", { vision: 16, passe: 6 });
+/* Les emblèmes d'École (Passeport + composant, craftables) */
+const EMBLEMES = {
+  "Prépa physique": "Kick & Rush", "Coach mental": "Les Revanchards",
+  "Analyste vidéo": "Catenaccio", "Coach de finition": "Les Internationaux",
+  "Coach technique": "École de la Rue", "Kiné": "Football Total",
+  "Adjoint tactique": "Tiki-Taka", "Scout": "Les Pros",
+};
+
+/* Assigne une carte (composant, spécialisation complète ou emblème) à une
+   fiche joueur. 3 emplacements max : carte seule ou spécialisation = 1
+   emplacement. Renvoie { ok, evenement } — l'évènement sert à la mise
+   en scène (spécialisation créée, emblème posé…). */
+function assignerCarte(fiche, carte) {
+  fiche.staffCartes = fiche.staffCartes || [];
+  fiche.specialisations = fiche.specialisations || [];
+  const emplacements = fiche.staffCartes.length + fiche.specialisations.length;
+  const estSpec = Object.values(SPECIALISATIONS).some((s) => s.nom === carte);
+  if (estSpec) {
+    if (emplacements >= 3) return { ok: false, raison: "3 emplacements maximum." };
+    fiche.specialisations.push(carte);
+    return { ok: true, evenement: { type: "spec", nom: carte, joueur: fiche.nom } };
+  }
+  // composant : peut fusionner avec une carte seule déjà posée
+  if (fiche.staffCartes.length > 0) {
+    const autre = fiche.staffCartes[0];
+    if (carte === "Passeport" || autre === "Passeport") {
+      const composant = carte === "Passeport" ? autre : carte;
+      if (composant === "Passeport") { // Passeport + Passeport : Citoyen du monde
+        fiche.staffCartes.shift();
+        fiche.citoyenDuMonde = true;
+        return { ok: true, evenement: { type: "citoyen", joueur: fiche.nom } };
+      }
+      const ecole = EMBLEMES[composant];
+      fiche.staffCartes.shift();
+      fiche.ecoleBonus = ecole;
+      return { ok: true, evenement: { type: "embleme", ecole, joueur: fiche.nom } };
+    }
+    const combo = SPECIALISATIONS[cleCombo(autre, carte)];
+    if (combo) {
+      fiche.staffCartes.shift();
+      fiche.specialisations.push(combo.nom);
+      return { ok: true, evenement: { type: "spec", nom: combo.nom, joueur: fiche.nom } };
+    }
+  }
+  if (emplacements >= 3) return { ok: false, raison: "3 emplacements maximum." };
+  fiche.staffCartes.push(carte);
+  return { ok: true, evenement: { type: "composant", nom: carte, joueur: fiche.nom } };
+}
+const aSpec = (j, nom) => (j.specialisations || []).includes(nom);
+const equipeASpec = (equipe, nom) => equipe.joueurs.some((j) => aSpec(j, nom));
+
+/* ============================================================
    SYNERGIES — paliers (design/synergies.md) et BOOSTS DE STATS
    PRÉCISES (design/stats.md : jamais de « +X % global »).
    Les effets à procs (ballon long, contre, gestes…) restent des
@@ -212,8 +323,12 @@ function calculerSynergies(equipe) {
   const ecoles = {}, archetypes = {};
   for (const j of equipe.joueurs) {
     if (j.ecole) ecoles[j.ecole] = (ecoles[j.ecole] || 0) + 1;
+    if (j.ecoleBonus && j.ecoleBonus !== j.ecole) ecoles[j.ecoleBonus] = (ecoles[j.ecoleBonus] || 0) + 1;
     if (j.archetype) archetypes[j.archetype] = (archetypes[j.archetype] || 0) + 1;
   }
+  // Citoyen du monde : compte pour +1 dans TOUTES les Écoles actives
+  const nbCitoyens = equipe.joueurs.filter((j) => j.citoyenDuMonde).length;
+  if (nbCitoyens) for (const nom of Object.keys(ecoles)) ecoles[nom] += nbCitoyens;
   if (equipe.joueurs.some((j) => j.unique === "Le Professeur"))
     ecoles["Football Total"] = (ecoles["Football Total"] || 0) + 1;
   const nbCameleons = equipe.joueurs.filter((j) => j.unique === "Caméléon").length;
@@ -268,6 +383,19 @@ function equipeDepuisFiches(nomClub, coach, fiches) {
       for (const [stat, montant] of Object.entries(boosts)) {
         if (!(stat in j.statsBase)) continue;
         j.boosts[stat] = (j.boosts[stat] || 0) + montant * sy.s;
+      }
+    }
+    // Le staff : composants seuls + spécialisations = boosts ciblés
+    for (const carte of j.staffCartes || []) {
+      for (const [stat, montant] of Object.entries(COMPOSANTS_STAFF[carte] || {})) {
+        if (stat in j.statsBase) j.boosts[stat] = (j.boosts[stat] || 0) + montant;
+      }
+    }
+    for (const nomSpec of j.specialisations || []) {
+      const spec = Object.values(SPECIALISATIONS).find((x) => x.nom === nomSpec);
+      if (!spec) continue;
+      for (const [stat, montant] of Object.entries(spec.boosts)) {
+        if (stat in j.statsBase) j.boosts[stat] = (j.boosts[stat] || 0) + montant;
       }
     }
     j.stats = {};
@@ -355,6 +483,12 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
     evenements.push({ type: "hors_jeu", acteurs: [finisseur.nom], texte: `Drapeau levé ! Le piège du hors-jeu d'Il Professore se referme sur ${finisseur.nom}.`, synergie: "Il Professore", equipe: defense.nom });
     return false;
   }
+  // La spécialisation Professeur (Analyste + Analyste) fait pareil, une fois
+  if (equipeASpec(defense, "Professeur") && !etatDef.professeurStaffUtilise && proba(0.5)) {
+    etatDef.professeurStaffUtilise = true;
+    evenements.push({ type: "hors_jeu", acteurs: [finisseur.nom], texte: `Tout était anticipé à la vidéo — l'occasion de ${finisseur.nom} meurt dans l'œuf.`, synergie: "Professeur", equipe: defense.nom });
+    return false;
+  }
   const sentinelle = s(defense, "Sentinelle");
   if (sentinelle && proba(0.08 * sentinelle)) {
     const defenseur = choisirParmi(defense, ctx, parPoste(defense, "DÉF").length ? parPoste(defense, "DÉF") : defense.joueurs);
@@ -436,9 +570,28 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
     });
   }
 
-  const renard = s(attaque, "Renard");
+  // Double détente : si son tir est arrêté, il retente immédiatement
+  const etatAtt = ctx.etat[attaque.nom];
+  if (aSpec(finisseur, "Double détente") && !etatAtt.detenteUtilisee) {
+    etatAtt.detenteUtilisee = true;
+    evenements.push({ type: "rebond", acteurs: [finisseur.nom], texte: `${finisseur.nom} suit sa frappe — double détente !`, synergie: "Double détente", equipe: attaque.nom });
+    const secondTir = duo(finisseur, "tir", "placement") + de(34);
+    const secondeParade = (gardien.cageVide ? 10 : gardien.stats.reflexes || 40) * 0.7 + de(26);
+    if (secondTir > secondeParade) {
+      evenements.push({
+        type: "but", acteurs: [finisseur.nom, gardien.nom],
+        but: true, buteur: finisseur.nom, equipe: attaque.nom,
+        texte: `La reprise instantanée…`, cri: `BUUUT de ${finisseur.nom} pour ${attaque.nom} !`, synergie: "Double détente",
+      });
+      return true;
+    }
+    evenements.push({ type: "arret", acteurs: [finisseur.nom, gardien.nom], texte: `…mais ${gardien.nom} s'y reprend à deux fois et gagne son duel !`, equipe: defense.nom, synergie: null });
+  }
+
+  let renard = s(attaque, "Renard");
+  if (equipeASpec(attaque, "Charognard")) renard += 1;
   if (renard && proba(0.10 * renard)) {
-    const renards = attaque.joueurs.filter((j) => j.archetype === "Renard");
+    const renards = attaque.joueurs.filter((j) => j.archetype === "Renard" || aSpec(j, "Charognard"));
     const opportuniste = renards.length ? choisirParmi(attaque, ctx, renards) : finisseur;
     evenements.push({ type: "rebond", acteurs: [opportuniste.nom], texte: `Le ballon traîne dans la surface… ${opportuniste.nom} a suivi !`, synergie: "Renard", equipe: attaque.nom });
     const reprise = duo(opportuniste, "placement", "tir") + de(30);
@@ -607,10 +760,13 @@ function resoudrePhase(eqA, eqB, ctx) {
   let butMarque = false;
   if (percee) butMarque = tenterTir(attaque, defense, ctx, evenements, bonusTir);
 
-  // Contre éclair du Catenaccio après un arrêt
+  // Contre éclair du Catenaccio (ou d'un Contre-attaquant du staff)
   if (!butMarque) {
     const cate = s(defense, "Catenaccio");
-    if (cate && proba(0.05 * cate)) {
+    if (!cate && equipeASpec(defense, "Contre-attaquant") && proba(0.08)) {
+      evenements.push({ type: "contre", acteurs: [], texte: `Ballon récupéré — la contre-attaque part comme à l'entraînement !`, synergie: "Contre-attaquant", equipe: defense.nom });
+      butMarque = tenterTir(defense, attaque, ctx, evenements, 5);
+    } else if (cate && proba(0.05 * cate)) {
       evenements.push({ type: "contre", acteurs: [], texte: `Récupération et contre éclair de ${defense.nom} — tout le monde est pris de vitesse !`, synergie: "Catenaccio", equipe: defense.nom });
       butMarque = tenterTir(defense, attaque, ctx, evenements, cate >= 2 ? 8 : 0);
     }
@@ -630,8 +786,8 @@ function simulerMatch(eqA, eqB) {
   const ctx = {
     numero: 0,
     etat: {
-      [eqA.nom]: { flow: 0, ballonLongUtilise: false, professoreUtilise: false, santo: {}, murs: {}, apparitions: {} },
-      [eqB.nom]: { flow: 0, ballonLongUtilise: false, professoreUtilise: false, santo: {}, murs: {}, apparitions: {} },
+      [eqA.nom]: { flow: 0, ballonLongUtilise: false, professoreUtilise: false, professeurStaffUtilise: false, detenteUtilisee: false, santo: {}, murs: {}, apparitions: {} },
+      [eqB.nom]: { flow: 0, ballonLongUtilise: false, professoreUtilise: false, professeurStaffUtilise: false, detenteUtilisee: false, santo: {}, murs: {}, apparitions: {} },
     },
     scoreDe: (eq) => (eq === eqA ? scoreA : scoreB),
     scoreAdverse: (eq) => (eq === eqA ? scoreB : scoreA),
@@ -686,7 +842,14 @@ function fusionnerEffectif(terrain, banc) {
         groupe.sort((a, b) => (a.liste === terrain ? 0 : 1) - (b.liste === terrain ? 0 : 1));
         const garde = groupe[0].j;
         garde.etoiles = (garde.etoiles || 1) + 1;
-        for (const e of groupe.slice(1, 3)) e.liste.splice(e.liste.indexOf(e.j), 1);
+        for (const e of groupe.slice(1, 3)) {
+          // le staff des copies consommées suit le joueur gardé
+          if (e.j.staffCartes) garde.staffCartes = [...(garde.staffCartes || []), ...e.j.staffCartes];
+          if (e.j.specialisations) garde.specialisations = [...(garde.specialisations || []), ...e.j.specialisations];
+          if (e.j.ecoleBonus && !garde.ecoleBonus) garde.ecoleBonus = e.j.ecoleBonus;
+          if (e.j.citoyenDuMonde) garde.citoyenDuMonde = true;
+          e.liste.splice(e.liste.indexOf(e.j), 1);
+        }
         fusions.push({ nom: garde.nom, etoiles: garde.etoiles });
         encore = true;
         break;
@@ -701,6 +864,7 @@ const ONZE = {
   creerEquipe, equipeDepuisFiches, simulerMatch, calculerSynergies,
   genererStats, noteGlobale, statsSignatures, adnClub, NOMS_STATS,
   fusionnerEffectif, degatsPrestige, NB_PHASES, PALIERS_ECOLES, PALIERS_ARCHETYPES,
+  COMPOSANTS_STAFF, SPECIALISATIONS, EMBLEMES, assignerCarte,
 };
 if (typeof module !== "undefined") module.exports = ONZE;
 if (typeof window !== "undefined") window.ONZE = ONZE;

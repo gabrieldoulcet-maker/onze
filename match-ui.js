@@ -156,6 +156,13 @@ const ONZE_UI = (() => {
       <h3>${fiche.nom}${etoiles} <span style="float:right;color:#E8C547">${note}</span></h3>
       <div class="sous-titre">${fiche.poste} · ${fiche.cout}M${fiche.unique ? " · ⭐ " + fiche.unique : ""}${fiche.ecole ? " · " + fiche.ecole : ""}${fiche.archetype ? " · " + fiche.archetype : ""}</div>
       ${fiche.description ? `<div class="description">${fiche.description}</div>` : ""}
+      ${fiche.ecoleBonus ? `<div class="sous-titre">🛂 Emblème : compte aussi comme <strong>${fiche.ecoleBonus}</strong></div>` : ""}
+      ${fiche.citoyenDuMonde ? `<div class="sous-titre">🌍 Citoyen du monde : +1 dans toutes tes Écoles actives</div>` : ""}
+      ${(fiche.specialisations || []).map((nom) => {
+        const spec = Object.values(ONZE.SPECIALISATIONS).find((x) => x.nom === nom);
+        return `<div class="sous-titre">🧪 <strong>${nom}</strong>${spec && spec.effet ? " — " + spec.effet : ""}</div>`;
+      }).join("")}
+      ${(fiche.staffCartes || []).map((c) => `<div class="sous-titre">🧰 ${c} <small>(en attente d'une 2ᵉ carte)</small></div>`).join("")}
       ${lignes}
       <div style="color:#96A699;font-size:0.68rem;margin-top:8px">Valeur <span style="color:#4FC57C">verte</span> = boostée par tes synergies. Chaque duel du match lit 2 de ces stats.</div>
       <button class="fermer">Fermer</button>
