@@ -392,3 +392,14 @@ button.principal:disabled { background: #2A3A2C; color: #6C7A6E; }
   0%, 100% { filter: brightness(1); box-shadow: 0 0 30px rgba(232,197,71,0.9), 0 0 90px rgba(232,197,71,0.5); }
   50% { filter: brightness(1.18); box-shadow: 0 0 44px rgba(232,197,71,1), 0 0 130px rgba(232,197,71,0.7); }
 }
+
+/* ---- Scène Canvas (FM Touch) : toile + couche d'effets + jauge ---- */
+.scene-match .toile-match { position: absolute; inset: 0; }
+.scene-match .couche-scene { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
+.jauge-domination {
+  position: relative; height: 3px; background: #0B100C;
+  border-radius: 2px; overflow: hidden; margin-top: 3px;
+}
+.jauge-domination > div { position: absolute; top: 0; height: 100%; left: 50%; width: 0; border-radius: 2px; }
+.jauge-domination > div.pulse { animation: jaugePulse 0.45s ease infinite; }
+@keyframes jaugePulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(2); } }

@@ -346,6 +346,7 @@
           <span class="score-match"> <span id="score-a">0</span> – <span id="score-b">0</span> </span>
           <span id="chrono"></span>
           <button class="btn-journal" id="btn-journal" title="Journal du match">📜</button>
+          <div class="jauge-domination"><div id="jauge-dom"></div></div>
         </div>
         <div class="journal" id="recit"></div>
         <div class="bandeau-recit" id="bandeau-recit"></div>
@@ -1002,7 +1003,8 @@
       el("btn-recap").classList.remove("masque");
       el("terrain-scene").style.paddingTop = "76px"; // laisse la place au tableau
       el("tableau-match").classList.remove("masque");
-      el("nom-adversaire-match").textContent = "⚔️ " + (amical ? partie.appariement.nomAdversaire : monAdversaire.nom);
+      // coupe et amical : pas de coach adverse — le nom vient de l'appariement
+      el("nom-adversaire-match").textContent = "⚔️ " + (monAdversaire ? monAdversaire.nom : partie.appariement.nomAdversaire);
       el("btn-vitesse").classList.remove("masque");
       el("btn-match").disabled = true;
       el("btn-match").textContent = "⏱ Match…";
@@ -1010,7 +1012,8 @@
       // La scène animée (phase 3) : le terrain devient la scène, le
       // récit complet se replie derrière 📜, le bandeau prend le relais
       if (sceneMatch) sceneMatch.detruire();
-      sceneMatch = ONZE_SCENE.creer(el("terrain-scene"), monEquipe, equipeAdverse);
+      sceneMatch = ONZE_SCENE.creer(el("terrain-scene"), monEquipe, equipeAdverse,
+        { chrono: el("chrono"), jauge: el("jauge-dom") });
       el("recit").classList.add("replie");
       el("bandeau-recit").innerHTML = "";
       afficher();

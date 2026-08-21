@@ -803,6 +803,28 @@ function resoudrePhase(eqA, eqB, ctx) {
       ctx.etat[(percee ? attaque : defense).nom].duelsAeriens = (ctx.etat[(percee ? attaque : defense).nom].duelsAeriens || 0) + 1;
       ctx.duelAerienEnCours = false;
     }
+    if (percee) {
+      // La CHAÎNE CAUSALE de l'occasion (décision 24) : événement
+      // informatif — qui a percé (le plus fort sur les 2 stats du duel)
+      // et quel défenseur a cédé (le plus faible). Le rendu animé et le
+      // récit montrent le VRAI chemin de l'attaque.
+      const corps = attaquants.length ? attaquants : attaque.joueurs.filter((j) => ligneDe(j) !== "GAR");
+      const perceur = corps.slice().sort((a, b) => duo(b, typePercee.att[0], typePercee.att[1]) - duo(a, typePercee.att[0], typePercee.att[1]))[0];
+      const battu = typePercee.def && defenseursUtiles.length
+        ? defenseursUtiles.slice().sort((a, b) => duo(a, typePercee.def[0], typePercee.def[1]) - duo(b, typePercee.def[0], typePercee.def[1]))[0]
+        : null;
+      const TEXTES_PERCEE = {
+        dribble: `${perceur.nom} efface ${battu ? battu.nom : "son vis-à-vis"} d'un crochet sec — la défense s'ouvre !`,
+        course: `${perceur.nom} prend le couloir de vitesse${battu ? ` — ${battu.nom} est distancé` : ""} !`,
+        aerien: `${perceur.nom} gagne son duel aérien${battu ? ` au-dessus de ${battu.nom}` : ""} — le ballon retombe dans la surface !`,
+        centre: `Le centre de ${perceur.nom} traverse la surface — personne ne coupe !`,
+      };
+      evenements.push({
+        type: "percee", sousType: typePercee.type,
+        acteurs: [perceur.nom, battu ? battu.nom : null].filter(Boolean),
+        texte: TEXTES_PERCEE[typePercee.type], equipe: attaque.nom, synergie: null,
+      });
+    }
     if (!percee) {
       const candidatsStop = defenseurs.length && !proba(0.25) ? defenseurs : defense.joueurs.filter((j) => j.poste !== "GAR");
       const defenseur = choisirParmi(defense, ctx, candidatsStop.length ? candidatsStop : defense.joueurs);
@@ -963,7 +985,7 @@ function statsDuMatch(resultat, eqA, eqB) {
         const gardien = ligneDeStat(ev.acteurs[1]);
         if (gardien) gardien.arrets++;
       } else if (ev.type === "possession" || ev.type === "percee_stoppee" ||
-                 ev.type === "interception" || ev.type === "geste") {
+                 ev.type === "percee" || ev.type === "interception" || ev.type === "geste") {
         const acteur = ligneDeStat(ev.acteurs[0]);
         if (acteur) acteur.duels++;
       }

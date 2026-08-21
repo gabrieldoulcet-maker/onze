@@ -84,16 +84,20 @@ const verifier = (nom, ok) => {
       verifier("recap ⚔️ ouvert pendant le match (2 onglets)",
         await page.evaluate(() => document.querySelectorAll(".onglet-recap").length === 2));
       await page.evaluate(() => document.querySelector(".voile-fiche .fermer").click());
-      // la scène animée : pions des 2 camps, ballon focal, bandeau, 📜
-      await page.waitForSelector(".scene-match .ballon");
-      verifier("scène animée : pions des deux camps + ballon", await page.evaluate(() =>
-        document.querySelectorAll(".scene-match .pion.moi").length > 0 &&
-        document.querySelectorAll(".scene-match .pion.eux").length > 0 &&
-        !!document.querySelector(".scene-match .ballon")));
-      const posAvant = await page.$eval(".scene-match .ballon", (b) => b.style.left + b.style.top);
+      // la scène canvas : disques des 2 camps, ballon focal, jauge, bandeau, 📜
+      await page.waitForSelector(".scene-match canvas");
+      const diag1 = await page.evaluate(() => sceneMatch.diagnostic());
+      verifier("scène canvas : disques des deux camps + régimes actifs",
+        diag1.nbDisques >= 2 &&
+        diag1.positions.some((p) => p.camp === "moi") && diag1.positions.some((p) => p.camp === "eux") &&
+        ["domination", "tension", "rendu", "ralenti"].includes(diag1.regime));
       await page.waitForTimeout(2500);
-      const posApres = await page.$eval(".scene-match .ballon", (b) => b.style.left + b.style.top);
-      verifier("scène animée : le ballon se déplace (point focal)", posAvant !== posApres);
+      const diag2 = await page.evaluate(() => sceneMatch.diagnostic());
+      verifier("scène canvas : le ballon se déplace (point focal)",
+        Math.hypot(diag2.ballon.x - diag1.ballon.x, diag2.ballon.y - diag1.ballon.y) > 0.5 ||
+        diag2.regime !== diag1.regime);
+      verifier("jauge de domination pilotée", await page.evaluate(() =>
+        document.getElementById("jauge-dom").style.width !== ""));
       verifier("bandeau compact du récit alimenté, journal replié", await page.evaluate(() =>
         document.getElementById("bandeau-recit").textContent.length > 0 &&
         document.getElementById("recit").classList.contains("replie")));

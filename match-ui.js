@@ -93,7 +93,28 @@ const ONZE_UI = (() => {
   }
 
   /* File d'étapes jouée en chaîne : la vitesse peut changer en cours
-     de match, chaque étape relit `vitesse` au moment de s'armer. */
+     de match, chaque étape relit `vitesse` au moment de s'armer.
+
+     Avec une SCÈNE (décision 24), le match alterne deux régimes dans
+     le budget de temps acté (décision 20) :
+     - la DOMINATION : les phases sans occasion se jouent compressées
+       (~2-3 s) — circulation stylée par École, jauge, minute qui défile ;
+     - le RENDU complet : dès qu'une occasion existe (tir, blocage,
+       rebond), chorégraphie temps réel, montée de tension avant,
+       micro-ralenti sur les buts.
+     La domination est la variable d'ajustement du budget temps —
+     jamais les rendus de buts. L'accéléré ×2 SAUTE les phases froides
+     (÷4) et resserre à peine les chaudes (÷1,6). */
+  const DUREES_RENDU = {
+    but: 2400, arret: 1600, blocage: 1300, rebond: 900, percee: 1200,
+    possession: 750, geste: 950, contre: 950, ballon_long: 850, lambretta: 950,
+    percee_stoppee: 1000, interception: 950, hors_jeu: 800,
+  };
+  const estChaude = (phase) => phase.evenements.some((ev) =>
+    ev.but || ev.type === "arret" || ev.type === "blocage" || ev.type === "rebond");
+  const dureeRendu = (phase) => 300 + 500 +
+    phase.evenements.reduce((t, ev) => t + (DUREES_RENDU[ev.but ? "but" : ev.type] || 800), 0);
+
   function rejouer(resultat, equipeA, equipeB, elements, auCoupDeSifflet, options = {}) {
     const delaiPhase = options.delaiPhase || DELAI_PHASE_MS;
     const delaiEvenement = options.delaiEvenement || DELAI_EVENEMENT_MS;
@@ -104,37 +125,76 @@ const ONZE_UI = (() => {
     const etapes = [];
     let blocCourant = null;
 
-    resultat.phases.forEach((phase) => {
+    // le facteur de vitesse d'une étape : les froides se sautent en ×2
+    const facteurDe = (rapide) => vitesse === 1 ? 1 : (rapide ? 4 : 1.6);
+
+    const jouerEvenement = (ev) => {
+      if (ev.but) { if (ev.equipe === equipeA.nom) scores.a++; else scores.b++; }
+      ajouterEvenement(elements, blocCourant, ev, scores);
+      if (elements.bandeau) {
+        const chip = ev.synergie
+          ? ` <span class="tag-synergie" style="color:${typeof ONZE_SCENE !== "undefined" ? ONZE_SCENE.couleurFamille(ev.synergie) : "#E8C547"}">✦ ${ev.synergie}</span>` : "";
+        elements.bandeau.innerHTML = (ev.but ? `⚽ ${ev.cri} <strong>${scores.a} – ${scores.b}</strong>` : ev.texte) + chip;
+      }
+      if (typeof ONZE_JUICE !== "undefined") {
+        if (ev.but && ev.equipe === equipeA.nom) ONZE_JUICE.but(options.enjeu || 2, options.scene && options.scene.racine);
+        else if (ev.but) ONZE_JUICE.jouer("defaite");
+        else if (ev.type === "arret") ONZE_JUICE.jouer("arret");
+      }
+    };
+
+    if (options.scene) {
+      // ---- Le tempo à deux régimes, dans le budget strict (décision 20) ----
+      const budgetTotal = delaiPhase * resultat.phases.length;
+      const chaudes = resultat.phases.filter(estChaude);
+      const coutChaudes = chaudes.reduce((t, p) => t + dureeRendu(p), 0);
+      const nbFroides = resultat.phases.length - chaudes.length;
+      const dureeFroide = Math.max(1500, Math.min(3400,
+        nbFroides ? (budgetTotal - coutChaudes) / nbFroides : 2000));
+      resultat.phases.forEach((phase) => {
+        const chaude = estChaude(phase);
+        etapes.push({
+          delai: 300, rapide: !chaude,
+          action: () => {
+            blocCourant = blocPhase(elements.recit, phase.minute, phase.numero);
+            options.scene.debutPhase(phase, {
+              regime: chaude ? "rendu" : "domination",
+              duree: (chaude ? dureeRendu(phase) : dureeFroide) / facteurDe(!chaude),
+            });
+          },
+        });
+        if (chaude) {
+          // la montée de tension : le spectateur sent l'occasion ARRIVER
+          etapes.push({ delai: 500, action: () => options.scene.tension(500 / facteurDe(false)) });
+          phase.evenements.forEach((ev) => {
+            const delai = DUREES_RENDU[ev.but ? "but" : ev.type] || 800;
+            etapes.push({
+              delai,
+              action: () => { jouerEvenement(ev); options.scene.evenement(ev, delai / facteurDe(false)); },
+            });
+          });
+        } else {
+          const pas = Math.max(300, (dureeFroide - 300) / (phase.evenements.length + 1));
+          phase.evenements.forEach((ev) => {
+            etapes.push({
+              delai: pas, rapide: true,
+              action: () => { jouerEvenement(ev); options.scene.evenementDomination(ev); },
+            });
+          });
+          etapes.push({ delai: pas, rapide: true, action: () => {} });
+        }
+      });
+    } else resultat.phases.forEach((phase) => {
+      // ---- Sans scène (match.html, draft.html) : le tempo historique ----
       etapes.push({
         delai: 400,
         action: () => {
           elements.chrono.textContent = `⏱ ${phase.minute}ᵉ minute — phase ${phase.numero}/${resultat.phases.length}`;
           blocCourant = blocPhase(elements.recit, phase.minute, phase.numero);
-          if (options.scene) options.scene.debutPhase(phase);
         },
       });
       phase.evenements.forEach((ev) => {
-        etapes.push({
-          delai: delaiEvenement,
-          action: () => {
-            if (ev.but) { if (ev.equipe === equipeA.nom) scores.a++; else scores.b++; }
-            ajouterEvenement(elements, blocCourant, ev, scores);
-            // la scène animée + le bandeau compact (optionnels)
-            if (options.scene) options.scene.evenement(ev, delaiEvenement / vitesse);
-            // le juice : célébration proportionnelle à l'enjeu (mes buts),
-            // soupir sur les buts encaissés, gant sur les arrêts
-            if (typeof ONZE_JUICE !== "undefined") {
-              if (ev.but && ev.equipe === equipeA.nom) ONZE_JUICE.but(options.enjeu || 2, options.scene && options.scene.racine);
-              else if (ev.but) ONZE_JUICE.jouer("defaite");
-              else if (ev.type === "arret") ONZE_JUICE.jouer("arret");
-            }
-            if (elements.bandeau) {
-              const chip = ev.synergie
-                ? ` <span class="tag-synergie" style="color:${typeof ONZE_SCENE !== "undefined" ? ONZE_SCENE.couleurFamille(ev.synergie) : "#E8C547"}">✦ ${ev.synergie}</span>` : "";
-              elements.bandeau.innerHTML = (ev.but ? `⚽ ${ev.cri} <strong>${scores.a} – ${scores.b}</strong>` : ev.texte) + chip;
-            }
-          },
-        });
+        etapes.push({ delai: delaiEvenement, action: () => jouerEvenement(ev) });
       });
       const reste = delaiPhase - 400 - phase.evenements.length * delaiEvenement;
       etapes.push({ delai: Math.max(reste, 200), action: () => {} });
@@ -143,6 +203,7 @@ const ONZE_UI = (() => {
     etapes.push({
       delai: 600,
       action: () => {
+        if (options.scene && options.scene.fin) options.scene.fin();
         elements.chrono.textContent = "⏱ Coup de sifflet final";
         const bloc = document.createElement("div");
         bloc.className = "phase final";
@@ -164,7 +225,8 @@ const ONZE_UI = (() => {
     (function suivante() {
       const etape = etapes.shift();
       if (!etape) return;
-      setTimeout(() => { etape.action(); suivante(); }, etape.delai / vitesse);
+      const diviseur = options.scene ? facteurDe(etape.rapide) : vitesse;
+      setTimeout(() => { etape.action(); suivante(); }, etape.delai / diviseur);
     })();
   }
 
