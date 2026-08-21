@@ -85,6 +85,11 @@
     }
     .col-synergies .badge { display: block; text-align: left; font-size: 0.6rem; padding: 3px 5px; }
     .col-synergies .mini-adn { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+    /* La bascule du panneau gauche (façon hexagone TFT) : synergies+ADN
+       ⇄ staff+quêtes — les panneaux se REMPLACENT au lieu de s'empiler */
+    #btn-bascule-gauche { background: #182219; color: #A9DDB6; border: 1px solid #24331F;
+      border-radius: 6px; font-size: 0.6rem; padding: 2px; cursor: pointer; margin-top: 2px; }
+    #page-staff { margin-top: 4px; }
     .mini-adn .axe-mini { font-size: 0.54rem; color: #96A699; }
     .mini-adn .barre-mini { height: 4px; background: #182219; border-radius: 2px; overflow: hidden; margin-top: 1px; }
     .mini-adn .barre-mini > div { height: 100%; background: #5F7A64; }
@@ -311,10 +316,15 @@
   <div class="centre">
     <div class="col-synergies">
       <button id="btn-legende" style="background:#182219;color:#96A699;border:1px solid #24331F;border-radius:6px;font-size:0.6rem;padding:2px;cursor:pointer">？ Légende</button>
-      <div id="synergies-club"></div>
-      <div class="mini-adn" id="axes-adn"></div>
-      <div id="inventaire-staff" style="margin-top:6px;display:flex;flex-direction:column;gap:3px"></div>
-      <div id="quetes-liste" style="margin-top:6px;display:flex;flex-direction:column;gap:3px"></div>
+      <button id="btn-bascule-gauche">🧰 Staff · 🎯</button>
+      <div id="page-synergies">
+        <div id="synergies-club"></div>
+        <div class="mini-adn" id="axes-adn"></div>
+      </div>
+      <div id="page-staff" class="masque">
+        <div id="inventaire-staff" style="display:flex;flex-direction:column;gap:3px"></div>
+        <div id="quetes-liste" style="margin-top:6px;display:flex;flex-direction:column;gap:3px"></div>
+      </div>
     </div>
     <div class="plateau">
       <div class="terrain" id="terrain-scene">
@@ -1279,6 +1289,17 @@
       el("app").appendChild(volet);
     }
 
+    /* La bascule du panneau gauche : le bouton affiche la page CACHÉE
+       (avec le nombre de cartes staff en attente, l'appel du regard) */
+    function majBasculeGauche() {
+      const versStaff = pageGauche === "synergies";
+      el("page-synergies").classList.toggle("masque", !versStaff);
+      el("page-staff").classList.toggle("masque", versStaff);
+      el("btn-bascule-gauche").textContent = versStaff
+        ? `🧰 Staff${partie.staff.length ? " (" + partie.staff.length + ")" : ""} · 🎯 quêtes`
+        : "✦ Synergies · ADN";
+    }
+
     /* ================= Volet classement / scouting ================= */
     function ligneClassement() {
       return partie.coachs.slice().sort((a, b) => b.prestige - a.prestige).map((c) => {
@@ -1605,6 +1626,7 @@
     const CLE_DETENTE = "onze-mode-detente";
     let modeDetente = false;
     let dernierMatch = null; // { resultat, eqA, eqB } — pour le recap ⚔️
+    let pageGauche = "synergies"; // la bascule du panneau gauche (⇄ staff/quêtes)
     try { modeDetente = localStorage.getItem(CLE_DETENTE) === "1"; } catch (e) {}
     const chrono = { restant: 0, total: 0, intervalle: null, action: null, dernierBip: -1 };
     let contexteAudio = null;
@@ -1825,6 +1847,7 @@
         return `<span class="badge inactif" style="cursor:pointer;display:block;text-align:left" onclick="voletQuetes()">🎯 ${icone.nom}<br><small style="color:#9CC4EF">${progres}</small></span>`;
       }).join("");
       verifierQuetes(apercu);
+      majBasculeGauche();
 
       // Bouton de manche
       if (!partie.matchEnCours) {
@@ -2161,6 +2184,11 @@
         el("btn-sac").addEventListener("click", () => {
           const replie = el("boutique-barre").classList.toggle("repliee");
           el("btn-sac").textContent = replie ? "👜" : "🪙";
+        });
+        // Bascule du panneau gauche : synergies+ADN ⇄ staff+quêtes
+        el("btn-bascule-gauche").addEventListener("click", () => {
+          pageGauche = pageGauche === "synergies" ? "staff" : "synergies";
+          majBasculeGauche();
         });
         // Plein écran (Fullscreen API au premier geste) + verrou paysage natif
         const standalone = window.matchMedia("(display-mode: fullscreen)").matches ||
