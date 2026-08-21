@@ -30,7 +30,7 @@ function iaPrennentLeursCopies(ias, pool, manche) {
     ia.copiesPrises = [];
     const niveau = Math.min(3 + Math.floor(manche / 4), 9);
     const taille = TITULAIRES_PAR_NIVEAU_IA[niveau];
-    let budget = Math.min(1 + 1.35 * manche, 21);
+    let budget = Math.min(1 + 1.45 * manche, 22);
     const besoins = ["GAR"];
     for (let i = 0; i < taille - 1; i++) besoins.push(["DÉF", "MIL", "ATT"][i % 3]);
     const compo = [];
