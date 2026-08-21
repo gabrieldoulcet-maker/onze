@@ -187,6 +187,30 @@
     .btn-verrou-carte { flex: 0 0 30px; background: #182219; color: #A9DDB6; border: 1px solid #24331F;
       border-radius: 7px; font-size: 0.85rem; cursor: pointer; }
 
+    /* ---- Drag & drop (pointer events, fantôme en translate3d → 60 fps) ---- */
+    .jeton { touch-action: none; }
+    .fantome {
+      position: fixed; left: 0; top: 0; z-index: 120; pointer-events: none;
+      opacity: 0.92; transform: translate3d(-1000px, -1000px, 0);
+      will-change: transform; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.5));
+    }
+    .fantome .etiquette-malus {
+      position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+      background: #E8654F; color: #fff; font-size: 0.6rem; font-weight: 800;
+      border-radius: 6px; padding: 1px 5px; white-space: nowrap;
+    }
+    .jeton.source-drag { opacity: 0.35; }
+    .ligne-terrain.cible, .rangee-banc.cible { background: rgba(79, 197, 124, 0.18); border-radius: 8px; }
+    .jeton.cible { outline: 2px dashed #4FC57C; }
+    .zone-vente {
+      position: absolute; inset: 0; z-index: 110; display: none;
+      align-items: center; justify-content: center;
+      background: #3A2A24EE; color: #D4A66B; font-weight: 800; font-size: 0.95rem;
+      border-radius: 10px; border: 2px dashed #D4A66B;
+    }
+    .zone-vente.active { display: flex; }
+    .zone-vente.cible { background: #4a2f24; color: #FFD9A0; }
+
     .message-flottant {
       position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%);
       color: #E88C7D; font-size: 0.75rem; z-index: 90; background: #0B100CDD;
@@ -260,7 +284,8 @@
   </div>
 
   <!-- ===== Barre boutique du bas (copie TFT) ===== -->
-  <div class="boutique-barre">
+  <div class="boutique-barre" style="position:relative">
+    <div class="zone-vente" id="zone-vente"></div>
     <div class="bloc-eco">
       <div class="or-affiche"><span id="or">0</span>M 🪙</div>
       <button id="btn-xp">📈 Acheter XP<br>4M → +4</button>
@@ -1472,7 +1497,7 @@
       const nbCartes = (fiche.staffCartes || []).length;
       const staff = `${"🧪".repeat(nbSpecs)}${"🧰".repeat(nbCartes)}${fiche.ecoleBonus ? "🛂" : ""}`;
       const choisi = selection && selection.nomListe === nomListe && selection.indice === indice;
-      return `<div class="jeton cout-${fiche.cout}${choisi ? " choisi" : ""}" onclick="tapJeton('${nomListe}', ${indice})">
+      return `<div class="jeton cout-${fiche.cout}${choisi ? " choisi" : ""}" data-liste="${nomListe}" data-indice="${indice}" onclick="tapJeton('${nomListe}', ${indice})">
         ${pastilleHTML(fiche)} <span class="note-jeton">${note}</span> ${etoiles}<br>${fiche.nom}<br>
         <span class="glyphes-famille">${ONZE_UI.glyphe(fiche.ecole)}${ONZE_UI.glyphe(fiche.archetype)}${staff}</span></div>`;
     }
@@ -1718,6 +1743,177 @@
       try { localStorage.removeItem(CLE_SAUVEGARDE); } catch (e) {}
       document.querySelectorAll(".volet, .voile-fiche").forEach((v) => v.remove());
       nouvellePartie();
+    }
+
+    /* ================= Le drag & drop (pointer events) =================
+       Le geste le plus répété du jeu : banc → terrain (échange auto si
+       occupé), terrain ↔ terrain (permutation), terrain → banc (sortie),
+       et vers la boutique pour VENDRE (la zone se transforme). Pendant le
+       drag : cibles surlignées, malus hors-poste prévisualisé en direct.
+       Le tap-tap reste le secours. */
+    const drag = { actif: false, depasse: false, fiche: null, nomListe: null, indice: null, fantome: null };
+    const SEUIL_DRAG = 8;
+
+    function malusPourLigne(fiche, ligne) {
+      if (!ligne || ligne === fiche.poste) return null;
+      if (ligne === "GAR" && fiche.poste !== "GAR") return "😱 −50 %";
+      const ORDRE = ["GAR", "DÉF", "MIL", "ATT"];
+      const distance = Math.abs(ORDRE.indexOf(ligne) - ORDRE.indexOf(fiche.poste));
+      return distance === 1 ? "−10 %" : "−25 %";
+    }
+    function ligneSousLePointeur(x, y) {
+      drag.fantome.style.display = "none";
+      const element = document.elementFromPoint(x, y);
+      drag.fantome.style.display = "";
+      if (!element) return {};
+      return {
+        element,
+        jeton: element.closest(".jeton:not(.source-drag)"),
+        ligne: element.closest(".ligne-terrain"),
+        banc: element.closest(".rangee-banc"),
+        vente: element.closest(".zone-vente") || element.closest(".boutique-barre"),
+      };
+    }
+    function nettoyerCibles() {
+      document.querySelectorAll(".cible").forEach((e) => e.classList.remove("cible"));
+    }
+
+    document.addEventListener("pointerdown", (e) => {
+      const jeton = e.target.closest(".jeton[data-liste]");
+      if (!jeton || e.button > 0) return;
+      drag.candidat = { jeton, x: e.clientX, y: e.clientY };
+    });
+    document.addEventListener("pointermove", (e) => {
+      if (drag.candidat && !drag.actif) {
+        if (Math.hypot(e.clientX - drag.candidat.x, e.clientY - drag.candidat.y) < SEUIL_DRAG) return;
+        // le drag démarre
+        const jeton = drag.candidat.jeton;
+        drag.actif = true; drag.depasse = true;
+        drag.nomListe = jeton.dataset.liste;
+        drag.indice = Number(jeton.dataset.indice);
+        drag.fiche = partie[drag.nomListe][drag.indice];
+        if (!drag.fiche) { drag.actif = false; return; }
+        jeton.classList.add("source-drag");
+        drag.source = jeton;
+        drag.fantome = jeton.cloneNode(true);
+        drag.fantome.classList.remove("source-drag");
+        drag.fantome.classList.add("fantome");
+        drag.fantome.style.width = jeton.offsetWidth + "px";
+        el("app").appendChild(drag.fantome);
+        const valeurVente = drag.fiche.cout * Math.pow(3, (drag.fiche.etoiles || 1) - 1);
+        const zone = el("zone-vente");
+        zone.textContent = `💰 Vendre ${drag.fiche.nom} — ${valeurVente}M`;
+        zone.classList.add("active");
+      }
+      if (!drag.actif) return;
+      e.preventDefault();
+      drag.fantome.style.transform = `translate3d(${e.clientX - 30}px, ${e.clientY - 46}px, 0)`;
+      // cibles + malus prévisualisé (au rythme du rendu)
+      if (drag.rafPrevu) return;
+      drag.rafPrevu = true;
+      requestAnimationFrame(() => {
+        drag.rafPrevu = false;
+        if (!drag.actif) return;
+        nettoyerCibles();
+        const sous = ligneSousLePointeur(e.clientX, e.clientY);
+        let etiquette = "";
+        if (sous.vente) { el("zone-vente").classList.add("cible"); }
+        else el("zone-vente").classList.remove("cible");
+        if (sous.jeton) sous.jeton.classList.add("cible");
+        else if (sous.ligne) sous.ligne.classList.add("cible");
+        else if (sous.banc) sous.banc.classList.add("cible");
+        if (sous.ligne) {
+          const idLigne = sous.ligne.id.replace("ligne-", "");
+          const malus = malusPourLigne(drag.fiche, idLigne);
+          if (malus) etiquette = malus;
+        }
+        let bulle = drag.fantome.querySelector(".etiquette-malus");
+        if (etiquette) {
+          if (!bulle) { bulle = document.createElement("span"); bulle.className = "etiquette-malus"; drag.fantome.appendChild(bulle); }
+          bulle.textContent = etiquette;
+        } else if (bulle) bulle.remove();
+      });
+    }, { passive: false });
+    document.addEventListener("pointerup", (e) => {
+      drag.candidat = null;
+      if (!drag.actif) return;
+      const sous = ligneSousLePointeur(e.clientX, e.clientY);
+      finirDrag(sous);
+      setTimeout(() => { drag.depasse = false; }, 80); // ne mange que le clic du geste
+    });
+    document.addEventListener("pointercancel", () => { drag.candidat = null; if (drag.actif) finirDrag({}); });
+    // un drag consommé ne doit pas déclencher le tap — mais seulement
+    // LE clic issu de ce geste (le drapeau retombe aussitôt après)
+    document.addEventListener("click", (e) => {
+      if (drag.depasse) { e.stopPropagation(); e.preventDefault(); }
+    }, true);
+
+    function finirDrag(sous) {
+      const { fiche, nomListe, indice } = drag;
+      drag.actif = false;
+      if (drag.fantome) drag.fantome.remove();
+      drag.fantome = null;
+      if (drag.source) drag.source.classList.remove("source-drag");
+      el("zone-vente").classList.remove("active", "cible");
+      nettoyerCibles();
+      selection = null;
+      if (!sous || !fiche) return afficher();
+
+      // 1. la vente
+      if (sous.vente) { vendre(nomListe, indice); return; }
+      // 2. sur un autre jeton : échange / réordonnancement
+      if (sous.jeton) {
+        const cible = { nomListe: sous.jeton.dataset.liste, indice: Number(sous.jeton.dataset.indice) };
+        if (cible.nomListe && !(cible.nomListe === nomListe && cible.indice === indice)) {
+          echangerJoueurs({ nomListe, indice }, cible);
+          return;
+        }
+      }
+      // 3. sur une ligne du terrain
+      if (sous.ligne) {
+        if (partie.matchEnCours) { afficher(); return signaler("⏳ Les changements prendront effet à la manche suivante."); }
+        const idLigne = sous.ligne.id.replace("ligne-", "");
+        const gardienEnPlace = partie.terrain.find((j) => j !== fiche && ligneDe(j) === "GAR");
+        if (nomListe === "terrain") {
+          if (idLigne === "GAR" && gardienEnPlace) { // échange avec le gardien
+            gardienEnPlace.ligne = ligneDe(fiche);
+          }
+          fiche.ligne = idLigne === fiche.poste ? undefined : idLigne;
+          afficher(); return;
+        }
+        // banc → terrain : titularisation sur la ligne visée
+        const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
+        if (partie.terrain.length >= max) {
+          // terrain plein : échange auto avec un joueur de la ligne visée
+          const sortant = partie.terrain.find((j) => ligneDe(j) === idLigne) || partie.terrain[0];
+          const indiceSortant = partie.terrain.indexOf(sortant);
+          partie.banc.splice(indice, 1);
+          const ligneRecue = ligneDe(sortant);
+          sortant.ligne = undefined;
+          partie.banc.push(sortant);
+          fiche.ligne = idLigne === fiche.poste ? undefined : idLigne;
+          if (idLigne === "GAR" && fiche.poste !== "GAR" && gardienEnPlace) fiche.ligne = ligneRecue === fiche.poste ? undefined : ligneRecue;
+          partie.terrain.splice(indiceSortant, 0, fiche);
+        } else {
+          partie.banc.splice(indice, 1);
+          if (idLigne === "GAR" && gardienEnPlace) {
+            if (fiche.poste === "GAR") { // 2ᵉ gardien : échange intelligent
+              partie.terrain.splice(partie.terrain.indexOf(gardienEnPlace), 1);
+              gardienEnPlace.ligne = undefined;
+              partie.banc.push(gardienEnPlace);
+              fiche.ligne = undefined;
+            } else fiche.ligne = undefined; // pas de 2ᵉ dans les buts : ligne naturelle
+          } else fiche.ligne = idLigne === fiche.poste ? undefined : idLigne;
+          partie.terrain.push(fiche);
+        }
+        afficher(); return;
+      }
+      // 4. vers le banc : sortie du terrain
+      if (sous.banc && nomListe === "terrain") {
+        if (partie.matchEnCours) { afficher(); return signaler("⏳ Les changements prendront effet à la manche suivante."); }
+        basculer("terrain", indice); return;
+      }
+      afficher();
     }
 
     /* ================= Mise en place ================= */
