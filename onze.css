@@ -414,3 +414,24 @@ button.principal:disabled { background: #2A3A2C; color: #6C7A6E; }
 .toast-lobby.visible { opacity: 1; transform: translateX(0); }
 .note-recap { flex: 0 0 26px; font-weight: 800; font-size: 0.72rem; text-align: right; padding-right: 4px; }
 .bandeau-replay { transform: translateX(-50%); }
+
+/* ---- Le tutoriel : bulles courtes + halo sur la cible ---- */
+.bulle-tuto {
+  position: absolute; z-index: 220; max-width: 300px;
+  background: #182219; border: 2px solid #4FC57C; border-radius: 12px;
+  padding: 10px 12px; font-size: 0.74rem; color: #E7EEE7; line-height: 1.4;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+  animation: bulleArrive 0.35s ease;
+}
+@keyframes bulleArrive { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+.bulle-tuto.haut { bottom: 92px; left: 50%; transform: translateX(-50%); }
+.bulle-tuto.centre { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.bulle-tuto.gauche { top: 60px; left: 120px; }
+.bulle-tuto.droite { top: 60px; right: 140px; }
+.bulle-tuto button {
+  background: #4FC57C; color: #0B100C; border: none; border-radius: 7px;
+  padding: 5px 12px; font-weight: 800; font-size: 0.7rem; cursor: pointer;
+}
+.bulle-tuto button.tuto-passer { background: none; color: #96A699; border: 1px solid #24331F; font-weight: 600; }
+.tuto-cible { box-shadow: 0 0 0 3px #4FC57C, 0 0 22px rgba(79, 197, 124, 0.7) !important; border-radius: 8px; animation: haloTuto 1.2s ease infinite; }
+@keyframes haloTuto { 0%, 100% { box-shadow: 0 0 0 3px #4FC57C, 0 0 22px rgba(79,197,124,0.7); } 50% { box-shadow: 0 0 0 3px #4FC57C, 0 0 34px rgba(79,197,124,1); } }

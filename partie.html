@@ -683,6 +683,7 @@
       partie.compteurs.depensesMercato = (partie.compteurs.depensesMercato || 0) + fiche.cout; // le Mercenaire
       partie.boutique[indice] = null;
       placerAuClub({ ...fiche, etoiles: 1 });
+      tutoNotifier("achat");
       // l'arrivée d'un Unique est un ÉVÉNEMENT (fanfare + bannière)
       if (fiche.unique) {
         ONZE_JUICE.jouer("unique");
@@ -940,6 +941,7 @@
       }
       bouton.replaceWith(revele);
       afficher();
+      tutoNotifier("orbe");
       const continuer = document.getElementById("btn-continuer");
       if (continuer && partie.orbesEnAttente.every((o) => o.ouvert)) continuer.classList.remove("masque");
     }
@@ -1121,6 +1123,7 @@
       // Le match se joue SUR le terrain : tableau + journal par-dessus,
       // le tiroir reste ouvert (achats → banc)
       partie.matchEnCours = true;
+      tutoNotifier("match");
       // le recap ⚔️ lit le dernier match joué — pendant ET après le match
       dernierMatch = { resultat, eqA: monEquipe, eqB: equipeAdverse };
       el("btn-recap").classList.remove("masque");
@@ -1282,6 +1285,7 @@
       volet.className = "volet";
       volet.innerHTML = html;
       el("app").appendChild(volet);
+      tutoNotifier("etat"); // la bulle des orbes se réveille sur le bilan
       document.getElementById("btn-continuer").addEventListener("click", () => { arreterChrono(); volet.remove(); continuer(); });
       demarrerChrono(30, () => { // ~30 s puis tout s'ouvre et on continue
         volet.querySelectorAll(".orbe").forEach((o) => o.click());
@@ -1608,6 +1612,120 @@
       return modeCommentaire;
     }
 
+    /* ============================================================
+       LE TUTORIEL — la première partie guidée (bloc C).
+       Pour quelqu'un qui n'a JAMAIS vu un auto-battler : proposé au
+       premier lancement (refusable), relançable depuis 🏆, il guide
+       les 4 premières manches par bulles courtes et surlignages,
+       puis lâche la main. Le vocabulaire foot fait le reste.
+       ============================================================ */
+    const ETAPES_TUTO = [
+      { id: "boutique", cible: "boutique-barre", position: "haut",
+        texte: "⚽ Voici ton <strong>mercato</strong>. Chaque manche, 5 joueurs se présentent.<br>Touche <strong>Recruter</strong> pour engager ton premier joueur (tu as reçu quelques millions).",
+        attend: "achat" },
+      { id: "terrain", cible: "terrain-scene", position: "centre",
+        texte: "👕 Tes recrues rejoignent le <strong>terrain</strong> (ou le banc s'il est plein).<br>Glisse un joueur pour le déplacer, touche-le pour voir sa fiche.",
+        attend: "ok" },
+      { id: "synergies", cible: "page-synergies", position: "gauche",
+        texte: "✦ Deux joueurs d'une même <strong>École</strong> ou d'un même <strong>archétype</strong> allument un badge ici — c'est le cœur du jeu : les familles rendent l'équipe plus forte.<br>Touche un badge pour les détails.",
+        attend: "ok" },
+      { id: "match", cible: "btn-match", position: "droite",
+        texte: "🏟️ Lance ta première manche ! Les 3 premières sont des <strong>amicaux</strong> : aucun risque, et du <strong>butin</strong> à la clé.",
+        attend: "match" },
+      { id: "orbes", cible: null, position: "centre", declencheur: "orbes",
+        texte: "🎁 Ton butin ! Touche chaque <strong>orbe</strong> pour l'ouvrir — or, joueurs gratuits, cartes staff…",
+        attend: "orbe" },
+      { id: "staff", cible: "col-synergies", position: "gauche", declencheur: "carteStaff",
+        texte: "🧰 Une <strong>carte staff</strong> ! Touche-la dans la colonne de gauche pour l'assigner à un joueur.<br><strong>Deux cartes sur le même joueur fusionnent</strong> en spécialisation définitive.",
+        attend: "ok" },
+      { id: "prestige", cible: "col-classement", position: "droite", declencheur: "manche4",
+        texte: "💚 Fini les amicaux : chaque défaite coûte du <strong>prestige</strong> à ton club. À zéro, un club est éliminé — le dernier debout gagne.<br>Touche un adversaire pour espionner son vestiaire.",
+        attend: "ok" },
+      { id: "fin", cible: null, position: "centre", declencheur: "manche4",
+        texte: "🎓 Tu sais l'essentiel. Le reste — les quêtes d'Icônes 🎯, les Philosophies 🧭, les coupes 🏆 — <strong>se découvre en jouant</strong>.<br>Bonne chasse aux paires !",
+        attend: "ok" },
+    ];
+    let tutoEtape = -1; // -1 = inactif
+    function tutoActif() { return tutoEtape >= 0 && tutoEtape < ETAPES_TUTO.length; }
+    function proposerTutoriel() {
+      let dejaVu = false;
+      try { dejaVu = !!localStorage.getItem("onze-tutoriel-vu"); } catch (e) {}
+      if (dejaVu || partie.manche > 1) return;
+      try { localStorage.setItem("onze-tutoriel-vu", "1"); } catch (e) {}
+      const volet = document.createElement("div");
+      volet.className = "volet";
+      volet.innerHTML = `<div class="panneau" style="text-align:center;max-width:340px">
+        <strong>👋 Première fois sur ONZE ?</strong><br>
+        <small style="color:#96A699">Un auto-battler de football : tu construis l'équipe, le match se joue tout seul.</small>
+        <button class="fermer-volet" data-tuto="oui">🎓 Guide-moi (recommandé)</button>
+        <button class="fermer-volet" data-tuto="non">Je connais — jouer directement</button>
+      </div>`;
+      volet.addEventListener("click", (e) => {
+        const bouton = e.target.closest("[data-tuto]");
+        if (!bouton) return;
+        volet.remove();
+        if (bouton.dataset.tuto === "oui") demarrerTutoriel();
+        else lancerChronoMercato();
+      });
+      el("app").appendChild(volet);
+      arreterChrono(); // pas de pression pendant le choix
+    }
+    function demarrerTutoriel() {
+      tutoEtape = 0;
+      if (!modeDetente) basculerDetente(); // le tutoriel se joue SANS chrono
+      partie.or += 3; // le budget de bienvenue du tutoriel (l'économie réelle démarre à 0)
+      afficher();
+      montrerEtapeTuto();
+    }
+    function montrerEtapeTuto() {
+      document.querySelectorAll(".bulle-tuto").forEach((b) => b.remove());
+      document.querySelectorAll(".tuto-cible").forEach((c) => c.classList.remove("tuto-cible"));
+      if (!tutoActif()) return;
+      const etape = ETAPES_TUTO[tutoEtape];
+      // les étapes à déclencheur attendent leur moment
+      if (etape.declencheur === "manche4" && partie.manche < 4) return;
+      if (etape.declencheur === "carteStaff" && !partie.staff.length) return;
+      if (etape.declencheur === "orbes" && !partie.orbesEnAttente.length) return;
+      if (etape.cible && el(etape.cible)) el(etape.cible).classList.add("tuto-cible");
+      const bulle = document.createElement("div");
+      bulle.className = "bulle-tuto " + etape.position;
+      bulle.innerHTML = `<div>${etape.texte}</div>
+        <div style="margin-top:6px;display:flex;gap:6px;justify-content:center">
+          ${etape.attend === "ok" ? `<button class="tuto-ok">OK !</button>` : ""}
+          <button class="tuto-passer">Passer le tutoriel</button>
+        </div>`;
+      bulle.addEventListener("click", (e) => {
+        if (e.target.classList.contains("tuto-ok")) avancerTuto(etape.attend === "ok" ? etape.id : null);
+        if (e.target.classList.contains("tuto-passer")) finirTutoriel();
+      });
+      el("app").appendChild(bulle);
+    }
+    /* Les hooks du jeu appellent tutoNotifier("achat"|"match"|"orbe"|"staff"|"manche") */
+    function tutoNotifier(evenement) {
+      if (!tutoActif()) return;
+      const etape = ETAPES_TUTO[tutoEtape];
+      if (etape.attend === evenement) { avancerTuto(); return; }
+      // un déclencheur vient peut-être d'être satisfait (orbes, staff, M4)
+      if (evenement === "etat") montrerEtapeTuto();
+    }
+    function avancerTuto() {
+      tutoEtape++;
+      if (tutoEtape >= ETAPES_TUTO.length) return finirTutoriel();
+      montrerEtapeTuto();
+    }
+    function finirTutoriel() {
+      tutoEtape = -1;
+      document.querySelectorAll(".bulle-tuto").forEach((b) => b.remove());
+      document.querySelectorAll(".tuto-cible").forEach((c) => c.classList.remove("tuto-cible"));
+      if (modeDetente) basculerDetente(); // le chrono redevient la référence
+      signaler("🎓 Tutoriel terminé — le jeu est à toi !");
+      lancerChronoMercato();
+    }
+    function relancerTutoriel() {
+      try { localStorage.removeItem("onze-tutoriel-vu"); } catch (e) {}
+      recommencerPartie();
+    }
+
     /* La bascule du panneau gauche : le bouton affiche la page CACHÉE
        (avec le nombre de cartes staff en attente, l'appel du regard) */
     function majBasculeGauche() {
@@ -1640,6 +1758,7 @@
         <button class="fermer-volet" onclick="this.textContent = ONZE_JUICE.basculer() ? '🔊 Sons : activés' : '🔇 Sons : coupés'">${ONZE_JUICE.estActif() ? "🔊 Sons : activés" : "🔇 Sons : coupés"}</button>
         <button class="fermer-volet" onclick="this.textContent = basculerReplay() ? '🔁 Replay de but : activé' : '🔁 Replay de but : coupé'">${(() => { try { return localStorage.getItem("onze-replay") !== "off"; } catch (e) { return true; } })() ? "🔁 Replay de but : activé" : "🔁 Replay de but : coupé"}</button>
         <button class="fermer-volet" onclick="this.textContent = basculerCommentaire() ? '💬 Commentaire seul : activé' : '🎥 Scène animée : activée'">${modeCommentaire ? "💬 Commentaire seul : activé" : "🎥 Scène animée : activée"}</button>
+        <button class="fermer-volet" onclick="if (confirm('Relancer le tutoriel ? La partie en cours sera abandonnée.')) relancerTutoriel()">🎓 Relancer le tutoriel</button>
         <button class="fermer-volet" style="background:#3A2A24;color:#D4A66B" onclick="if (confirm('Abandonner cette partie ?')) recommencerPartie()">🔁 Nouvelle partie</button>
         <details style="margin-top:8px"><summary style="cursor:pointer;color:#96A699;font-size:0.8rem">📜 Historique des manches</summary>
         <div style="font-size:0.76rem;margin-top:4px">${partie.historique.map((h) => `<div class="coach"><span>${h}</span></div>`).join("") || "La saison commence."}</div></details>
@@ -2292,6 +2411,7 @@
       }).join("");
       verifierQuetes(apercu);
       majBasculeGauche();
+      tutoNotifier("etat"); // les étapes à déclencheur (orbes, staff, M4) se réveillent ici
 
       // Bouton de manche
       if (!partie.matchEnCours) {
@@ -2665,7 +2785,7 @@
           const v = ONZE_UI.basculerVitesse();
           el("btn-vitesse").textContent = v === 2 ? "▶️ ×1" : "⏩ ×2";
         });
-        if (!restaurer()) nouvellePartie();
+        if (!restaurer()) { nouvellePartie(); proposerTutoriel(); }
       })
       .catch((e) => {
         el("btn-match").textContent = "Erreur de chargement des joueurs";
