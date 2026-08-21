@@ -27,8 +27,8 @@ Copie de Space Groove (stacking, actif dès 1). **1** : le talent s'exprime seul
 Copie de Stargazer (hexes bonifiés). **3** : deux zones du terrain deviennent des « zones de rondo » : duels de possession bonifiés dedans. **5** : quatre zones, et le tempo se conserve de phase en phase. **7** : le terrain entier — les égalités de duel en possession sont toujours gagnées.
 *Membres : Andoni (1), Unai (1), Xabi (2), Rubén (3), Iñaki (4), Aitor (4) + l'Unique Álvaro (5).*
 
-### Football Total — 8 joueurs · paliers 3 / 5 / 7 / 10 — la permutation
-Copie de Meeple (grosse École à palier chimère). **3** : couverture des zones adjacentes en défense. **5** : surnombre virtuel +1 dans la zone du ballon. **7** : chaque duel utilise la meilleure stat de la ligne. **10** (chimère, via Ruud + Passeports) : le Onze Total — tous les joueurs jouent à tous les postes à la fois, chaque duel utilise la meilleure stat de l'équipe.
+### Football Total — 8 joueurs · paliers 3 / 5 / 7 / 10 — l'École qui ignore les postes
+Copie de Meeple (grosse École à palier chimère). **Identité principale (décision n°21) : le Football Total réduit puis annule les malus hors-poste de toute l'équipe.** **3** : malus hors-poste réduits (×0,6). **5** : quasi annulés (×0,3) + surnombre virtuel dans la zone du ballon. **7** : malus hors-poste ANNULÉS pour toute l'équipe — la formation devient totalement libre. **10** (chimère, via Ruud + Passeports) : le Onze Total — chaque duel utilise la meilleure stat de l'équipe. (Ruud, « Le Professeur », est personnellement immunisé aux malus par son Unique.)
 *Membres : Luuk (1), Pieter (2), Kees (2), Joost (3), Bram (3), Jasper (4), Sven (4), Timo (4) + l'Unique Ruud (5).*
 
 ### L'Académie — 3 joueurs · paliers 2 / 3 — le centre qui produit

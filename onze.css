@@ -261,3 +261,6 @@ button.principal:disabled { background: #2A3A2C; color: #6C7A6E; }
 /* ---- Les trois raretés d'orbes ---- */
 .orbe.gris { background: radial-gradient(circle at 30% 30%, #D8DDD8, #7A857C); box-shadow: 0 0 18px rgba(200, 210, 200, 0.35); }
 .orbe.bleu { background: radial-gradient(circle at 30% 30%, #9CC4EF, #2A5A9E); box-shadow: 0 0 22px rgba(120, 170, 240, 0.45); }
+
+/* ---- Le jeton sélectionné pour un échange (formation libre) ---- */
+.jeton.choisi { outline: 2px solid #E8C547; box-shadow: 0 0 14px rgba(232, 197, 71, 0.6); }

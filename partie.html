@@ -469,9 +469,16 @@
         return signaler("⏳ Les changements de compo prendront effet à la manche suivante.");
       const liste = partie[nomListe];
       if (nomListe === "banc" && partie.terrain.length >= TITULAIRES_PAR_NIVEAU[partie.niveau])
-        return signaler("Terrain plein — fais descendre quelqu'un.");
+        return signaler("Terrain plein — échange plutôt (tap sur lui, puis sur un titulaire).");
       const fiche = liste.splice(indice, 1)[0];
-      (nomListe === "banc" ? partie.terrain : partie.banc).push(fiche);
+      if (nomListe === "banc") {
+        fiche.ligne = undefined;
+        if (fiche.poste === "GAR" && partie.terrain.some((j) => ligneDe(j) === "GAR")) fiche.ligne = "DÉF";
+        partie.terrain.push(fiche);
+      } else {
+        fiche.ligne = undefined;
+        partie.banc.push(fiche);
+      }
       afficher();
     }
     function refresh() {
@@ -503,14 +510,17 @@
       el("message").textContent = texte;
       setTimeout(() => { if (el("message").textContent === texte) el("message").textContent = ""; }, 3000);
     }
+    /* Formation LIBRE (décision n°21) : seule contrainte, au plus
+       1 joueur sur la ligne de but. Bus intégral, zéro milieu,
+       trois attaquants — tout est permis. */
+    const ligneDe = (j) => j.ligne || j.poste;
     function verdictFormation() {
       if (partie.terrain.length === 0) return "Achète au moins un joueur !";
-      if (partie.terrain.filter((j) => j.poste === "GAR").length > 1) return "Un seul gardien.";
+      if (partie.terrain.filter((j) => ligneDe(j) === "GAR").length > 1) return "Un seul joueur dans les buts.";
       return null;
     }
     function formationIncomplete() {
-      const nb = (p) => partie.terrain.filter((j) => j.poste === p).length;
-      return nb("DÉF") < 1 || nb("MIL") < 1 || nb("ATT") < 1 || nb("GAR") < 1;
+      return partie.terrain.filter((j) => ligneDe(j) === "GAR").length === 0;
     }
     function celebrerFusions(fusions) {
       fusions.forEach((f, i) => {
@@ -1057,6 +1067,52 @@
       setTimeout(() => banniere.remove(), 3000);
     }
 
+    /* ================= Le tap sur un jeton : sélection → échange =================
+       1er tap : sélectionne (halo). Tap sur un AUTRE joueur : échange
+       (lignes échangées sur le terrain, titularisation banc↔terrain).
+       Re-tap sur le même : ouvre le menu (fiche, ligne, banc, vendre). */
+    let selection = null;
+    function tapJeton(nomListe, indice) {
+      if (!selection) {
+        selection = { nomListe, indice };
+        afficher();
+        return;
+      }
+      const meme = selection.nomListe === nomListe && selection.indice === indice;
+      const premiere = selection;
+      selection = null;
+      if (meme) { afficher(); return menuJoueur(nomListe, indice); }
+      echangerJoueurs(premiere, { nomListe, indice });
+    }
+    function echangerJoueurs(a, b) {
+      if (partie.matchEnCours) { afficher(); return signaler("⏳ Les changements prendront effet à la manche suivante."); }
+      const jA = partie[a.nomListe][a.indice], jB = partie[b.nomListe][b.indice];
+      if (!jA || !jB) return afficher();
+      if (a.nomListe === "terrain" && b.nomListe === "terrain") {
+        const ligneA = ligneDe(jA);
+        jA.ligne = ligneDe(jB);
+        jB.ligne = ligneA;
+      } else if (a.nomListe !== b.nomListe) {
+        // titularisation croisée : l'entrant prend la ligne du sortant
+        const terrainRef = a.nomListe === "terrain" ? a : b;
+        const bancRef = a.nomListe === "banc" ? a : b;
+        const sortant = partie.terrain[terrainRef.indice];
+        const entrant = partie.banc[bancRef.indice];
+        entrant.ligne = ligneDe(sortant);
+        sortant.ligne = undefined;
+        partie.terrain[terrainRef.indice] = entrant;
+        partie.banc[bancRef.indice] = sortant;
+      }
+      afficher();
+    }
+    function changerLigne(nomListe, indice, ligne) {
+      const fiche = partie[nomListe][indice];
+      if (ligne === "GAR" && partie.terrain.some((j) => j !== fiche && ligneDe(j) === "GAR"))
+        return signaler("Un seul joueur dans les buts.");
+      fiche.ligne = ligne === fiche.poste ? undefined : ligne;
+      afficher();
+    }
+
     /* ================= Le menu d'un joueur (jeton ou banc) ================= */
     function menuJoueur(nomListe, indice) {
       const fiche = partie[nomListe][indice];
@@ -1068,6 +1124,9 @@
         <h3>${fiche.nom}${(fiche.etoiles || 1) >= 2 ? " " + "★".repeat(fiche.etoiles) : ""}</h3>
         <div class="sous-titre">${fiche.poste}${fiche.ecole ? " · " + fiche.ecole : ""}${fiche.archetype ? " · " + fiche.archetype : ""}</div>
         <button class="fermer" data-action="fiche">📋 Voir la fiche</button>
+        ${nomListe === "terrain" ? `<div style="display:flex;gap:4px;margin:4px 0">` +
+          ["GAR", "DÉF", "MIL", "ATT"].map((ligne) =>
+            `<button class="fermer" style="flex:1;margin:0${ligneDe(fiche) === ligne ? ";background:#4FC57C;color:#0B100C" : ""}" data-ligne="${ligne}">${ligne}</button>`).join("") + `</div>` : ""}
         <button class="fermer" data-action="bouger">${nomListe === "terrain" ? "🪑 Envoyer au banc" : "⬆️ Titulariser"}</button>
         <button class="fermer" style="background:#3A2A24;color:#D4A66B" data-action="vendre">💰 Vendre (${valeurVente}M)</button>
         <button class="fermer" data-action="rien">Annuler</button>
@@ -1085,6 +1144,10 @@
         if (action === "bouger") basculer(nomListe, indice);
         if (action === "vendre") vendre(nomListe, indice);
       });
+      voile.addEventListener("click", (e) => {
+        const ligne = e.target.dataset && e.target.dataset.ligne;
+        if (ligne) { voile.remove(); changerLigne(nomListe, indice, ligne); }
+      });
       el("app").appendChild(voile);
     }
 
@@ -1097,7 +1160,8 @@
       const nbCartes = (fiche.staffCartes || []).length;
       const staff = nbSpecs || nbCartes
         ? `<br><span style="font-size:0.5rem">${"🧪".repeat(nbSpecs)}${"🧰".repeat(nbCartes)}${fiche.ecoleBonus ? "🛂" : ""}</span>` : "";
-      return `<div class="jeton cout-${fiche.cout}" onclick="menuJoueur('${nomListe}', ${indice})">
+      const choisi = selection && selection.nomListe === nomListe && selection.indice === indice;
+      return `<div class="jeton cout-${fiche.cout}${choisi ? " choisi" : ""}" onclick="tapJeton('${nomListe}', ${indice})">
         <span class="note-jeton">${note}</span> ${etoiles}<br>${fiche.nom}${staff}</div>`;
     }
     function afficher() {
@@ -1112,10 +1176,10 @@
       el("staff").textContent = partie.staff.length;
       el("ferveur").textContent = partie.compteurs.ferveur;
 
-      // Le terrain : les titulaires à leur ligne + les places libres
+      // Le terrain : les titulaires à leur LIGNE JOUÉE (formation libre)
       for (const poste of ["GAR", "DÉF", "MIL", "ATT"]) el("ligne-" + poste).innerHTML = "";
       partie.terrain.forEach((fiche, i) => {
-        el("ligne-" + fiche.poste).insertAdjacentHTML("beforeend", jetonHTML(fiche, "terrain", i));
+        el("ligne-" + (fiche.ligne || fiche.poste)).insertAdjacentHTML("beforeend", jetonHTML(fiche, "terrain", i));
       });
       const libres = max - partie.terrain.length;
       for (let i = 0; i < libres; i++)

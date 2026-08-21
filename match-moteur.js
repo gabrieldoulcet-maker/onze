@@ -19,7 +19,11 @@
 /* ---- Petites aides ---- */
 const de = (max) => Math.floor(Math.random() * max) + 1;
 const hasard = (tableau) => tableau[Math.floor(Math.random() * tableau.length)];
-const parPoste = (equipe, poste) => equipe.joueurs.filter((j) => j.poste === poste);
+/* La formation est LIBRE (décision n°21) : chaque joueur occupe une
+   ligne (GAR/DÉF/MIL/ATT), par défaut son poste naturel. Les duels
+   lisent la ligne jouée ; jouer hors-poste coûte un malus. */
+const ligneDe = (j) => j.ligne || j.poste;
+const parPoste = (equipe, poste) => equipe.joueurs.filter((j) => ligneDe(j) === poste);
 const proba = (p) => Math.random() < p;
 const varie = (...variantes) => hasard(variantes);
 
@@ -402,6 +406,36 @@ function equipeDepuisFiches(nomClub, coach, fiches) {
     j.stats = {};
     for (const [stat, valeur] of Object.entries(j.statsBase))
       j.stats[stat] = Math.max(5, Math.min(99, valeur + (j.boosts[stat] || 0)));
+
+    // ---- le malus hors-poste (décision n°21) ----
+    // adjacent : −10 % · à deux lignes : −25 % · champ dans les buts : −50 %
+    // Le Football Total le réduit (palier 3 : ×0,6 ; 5 : ×0,3 ; 7 : annulé) ;
+    // Ruud (« Le Professeur ») y est immunisé par son Unique.
+    const ORDRE_LIGNES = ["GAR", "DÉF", "MIL", "ATT"];
+    const ligne = ligneDe(j);
+    const distance = Math.abs(ORDRE_LIGNES.indexOf(ligne) - ORDRE_LIGNES.indexOf(j.poste));
+    j.horsPoste = distance > 0;
+    if (j.horsPoste) {
+      let malus = ligne === "GAR" && j.poste !== "GAR" ? 0.5 : distance === 1 ? 0.10 : 0.25;
+      const total = s(equipe, "Football Total");
+      let facteur = total >= 3 ? 0 : total === 2 ? 0.3 : total === 1 ? 0.6 : 1;
+      if (j.unique === "Le Professeur") facteur = 0;
+      malus *= facteur;
+      j.malusHorsPoste = malus;
+      for (const stat of Object.keys(j.stats)) j.stats[stat] = Math.max(5, Math.round(j.stats[stat] * (1 - malus)));
+      // un joueur de champ dans les buts : réflexes plancher (😱)
+      if (ligne === "GAR" && j.poste !== "GAR") {
+        j.stats.reflexes = 15;
+        j.stats.aerien = j.stats.aerien || 20;
+        j.stats.pied = j.stats.pied || 20;
+      }
+      // un gardien en joueur de champ : ses stats de champ n'existent pas
+      if (j.poste === "GAR" && ligne !== "GAR") {
+        j.stats.tir = j.stats.tir || 20;
+        j.stats.dribble = j.stats.dribble || 20;
+        j.stats.tacle = j.stats.tacle || 25;
+      }
+    }
     j.note = noteGlobale(j.stats);
     j.signatures = statsSignatures(j.stats);
   }
@@ -476,7 +510,8 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
   const candidatsTir = [...attaquants];
   const milieuxAtt = parPoste(attaque, "MIL");
   if (milieuxAtt.length && (candidatsTir.length === 0 || proba(0.35))) candidatsTir.push(...milieuxAtt);
-  if (candidatsTir.length === 0) candidatsTir.push(...attaque.joueurs.filter((j) => j.poste !== "GAR"));
+  const improvise = candidatsTir.length === 0; // aucun joueur devant
+  if (improvise) candidatsTir.push(...attaque.joueurs.filter((j) => ligneDe(j) !== "GAR"));
   const finisseur = choisirParmi(attaque, ctx, candidatsTir);
   const gardien = parPoste(defense, "GAR")[0] || { nom: "la cage vide", stats: { reflexes: 5 }, cageVide: true };
 
@@ -502,7 +537,7 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
   // Un match court est un condensé : la conversion monte pour garder
   // un rythme de buts par MATCH comparable (décision n°20)
   const condense = (NB_PHASES - (ctx.nbPhases || NB_PHASES)) * 2.5;
-  let qualite = duo(finisseur, "tir", "placement") * forme(finisseur, ctx, attaque) + de(38) + bonusQualite + condense;
+  let qualite = duo(finisseur, "tir", "placement") * forme(finisseur, ctx, attaque) * (improvise ? 0.6 : 1) + de(38) + bonusQualite + condense;
   // Anti-emballement : un match plié se gère — l'équipe qui mène de 3+
   // lève le pied, le rythme de buts ralentit (écarts fleuves évités)
   const avance = ctx.scoreDe(attaque) - ctx.scoreAdverse(attaque);
@@ -724,18 +759,28 @@ function resoudrePhase(eqA, eqB, ctx) {
     const attaquants = [...parPoste(attaque, "ATT"), ...parPoste(attaque, "MIL")];
     const defenseurs = parPoste(defense, "DÉF");
     const gardienDef = parPoste(defense, "GAR")[0];
-    const forceAtt = forceCollective(attaque, attaquants.length ? attaquants : attaque.joueurs, typePercee.att[0], typePercee.att[1], ctx);
+    // personne devant (bus intégral) : on dégage au petit bonheur — une
+    // attaque improvisée par des défenseurs vaut moitié moins
+    const forceAtt = attaquants.length
+      ? forceCollective(attaque, attaquants, typePercee.att[0], typePercee.att[1], ctx)
+      : forceCollective(attaque, attaque.joueurs.filter((j) => ligneDe(j) !== "GAR"), typePercee.att[0], typePercee.att[1], ctx) * 0.45;
+    // Le surnombre défensif sature : au-delà d'un défenseur de plus que
+    // d'attaquants, on se marche dessus (le bus est viable, pas absolu)
+    const defenseursUtiles = defenseurs.slice(0, Math.max(attaquants.length, 1) + 1);
     let forceDef;
     if (typePercee.type === "centre") {
       forceDef = (gardienDef ? duo(gardienDef, "aerien", "placement") * 1.6 : 20)
-        + forceCollective(defense, defenseurs, "placement", "placement", ctx) * 0.5;
+        + forceCollective(defense, defenseursUtiles, "placement", "placement", ctx) * 0.5;
     } else {
-      forceDef = forceCollective(defense, defenseurs.length ? defenseurs : defense.joueurs.filter((j) => j.poste !== "GAR"), typePercee.def[0], typePercee.def[1], ctx);
+      forceDef = forceCollective(defense, defenseursUtiles.length ? defenseursUtiles : defense.joueurs.filter((j) => ligneDe(j) !== "GAR"), typePercee.def[0], typePercee.def[1], ctx);
     }
     if (typePercee.type === "aerien") ctx.duelAerienEnCours = true;
     let bonusAtt = 0;
     if (s(attaque, "La Grinta") && ctx.scoreDe(attaque) < ctx.scoreAdverse(attaque)) bonusAtt += 6 * s(attaque, "La Grinta");
-    percee = forceAtt + bonusAtt + de(50) > forceDef + de(50);
+    // l'encombrement dilue le marquage : une ligne à 2 défend plein pot,
+    // un bus à 4-5 se marche dessus (−7 % par défenseur au-delà de 2)
+    const dilution = Math.max(0.72, 1 - 0.07 * Math.max(0, defenseursUtiles.length - 2));
+    percee = forceAtt + bonusAtt + de(50) > forceDef * dilution + de(50);
 
     if (!percee) {
       const rue = s(attaque, "École de la Rue");
@@ -744,7 +789,7 @@ function resoudrePhase(eqA, eqB, ctx) {
         ctx.etat[attaque.nom].flow++;
         if (aUnique(attaque, "O Rei da Rua")) ctx.etat[attaque.nom].flow++;
         evenements.push({ type: "geste", acteurs: [dribbleur.nom], texte: `${dribbleur.nom} est bloqué… petit pont ! La rue ne s'arrête jamais.`, synergie: "École de la Rue", equipe: attaque.nom });
-        percee = forceAtt + bonusAtt + 8 + de(50) > forceDef + de(50);
+        percee = forceAtt + bonusAtt + 8 + de(50) > forceDef * dilution + de(50);
       }
     }
     if (ctx.duelAerienEnCours) {
