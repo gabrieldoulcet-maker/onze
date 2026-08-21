@@ -15,6 +15,9 @@
 const { chromium } = require("playwright-core");
 const EXECUTABLE = process.env.CHROME || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 const N_PARTIES = Number(process.argv[2]) || 3;
+// mode « boost » : le bot reçoit un trésor de guerre à M4/M8 — un
+// FORÇAGE DE TEST pour couvrir la branche victoire et l'écran CHAMPION
+const BOOST = process.argv.includes("boost");
 
 let echecs = 0;
 const verifier = (nom, ok, detail) => {
@@ -77,8 +80,12 @@ async function unePartie(browser, numero) {
     }
 
     // ---- le mercato du bot : couvre achats, ventes, XP, verrou, staff ----
-    await page.evaluate((tour) => {
+    await page.evaluate(({ tour, boost }) => {
       arreterChrono();
+      if (boost && (partie.manche === 4 || partie.manche === 8) && !partie["boostM" + partie.manche]) {
+        partie["boostM" + partie.manche] = true;
+        partie.or += 40; // forçage de test (branche victoire)
+      }
       const nbCopies = (nom) => [...partie.terrain, ...partie.banc]
         .filter((j) => j.nom === nom && (j.etoiles || 1) === 1).length;
       for (let passe = 0; passe < 3; passe++) {
@@ -104,8 +111,18 @@ async function unePartie(browser, numero) {
       }
       // verrou : 2 manches de suite au milieu de partie (cas limite)
       partie.verrou = (partie.manche === 7 || partie.manche === 8);
+      // aligner les MEILLEURS (gardien inclus, jamais 2) — sans détruire
+      // de copies : personne n'est vendu ici, le banc garde le reste
+      const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
+      const tousJ = [...partie.terrain, ...partie.banc]
+        .sort((a, b) => (b.cout * (b.etoiles || 1)) - (a.cout * (a.etoiles || 1)));
+      const gardiens = tousJ.filter((j) => j.poste === "GAR");
+      const champ = tousJ.filter((j) => j.poste !== "GAR");
+      partie.terrain = [...(gardiens.length ? [gardiens[0]] : []), ...champ].slice(0, max);
+      partie.terrain.forEach((j) => { j.ligne = undefined; });
+      partie.banc = tousJ.filter((j) => !partie.terrain.includes(j));
       afficher();
-    }, tour);
+    }, { tour, boost: BOOST });
 
     // ---- les invariants durs ----
     const inv = await page.evaluate(() => {

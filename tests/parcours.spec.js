@@ -23,9 +23,10 @@ const verifier = (nom, ok) => {
   const page = await (await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true })).newPage();
   const erreursJS = [];
   page.on("pageerror", (e) => erreursJS.push(e.message));
+  await page.addInitScript(() => { try { localStorage.setItem("onze-tutoriel-vu", "1"); } catch (e) {} });
   await page.goto("http://localhost:8123/partie.html");
   await page.waitForSelector("#boutique .carte-boutique", { timeout: 8000 });
-  await page.evaluate(() => { localStorage.clear(); arreterChrono(); });
+  await page.evaluate(() => { arreterChrono(); });
 
   // ---- Mercato manche 1 : acheter tout ce qui est abordable ----
   await page.evaluate(() => {
