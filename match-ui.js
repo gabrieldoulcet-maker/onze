@@ -161,7 +161,7 @@ const ONZE_UI = (() => {
       <button class="fermer">Fermer</button>
     </div>`;
     voile.addEventListener("click", (e) => { if (e.target === voile || e.target.classList.contains("fermer")) voile.remove(); });
-    document.body.appendChild(voile);
+    (document.getElementById("app") || document.body).appendChild(voile);
   }
 
   return { rejouer, badges, basculerVitesse, ouvrirFiche };

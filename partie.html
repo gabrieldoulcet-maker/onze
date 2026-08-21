@@ -4,199 +4,251 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>ONZE — La Partie</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>⚽</text></svg>">
   <link rel="stylesheet" href="onze.css">
   <style>
     /* ============================================================
-       Écran unique façon TFT mobile (décision n°19) :
-       le TERRAIN est la scène permanente — le match s'y joue,
-       la boutique est un tiroir toujours ouvert, le classement
-       un volet. Architecture cible du match animé 2D.
+       Copie de l'interface TFT mobile (décision n°19, en PAYSAGE) :
+       - synergies en colonne à GAUCHE
+       - plateau (terrain) au CENTRE, banc juste dessous
+       - classement des 8 coachs toujours visible à DROITE
+       - boutique en barre du BAS : or/XP/refresh à gauche des 5 cartes
+       Le match se joue sur le terrain, le tiroir reste ouvert.
        ============================================================ */
     html, body { height: 100%; }
     body { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
 
-    /* ---- Barre du haut : club, manche, or, volet classement ---- */
-    .barre {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 8px; padding: 8px 10px;
-      background: #0B100C; border-bottom: 1px solid #24331F;
-      font-size: 0.78rem; flex: 0 0 auto;
+    /* ---- C'est une app : le jeu est TOUJOURS horizontal. En attendant
+       le verrouillage natif (Capacitor), on tourne l'interface nous-mêmes
+       quand le téléphone est tenu en portrait. ---- */
+    #app { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; background: #101711; }
+    @media (orientation: portrait) {
+      #app {
+        position: absolute; top: 0; left: 0;
+        width: 100vh; height: 100vw;
+        transform: rotate(90deg) translateY(-100%);
+        transform-origin: top left;
+      }
     }
-    .barre .infos-club { line-height: 1.3; }
-    .barre .infos-club small { color: #96A699; font-size: 0.68rem; }
-    .barre .or { color: #E8C547; font-weight: 800; font-size: 1rem; white-space: nowrap; }
-    .barre button {
+    /* Les panneaux se posent DANS #app pour tourner avec lui */
+    .volet, .voile-fiche, .fusion-banniere, .message-flottant { position: absolute; }
+
+    /* ---- Barre du haut : manche + annonce + vitesses ---- */
+    .haut {
+      flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; padding: 4px 10px; background: #0B100C; border-bottom: 1px solid #24331F;
+      font-size: 0.72rem; color: #96A699;
+    }
+    .haut .manche-info { cursor: pointer; white-space: nowrap; }
+    .haut .annonce { flex: 1; text-align: center; color: #C9D6C9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .haut button {
       background: #182219; color: #A9DDB6; border: 1px solid #24331F;
-      border-radius: 8px; padding: 6px 9px; font-size: 0.72rem; font-weight: 700; cursor: pointer;
+      border-radius: 7px; padding: 3px 8px; font-size: 0.68rem; font-weight: 700; cursor: pointer;
     }
 
-    /* ---- Le terrain ---- */
-    .scene { flex: 1 1 auto; position: relative; min-height: 0; display: flex; flex-direction: column; }
-    .terrain {
-      flex: 1; position: relative; margin: 6px 8px;
-      background:
-        radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05) 0 9%, transparent 9.5%),
-        repeating-linear-gradient(0deg, #1C5A2C 0 12.5%, #1F6330 12.5% 25%),
-        #1C5A2C;
-      border: 2px solid rgba(255,255,255,0.35); border-radius: 10px;
-      display: flex; flex-direction: column; justify-content: space-between;
-      padding: 10px 4px; overflow: hidden;
+    /* ---- Le centre : synergies | plateau | classement ---- */
+    .centre { flex: 1 1 auto; display: flex; min-height: 0; }
+    .col-synergies {
+      flex: 0 0 112px; overflow-y: auto; padding: 6px 4px 6px 8px;
+      display: flex; flex-direction: column; gap: 3px;
     }
-    .terrain::before { /* rond central + ligne médiane */
-      content: ""; position: absolute; left: 0; right: 0; top: 50%;
-      border-top: 2px solid rgba(255,255,255,0.3);
-    }
-    .terrain::after { /* surfaces */
-      content: ""; position: absolute; left: 25%; right: 25%; height: 9%;
-      top: -2px; border: 2px solid rgba(255,255,255,0.3); border-top: none;
-      box-shadow: 0 calc(100% + 0px) 0 0 transparent;
-    }
-    .ligne-terrain {
-      display: flex; justify-content: center; gap: 6px; min-height: 52px;
-      align-items: center; z-index: 1;
-    }
-    .jeton {
-      width: 62px; border-radius: 9px; padding: 3px 2px 2px;
-      background: #182219E6; border: 1px solid #35502F;
-      text-align: center; cursor: pointer; font-size: 0.6rem; color: #C9D6C9;
-      line-height: 1.25;
-    }
-    .jeton .note-jeton { font-weight: 800; font-size: 0.78rem; color: #E7EEE7; }
-    .jeton .etoiles { font-size: 0.6rem; }
-    .jeton.vide { border-style: dashed; color: #ffffff66; background: #0b100c55; min-height: 40px;
-      display: flex; align-items: center; justify-content: center; }
-    .jeton.cout-1 { border-left: 3px solid #8B9E8E; } .jeton.cout-2 { border-left: 3px solid #4FC57C; }
-    .jeton.cout-3 { border-left: 3px solid #4F9EC5; } .jeton.cout-4 { border-left: 3px solid #A66BD4; }
-    .jeton.cout-5 { border-left: 3px solid #E8C547; } .jeton.cout-0 { border-left: 3px solid #5A6A5C; }
-
-    /* ---- Pendant le match : tableau + journal PAR-DESSUS le terrain ---- */
-    .tableau-match {
-      position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
-      background: #0B100CE8; border: 1px solid #24331F; border-radius: 10px;
-      padding: 5px 12px; z-index: 5; text-align: center; font-size: 0.72rem;
-      color: #96A699; white-space: nowrap;
-    }
-    .tableau-match .score-match { font-size: 1.1rem; font-weight: 800; color: #E7EEE7; }
-    .journal {
-      position: absolute; left: 8px; right: 8px; bottom: 6px; max-height: 38%;
-      overflow-y: auto; z-index: 5;
-      display: flex; flex-direction: column; gap: 4px;
-      -webkit-mask-image: linear-gradient(to bottom, transparent, black 12%);
-              mask-image: linear-gradient(to bottom, transparent, black 12%);
-    }
-    .journal .phase { padding: 6px 9px; font-size: 0.74rem; line-height: 1.35; background: #182219F0; }
-    .journal .titre-phase { font-size: 0.62rem; margin-bottom: 1px; }
-    .journal .cri { font-size: 0.82rem; }
-    .journal:empty { display: none; }
-
-    /* ---- Bandeau synergies + ADN compact ---- */
-    .bandeau-bas { flex: 0 0 auto; padding: 4px 10px 0; }
-    .bandeau-bas .synergies { margin: 0 0 4px; }
-    .mini-adn { display: flex; gap: 5px; }
-    .mini-adn .axe-mini { flex: 1; text-align: center; font-size: 0.56rem; color: #96A699; }
-    .mini-adn .barre-mini { height: 4px; background: #182219; border-radius: 2px; overflow: hidden; margin-bottom: 1px; }
+    .col-synergies .badge { display: block; text-align: left; font-size: 0.6rem; padding: 3px 5px; }
+    .col-synergies .mini-adn { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+    .mini-adn .axe-mini { font-size: 0.54rem; color: #96A699; }
+    .mini-adn .barre-mini { height: 4px; background: #182219; border-radius: 2px; overflow: hidden; margin-top: 1px; }
     .mini-adn .barre-mini > div { height: 100%; background: #5F7A64; }
     .mini-adn .barre-mini > div.forte { background: #4FC57C; }
     .mini-adn .barre-mini > div.faible { background: #E88C7D; }
 
-    /* ---- Le tiroir : action de manche, banc, boutique ---- */
-    .tiroir {
-      flex: 0 0 auto; background: #0B100C; border-top: 1px solid #24331F;
-      padding: 6px 10px calc(8px + env(safe-area-inset-bottom));
-      display: flex; flex-direction: column; gap: 6px;
+    .plateau { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; padding: 4px 2px; }
+    .terrain {
+      flex: 1; position: relative; min-height: 0;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05) 0 8%, transparent 8.5%),
+        repeating-linear-gradient(90deg, #1C5A2C 0 12.5%, #1F6330 12.5% 25%),
+        #1C5A2C;
+      border: 2px solid rgba(255,255,255,0.35); border-radius: 10px;
+      display: flex; justify-content: space-between; padding: 4px 8px; overflow: hidden;
     }
-    .tiroir .principal { margin: 0; padding: 10px; font-size: 0.95rem; }
-    .rangee-banc { display: flex; gap: 5px; overflow-x: auto; min-height: 46px; padding-bottom: 2px; }
-    .rangee-banc .jeton { flex: 0 0 58px; }
-    .rangee-boutique { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+    .terrain::before { /* ligne médiane verticale */
+      content: ""; position: absolute; top: 0; bottom: 0; left: 50%;
+      border-left: 2px solid rgba(255,255,255,0.3);
+    }
+    .ligne-terrain {
+      display: flex; flex-direction: column; justify-content: center; gap: 4px;
+      min-width: 58px; z-index: 1;
+    }
+    .jeton {
+      width: 60px; border-radius: 8px; padding: 2px;
+      background: #182219E6; border: 1px solid #35502F;
+      text-align: center; cursor: pointer; font-size: 0.56rem; color: #C9D6C9; line-height: 1.2;
+    }
+    .jeton .note-jeton { font-weight: 800; font-size: 0.72rem; color: #E7EEE7; }
+    .jeton .etoiles { font-size: 0.56rem; }
+    .jeton.vide { border-style: dashed; color: #ffffff66; background: #0b100c55; min-height: 30px;
+      display: flex; align-items: center; justify-content: center; }
+    .jeton.cout-1 { border-left: 3px solid #8B9E8E; } .jeton.cout-2 { border-left: 3px solid #4FC57C; }
+    .jeton.cout-3 { border-left: 3px solid #4F9EC5; } .jeton.cout-4 { border-left: 3px solid #A66BD4; }
+    .jeton.cout-5 { border-left: 3px solid #E8C547; } .jeton.cout-0 { border-left: 3px solid #5A6A5C; }
+    .rangee-banc {
+      flex: 0 0 auto; display: flex; gap: 4px; overflow-x: auto;
+      padding: 4px 2px 0; min-height: 40px;
+    }
+    .rangee-banc .jeton { flex: 0 0 56px; }
+
+    .col-classement {
+      flex: 0 0 128px; display: flex; flex-direction: column;
+      padding: 6px 8px 6px 4px; gap: 2px; overflow-y: auto;
+    }
+    .col-classement .coach-ligne {
+      background: #182219; border: 1px solid #24331F; border-radius: 7px;
+      padding: 3px 6px; font-size: 0.6rem; cursor: pointer; color: #C9D6C9;
+    }
+    .col-classement .coach-ligne.moi { color: #4FC57C; font-weight: 700; border-color: #35502F; }
+    .col-classement .coach-ligne.mort { color: #5A6A5C; text-decoration: line-through; }
+    .col-classement .barre-prestige { height: 4px; background: #0B100C; border-radius: 2px; overflow: hidden; margin-top: 2px; }
+    .col-classement .barre-prestige > div { height: 100%; background: #4FC57C; }
+    .col-classement .principal {
+      margin: auto 0 0; padding: 10px 4px; font-size: 0.78rem; width: 100%;
+    }
+
+    /* ---- Pendant le match : tableau + journal sur le terrain ---- */
+    .tableau-match {
+      position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+      background: #0B100CE8; border: 1px solid #24331F; border-radius: 9px;
+      padding: 3px 12px; z-index: 5; text-align: center; font-size: 0.64rem;
+      color: #96A699; white-space: nowrap;
+    }
+    .tableau-match .score-match { font-size: 0.95rem; font-weight: 800; color: #E7EEE7; }
+    .journal {
+      position: absolute; left: 6px; right: 6px; bottom: 4px; max-height: 52%;
+      overflow-y: auto; z-index: 5; display: flex; flex-direction: column; gap: 3px;
+      -webkit-mask-image: linear-gradient(to bottom, transparent, black 15%);
+              mask-image: linear-gradient(to bottom, transparent, black 15%);
+    }
+    .journal .phase { padding: 4px 8px; font-size: 0.68rem; line-height: 1.3; background: #182219F0; }
+    .journal .titre-phase { font-size: 0.56rem; margin-bottom: 0; }
+    .journal .cri { font-size: 0.74rem; }
+    .journal:empty { display: none; }
+
+    /* ---- La barre boutique du bas (copie TFT) ---- */
+    .boutique-barre {
+      flex: 0 0 auto; display: flex; gap: 6px; align-items: stretch;
+      background: #0B100C; border-top: 1px solid #24331F;
+      padding: 5px 8px calc(5px + env(safe-area-inset-bottom));
+    }
+    .bloc-eco {
+      flex: 0 0 96px; display: flex; flex-direction: column; gap: 3px;
+    }
+    .bloc-eco .or-affiche { text-align: center; color: #E8C547; font-weight: 800; font-size: 0.9rem; }
+    .bloc-eco button {
+      flex: 1; background: #182219; color: #A9DDB6; border: 1px solid #24331F;
+      border-radius: 7px; font-size: 0.6rem; font-weight: 700; cursor: pointer; padding: 3px;
+      line-height: 1.25;
+    }
+    .bloc-eco button:disabled { color: #5A6A5C; }
+    .rangee-boutique { flex: 1; display: flex; gap: 5px; overflow-x: auto; }
     .carte-boutique {
-      flex: 0 0 104px; background: #182219; border: 1px solid #24331F; border-radius: 10px;
-      padding: 6px; font-size: 0.62rem; color: #C9D6C9; cursor: pointer; line-height: 1.3;
-      display: flex; flex-direction: column; gap: 2px;
+      flex: 1 0 96px; background: #182219; border: 1px solid #24331F; border-radius: 9px;
+      padding: 4px 5px; font-size: 0.56rem; color: #C9D6C9; cursor: pointer; line-height: 1.25;
+      display: flex; flex-direction: column; gap: 1px;
     }
-    .carte-boutique .haut { display: flex; justify-content: space-between; font-weight: 800; font-size: 0.72rem; color: #E7EEE7; }
+    .carte-boutique .haut-carte { display: flex; justify-content: space-between; font-weight: 800; font-size: 0.64rem; color: #E7EEE7; }
     .carte-boutique .prix { color: #E8C547; }
     .carte-boutique .signatures { color: #9CC4EF; font-weight: 700; }
-    .carte-boutique .traits-carte { color: #7E9483; font-size: 0.56rem; }
+    .carte-boutique .traits-carte { color: #7E9483; font-size: 0.52rem; }
     .carte-boutique button {
       margin-top: auto; background: #4FC57C; color: #0B100C; border: none;
-      border-radius: 7px; padding: 5px; font-weight: 800; font-size: 0.7rem; cursor: pointer;
+      border-radius: 6px; padding: 3px; font-weight: 800; font-size: 0.62rem; cursor: pointer;
     }
     .carte-boutique button:disabled { background: #2A3A2C; color: #6C7A6E; }
     .carte-boutique.vendue { opacity: 0.35; justify-content: center; text-align: center; }
     .carte-boutique.cout-1 { border-top: 3px solid #8B9E8E; } .carte-boutique.cout-2 { border-top: 3px solid #4FC57C; }
     .carte-boutique.cout-3 { border-top: 3px solid #4F9EC5; } .carte-boutique.cout-4 { border-top: 3px solid #A66BD4; }
     .carte-boutique.cout-5 { border-top: 3px solid #E8C547; }
-    .rangee-boutons { display: flex; gap: 6px; }
-    .rangee-boutons button {
-      flex: 1; background: #182219; color: #A9DDB6; border: 1px solid #24331F;
-      border-radius: 9px; padding: 8px 4px; font-size: 0.72rem; font-weight: 700; cursor: pointer;
-    }
-    .rangee-boutons button:disabled { color: #5A6A5C; }
+    .btn-verrou-carte { flex: 0 0 30px; background: #182219; color: #A9DDB6; border: 1px solid #24331F;
+      border-radius: 7px; font-size: 0.85rem; cursor: pointer; }
 
-    /* ---- Volets et panneaux (classement, résultats, fin) ---- */
+    .message-flottant {
+      position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%);
+      color: #E88C7D; font-size: 0.75rem; z-index: 90; background: #0B100CDD;
+      border-radius: 8px; padding: 0 8px; pointer-events: none; text-align: center;
+    }
+
+    /* ---- Volets et panneaux ---- */
     .volet {
       position: fixed; inset: 0; background: rgba(6, 10, 7, 0.88);
-      z-index: 60; display: flex; align-items: flex-start; justify-content: center;
-      padding: 40px 14px; overflow-y: auto;
+      z-index: 60; display: flex; align-items: center; justify-content: center;
+      padding: 14px; overflow-y: auto;
     }
     .volet .panneau {
       background: #131b14; border: 1px solid #35502F; border-radius: 14px;
-      width: 100%; max-width: 400px; padding: 14px; animation: apparait 0.25s ease;
+      width: 100%; max-width: 420px; max-height: 92vh; overflow-y: auto;
+      padding: 14px; animation: apparait 0.25s ease; font-size: 0.8rem;
     }
     .volet .panneau .classement { border: none; padding: 0; margin: 0 0 8px; background: none; }
     .volet .fermer-volet {
       width: 100%; margin-top: 10px; background: #24331F; color: #A9DDB6;
-      border: none; border-radius: 10px; padding: 10px; font-weight: 700; cursor: pointer;
+      border: none; border-radius: 10px; padding: 9px; font-weight: 700; cursor: pointer;
     }
+    .orbes { margin: 8px 0 2px; }
+    .orbe { width: 64px; height: 64px; font-size: 1.5rem; }
   </style>
 </head>
 <body>
+  <div id="app">
 
   <!-- ===== Barre du haut ===== -->
-  <div class="barre">
-    <div class="infos-club">
-      <strong>Mon Club</strong> · M<span id="manche">1</span><br>
-      <small>💚 <span id="prestige">40</span> · Niv <span id="niveau">3</span> ·
-      XP <span id="xp">0</span>/<span id="xp-suivant">6</span> · Série <span id="serie">—</span> · 🧰 <span id="staff">0</span></small>
-    </div>
-    <div class="or"><span id="or">0</span>M 🪙</div>
-    <button id="btn-classement">🏆</button>
+  <div class="haut">
+    <span class="manche-info" id="btn-historique">📜 M<span id="manche">1</span> ·
+      💚 <span id="prestige">40</span> · Niv <span id="niveau">3</span> ·
+      XP <span id="xp">0</span>/<span id="xp-suivant">6</span> ·
+      <span id="serie">—</span> · 🧰 <span id="staff">0</span></span>
+    <span class="annonce" id="annonce"></span>
+    <button id="btn-vitesse" class="masque">⏩ ×2</button>
   </div>
 
-  <!-- ===== La scène : le terrain (mercato ET match) ===== -->
-  <div class="scene">
-    <div class="terrain" id="terrain-scene">
-      <div class="ligne-terrain" id="ligne-ATT"></div>
-      <div class="ligne-terrain" id="ligne-MIL"></div>
-      <div class="ligne-terrain" id="ligne-DÉF"></div>
-      <div class="ligne-terrain" id="ligne-GAR"></div>
-      <div class="tableau-match masque" id="tableau-match">
-        <span id="nom-adversaire-match"></span><br>
-        <span class="score-match"><span id="score-a">0</span> – <span id="score-b">0</span></span><br>
-        <span id="chrono"></span>
-      </div>
-      <div class="journal" id="recit"></div>
-    </div>
-    <div class="bandeau-bas">
-      <div class="synergies" id="synergies-club"></div>
+  <!-- ===== Centre : synergies | plateau + banc | classement ===== -->
+  <div class="centre">
+    <div class="col-synergies">
+      <div id="synergies-club"></div>
       <div class="mini-adn" id="axes-adn"></div>
     </div>
+    <div class="plateau">
+      <div class="terrain" id="terrain-scene">
+        <div class="ligne-terrain" id="ligne-GAR"></div>
+        <div class="ligne-terrain" id="ligne-DÉF"></div>
+        <div class="ligne-terrain" id="ligne-MIL"></div>
+        <div class="ligne-terrain" id="ligne-ATT"></div>
+        <div class="tableau-match masque" id="tableau-match">
+          <span id="nom-adversaire-match"></span>
+          <span class="score-match"> <span id="score-a">0</span> – <span id="score-b">0</span> </span>
+          <span id="chrono"></span>
+        </div>
+        <div class="journal" id="recit"></div>
+      </div>
+      <div class="rangee-banc" id="banc"></div>
+    </div>
+    <div class="col-classement" id="col-classement">
+      <div id="classement-liste"></div>
+      <button class="principal" id="btn-match">⚽</button>
+    </div>
   </div>
 
-  <!-- ===== Le tiroir permanent ===== -->
-  <div class="tiroir">
-    <button class="principal" id="btn-match">⚽ Jouer la manche</button>
-    <div class="rangee-banc" id="banc"></div>
-    <div class="rangee-boutique" id="boutique"></div>
-    <div class="rangee-boutons">
-      <button id="btn-refresh">🔄 2M</button>
-      <button id="btn-verrou" style="flex:0 0 46px">🔓</button>
-      <button id="btn-xp">📈 XP 4M</button>
-      <button id="btn-vitesse" class="masque">⏩ ×2</button>
+  <!-- ===== Barre boutique du bas (copie TFT) ===== -->
+  <div class="boutique-barre">
+    <div class="bloc-eco">
+      <div class="or-affiche"><span id="or">0</span>M 🪙</div>
+      <button id="btn-xp">📈 Acheter XP<br>4M → +4</button>
+      <button id="btn-refresh">🔄 Actualiser<br>2M</button>
     </div>
-    <div class="message-erreur" id="message" style="min-height:1em;margin:0"></div>
+    <div class="rangee-boutique" id="boutique"></div>
+    <button class="btn-verrou-carte" id="btn-verrou">🔓</button>
   </div>
+
+  <div class="message-flottant" id="message"></div>
+
+  </div><!-- /app -->
 
   <script src="match-moteur.js"></script>
   <script src="match-ui.js"></script>
@@ -388,7 +440,7 @@
           banniere.innerHTML = f.etoiles >= 3
             ? `🌟 LÉGENDE DU CLUB ! 🌟<br>${f.nom} atteint les 3 étoiles !<small>Le sommet absolu — niveau maximum</small>`
             : `✨ FUSION ! ✨<br>${f.nom} devient Titulaire 2★<small>Trois copies réunies — les stats grimpent</small>`;
-          document.body.appendChild(banniere);
+          el("app").appendChild(banniere);
           setTimeout(() => banniere.remove(), 2700);
         }, i * 900);
       });
@@ -476,7 +528,7 @@
       const fiches = postes.map((poste, i) => gabarit.relevee && poste !== "GAR"
         ? hasardParmi(tousLesJoueurs.filter((j) => j.poste === poste && j.cout === 1))
         : { nom: ["Gégé", "Bernard", "Paulo", "Kiki", "Dédé"][i], cout: 0, poste, ecole: "", archetype: "", unique: null });
-      return ONZE.equipeDepuisFiches("Amical — " + gabarit.nom, gabarit.nom, fiches);
+      return ONZE.equipeDepuisFiches(gabarit.nom, gabarit.nom, fiches); // nom seul dans le récit
     }
     /* Courbe calibrée (simulations/parties.js) : ~50 % de top 4 */
     function genererEquipeIA(coach) {
@@ -545,7 +597,7 @@
       el("nom-adversaire-match").textContent = "⚔️ " + (amical ? partie.appariement.nomAdversaire : monAdversaire.nom);
       el("btn-vitesse").classList.remove("masque");
       el("btn-match").disabled = true;
-      el("btn-match").textContent = "⏱ Match en cours — la boutique reste ouverte";
+      el("btn-match").textContent = "⏱ Match…";
       el("recit").innerHTML = "";
       afficher();
       ONZE_UI.rejouer(resultat, monEquipe, equipeAdverse, {
@@ -617,7 +669,7 @@
       const volet = document.createElement("div");
       volet.className = "volet";
       volet.innerHTML = html;
-      document.body.appendChild(volet);
+      el("app").appendChild(volet);
       document.getElementById("btn-continuer").addEventListener("click", () => { volet.remove(); continuer(); });
 
       if (monAdversaire) partie.dernierAdversaire = monAdversaire.nom;
@@ -647,7 +699,7 @@
           <div class="classement">${ligneClassement()}</div>
           <button class="fermer-volet" onclick="this.closest('.volet').remove(); nouvellePartie()">🔁 Nouvelle partie</button>
         </div>`;
-        document.body.appendChild(volet);
+        el("app").appendChild(volet);
         return;
       }
       if (!partie.verrou) nouvelleBoutique();
@@ -676,7 +728,7 @@
         <button class="fermer-volet">Fermer</button>
       </div>`;
       volet.addEventListener("click", (e) => { if (e.target === volet || e.target.classList.contains("fermer-volet")) volet.remove(); });
-      document.body.appendChild(volet);
+      el("app").appendChild(volet);
       const annonce = partie.appariement.amical
         ? `🤝 Prochain match : ${partie.appariement.nomAdversaire} (aucun dégât)`
         : `⚔️ Prochain adversaire : ${partie.appariement.nomAdversaire} — touche-le pour scouter`;
@@ -710,7 +762,7 @@
         <button class="fermer">Fermer</button>
       </div>`;
       voile.addEventListener("click", (e) => { if (e.target === voile || e.target.classList.contains("fermer")) voile.remove(); });
-      document.body.appendChild(voile);
+      el("app").appendChild(voile);
     }
 
     /* ================= Le menu d'un joueur (jeton ou banc) ================= */
@@ -741,7 +793,7 @@
         if (action === "bouger") basculer(nomListe, indice);
         if (action === "vendre") vendre(nomListe, indice);
       });
-      document.body.appendChild(voile);
+      el("app").appendChild(voile);
     }
 
     /* ================= Affichage de l'écran unique ================= */
@@ -806,14 +858,28 @@
         return `<div class="axe-mini"><div class="barre-mini"><div class="${classe}" style="width:${valeur}%"></div></div>${axe}</div>`;
       }).join("");
 
+      // Annonce du prochain adversaire (barre du haut)
+      el("annonce").textContent = partie.matchEnCours ? ""
+        : partie.appariement.amical
+          ? `🤝 ${partie.appariement.nomAdversaire} (aucun dégât)`
+          : `⚔️ Prochain adversaire : ${partie.appariement.nomAdversaire}`;
+
+      // Classement permanent en colonne droite (copie TFT), tap = scouting
+      el("classement-liste").innerHTML = partie.coachs.slice()
+        .sort((a, b) => b.prestige - a.prestige).map((c) => {
+          const indice = partie.coachs.indexOf(c);
+          const classes = "coach-ligne" + (c.ia ? "" : " moi") + (c.vivant ? "" : " mort");
+          const serie = c.serie > 1 ? " 🔥" : c.serie < -1 ? " ❄️" : "";
+          return `<div class="${classes}" onclick="scouterIndice(${indice})">${c.nom}${serie}
+            <div class="barre-prestige"><div style="width:${Math.round(100 * c.prestige / PRESTIGE_DEPART)}%"></div></div></div>`;
+        }).join("");
+
       // Bouton de manche
       if (!partie.matchEnCours) {
         const verdict = verdictFormation();
-        const amical = partie.appariement && partie.appariement.amical;
         el("btn-match").disabled = !!verdict;
         el("btn-match").textContent = verdict ? "⚽ " + verdict
-          : `⚽ Manche ${partie.manche}${amical ? " (amical)" : " — ⚔️ " + partie.appariement.nomAdversaire}` +
-            (formationIncomplete() ? " 😬" : "");
+          : `⚽ Manche ${partie.manche}` + (formationIncomplete() ? " 😬" : "");
       }
     }
 
@@ -825,7 +891,7 @@
         el("btn-match").addEventListener("click", jouerManche);
         el("btn-refresh").addEventListener("click", refresh);
         el("btn-xp").addEventListener("click", acheterXP);
-        el("btn-classement").addEventListener("click", ouvrirClassement);
+        el("btn-historique").addEventListener("click", ouvrirClassement);
         el("btn-verrou").addEventListener("click", () => {
           partie.verrou = !partie.verrou;
           signaler(partie.verrou ? "🔒 La boutique t'attendra à la prochaine manche." : "🔓 Boutique déverrouillée.");

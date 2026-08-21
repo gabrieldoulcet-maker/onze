@@ -31,6 +31,6 @@ Si une demande ou une feature n'aide aucun des trois : le dire franchement à Ga
 ## Conventions techniques
 
 - **Stack : web vanilla.** HTML/CSS/JavaScript pur. Pas de framework, pas de bundler, pas de dépendance sans vraie nécessité (justifie toute exception en une phrase).
-- **Mobile-first portrait.** Tout se teste d'abord sur téléphone via l'URL GitHub Pages. `index.html` à la racine (contrainte GitHub Pages) ; le code du jeu peut vivre dans des fichiers séparés chargés depuis cette page.
+- **Mobile-first.** L'écran de jeu unique (la Partie) se joue en **paysage**, comme TFT ; les pages annexes (menu, bac à sable) restent portrait. Tout se teste d'abord sur téléphone via l'URL GitHub Pages. `index.html` à la racine (contrainte GitHub Pages) ; le code du jeu peut vivre dans des fichiers séparés chargés depuis cette page.
 - **Simplicité et lisibilité du code** : d'autres sessions Claude reprendront ce travail — code clair, commentaires en français.
 - Multijoueur : hors sujet avant la phase 6 de la feuille de route, et alors en asynchrone (lobbies fantômes), jamais en temps réel.
