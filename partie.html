@@ -1010,11 +1010,18 @@
       el("btn-match").textContent = "⏱ Match…";
       el("recit").innerHTML = "";
       // La scène animée (phase 3) : le terrain devient la scène, le
-      // récit complet se replie derrière 📜, le bandeau prend le relais
+      // récit complet se replie derrière 📜, le bandeau prend le relais.
+      // Mode « commentaire seul » (réglage 🏆) : pas de scène, le
+      // journal en plein écran — pour jouer discret.
       if (sceneMatch) sceneMatch.detruire();
-      sceneMatch = ONZE_SCENE.creer(el("terrain-scene"), monEquipe, equipeAdverse,
-        { chrono: el("chrono"), jauge: el("jauge-dom") });
-      el("recit").classList.add("replie");
+      if (modeCommentaire) {
+        sceneMatch = null;
+        el("recit").classList.remove("replie");
+      } else {
+        sceneMatch = ONZE_SCENE.creer(el("terrain-scene"), monEquipe, equipeAdverse,
+          { chrono: el("chrono"), jauge: el("jauge-dom") });
+        el("recit").classList.add("replie");
+      }
       el("bandeau-recit").innerHTML = "";
       afficher();
       ONZE_UI.rejouer(resultat, monEquipe, equipeAdverse, {
@@ -1023,6 +1030,9 @@
       }, () => finDeManche(resultat, monAdversaire, resultatsIA),
         { sansPrestige: amical || partie.appariement.coupe, manche: partie.manche, delaiPhase: format.delaiPhase, delaiEvenement: format.delaiEvenement,
           scene: sceneMatch,
+          // le lobby vit pendant ton match : les scores des autres
+          // s'annoncent en toasts pendant le régime compressé
+          scoresLobby: resultatsIA.map((r) => `⚽ ${r.c1.nom} ${r.scoreA}-${r.scoreB} ${r.c2.nom}`),
           // l'enjeu du match dose la célébration : 1 amical/coupe,
           // 2 PvP, 3 quand une élimination est dans l'air
           enjeu: amical || partie.appariement.coupe ? 1
@@ -1431,6 +1441,21 @@
       el("app").appendChild(volet);
     }
 
+    /* Les réglages FM du volet 🏆 : replay de but et commentaire seul */
+    function basculerReplay() {
+      let actif = true;
+      try {
+        actif = localStorage.getItem("onze-replay") === "off"; // on inverse
+        localStorage.setItem("onze-replay", actif ? "on" : "off");
+      } catch (e) {}
+      return actif;
+    }
+    function basculerCommentaire() {
+      modeCommentaire = !modeCommentaire;
+      try { localStorage.setItem("onze-commentaire", modeCommentaire ? "on" : "off"); } catch (e) {}
+      return modeCommentaire;
+    }
+
     /* La bascule du panneau gauche : le bouton affiche la page CACHÉE
        (avec le nombre de cartes staff en attente, l'appel du regard) */
     function majBasculeGauche() {
@@ -1461,6 +1486,8 @@
         ${partie.philosophies.length ? `<div class="coach" style="margin-top:4px"><span>🧭 ${partie.philosophies.join(" · ")}</span></div>` : ""}
         <button class="fermer-volet" onclick="basculerDetente(); this.closest('.volet').remove()">${modeDetente ? "⏱ Réactiver le chrono (référence)" : "🧘 Mode détente (sans chrono)"}</button>
         <button class="fermer-volet" onclick="this.textContent = ONZE_JUICE.basculer() ? '🔊 Sons : activés' : '🔇 Sons : coupés'">${ONZE_JUICE.estActif() ? "🔊 Sons : activés" : "🔇 Sons : coupés"}</button>
+        <button class="fermer-volet" onclick="this.textContent = basculerReplay() ? '🔁 Replay de but : activé' : '🔁 Replay de but : coupé'">${(() => { try { return localStorage.getItem("onze-replay") !== "off"; } catch (e) { return true; } })() ? "🔁 Replay de but : activé" : "🔁 Replay de but : coupé"}</button>
+        <button class="fermer-volet" onclick="this.textContent = basculerCommentaire() ? '💬 Commentaire seul : activé' : '🎥 Scène animée : activée'">${modeCommentaire ? "💬 Commentaire seul : activé" : "🎥 Scène animée : activée"}</button>
         <button class="fermer-volet" style="background:#3A2A24;color:#D4A66B" onclick="if (confirm('Abandonner cette partie ?')) recommencerPartie()">🔁 Nouvelle partie</button>
         <details style="margin-top:8px"><summary style="cursor:pointer;color:#96A699;font-size:0.8rem">📜 Historique des manches</summary>
         <div style="font-size:0.76rem;margin-top:4px">${partie.historique.map((h) => `<div class="coach"><span>${h}</span></div>`).join("") || "La saison commence."}</div></details>
@@ -1768,6 +1795,8 @@
        arrière-plan met en pause. « Mode détente » = sans chrono. */
     const CLE_DETENTE = "onze-mode-detente";
     let modeDetente = false;
+    let modeCommentaire = false; // « commentaire seul » : pas de scène, le journal en grand
+    try { modeCommentaire = localStorage.getItem("onze-commentaire") === "on"; } catch (e) {}
     let dernierMatch = null; // { resultat, eqA, eqB } — pour le recap ⚔️
     let sceneMatch = null; // la scène animée du match (match-scene.js)
     let synergiesConnues = null; // paliers déjà célébrés (pour le son)
@@ -2330,7 +2359,8 @@
         el("btn-legende").addEventListener("click", ouvrirLegende);
         el("btn-calepin").addEventListener("click", ouvrirCalepin);
         el("btn-recap").addEventListener("click", () => {
-          if (dernierMatch) ONZE_UI.ouvrirRecap(dernierMatch.resultat, dernierMatch.eqA, dernierMatch.eqB);
+          if (dernierMatch) ONZE_UI.ouvrirRecap(dernierMatch.resultat, dernierMatch.eqA, dernierMatch.eqB,
+            { enCours: partie.matchEnCours }); // en direct : zéro spoiler
         });
         // Boutique escamotable : tap sur le sac d'or (état non sauvegardé)
         el("btn-sac").addEventListener("click", () => {

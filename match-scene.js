@@ -1,31 +1,33 @@
 /* ============================================================
-   ONZE — La scène animée du match, façon Football Manager Touch
-   (vue 2D classique). Décision n°24 : l'animation est une
-   PROJECTION FIDÈLE du moteur — zéro cosmétique aléatoire.
+   ONZE — La scène animée du match, façon Football Manager Touch.
+   Décisions n°24 et n°25 : l'animation projette FIDÈLEMENT le
+   moteur (zéro cosmétique aléatoire), et ON NE REND QUE DES
+   PROMESSES — une action rendue pose une question (« ça passe ou
+   pas ? ») et ne révèle son issue qu'au dernier temps.
    ------------------------------------------------------------
-   - Canvas 2D, 60 fps : terrain épuré vu de dessus, joueurs =
-     disques numérotés aux couleurs du club (gardien distinct),
-     ballon = petit disque blanc avec traînée, anneau sur le
-     porteur. Interpolation fluide partout, jamais de téléportation,
-     petites dérives de formation entre les événements.
-   - Deux régimes : la DOMINATION (tissu compressé entre les temps
-     forts — circulation stylée par École, jauge sous le score,
-     minute qui défile) et le RENDU complet (occasions : chorégraphie
-     temps réel, micro-ralenti de 0,5 s sur les buts).
-   - Les attaques passent par où l'équipe est forte : le style de
-     mouvement de chaque École se voit dans la circulation même.
-   - La chaîne causale du moteur (événement `percee` : quel perceur,
-     quel défenseur battu, quel type de duel) devient la chorégraphie.
+   - Canvas 60 fps. Les joueurs BOUGENT en permanence : dérive
+     constante, et le bloc entier coulisse avec la possession
+     (l'équipe qui attaque monte, celle qui défend recule et se
+     resserre). Courses d'appel pendant les actions.
+   - Un rendu = une ACTION CONSTRUITE de 3 à 6 temps (récupération
+     → relais stylés → percée → frappe → issue), jouée en entier
+     depuis la construction. Plancher 0,8 s par temps, temps décisif
+     étiré (~1 s), issue identique en chorégraphie jusqu'au bout.
+   - Entre les actions : les « zones d'action » FM — tiers actif
+     surligné, mini-barre du temps par tiers, circulation stylée
+     par École, jauge de domination, minute qui ne défile QUE là.
+   - Replay de but ~2 s au ralenti (coupable d'un tap), toasts des
+     scores du lobby, célébration qui chevauche la reprise.
 
    API (pilotée par ONZE_UI.rejouer) :
-     const scene = ONZE_SCENE.creer(conteneur, eqA, eqB, {chrono, jauge});
-     scene.debutPhase(phase, {regime, duree, minuteDe, minuteA});
-     scene.tension(duree); scene.evenement(ev, duree);
-     scene.evenementDomination(ev); scene.diagnostic(); scene.detruire();
+     ONZE_SCENE.construireAction(phase, eqA, eqB) → [temps]
+     scene.debutPhase(phase, {regime, duree})
+     scene.tension(duree) · scene.jouerTemps(temps, duree)
+     scene.evenementDomination(ev) · scene.notifierLobby(texte)
+     scene.fin() · scene.diagnostic() · scene.detruire()
    ============================================================ */
 
 const ONZE_SCENE = (() => {
-  /* L'identité visuelle des familles : une couleur par École et archétype. */
   const COULEURS_FAMILLES = {
     "Tiki-Taka": "#4F9EC5", "Catenaccio": "#8B9E8E", "Kick & Rush": "#E8654F",
     "École de la Rue": "#E8C547", "La Grinta": "#C54F5E", "Football Total": "#9CC4EF",
@@ -37,9 +39,6 @@ const ONZE_SCENE = (() => {
   };
   const couleurFamille = (nom) => COULEURS_FAMILLES[nom] || "#E8C547";
 
-  /* Le style de jeu d'une équipe = son École dominante (synergie active
-     la plus haute, sinon la plus représentée) + le goût des couloirs
-     (≥ 2 Pistons). C'est LA traduction visuelle de l'ADN (décision 24b). */
   const STYLES_ECOLES = {
     "Tiki-Taka": "tiki", "Kick & Rush": "kickrush", "École de la Rue": "rue",
     "Catenaccio": "catenaccio", "Football Total": "total", "La Grinta": "grinta",
@@ -61,13 +60,103 @@ const ONZE_SCENE = (() => {
   const ligneDuJoueur = (j) => j.ligne || j.poste;
   const lerp = (a, b, t) => a + (b - a) * t;
 
+  /* ============================================================
+     LE DÉCOUPAGE D'UNE ACTION (décision 25) — pur et testable.
+     À partir des événements RÉELS d'une phase chaude, construit la
+     séquence de 3 à 6 temps : récupération → relais de construction
+     (l'expression du style : Tiki 2 passes courtes, Kick & Rush le
+     long ballon, la Rue la conduite) → percée (le vrai perceur, le
+     vrai battu) → frappe (temps décisif) → issue (cachée jusque-là).
+     Les relais sont des JOUEURS RÉELS de l'équipe ; les acteurs de
+     la chaîne causale (récupérateur, perceur, battu, passeur,
+     buteur, gardien) sont ceux du moteur.
+     ============================================================ */
+  function construireAction(phase, eqA, eqB) {
+    const evts = phase.evenements;
+    const temps = [];
+    const evPossession = evts.find((e) => e.type === "possession");
+    const evPercee = evts.find((e) => e.type === "percee");
+    const evGeste = evts.find((e) => e.type === "geste");
+    const evContre = evts.find((e) => e.type === "contre");
+    const evLong = evts.find((e) => e.type === "ballon_long" || e.type === "lambretta");
+    const evFinal = evts.find((e) => e.but || e.type === "arret" || e.type === "blocage");
+    const evStop = evts.find((e) => e.type === "percee_stoppee" || e.type === "interception");
+    const evHorsJeu = evts.find((e) => e.type === "hors_jeu");
+    const evRebonds = evts.filter((e) => e.type === "rebond");
+    const equipeAttaque = evFinal ? (evFinal.but ? evFinal.equipe : (eqA.nom === evFinal.equipe ? eqB.nom : eqA.nom))
+      : evPercee ? evPercee.equipe : evPossession ? evPossession.equipe : eqA.nom;
+    const equipe = eqA.nom === equipeAttaque ? eqA : eqB;
+    const style = styleDe(equipe).style;
+
+    // 1. la récupération (l'action commence à sa naissance, jamais au tir)
+    if (evPossession) temps.push({ type: "recuperation", ev: evPossession, acteur: evPossession.acteurs[0], equipe: equipeAttaque });
+    if (evContre) temps.push({ type: "contre", ev: evContre, equipe: evContre.equipe });
+
+    // 2. les relais de construction — l'ADN se lit ici
+    const porteur = evPossession && evPossession.acteurs[0];
+    const finisseur = evFinal && (evFinal.buteur || (evFinal.acteurs && evFinal.acteurs[0]));
+    const perceur = evPercee && evPercee.acteurs[0];
+    const passeur = evFinal && evFinal.passeur;
+    const relaisPossibles = equipe.joueurs
+      .map((j) => j.nom)
+      .filter((n) => n !== porteur && n !== finisseur && n !== perceur && ligneDuJoueur(equipe.joueurs.find((j) => j.nom === n)) !== "GAR");
+    if (evLong) {
+      temps.push({ type: "relais_long", ev: evLong, de: porteur, vers: perceur || finisseur || relaisPossibles[0], equipe: equipeAttaque });
+    } else if (style === "tiki" && relaisPossibles.length >= 1) {
+      temps.push({ type: "relais", de: porteur, vers: relaisPossibles[0], equipe: equipeAttaque, texte: null });
+      if (relaisPossibles.length >= 2 && evts.length <= 3) // 6 temps max
+        temps.push({ type: "relais", de: relaisPossibles[0], vers: passeur || relaisPossibles[1], equipe: equipeAttaque });
+    } else if (style === "kickrush") {
+      temps.push({ type: "relais_long", de: porteur, vers: perceur || finisseur || relaisPossibles[0], equipe: equipeAttaque });
+    } else if (style === "rue") {
+      temps.push({ type: "conduite", acteur: porteur || perceur, equipe: equipeAttaque });
+    } else if (relaisPossibles.length) {
+      temps.push({ type: "relais", de: porteur, vers: passeur || relaisPossibles[0], equipe: equipeAttaque });
+    }
+    if (evGeste) temps.push({ type: "geste", ev: evGeste, acteur: evGeste.acteurs[0], equipe: evGeste.equipe });
+
+    // 3. la percée : la chaîne causale du moteur
+    if (evPercee) temps.push({ type: "percee", ev: evPercee, sousType: evPercee.sousType,
+      acteur: evPercee.acteurs[0], battu: evPercee.acteurs[1], equipe: evPercee.equipe });
+    if (evStop) temps.push({ type: "stop", ev: evStop, acteur: evStop.acteurs[0], equipe: evStop.equipe });
+    if (evHorsJeu) temps.push({ type: "hors_jeu", ev: evHorsJeu, equipe: evHorsJeu.equipe });
+
+    // 4-5. la frappe (temps DÉCISIF, étiré) puis les issues — même
+    // chorégraphie jusqu'au bout : le suspense est la règle. Une phase
+    // peut porter PLUSIEURS finitions (double détente, renard) : chaque
+    // tir a son issue, les rebonds font la couture.
+    const finitions = evts.filter((e) => e.but || e.type === "arret" || e.type === "blocage");
+    if (finitions.length) {
+      temps.push({ type: "frappe", decisif: true, tireur: finisseur, passeur, equipe: equipeAttaque });
+      finitions.forEach((f, i) => {
+        if (i > 0) {
+          const rb = evRebonds[i - 1];
+          temps.push({ type: "rebond", ev: rb || null,
+            acteur: rb ? rb.acteurs[0] : (f.buteur || (f.acteurs && f.acteurs[0])), equipe: rb ? rb.equipe : f.equipe });
+        }
+        temps.push({
+          type: f.but ? "issue_but" : f.type === "arret" ? "issue_arret" : "issue_blocage",
+          ev: f, tireur: f.buteur || (f.acteurs && f.acteurs[0]), equipe: f.equipe, pres: !!f.pres,
+        });
+      });
+    }
+
+    // bornage 3-6 temps : on coupe les relais du milieu, JAMAIS une issue
+    while (temps.length > 6) {
+      const idx = temps.findIndex((t) => t.type === "relais" || t.type === "conduite");
+      if (idx === -1) break;
+      temps.splice(idx, 1);
+    }
+    return temps;
+  }
+
   function creer(conteneur, eqA, eqB, options = {}) {
     const racine = document.createElement("div");
     racine.className = "scene-match";
     const canvas = document.createElement("canvas");
     canvas.className = "toile-match";
     racine.appendChild(canvas);
-    const couche = document.createElement("div"); // chips, cris — DOM par-dessus
+    const couche = document.createElement("div");
     couche.className = "couche-scene";
     racine.appendChild(couche);
     conteneur.appendChild(racine);
@@ -75,20 +164,18 @@ const ONZE_SCENE = (() => {
 
     const styles = { moi: styleDe(eqA), eux: styleDe(eqB) };
 
-    /* ---- Placement : mon but à gauche ; le style décale les lignes
-       (Catenaccio se replie bas, le pivot du Kick & Rush avance). ---- */
     const xLigne = (camp, ligne) => {
       const base = { "GAR": 6, "DÉF": 20, "MIL": 35, "ATT": 46 }[ligne] || 40;
       const st = styles[camp];
       let x = base;
-      if (st.style === "catenaccio" && ligne !== "GAR") x -= 5;      // bloc bas
-      if (st.style === "kickrush" && ligne === "ATT") x += 4;         // pivot avancé
-      if (st.style === "grinta" && ligne !== "GAR") x += 2;           // pressing haut
+      if (st.style === "catenaccio" && ligne !== "GAR") x -= 5;
+      if (st.style === "kickrush" && ligne === "ATT") x += 4;
+      if (st.style === "grinta" && ligne !== "GAR") x += 2;
       return camp === "moi" ? x : 100 - x;
     };
     const BUTS = { moi: { x: 2, y: 50 }, eux: { x: 98, y: 50 } };
 
-    const disques = {}; // nom → disque
+    const disques = {};
     const listeDisques = [];
     const poserEquipe = (equipe, camp) => {
       const parLigne = {};
@@ -100,7 +187,7 @@ const ONZE_SCENE = (() => {
           const n = parLigne[ligne].length;
           const st = styles[camp];
           let y = n === 1 ? 50 : 16 + (68 * i) / (n - 1);
-          if (st.couloirs && n >= 2 && (i === 0 || i === n - 1)) y = i === 0 ? 10 : 90; // les Pistons collent aux lignes
+          if (st.couloirs && n >= 2 && (i === 0 || i === n - 1)) y = i === 0 ? 10 : 90;
           const d = {
             nom: j.nom, num: numero++, camp, gardien: ligneDuJoueur(j) === "GAR",
             ecole: j.ecole, archetype: j.archetype,
@@ -119,22 +206,27 @@ const ONZE_SCENE = (() => {
     const ballon = { x: 50, y: 50, cx: 50, cy: 50, vitesse: 5, trainee: [], suspendu: false };
     const campDe = (nomEquipe) => (nomEquipe === eqA.nom ? "moi" : "eux");
     const adverse = (camp) => (camp === "moi" ? "eux" : "moi");
-    const equipeDe = (camp) => (camp === "moi" ? eqA : eqB);
     const disqueDe = (nom) => disques[nom] || null;
     const gardienDe = (camp) => listeDisques.find((d) => d.camp === camp && d.gardien) || null;
 
-    /* ---- État de régime ---- */
-    let regime = "domination"; // domination | tension | rendu | ralenti
-    let facteurTemps = 1;      // le micro-ralenti des buts (0.15)
-    const jauge = { affichee: 0, cible: 0, pulse: false }; // +1 = moi domine
+    /* ---- État ---- */
+    let regime = "domination"; // domination | tension | rendu | ralenti | replay
+    let facteurTemps = 1;
+    let possession = null; // le camp qui a le ballon → les BLOCS COULISSENT
+    const jauge = { affichee: 0, cible: 0, pulse: false };
     const minute = { affichee: 0, cible: 0, duree: 1, depart: 0, t0: 0 };
-    let circulation = null; // { camp, style, prochainePasse, porteur }
+    let circulation = null;
+    let porteurAnneau = null;
     let tremblementCage = { camp: null, force: 0 };
     let detruit = false;
-    let finDeMatch = false; // le coup de sifflet final rend la main au chrono texte
+    let finDeMatch = false;
+    // les zones d'action FM : temps de ballon par tiers du terrain
+    const tempsParTiers = [0.001, 0.001, 0.001];
+    // le replay : ring buffer des dernières ~3,5 s (60 états/s max)
+    const REPLAY_ACTIF = (() => { try { return localStorage.getItem("onze-replay") !== "off"; } catch (e) { return true; } })();
+    const tampon = [];
+    let replay = null; // { etats, indice, t0 }
 
-    /* ---- La domination d'une phase : les VRAIS événements, pas un
-       effet. Possession/percée/tir pèsent pour leur camp. ---- */
     function dominationDe(phase) {
       let score = 0, poids = 0;
       for (const ev of phase.evenements) {
@@ -142,20 +234,22 @@ const ONZE_SCENE = (() => {
         const p = { possession: 0.5, percee: 0.7, percee_stoppee: 0.45, interception: 0.45,
           geste: 0.3, contre: 0.5, ballon_long: 0.3, lambretta: 0.4, rebond: 0.5, blocage: 0.4 }[ev.type]
           || (ev.but ? 1 : ev.type === "arret" ? 0.7 : 0.2);
-        // un arrêt/blocage est un point pour la DÉFENSE mais l'occasion
-        // était à l'attaque : l'attaque a dominé la phase pour l'obtenir
         const signeCorrige = (ev.type === "arret" || ev.type === "blocage") ? -signe : signe;
         score += signeCorrige * p; poids += p;
       }
       return poids ? Math.max(-1, Math.min(1, score / poids)) : 0;
     }
 
-    /* ---- La circulation stylée du régime domination : le camp qui
-       pousse fait circuler SELON SON ÉCOLE (décision 24b). ---- */
+    /* ---- La circulation stylée (régime domination) ---- */
     function lancerCirculation(camp) {
       const st = styles[camp];
+      possession = camp;
       circulation = { camp, style: st.style, couloirs: st.couloirs, prochainePasse: 0, porteur: null };
     }
+    const ligneApprox = (d) => {
+      const xMoi = d.camp === "moi" ? d.baseX : 100 - d.baseX;
+      return xMoi < 12 ? "GAR" : xMoi < 28 ? "DÉF" : xMoi < 42 ? "MIL" : "ATT";
+    };
     function passeSuivante(temps) {
       if (!circulation) return;
       const c = circulation;
@@ -166,31 +260,25 @@ const ONZE_SCENE = (() => {
       const porteurActuel = c.porteur && disques[c.porteur];
       let suivant = null;
       if (c.style === "rue" && porteurActuel && Math.random() < 0.6) {
-        // la Rue garde le ballon : le porteur serpente au lieu de passer
         porteurActuel.cx = porteurActuel.baseX + (Math.random() * 10 - 5);
         porteurActuel.cy = Math.max(8, Math.min(92, porteurActuel.baseY + (Math.random() * 26 - 13)));
         ballon.cx = porteurActuel.cx; ballon.cy = porteurActuel.cy; ballon.vitesse = 3;
         return;
       }
       if (c.style === "tiki" && porteurActuel) {
-        // passes courtes : le voisin le plus proche
         suivant = candidats.filter((d) => d !== porteurActuel)
           .sort((a, b) => Math.hypot(a.x - porteurActuel.x, a.y - porteurActuel.y) -
                           Math.hypot(b.x - porteurActuel.x, b.y - porteurActuel.y))[0];
         ballon.vitesse = 7;
       } else if (c.style === "kickrush") {
-        // le ballon long : alterner l'arrière et le pivot
         const arriere = candidats.filter((d) => ligneApprox(d) !== "ATT");
         const avants = candidats.filter((d) => ligneApprox(d) === "ATT");
         suivant = (porteurActuel && avants.includes(porteurActuel) ? arriere : avants)[0] || candidats[0];
         ballon.vitesse = 9;
       } else if (c.style === "catenaccio") {
-        // circulation basse et patiente
-        suivant = candidats.filter((d) => ligneApprox(d) !== "ATT")
-          .sort(() => Math.random() - 0.5)[0] || candidats[0];
+        suivant = candidats.filter((d) => ligneApprox(d) !== "ATT").sort(() => Math.random() - 0.5)[0] || candidats[0];
         ballon.vitesse = 4.5;
       } else if (c.couloirs && Math.random() < 0.55) {
-        // les Pistons : l'attaque passe par les ailes, et on le voit
         suivant = candidats.filter((d) => d.y < 22 || d.y > 78).sort(() => Math.random() - 0.5)[0]
           || candidats[Math.floor(Math.random() * candidats.length)];
         ballon.vitesse = 7;
@@ -199,29 +287,24 @@ const ONZE_SCENE = (() => {
         ballon.vitesse = 6;
       }
       if (c.style === "total" && porteurActuel && suivant) {
-        // Football Total : les positions tournent — échange visible
         const bx = porteurActuel.baseX, by = porteurActuel.baseY;
         porteurActuel.baseX = suivant.baseX; porteurActuel.baseY = suivant.baseY;
         suivant.baseX = bx; suivant.baseY = by;
       }
       if (c.style === "grinta") {
-        // la Grinta presse : deux adversaires proches convergent vers le ballon
         listeDisques.filter((d) => d.camp === adverse(c.camp) && !d.gardien)
           .sort((a, b) => Math.hypot(a.x - ballon.x, a.y - ballon.y) - Math.hypot(b.x - ballon.x, b.y - ballon.y))
           .slice(0, 2).forEach((d) => { d.cx = lerp(d.x, ballon.x, 0.4); d.cy = lerp(d.y, ballon.y, 0.4); });
       }
       if (suivant) {
         c.porteur = suivant.nom;
+        porteurAnneau = suivant.nom;
         ballon.cx = suivant.x + (Math.random() * 2 - 1);
         ballon.cy = suivant.y + (Math.random() * 2 - 1);
       }
     }
-    const ligneApprox = (d) => {
-      const xMoi = d.camp === "moi" ? d.baseX : 100 - d.baseX;
-      return xMoi < 12 ? "GAR" : xMoi < 28 ? "DÉF" : xMoi < 42 ? "MIL" : "ATT";
-    };
 
-    /* ---- Les effets DOM ponctuels (réutilisent le CSS existant) ---- */
+    /* ---- Effets DOM ---- */
     const ephemere = (classe, x, y, contenu, ms, style) => {
       const e = document.createElement("div");
       e.className = classe;
@@ -237,7 +320,6 @@ const ONZE_SCENE = (() => {
       ephemere("chip-synergie", Math.min(Math.max(x, 12), 88), Math.max(y - 13, 6),
         `${glyphe} ${nom}`, ms, { borderColor: couleurFamille(nom), color: couleurFamille(nom) });
     };
-    /* L'aura de famille : les joueurs CONCERNÉS s'illuminent. */
     const auraFamille = (nomFamille, camp, ms) => {
       for (const d of listeDisques) {
         if (d.camp !== camp) continue;
@@ -246,181 +328,248 @@ const ONZE_SCENE = (() => {
         }
       }
     };
+    const chipEtSynergie = (ev, ancre, ms) => {
+      if (!ev || !ev.synergie) return;
+      auraFamille(ev.synergie, ev.equipe ? campDe(ev.equipe) : "moi", 1100);
+      chipSynergie(ev.synergie, ancre.x, ancre.y, Math.max(ms, 800));
+    };
 
-    /* ---- Les chorégraphies du RENDU complet ---- */
-    function evenement(ev, duree) {
-      regime = "rendu";
+    /* Les courses d'appel : pendant une action, 2 coéquipiers sans le
+       ballon plongent vers l'avant — le terrain vit autour du porteur. */
+    function coursesAppel(camp, saufNoms) {
+      const sens = camp === "moi" ? 1 : -1;
+      listeDisques.filter((d) => d.camp === camp && !d.gardien && !saufNoms.includes(d.nom))
+        .sort(() => Math.random() - 0.5).slice(0, 2)
+        .forEach((d) => {
+          d.cx = Math.max(6, Math.min(94, d.x + sens * (8 + Math.random() * 8)));
+          d.cy = Math.max(8, Math.min(92, d.y + (Math.random() * 16 - 8)));
+        });
+    }
+    const retourFormation = () => { for (const d of listeDisques) { d.cx = null; d.cy = null; } };
+
+    /* ============================================================
+       JOUER UN TEMPS d'action construite (le RENDU).
+       Chaque temps est un geste lisible ; l'issue reste cachée
+       jusqu'au temps issue_*.
+       ============================================================ */
+    function jouerTemps(t, duree) {
+      regime = t.decisif ? regime : "rendu";
       circulation = null;
-      const ms = Math.max(300, duree);
-      const camp = ev.equipe ? campDe(ev.equipe) : "moi";
-      const acteur = ev.acteurs && ev.acteurs.length ? disqueDe(ev.acteurs[0]) : null;
+      const ms = Math.max(400, duree);
+      const camp = t.equipe ? campDe(t.equipe) : "moi";
+      possession = camp;
 
-      switch (ev.type) {
-        case "possession": {
-          if (acteur) { ballon.cx = acteur.x; ballon.cy = acteur.y; ballon.vitesse = 6; circulationPorteur(acteur); }
-          break;
-        }
-        case "percee": {
-          // LA chaîne causale : le perceur du moteur bat le défenseur du
-          // moteur, par le chemin de son type de duel (couloir, crochet…)
-          const perceur = acteur;
-          const battu = ev.acteurs[1] && disqueDe(ev.acteurs[1]);
-          if (!perceur) break;
-          const versX = camp === "moi" ? Math.min(perceur.x + 22, 84) : Math.max(perceur.x - 22, 16);
-          if (ev.sousType === "course" || ev.sousType === "centre") {
-            // le débordement : passage par le couloir le plus proche
-            const couloir = perceur.y < 50 ? 12 : 88;
-            perceur.cx = versX; perceur.cy = couloir;
-            setTimeout(() => { if (!detruit) { ballon.cx = versX; ballon.cy = couloir; ballon.vitesse = 8; } }, ms * 0.2);
-          } else if (ev.sousType === "dribble" && battu) {
-            // le crochet : le perceur contourne SON vis-à-vis
-            perceur.cx = battu.x - (camp === "moi" ? 4 : -4); perceur.cy = battu.y - 7;
-            setTimeout(() => { if (!detruit) { perceur.cx = versX; perceur.cy = battu.y + 4; ballon.cx = versX; ballon.cy = battu.y + 4; ballon.vitesse = 7; } }, ms * 0.42);
-          } else {
-            perceur.cx = versX; perceur.cy = lerp(perceur.y, 50, 0.3);
-            ballon.cx = versX; ballon.cy = perceur.cy; ballon.vitesse = ev.sousType === "aerien" ? 9 : 7;
+      switch (t.type) {
+        case "recuperation": {
+          const d = disqueDe(t.acteur);
+          if (d) {
+            ballon.cx = d.x; ballon.cy = d.y; ballon.vitesse = 7;
+            porteurAnneau = d.nom;
+            d.flash = 400;
+            coursesAppel(camp, [d.nom]);
           }
-          circulationPorteur(perceur);
-          if (battu) { battu.flash = 600; battu.cx = battu.x + (camp === "moi" ? -3 : 3); }
           break;
         }
-        case "percee_stoppee":
-        case "interception": {
-          const defenseur = acteur;
-          if (defenseur) {
-            // duel : rapprochement puis flash de résolution côté défense
-            ballon.cx = lerp(ballon.x, defenseur.x, 0.7); ballon.cy = lerp(ballon.y, defenseur.y, 0.7); ballon.vitesse = 6;
-            setTimeout(() => {
-              if (detruit) return;
-              defenseur.flash = 500; defenseur.echelle = 1.35;
-              ballon.cx = defenseur.x; ballon.cy = defenseur.y;
-              setTimeout(() => { defenseur.echelle = 1; }, 420);
-            }, ms * 0.45);
+        case "contre": {
+          const cible = { x: camp === "moi" ? 66 : 34, y: 34 + Math.random() * 32 };
+          ballon.cx = cible.x; ballon.cy = cible.y; ballon.vitesse = 11;
+          for (const d of listeDisques) if (d.camp === camp && !d.gardien) d.cx = d.baseX + (camp === "moi" ? 12 : -12);
+          break;
+        }
+        case "relais": {
+          const de = disqueDe(t.de), vers = disqueDe(t.vers);
+          if (vers) {
+            ballon.cx = vers.x; ballon.cy = vers.y; ballon.vitesse = 8;
+            porteurAnneau = vers.nom;
+            if (de) de.cx = de.x + (camp === "moi" ? 4 : -4); // il suit son ballon
+            coursesAppel(camp, [t.de, t.vers].filter(Boolean));
+          }
+          break;
+        }
+        case "relais_long": {
+          const vers = disqueDe(t.vers);
+          const cible = vers ? { x: vers.x, y: vers.y } : { x: camp === "moi" ? 70 : 30, y: 30 + Math.random() * 40 };
+          ballon.cx = cible.x; ballon.cy = cible.y; ballon.vitesse = 12;
+          if (vers) porteurAnneau = vers.nom;
+          ephemere("trainee", cible.x, cible.y, "", ms * 0.7);
+          coursesAppel(camp, [t.vers].filter(Boolean));
+          break;
+        }
+        case "conduite": {
+          const d = disqueDe(t.acteur);
+          if (d) {
+            const sens = camp === "moi" ? 1 : -1;
+            d.cx = Math.min(88, Math.max(12, d.x + sens * 10));
+            d.cy = Math.max(10, Math.min(90, d.y + (Math.random() * 20 - 10)));
+            ballon.cx = d.cx; ballon.cy = d.cy; ballon.vitesse = 5;
+            porteurAnneau = d.nom;
+            coursesAppel(camp, [d.nom]);
           }
           break;
         }
         case "geste": {
-          if (acteur) {
-            ballon.cx = acteur.x; ballon.cy = acteur.y; ballon.vitesse = 6;
-            acteur.cx = acteur.x + (Math.random() * 8 - 4); acteur.cy = acteur.y + (Math.random() * 8 - 4);
-            ephemere("eclat-geste", acteur.x, acteur.y, "✨", ms);
-            circulationPorteur(acteur);
+          const d = disqueDe(t.acteur);
+          if (d) {
+            ballon.cx = d.x; ballon.cy = d.y; ballon.vitesse = 6;
+            d.cx = d.x + (Math.random() * 8 - 4); d.cy = d.y + (Math.random() * 8 - 4);
+            ephemere("eclat-geste", d.x, d.y, "✨", ms);
+            porteurAnneau = d.nom;
           }
+          chipEtSynergie(t.ev, d || ballon, ms);
           break;
         }
-        case "ballon_long":
-        case "lambretta": {
-          const cible = { x: camp === "moi" ? 72 : 28, y: 24 + Math.random() * 52 };
-          ballon.cx = cible.x; ballon.cy = cible.y; ballon.vitesse = 10;
+        case "percee": {
+          const perceur = disqueDe(t.acteur);
+          const battu = t.battu && disqueDe(t.battu);
+          if (!perceur) break;
+          const versX = camp === "moi" ? Math.min(perceur.x + 22, 84) : Math.max(perceur.x - 22, 16);
+          if (t.sousType === "course" || t.sousType === "centre") {
+            const couloir = perceur.y < 50 ? 12 : 88;
+            perceur.cx = versX; perceur.cy = couloir;
+            setTimeout(() => { if (!detruit) { ballon.cx = versX; ballon.cy = couloir; ballon.vitesse = 9; } }, ms * 0.25);
+          } else if (t.sousType === "dribble" && battu) {
+            perceur.cx = battu.x - (camp === "moi" ? 4 : -4); perceur.cy = battu.y - 7;
+            setTimeout(() => { if (!detruit) { perceur.cx = versX; perceur.cy = battu.y + 4; ballon.cx = versX; ballon.cy = battu.y + 4; ballon.vitesse = 8; } }, ms * 0.45);
+          } else {
+            perceur.cx = versX; perceur.cy = lerp(perceur.y, 50, 0.3);
+            ballon.cx = versX; ballon.cy = perceur.cy; ballon.vitesse = t.sousType === "aerien" ? 10 : 8;
+          }
+          porteurAnneau = perceur.nom;
+          if (battu) { battu.flash = 600; battu.cx = battu.x + (camp === "moi" ? -3 : 3); }
+          coursesAppel(camp, [t.acteur, t.battu].filter(Boolean));
+          chipEtSynergie(t.ev, perceur, ms);
           break;
         }
-        case "contre": {
-          // le contre éclair : tout le camp avance d'un bloc
-          const cible = { x: camp === "moi" ? 74 : 26, y: 34 + Math.random() * 32 };
-          ballon.cx = cible.x; ballon.cy = cible.y; ballon.vitesse = 11;
-          for (const d of listeDisques) if (d.camp === camp && !d.gardien) d.cx = d.baseX + (camp === "moi" ? 10 : -10);
+        case "stop": {
+          const d = disqueDe(t.acteur);
+          if (d) {
+            ballon.cx = lerp(ballon.x, d.x, 0.7); ballon.cy = lerp(ballon.y, d.y, 0.7); ballon.vitesse = 7;
+            setTimeout(() => {
+              if (detruit) return;
+              d.flash = 500; d.echelle = 1.35;
+              ballon.cx = d.x; ballon.cy = d.y;
+              porteurAnneau = d.nom;
+              setTimeout(() => { d.echelle = 1; }, 420);
+            }, ms * 0.45);
+            chipEtSynergie(t.ev, d, ms);
+          }
           break;
         }
         case "hors_jeu": {
           ephemere("chip-arbitre", camp === "moi" ? 72 : 28, 20, "🚩 Hors-jeu !", ms);
+          chipEtSynergie(t.ev, { x: camp === "moi" ? 72 : 28, y: 30 }, ms);
           break;
         }
-        case "rebond": {
-          if (acteur) { ballon.cx = acteur.x; ballon.cy = acteur.y; ballon.vitesse = 8; circulationPorteur(acteur); }
-          break;
-        }
-        case "blocage": {
-          const but = BUTS[camp]; // le camp de l'événement est la défense
-          const murs = listeDisques.filter((d) => d.camp === camp && !d.gardien)
-            .sort((a, b) => Math.hypot(a.x - but.x, a.y - 50) - Math.hypot(b.x - but.x, b.y - 50)).slice(0, 2);
-          for (const m of murs) { m.cx = but.x + (but.x < 50 ? 7 : -7); m.cy = 44 + Math.random() * 12; m.flash = 500; }
-          ballon.cx = but.x + (but.x < 50 ? 13 : -13); ballon.cy = 40; ballon.vitesse = 9;
-          break;
-        }
-        case "but": {
-          const buteur = disqueDe(ev.buteur) || acteur;
-          const passeur = ev.passeur && disqueDe(ev.passeur);
-          const butCible = BUTS[adverse(camp)];
-          const t0 = passeur ? ms * 0.16 : 0;
-          if (passeur) { ballon.cx = passeur.x; ballon.cy = passeur.y; ballon.vitesse = 8; }
+        case "frappe": {
+          // LE TEMPS DÉCISIF — étiré, identique quel que soit le sort du
+          // ballon : suspension, voile, l'œil retient son souffle
+          const tireur = disqueDe(t.tireur);
+          const passeurD = t.passeur && disqueDe(t.passeur);
+          if (passeurD) { ballon.cx = passeurD.x; ballon.cy = passeurD.y; ballon.vitesse = 9; }
           setTimeout(() => {
-            if (detruit || !buteur) return;
-            ballon.cx = buteur.x; ballon.cy = buteur.y; ballon.vitesse = 8;
-            circulationPorteur(buteur);
-          }, t0);
-          // le micro-ralenti : 0,5 s de suspension au moment d'armer la frappe
-          setTimeout(() => { if (!detruit) { regime = "ralenti"; facteurTemps = 0.12; ballon.suspendu = true; } }, t0 + ms * 0.22);
+            if (detruit || !tireur) return;
+            ballon.cx = tireur.x; ballon.cy = tireur.y; ballon.vitesse = 9;
+            porteurAnneau = tireur.nom;
+            tireur.echelle = 1.25;
+          }, passeurD ? ms * 0.25 : 0);
           setTimeout(() => {
             if (detruit) return;
-            regime = "rendu"; facteurTemps = 1; ballon.suspendu = false;
-            ballon.cx = butCible.x; ballon.cy = butCible.y + (Math.random() * 10 - 5); ballon.vitesse = 16;
-          }, t0 + ms * 0.22 + 500);
+            regime = "ralenti"; facteurTemps = 0.12; ballon.suspendu = true;
+          }, ms * 0.5);
+          break;
+        }
+        case "issue_but": {
+          const camp2 = campDe(t.ev.equipe);
+          const butCible = BUTS[adverse(camp2)];
+          const tireur = disqueDe(t.ev.buteur);
+          regime = "rendu"; facteurTemps = 1; ballon.suspendu = false;
+          if (tireur) tireur.echelle = 1;
+          ballon.cx = butCible.x; ballon.cy = butCible.y + (Math.random() * 10 - 5); ballon.vitesse = 18;
           setTimeout(() => {
             if (detruit) return;
-            tremblementCage = { camp: adverse(camp), force: 1 };
+            tremblementCage = { camp: adverse(camp2), force: 1 };
             ephemere("flash-but", butCible.x, 50, "", 800);
             ephemere("cri-but", 50, 30, "⚽ BUUUT !", 1300);
-            // la convergence : les coéquipiers proches viennent célébrer
-            if (buteur) {
-              listeDisques.filter((d) => d.camp === camp && d !== buteur && !d.gardien)
-                .sort((a, b) => Math.hypot(a.x - buteur.x, a.y - buteur.y) - Math.hypot(b.x - buteur.x, b.y - buteur.y))
-                .slice(0, 4).forEach((d, i) => { d.cx = buteur.x + Math.cos(i * 1.7) * 6; d.cy = buteur.y + Math.sin(i * 1.7) * 6; });
-              buteur.echelle = 1.5;
-              setTimeout(() => { if (!detruit) { buteur.echelle = 1; retourFormation(); } }, 1100);
+            if (tireur) {
+              listeDisques.filter((d) => d.camp === camp2 && d !== tireur && !d.gardien)
+                .sort((a, b) => Math.hypot(a.x - tireur.x, a.y - tireur.y) - Math.hypot(b.x - tireur.x, b.y - tireur.y))
+                .slice(0, 4).forEach((d, i) => { d.cx = tireur.x + Math.cos(i * 1.7) * 6; d.cy = tireur.y + Math.sin(i * 1.7) * 6; });
+              tireur.echelle = 1.5;
+              // la célébration CHEVAUCHE la reprise : on rend la main vite
+              setTimeout(() => {
+                if (detruit) return;
+                tireur.echelle = 1; retourFormation();
+                if (REPLAY_ACTIF) lancerReplay();
+              }, 800);
             }
-          }, t0 + ms * 0.22 + 500 + 240);
+          }, 220);
+          chipEtSynergie(t.ev, BUTS[adverse(camp2)], 1200);
           break;
         }
-        case "arret": {
-          const tireur = acteur;
-          const gardien = (ev.acteurs[1] && disqueDe(ev.acteurs[1])) || gardienDe(camp);
-          const but = BUTS[camp];
-          if (tireur) { ballon.cx = tireur.x; ballon.cy = tireur.y; ballon.vitesse = 8; }
-          setTimeout(() => {
-            if (detruit) return;
-            const impactY = 42 + Math.random() * 16;
-            ballon.cx = but.x + (but.x < 50 ? 2.5 : -2.5); ballon.cy = impactY; ballon.vitesse = 15;
-            if (gardien) { gardien.cx = but.x + (but.x < 50 ? 4 : -4); gardien.cy = impactY; gardien.echelle = 1.4; }
-          }, ms * 0.35);
+        case "issue_arret": {
+          const campDef = campDe(t.ev.equipe); // l'arrêt appartient à la défense
+          const but = BUTS[campDef];
+          const gardien = (t.ev.acteurs[1] && disqueDe(t.ev.acteurs[1])) || gardienDe(campDef);
+          const tireur = disqueDe(t.ev.acteurs[0]);
+          regime = "rendu"; facteurTemps = 1; ballon.suspendu = false;
+          if (tireur) tireur.echelle = 1;
+          const impactY = 42 + Math.random() * 16;
+          ballon.cx = but.x + (but.x < 50 ? 2.5 : -2.5); ballon.cy = impactY; ballon.vitesse = 17;
+          if (gardien) { gardien.cx = but.x + (but.x < 50 ? 4 : -4); gardien.cy = impactY; gardien.echelle = 1.4; }
           setTimeout(() => {
             if (detruit || !gardien) return;
             gardien.flash = 500; gardien.echelle = 1;
             ballon.cx = gardien.x; ballon.cy = gardien.y; ballon.vitesse = 8;
-          }, ms * 0.68);
+            porteurAnneau = gardien.nom;
+            if (t.pres) { // le presque-but : OHHH du stade
+              ephemere("cri-but", 50, 30, "OHHH !", 1100);
+              if (typeof ONZE_JUICE !== "undefined") ONZE_JUICE.jouer("ohhh");
+            }
+          }, 260);
+          chipEtSynergie(t.ev, but, 1100);
+          break;
+        }
+        case "issue_blocage": {
+          const campDef = campDe(t.ev.equipe);
+          const but = BUTS[campDef];
+          regime = "rendu"; facteurTemps = 1; ballon.suspendu = false;
+          const murs = listeDisques.filter((d) => d.camp === campDef && !d.gardien)
+            .sort((a, b) => Math.hypot(a.x - but.x, a.y - 50) - Math.hypot(b.x - but.x, b.y - 50)).slice(0, 2);
+          for (const m of murs) { m.cx = but.x + (but.x < 50 ? 7 : -7); m.cy = 44 + Math.random() * 12; m.flash = 500; }
+          ballon.cx = but.x + (but.x < 50 ? 13 : -13); ballon.cy = 40; ballon.vitesse = 10;
+          ephemere("cri-but", 50, 30, "OHHH !", 1000);
+          if (typeof ONZE_JUICE !== "undefined") ONZE_JUICE.jouer("ohhh");
+          chipEtSynergie(t.ev, but, 1100);
+          break;
+        }
+        case "rebond": {
+          const d = disqueDe(t.acteur);
+          if (d) { ballon.cx = d.x; ballon.cy = d.y; ballon.vitesse = 9; porteurAnneau = d.nom; d.flash = 400; }
+          chipEtSynergie(t.ev, d || ballon, ms);
           break;
         }
         default: {
-          if (acteur) { ballon.cx = acteur.x; ballon.cy = acteur.y; ballon.vitesse = 6; }
+          const d = t.acteur && disqueDe(t.acteur);
+          if (d) { ballon.cx = d.x; ballon.cy = d.y; ballon.vitesse = 6; }
         }
       }
-      if (ev.synergie) {
-        const campAura = (ev.type === "arret" || ev.type === "blocage" || ev.type === "percee_stoppee" ||
-          ev.type === "interception" || ev.type === "hors_jeu" || ev.type === "contre") ? camp : camp;
-        aurafamilleSure(ev.synergie, campAura, 1200);
-        const ancre = acteur || ballon;
-        chipSynergie(ev.synergie, ancre.x, ancre.y, Math.max(ms, 800));
-      }
     }
-    const aurafamilleSure = (nom, camp, ms) => { try { auraFamille(nom, camp, ms); } catch (e) {} };
-    const circulationPorteur = (d) => { porteurAnneau = d ? d.nom : null; };
-    let porteurAnneau = null;
-    const retourFormation = () => { for (const d of listeDisques) { d.cx = null; d.cy = null; } };
 
-    /* ---- Régime domination : accents légers sur les événements ---- */
-    function evenementDomination(ev) {
-      const acteur = ev.acteurs && ev.acteurs.length && disqueDe(ev.acteurs[0]);
-      if (ev.type === "possession" && acteur) {
-        lancerCirculation(acteur.camp);
-        circulation.porteur = acteur.nom;
-        porteurAnneau = acteur.nom;
-        ballon.cx = acteur.x; ballon.cy = acteur.y; ballon.vitesse = 6;
-      } else if ((ev.type === "percee_stoppee" || ev.type === "interception") && acteur) {
-        acteur.flash = 450;
-        ballon.cx = acteur.x; ballon.cy = acteur.y; ballon.vitesse = 6;
-        lancerCirculation(acteur.camp); // la défense récupère et circule
-        circulation.porteur = acteur.nom;
-      }
-      if (ev.synergie) aurafamilleSure(ev.synergie, ev.equipe ? campDe(ev.equipe) : "moi", 900);
+    /* ---- Le replay de but : lecture ralentie du tampon (~2 s),
+       coupable d'un tap. Le flux du match continue en fond — le
+       replay occupe l'écran pendant la respiration suivante. ---- */
+    function lancerReplay() {
+      if (!tampon.length || replay) return;
+      replay = { etats: tampon.slice(-100), indice: 0 };
+      const bandeau = document.createElement("div");
+      bandeau.className = "chip-arbitre bandeau-replay";
+      bandeau.style.left = "50%";
+      bandeau.style.top = "8%";
+      bandeau.textContent = "🔁 Replay — touche pour passer";
+      couche.appendChild(bandeau);
+      const couper = () => { replay = null; bandeau.remove(); racine.removeEventListener("pointerdown", couper); };
+      racine.addEventListener("pointerdown", couper);
+      setTimeout(couper, 2300);
     }
 
     /* ---- API de phase ---- */
@@ -433,24 +582,51 @@ const ONZE_SCENE = (() => {
       jauge.pulse = false;
       minute.depart = minute.cible;
       minute.cible = phase.minute;
-      minute.duree = Math.max(info.duree || 2000, 400);
+      // l'horloge FM : elle ne défile QU'ENTRE les temps forts — en
+      // rendu, la minute est atteinte pendant la montée de tension
+      minute.duree = info.regime === "rendu" ? 500 : Math.max(info.duree || 2000, 400);
       minute.t0 = performance.now();
-      if (regime === "domination") {
-        // le camp qui a VRAIMENT dominé la phase fait circuler
-        lancerCirculation(dom >= 0 ? "moi" : "eux");
-      } else {
-        circulation = null;
-      }
+      if (regime === "domination") lancerCirculation(dom >= 0 ? "moi" : "eux");
+      else circulation = null;
       ballon.suspendu = false;
     }
     function tension(duree = 500) {
       regime = "tension";
       jauge.pulse = true;
-      if (circulation) circulation.prochainePasse = Infinity; // le temps s'étire
+      if (circulation) circulation.prochainePasse = Infinity;
       setTimeout(() => { jauge.pulse = false; }, duree + 400);
     }
+    function evenementDomination(ev) {
+      const acteur = ev.acteurs && ev.acteurs.length && disqueDe(ev.acteurs[0]);
+      if (ev.type === "possession" && acteur) {
+        lancerCirculation(acteur.camp);
+        circulation.porteur = acteur.nom;
+        porteurAnneau = acteur.nom;
+        ballon.cx = acteur.x; ballon.cy = acteur.y; ballon.vitesse = 6;
+      } else if ((ev.type === "percee_stoppee" || ev.type === "interception") && acteur) {
+        acteur.flash = 450;
+        ballon.cx = acteur.x; ballon.cy = acteur.y; ballon.vitesse = 6;
+        lancerCirculation(acteur.camp);
+        circulation.porteur = acteur.nom;
+      } else if (ev.type === "arret" || ev.type === "blocage") {
+        // une occasion NON rendue (l'arbitrage du budget) : accent bref
+        const d = acteur || gardienDe(ev.equipe ? campDe(ev.equipe) : "moi");
+        if (d) { d.flash = 500; ballon.cx = d.x; ballon.cy = d.y; ballon.vitesse = 9; }
+        if (typeof ONZE_JUICE !== "undefined" && ev.pres) ONZE_JUICE.jouer("ohhh");
+      }
+      if (ev.synergie) chipEtSynergie(ev, acteur || ballon, 900);
+    }
+    /* Les autres scores du lobby, en toast discret (régime compressé) */
+    function notifierLobby(texte) {
+      const toast = document.createElement("div");
+      toast.className = "toast-lobby";
+      toast.textContent = texte;
+      couche.appendChild(toast);
+      setTimeout(() => toast.classList.add("visible"), 30);
+      setTimeout(() => { toast.classList.remove("visible"); setTimeout(() => toast.remove(), 400); }, 2300);
+    }
 
-    /* ---- Le dessin ---- */
+    /* ---- Dessin ---- */
     let largeur = 0, hauteur = 0, dpr = 1;
     function dimensionner() {
       const boite = racine.getBoundingClientRect();
@@ -468,28 +644,41 @@ const ONZE_SCENE = (() => {
 
     function dessinerTerrain(temps) {
       ctx.clearRect(0, 0, largeur, hauteur);
-      // pelouse épurée : deux moitiés
       ctx.fillStyle = "#17501F"; ctx.fillRect(0, 0, largeur / 2, hauteur);
       ctx.fillStyle = "#1B5827"; ctx.fillRect(largeur / 2, 0, largeur / 2, hauteur);
+      // la ZONE D'ACTION : le tiers où vit le ballon est surligné
+      const tiers = ballon.x < 33.3 ? 0 : ballon.x < 66.6 ? 1 : 2;
+      ctx.fillStyle = "rgba(255,255,255,0.05)";
+      ctx.fillRect((tiers * largeur) / 3, 0, largeur / 3, hauteur);
       ctx.strokeStyle = "rgba(255,255,255,0.3)"; ctx.lineWidth = 1.5;
       ctx.strokeRect(1, 1, largeur - 2, hauteur - 2);
       ctx.beginPath(); ctx.moveTo(largeur / 2, 0); ctx.lineTo(largeur / 2, hauteur); ctx.stroke();
       ctx.beginPath(); ctx.arc(largeur / 2, hauteur / 2, hauteur * 0.17, 0, 6.283); ctx.stroke();
-      // surfaces
       ctx.strokeRect(0, py(24), px(11), py(52));
       ctx.strokeRect(largeur - px(11), py(24), px(11), py(52));
-      // cages (avec tremblement de filet sur but)
       for (const camp of ["moi", "eux"]) {
         const tremble = tremblementCage.camp === camp ? tremblementCage.force : 0;
         const dx = tremble ? Math.sin(temps * 0.09) * 3 * tremble : 0;
         ctx.strokeStyle = tremble ? "#E8C547" : "rgba(255,255,255,0.75)";
         ctx.lineWidth = 2;
         const xc = camp === "moi" ? 2 : largeur - 2;
-        ctx.beginPath();
-        ctx.moveTo(xc + dx, py(42)); ctx.lineTo(xc + dx, py(58));
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(xc + dx, py(42)); ctx.lineTo(xc + dx, py(58)); ctx.stroke();
       }
       if (tremblementCage.force > 0) tremblementCage.force = Math.max(0, tremblementCage.force - 0.02);
+      // la mini-barre FM : la répartition du temps par tiers
+      const total = tempsParTiers[0] + tempsParTiers[1] + tempsParTiers[2];
+      const yBarre = hauteur - 4;
+      let xCourant = largeur * 0.25;
+      const largeurBarre = largeur * 0.5;
+      const teintes = ["#4FC57C", "#C0C8CC", "#E8654F"];
+      for (let i = 0; i < 3; i++) {
+        const l = (tempsParTiers[i] / total) * largeurBarre;
+        ctx.fillStyle = teintes[i];
+        ctx.globalAlpha = 0.7;
+        ctx.fillRect(xCourant, yBarre, l, 2.5);
+        ctx.globalAlpha = 1;
+        xCourant += l;
+      }
     }
 
     function dessinerDisque(d, temps) {
@@ -504,7 +693,6 @@ const ONZE_SCENE = (() => {
       ctx.lineWidth = 2;
       ctx.strokeStyle = d.gardien ? "#E8C547" : d.camp === "moi" ? "#4FC57C" : "#E8654F";
       ctx.stroke();
-      // l'anneau lumineux du porteur
       if (porteurAnneau === d.nom) {
         ctx.beginPath(); ctx.arc(X, Y, r + 3.5 + Math.sin(temps * 0.008) * 1.2, 0, 6.283);
         ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 1.6; ctx.stroke();
@@ -517,18 +705,17 @@ const ONZE_SCENE = (() => {
       ctx.restore();
     }
 
-    function dessinerBallon() {
-      // la traînée
-      for (let i = 0; i < ballon.trainee.length; i++) {
-        const t = ballon.trainee[i];
-        const alpha = (i + 1) / ballon.trainee.length * 0.4;
+    function dessinerBallonA(x, y, suspendu, trainee) {
+      for (let i = 0; i < trainee.length; i++) {
+        const t = trainee[i];
+        const alpha = (i + 1) / trainee.length * 0.4;
         ctx.beginPath(); ctx.arc(px(t.x), py(t.y), 2.4, 0, 6.283);
         ctx.fillStyle = `rgba(255,255,255,${alpha})`; ctx.fill();
       }
-      const r = ballon.suspendu ? 5.5 : 4;
+      const r = suspendu ? 5.5 : 4;
       ctx.save();
-      ctx.shadowColor = "rgba(255,255,255,0.9)"; ctx.shadowBlur = ballon.suspendu ? 16 : 8;
-      ctx.beginPath(); ctx.arc(px(ballon.x), py(ballon.y), r, 0, 6.283);
+      ctx.shadowColor = "rgba(255,255,255,0.9)"; ctx.shadowBlur = suspendu ? 16 : 8;
+      ctx.beginPath(); ctx.arc(px(x), py(y), r, 0, 6.283);
       ctx.fillStyle = "#FFFFFF"; ctx.fill();
       ctx.restore();
     }
@@ -552,6 +739,16 @@ const ONZE_SCENE = (() => {
       }
     }
 
+    /* Le COULISSEMENT DES BLOCS : l'équipe en possession monte, l'autre
+       recule et se resserre — deux formations qui respirent. */
+    function offsetsBloc(d) {
+      if (!possession) return { dx: 0, resserre: 1 };
+      if (d.gardien) return { dx: 0, resserre: 1 };
+      const sens = d.camp === "moi" ? 1 : -1;
+      if (d.camp === possession) return { dx: sens * 6, resserre: 1 };
+      return { dx: -sens * 4, resserre: 0.82 };
+    }
+
     let precedent = performance.now();
     function boucle(temps) {
       if (detruit) return;
@@ -559,36 +756,60 @@ const ONZE_SCENE = (() => {
       precedent = temps;
       const dt = dtBrut * facteurTemps;
 
-      // la circulation de la domination
       if (regime === "domination" && circulation && temps >= circulation.prochainePasse) passeSuivante(temps);
       if (regime === "domination" && circulation && !circulation.prochainePasse) passeSuivante(temps);
 
-      // interpolation des disques : cible d'événement, sinon dérive douce
       for (const d of listeDisques) {
-        const derive = regime === "domination" ? (styles[d.camp].style === "total" ? 2.2 : 1.2) : 0.6;
-        const ox = d.cx !== null ? d.cx : d.baseX + Math.sin(temps * 0.0011 + d.phase) * derive;
-        const oy = d.cy !== null ? d.cy : d.baseY + Math.cos(temps * 0.0009 + d.phase * 1.3) * derive;
-        d.x = lerp(d.x, ox, Math.min(1, dt * 5));
-        d.y = lerp(d.y, oy, Math.min(1, dt * 5));
+        const derive = regime === "domination" ? (styles[d.camp].style === "total" ? 2.2 : 1.3) : 0.7;
+        const bloc = offsetsBloc(d);
+        const baseX = d.baseX + bloc.dx;
+        const baseY = 50 + (d.baseY - 50) * bloc.resserre;
+        const ox = d.cx !== null ? d.cx : baseX + Math.sin(temps * 0.0011 + d.phase) * derive;
+        const oy = d.cy !== null ? d.cy : baseY + Math.cos(temps * 0.0009 + d.phase * 1.3) * derive;
+        d.x = lerp(d.x, ox, Math.min(1, dt * 4.5));
+        d.y = lerp(d.y, oy, Math.min(1, dt * 4.5));
         if (d.aura > 0) d.aura -= dtBrut * 1000;
         if (d.flash > 0) d.flash -= dtBrut * 1000;
       }
-      // le ballon (jamais de téléportation)
       if (!ballon.suspendu) {
         ballon.x = lerp(ballon.x, ballon.cx, Math.min(1, dt * ballon.vitesse));
         ballon.y = lerp(ballon.y, ballon.cy, Math.min(1, dt * ballon.vitesse));
         ballon.trainee.push({ x: ballon.x, y: ballon.y });
         if (ballon.trainee.length > 9) ballon.trainee.shift();
       }
+      // le temps par tiers (les zones d'action FM)
+      const tiers = ballon.x < 33.3 ? 0 : ballon.x < 66.6 ? 1 : 2;
+      tempsParTiers[tiers] += dtBrut;
+      // le tampon du replay (~3,5 s à 30 états/s)
+      if (!replay && (!tampon.length || temps - tampon[tampon.length - 1].t > 33)) {
+        tampon.push({ t: temps, bx: ballon.x, by: ballon.y,
+          pos: listeDisques.map((d) => [d.x, d.y]) });
+        if (tampon.length > 105) tampon.shift();
+      }
 
       dessinerTerrain(temps);
-      // voile léger pendant le micro-ralenti — le moment se suspend
-      for (const d of listeDisques) dessinerDisque(d, temps);
-      dessinerBallon();
-      if (regime === "ralenti") {
-        ctx.fillStyle = "rgba(6, 12, 8, 0.28)";
-        ctx.fillRect(0, 0, largeur, hauteur);
-        dessinerBallon();
+      if (replay) {
+        // lecture ralentie du tampon : un état sur deux frames (÷2)
+        const etat = replay.etats[Math.min(Math.floor(replay.indice), replay.etats.length - 1)];
+        replay.indice += 0.5;
+        if (replay.indice >= replay.etats.length) replay = null;
+        if (etat) {
+          listeDisques.forEach((d, i) => {
+            const fantome = { ...d, x: etat.pos[i][0], y: etat.pos[i][1] };
+            dessinerDisque(fantome, temps);
+          });
+          dessinerBallonA(etat.bx, etat.by, false, []);
+          ctx.fillStyle = "rgba(6, 12, 8, 0.12)";
+          ctx.fillRect(0, 0, largeur, hauteur);
+        }
+      } else {
+        for (const d of listeDisques) dessinerDisque(d, temps);
+        dessinerBallonA(ballon.x, ballon.y, ballon.suspendu, ballon.trainee);
+        if (regime === "ralenti") {
+          ctx.fillStyle = "rgba(6, 12, 8, 0.28)";
+          ctx.fillRect(0, 0, largeur, hauteur);
+          dessinerBallonA(ballon.x, ballon.y, true, []);
+        }
       }
       majJauge(dtBrut);
       majMinute(temps);
@@ -597,21 +818,22 @@ const ONZE_SCENE = (() => {
     requestAnimationFrame(boucle);
 
     return {
-      debutPhase, tension, evenement, evenementDomination,
-      fin: () => { finDeMatch = true; jauge.pulse = false; regime = "domination"; circulation = null; },
+      debutPhase, tension, jouerTemps, evenementDomination, notifierLobby,
+      fin: () => { finDeMatch = true; jauge.pulse = false; regime = "domination"; circulation = null; replay = null; },
       racine,
       diagnostic: () => ({
-        styles, regime, jauge: { affichee: jauge.affichee, cible: jauge.cible },
+        styles, regime, possession, jauge: { affichee: jauge.affichee, cible: jauge.cible },
         nbDisques: listeDisques.length, ballon: { x: ballon.x, y: ballon.y },
-        minute: minute.affichee, porteur: porteurAnneau,
+        minute: minute.affichee, porteur: porteurAnneau, tempsParTiers: [...tempsParTiers],
+        replayEnCours: !!replay,
         positions: listeDisques.map((d) => ({ nom: d.nom, camp: d.camp, x: d.x, y: d.y, base: d.baseX })),
       }),
-      dominationDe, // exposé pour les tests de fidélité
+      dominationDe,
       detruire: () => { detruit = true; window.removeEventListener("resize", surResize); racine.remove(); },
     };
   }
 
-  return { creer, couleurFamille, styleDe };
+  return { creer, couleurFamille, styleDe, construireAction };
 })();
 
 if (typeof module !== "undefined") module.exports = ONZE_SCENE;

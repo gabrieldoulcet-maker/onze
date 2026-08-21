@@ -31,6 +31,7 @@ const ONZE_UI = (() => {
   const DELAI_PHASE_MS = 5000;     // 8 phases → ~40 s de match
   const DELAI_EVENEMENT_MS = 1400; // les actions d'une phase s'égrènent
   let vitesse = 1;                 // 1 = direct, 2 = accéléré
+  let evenementsJoues = [];        // le fil du match EN COURS (recap live, sans spoiler)
 
   function basculerVitesse() { vitesse = vitesse === 1 ? 2 : 1; return vitesse; }
 
@@ -105,15 +106,27 @@ const ONZE_UI = (() => {
      La domination est la variable d'ajustement du budget temps —
      jamais les rendus de buts. L'accéléré ×2 SAUTE les phases froides
      (÷4) et resserre à peine les chaudes (÷1,6). */
-  const DUREES_RENDU = {
-    but: 2400, arret: 1600, blocage: 1300, rebond: 900, percee: 1200,
-    possession: 750, geste: 950, contre: 950, ballon_long: 850, lambretta: 950,
-    percee_stoppee: 1000, interception: 950, hors_jeu: 800,
-  };
+  /* Décision 25 : plancher de 0,8 s par temps de jeu — JAMAIS en
+     dessous. Le temps décisif (la frappe) s'étire à ~1 s. Si le budget
+     serre, on réduit le NOMBRE de rendus, jamais leur lisibilité. */
+  const TEMPS_MS = 800;
+  const TEMPS_DECISIF_MS = 1000;
   const estChaude = (phase) => phase.evenements.some((ev) =>
     ev.but || ev.type === "arret" || ev.type === "blocage" || ev.type === "rebond");
-  const dureeRendu = (phase) => 300 + 500 +
-    phase.evenements.reduce((t, ev) => t + (DUREES_RENDU[ev.but ? "but" : ev.type] || 800), 0);
+  const aBut = (phase) => phase.evenements.some((ev) => ev.but);
+  const prioriteDe = (phase) => Math.max(...phase.evenements.map((ev) =>
+    ev.but ? 100 : ev.type === "arret" ? (ev.pres ? 60 : 40) : ev.type === "blocage" ? 30 : ev.type === "rebond" ? 20 : 0));
+  const coutRendu = (action) => 300 + 500 +
+    action.reduce((t, tp) => t + (tp.decisif ? TEMPS_DECISIF_MS : TEMPS_MS), 0);
+  /* Le texte du bandeau pour les temps sans événement moteur */
+  const texteDuTemps = (t) => {
+    if (t.ev) return t.ev.texte;
+    if (t.type === "relais") return `${t.de || "Le bloc"} remise pour ${t.vers} — ça circule.`;
+    if (t.type === "relais_long") return `Long ballon vers ${t.vers} !`;
+    if (t.type === "conduite") return `${t.acteur} porte le ballon et fixe la défense…`;
+    if (t.type === "frappe") return `${t.tireur ? t.tireur + " arme sa frappe…" : "La frappe part…"}`;
+    return null;
+  };
 
   function rejouer(resultat, equipeA, equipeB, elements, auCoupDeSifflet, options = {}) {
     const delaiPhase = options.delaiPhase || DELAI_PHASE_MS;
@@ -121,6 +134,7 @@ const ONZE_UI = (() => {
     elements.recit.innerHTML = "";
     elements.scoreA.textContent = "0";
     elements.scoreB.textContent = "0";
+    evenementsJoues = [];
     const scores = { a: 0, b: 0 };
     const etapes = [];
     let blocCourant = null;
@@ -129,6 +143,7 @@ const ONZE_UI = (() => {
     const facteurDe = (rapide) => vitesse === 1 ? 1 : (rapide ? 4 : 1.6);
 
     const jouerEvenement = (ev) => {
+      evenementsJoues.push(ev);
       if (ev.but) { if (ev.equipe === equipeA.nom) scores.a++; else scores.b++; }
       ajouterEvenement(elements, blocCourant, ev, scores);
       if (elements.bandeau) {
@@ -144,41 +159,102 @@ const ONZE_UI = (() => {
     };
 
     if (options.scene) {
-      // ---- Le tempo à deux régimes, dans le budget strict (décision 20) ----
+      /* ---- Le tempo décision 25 : on ne rend que des promesses,
+         dans le budget strict de la décision 20.
+         1. Chaque phase chaude devient une ACTION construite (3-6
+            temps) via ONZE_SCENE.construireAction.
+         2. Sélection par budget : TOUS les buts sont rendus d'office,
+            puis les meilleures occasions (presque-but > arrêt >
+            blocage) tant que le budget le permet — plafonné par
+            format (amical 2, M4-9 3, M10+ 5). En ×2 : buts seulement.
+         3. Les occasions NON retenues passent au régime compressé
+            avec un accent (flash + OHHH léger).
+         4. Les respirations de domination (1-2 s) absorbent le reste
+            du budget — jamais les rendus. ---- */
       const budgetTotal = delaiPhase * resultat.phases.length;
-      const chaudes = resultat.phases.filter(estChaude);
-      const coutChaudes = chaudes.reduce((t, p) => t + dureeRendu(p), 0);
-      const nbFroides = resultat.phases.length - chaudes.length;
-      const dureeFroide = Math.max(1500, Math.min(3400,
-        nbFroides ? (budgetTotal - coutChaudes) / nbFroides : 2000));
+      const nbPhases = resultat.phases.length;
+      const maxRendus = vitesse === 2 ? 99 : nbPhases <= 4 ? 2 : nbPhases <= 6 ? 3 : 5;
+      const actions = new Map(); // phase → temps[]
+      for (const phase of resultat.phases) {
+        if (estChaude(phase)) actions.set(phase, ONZE_SCENE.construireAction(phase, equipeA, equipeB));
+      }
+      const candidates = [...actions.keys()]
+        .sort((a, b) => (aBut(b) - aBut(a)) || (prioriteDe(b) - prioriteDe(a)));
+      const rendues = new Set();
+      let coutTotal = 0;
+      for (const phase of candidates) {
+        const cout = coutRendu(actions.get(phase));
+        const resteApres = budgetTotal - coutTotal - cout - (nbPhases - rendues.size - 1) * 1000;
+        const obligatoire = aBut(phase); // un but ne se compresse JAMAIS
+        if (vitesse === 2 && !obligatoire) continue;
+        if (obligatoire || (rendues.size < maxRendus && resteApres > 0)) {
+          rendues.add(phase);
+          coutTotal += cout;
+        }
+      }
+      const nbNonRendues = nbPhases - rendues.size;
+      const dureeFroide = Math.max(1000, Math.min(2000,
+        nbNonRendues ? (budgetTotal - coutTotal) / nbNonRendues : 1200));
+      const scoresLobby = (options.scoresLobby || []).slice();
       resultat.phases.forEach((phase) => {
-        const chaude = estChaude(phase);
+        const rendue = rendues.has(phase);
+        // un rendu SANS but se dégrade en compressé si le spectateur
+        // passe en ×2 en cours de match — un BUT se rend toujours
+        const degradable = rendue && !aBut(phase);
+        const enX2Degrade = () => vitesse === 2 && degradable;
         etapes.push({
-          delai: 300, rapide: !chaude,
+          delai: 300, rapide: !rendue, optionnelle: degradable,
           action: () => {
             blocCourant = blocPhase(elements.recit, phase.minute, phase.numero);
+            const compresse = !rendue || enX2Degrade();
             options.scene.debutPhase(phase, {
-              regime: chaude ? "rendu" : "domination",
-              duree: (chaude ? dureeRendu(phase) : dureeFroide) / facteurDe(!chaude),
+              regime: compresse ? "domination" : "rendu",
+              duree: (compresse ? dureeFroide : coutRendu(actions.get(phase))) / facteurDe(compresse),
             });
           },
         });
-        if (chaude) {
+        if (rendue) {
+          const action = actions.get(phase);
+          const couverts = new Set(action.map((t) => t.ev).filter(Boolean));
           // la montée de tension : le spectateur sent l'occasion ARRIVER
-          etapes.push({ delai: 500, action: () => options.scene.tension(500 / facteurDe(false)) });
-          phase.evenements.forEach((ev) => {
-            const delai = DUREES_RENDU[ev.but ? "but" : ev.type] || 800;
+          etapes.push({ delai: 500, optionnelle: degradable, delaiRapide: 120,
+            action: () => { if (!enX2Degrade()) options.scene.tension(500 / facteurDe(false)); } });
+          action.forEach((t) => {
+            // plancher 0,8 s : un temps RENDU ne se brouille jamais
+            const delai = t.decisif ? TEMPS_DECISIF_MS : TEMPS_MS;
             etapes.push({
-              delai,
-              action: () => { jouerEvenement(ev); options.scene.evenement(ev, delai / facteurDe(false)); },
+              delai, plancher: TEMPS_MS, optionnelle: degradable, delaiRapide: 260,
+              action: () => {
+                if (enX2Degrade()) { // dégradé : journal + accent, pas de chorégraphie
+                  if (t.ev) { jouerEvenement(t.ev); options.scene.evenementDomination(t.ev); }
+                  return;
+                }
+                if (t.ev) jouerEvenement(t.ev);
+                else if (elements.bandeau) {
+                  const texte = texteDuTemps(t);
+                  if (texte) elements.bandeau.innerHTML = texte;
+                }
+                options.scene.jouerTemps(t, Math.max(TEMPS_MS, delai / facteurDe(false)));
+              },
             });
+          });
+          // le SOLDE : tout événement de la phase absent de l'action est
+          // consigné (journal, score, juice) — le récit reste complet
+          etapes.push({
+            delai: 200,
+            action: () => phase.evenements.forEach((ev) => { if (!couverts.has(ev)) jouerEvenement(ev); }),
           });
         } else {
           const pas = Math.max(300, (dureeFroide - 300) / (phase.evenements.length + 1));
-          phase.evenements.forEach((ev) => {
+          phase.evenements.forEach((ev, iEv) => {
             etapes.push({
               delai: pas, rapide: true,
-              action: () => { jouerEvenement(ev); options.scene.evenementDomination(ev); },
+              action: () => {
+                jouerEvenement(ev);
+                options.scene.evenementDomination(ev);
+                // les autres scores du lobby vivent pendant le compressé
+                if (iEv === 0 && scoresLobby.length) options.scene.notifierLobby(scoresLobby.shift());
+              },
             });
           });
           etapes.push({ delai: pas, rapide: true, action: () => {} });
@@ -226,7 +302,13 @@ const ONZE_UI = (() => {
       const etape = etapes.shift();
       if (!etape) return;
       const diviseur = options.scene ? facteurDe(etape.rapide) : vitesse;
-      setTimeout(() => { etape.action(); suivante(); }, etape.delai / diviseur);
+      // le plancher de lisibilité (décision 25) : un temps de jeu RENDU
+      // ne descend JAMAIS sous ~0,8 s — en ×2, un rendu sans but se
+      // DÉGRADE en compressé (on réduit le nombre, pas la lisibilité)
+      const delai = (etape.optionnelle && vitesse === 2)
+        ? (etape.delaiRapide || 250)
+        : Math.max(etape.plancher || 0, etape.delai / diviseur);
+      setTimeout(() => { etape.action(); suivante(); }, delai);
     })();
   }
 
@@ -235,8 +317,14 @@ const ONZE_UI = (() => {
      extensible au camp adverse par les onglets. Ouvrable PENDANT le
      match (il lit le résultat déjà calculé — on n'affiche que le
      récap final, comme l'épée de TFT). */
-  function ouvrirRecap(resultat, equipeA, equipeB) {
-    const stats = ONZE.statsDuMatch(resultat, equipeA, equipeB);
+  function ouvrirRecap(resultat, equipeA, equipeB, opts = {}) {
+    // Pendant le match : le recap ne lit QUE les événements déjà joués
+    // (zéro spoiler) — les notes sur 10 évoluent en direct, comme FM.
+    const source = opts.enCours ? { phases: [{ evenements: evenementsJoues }] } : resultat;
+    const stats = ONZE.statsDuMatch(source, equipeA, equipeB);
+    const note10 = (l) => Math.min(10, Math.max(5,
+      6 + l.buts * 1.5 + l.passes * 0.8 + l.duels * 0.35 + l.arrets * 0.8)).toFixed(1);
+    const couleurNote = (n) => n >= 7.5 ? "#4FC57C" : n >= 6.5 ? "#E8C547" : "#96A699";
     const voile = document.createElement("div");
     voile.className = "voile-fiche";
     let campActif = equipeA.nom;
@@ -245,13 +333,14 @@ const ONZE_UI = (() => {
       const maxScore = Math.max(...lignes.map((l) => l.score), 1);
       const hdm = stats.hommeDuMatch;
       voile.innerHTML = `<div class="fiche-joueur" style="max-width:460px">
-        <h3>⚔️ Le recap du match</h3>
-        <div class="sous-titre">${hdm ? `🌟 Homme du match : <strong>${hdm.nom}</strong> (${hdm.equipe})` : "Personne ne s'est illustré…"}</div>
+        <h3>⚔️ Le recap du match${opts.enCours ? " <small style='color:#96A699'>(en direct)</small>" : ""}</h3>
+        <div class="sous-titre">${hdm ? `🌟 Homme du match${opts.enCours ? " provisoire" : ""} : <strong>${hdm.nom}</strong> (${hdm.equipe})` : "Personne ne s'est encore illustré…"}</div>
         <div style="margin:6px 0">
           ${[equipeA, equipeB].map((eq) =>
             `<button class="onglet-recap" data-camp="${eq.nom.replace(/"/g, "&quot;")}" style="width:auto;margin:0 4px 0 0;padding:5px 10px;font-size:0.7rem;${eq.nom === campActif ? "background:#2E4E39;border-color:#4FC57C" : ""}">${eq.nom}</button>`).join("")}
         </div>
         ${lignes.map((l) => `<div class="ligne-stat">
+          <span class="note-recap" style="color:${couleurNote(Number(note10(l)))}">${note10(l)}</span>
           <span class="nom-stat">${hdm && l.nom === hdm.nom && campActif === hdm.equipe ? "🌟 " : ""}${l.nom}</span>
           <span class="barre-stat"><div style="width:${Math.round(100 * l.score / maxScore)}%"></div></span>
           <span style="font-size:0.64rem;color:#C8D6C9;white-space:nowrap">${[

@@ -80,6 +80,8 @@ const ONZE_JUICE = (() => {
       foule(0.25, 0.6, 0.06);
     },
     arret: () => note(180, 0, 0.1, { type: "triangle", volume: 0.1, glisse: 120 }),
+    // le OHHH du stade : montée de foule coupée net (presque-but)
+    ohhh: () => { foule(0, 0.55, 0.09); note(220, 0.02, 0.35, { type: "triangle", volume: 0.07, glisse: 150 }); },
     defaite: () => { note(330, 0, 0.16, { volume: 0.1 }); note(262, 0.15, 0.3, { volume: 0.1, glisse: 220 }); },
   };
   function jouer(nom) {

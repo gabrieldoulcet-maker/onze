@@ -403,3 +403,14 @@ button.principal:disabled { background: #2A3A2C; color: #6C7A6E; }
 .jauge-domination > div { position: absolute; top: 0; height: 100%; left: 50%; width: 0; border-radius: 2px; }
 .jauge-domination > div.pulse { animation: jaugePulse 0.45s ease infinite; }
 @keyframes jaugePulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(2); } }
+
+/* ---- Itération FM : toasts du lobby, notes du recap, replay ---- */
+.toast-lobby {
+  position: absolute; top: 8px; right: 8px; z-index: 8; pointer-events: none;
+  background: #0B100CE0; border: 1px solid #24331F; border-radius: 8px;
+  padding: 3px 9px; font-size: 0.62rem; color: #96A699;
+  opacity: 0; transform: translateX(12px); transition: opacity 0.3s, transform 0.3s;
+}
+.toast-lobby.visible { opacity: 1; transform: translateX(0); }
+.note-recap { flex: 0 0 26px; font-weight: 800; font-size: 0.72rem; text-align: right; padding-right: 4px; }
+.bandeau-replay { transform: translateX(-50%); }
