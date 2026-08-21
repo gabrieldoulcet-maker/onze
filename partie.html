@@ -409,8 +409,17 @@
     };
     const MEMBRES_STAFF = ["Prépa physique", "Coach mental", "Analyste vidéo", "Coach de finition",
       "Coach technique", "Kiné", "Adjoint tactique", "Scout"];
-    // Le Passeport est rare (l'équivalent de la Spatule)
-    const tirerCarteStaff = () => Math.random() < 0.1 ? "Passeport" : hasardParmi(MEMBRES_STAFF);
+    /* Le SAC équitable (backlog 5, règle TFT) : un exemplaire de chaque
+       composant par cycle — la malchance des doublons est bornée. Le
+       Passeport (rare) se glisse dans ~80 % des cycles (≈ 9 % des
+       tirages, le taux historique). */
+    const tirerCarteStaff = () => {
+      if (!partie.sacStaff || !partie.sacStaff.length) {
+        partie.sacStaff = [...MEMBRES_STAFF].sort(() => Math.random() - 0.5);
+        if (Math.random() < 0.8) partie.sacStaff.splice(Math.floor(Math.random() * (MEMBRES_STAFF.length + 1)), 0, "Passeport");
+      }
+      return partie.sacStaff.pop();
+    };
     /* Backlog 7 : l'inventaire staff est plafonné à 10 cartes. Une carte
        GAGNÉE à inventaire plein est revendue +2M (annoncé) ; les retours
        de vente d'un joueur, eux, ne sont jamais perdus. */
@@ -420,6 +429,36 @@
       partie.staff.push(carte);
       return carte;
     }
+
+    /* ========= Les objets avancés (design/staff.md, copie TFT) =========
+       Les 8 Reliques (artefacts) : uniques, non craftables, UNE par
+       partie, distribuées par les coupes tardives. La Radio du Coach est
+       gardée en réserve (elle exigerait une action en plein match —
+       contraire au « zéro action pendant le match »). */
+    const RELIQUES = {
+      "Le Brassard du Fondateur": { desc: "Annule la guerre des égos : DEUX Capitaines peuvent coexister (bonus doublé)." },
+      "La Chaussure Dépareillée": { desc: "Tire des deux pieds : frappes dopées (×1,35)… mais 10 % de tirs dans les nuages." },
+      "Le Sifflet Avalé": { desc: "L'arbitre ne voit plus rien : ce joueur ignore tous les malus hors-poste." },
+      "Le Maillot Retourné": { desc: "La rage de l'ancien : gros bonus quand l'adversaire aligne son École d'origine." },
+      "La Cage Immaculée": { desc: "Gardien uniquement : chaque mi-temps sans encaisser rend +3 prestige.", gardien: true },
+      "Le Crampon d'Or 1958": { desc: "Le porteur joue avec +1 étoile tant qu'il est titulaire." },
+      "Le Ballon Fétiche": { desc: "Le geste d'anthologie permanent : +1 Ferveur 🔥 à chaque manche où il est titulaire." },
+    };
+    /* Le Staff du club (objets de soutien, effets d'ÉQUIPE, non assignés) */
+    const STAFF_CLUB = {
+      "Le Chef Cuisinier": { desc: "+4 Endurance pour toute l'équipe.", boosts: { endurance: 4 } },
+      "L'Intendant": { desc: "+1M de revenus à chaque manche." },
+      "Le Bus du Club": { desc: "Le premier duel d'équipe de chaque match est gagné d'office." },
+      "Le Jardinier": { desc: "La pelouse est un tapis : +3 Tacle et +3 Placement pour toute l'équipe.", boosts: { tacle: 3, placement: 3 } },
+      "Le Kiné en Chef": { desc: "+4 Endurance et +2 Mental — l'équipe récupère de tout.", boosts: { endurance: 4, mental: 2 } },
+      "La Mascotte": { desc: "+1 Ferveur 🔥 par manche — le public l'adore." },
+    };
+    /* Les 3 consommables (Remover, Reforger, Duplicator) */
+    const CONSOMMABLES = {
+      "Rupture de contrat": { desc: "Retire tout le staff d'un joueur — cartes et spécialisations redeviennent des composants." },
+      "Reconversion": { desc: "Relance une spécialisation d'un joueur en une autre, au hasard." },
+      "La Doublure": { desc: "Duplique un de tes joueurs coût 1-3 (une copie gratuite, prise dans le pool)." },
+    };
     const STARTERS = [
       { nom: "Gus",    cout: 0, poste: "GAR", ecole: "", archetype: "", unique: null },
       { nom: "Marcel", cout: 0, poste: "DÉF", ecole: "", archetype: "", unique: null },
@@ -573,10 +612,17 @@
 
     /* L'équipe alignée, avec les boosts de Philosophies appliqués */
     function equipeDuClub() {
-      const equipe = ONZE.equipeDepuisFiches("Mon Club", "Toi", partie.terrain);
-      for (const nom of partie.philosophies) {
-        const boosts = BOOSTS_PHILOSOPHIES[nom];
-        if (!boosts) continue;
+      // Relique « Le Crampon d'Or 1958 » : le porteur joue avec +1 étoile
+      const fiches = partie.terrain.map((j) => j.relique === "Le Crampon d'Or 1958"
+        ? { ...j, etoiles: Math.min(3, (j.etoiles || 1) + 1) } : j);
+      const equipe = ONZE.equipeDepuisFiches("Mon Club", "Toi", fiches);
+      equipe.staffClub = partie.staffClub || []; // le moteur lit le Bus du Club
+      // les boosts d'équipe : Philosophies + Staff du club
+      const sourcesBoosts = [
+        ...partie.philosophies.map((nom) => BOOSTS_PHILOSOPHIES[nom]),
+        ...(partie.staffClub || []).map((nom) => (STAFF_CLUB[nom] || {}).boosts),
+      ].filter(Boolean);
+      for (const boosts of sourcesBoosts) {
         for (const j of equipe.joueurs) {
           for (const [stat, montant] of Object.entries(boosts)) {
             if (!(stat in j.stats)) continue;
@@ -634,6 +680,7 @@
       if (partie.matchEnCours && partie.banc.length >= TAILLE_BANC)
         return signaler("Banc plein — pendant le match, les recrues vont au banc.");
       partie.or -= fiche.cout;
+      partie.compteurs.depensesMercato = (partie.compteurs.depensesMercato || 0) + fiche.cout; // le Mercenaire
       partie.boutique[indice] = null;
       placerAuClub({ ...fiche, etoiles: 1 });
       // l'arrivée d'un Unique est un ÉVÉNEMENT (fanfare + bannière)
@@ -654,9 +701,11 @@
         return signaler("Le match se joue — les titulaires ne se vendent pas en plein match.");
       const liste = partie[nomListe];
       const fiche = liste[indice];
-      // le staff du joueur vendu revient à l'inventaire
+      // le staff du joueur vendu revient à l'inventaire (la relique aussi —
+      // trop précieuse pour la limite : elle dépasse le plafond s'il le faut)
       for (const carte of fiche.staffCartes || []) partie.staff.push(carte);
       for (const spec of fiche.specialisations || []) partie.staff.push(spec);
+      if (fiche.relique) partie.staff.push(fiche.relique);
       const copies = Math.pow(3, (fiche.etoiles || 1) - 1);
       partie.compteurs.ventesManche++;
       ONZE_JUICE.jouer("vente");
@@ -695,6 +744,7 @@
       partie.or -= COUT_REFRESH;
       partie.verrou = false;
       partie.compteurs.relances++;
+      partie.compteurs.depensesMercato = (partie.compteurs.depensesMercato || 0) + COUT_REFRESH;
       ONZE_JUICE.jouer("refresh");
       nouvelleBoutique();
       afficher();
@@ -702,6 +752,7 @@
     function acheterXP() {
       if (partie.or < COUT_XP) return signaler("Pas assez d'or.");
       partie.or -= COUT_XP;
+      partie.compteurs.depensesMercato = (partie.compteurs.depensesMercato || 0) + COUT_XP;
       gagnerXP(4);
       afficher();
     }
@@ -733,6 +784,7 @@
       return partie.terrain.filter((j) => ligneDe(j) === "GAR").length === 0;
     }
     function celebrerFusions(fusions) {
+      partie.compteurs.fusionsManche = (partie.compteurs.fusionsManche || 0) + fusions.length; // les Jumeaux Bamana
       fusions.forEach((f, i) => {
         setTimeout(() => {
           const banniere = document.createElement("div");
@@ -772,6 +824,29 @@
       partie.pool.splice(partie.pool.indexOf(fiche), 1);
       return fiche;
     }
+    /* Le butin des COUPES : les composants garantis, plus les trésors
+       tardifs — la Relique (M12+, UNE par partie, orbe or), le Staff du
+       club (max 2), les consommables, et la sublimation Iconique (M15). */
+    function creerOrbeCoupe(rarete) {
+      if (rarete === "or" && partie.manche >= 12 && !partie.reliqueDonnee) {
+        partie.reliqueDonnee = true;
+        const dispo = Object.keys(RELIQUES).filter((r) => r !== (partie.reliqueRecue || ""));
+        return { rarete: "or", type: "relique", nom: hasardParmi(dispo) };
+      }
+      if (rarete === "or" && partie.manche >= 15 && !partie.iconiqueDonnee) {
+        partie.iconiqueDonnee = true;
+        return { rarete: "or", type: "iconique" };
+      }
+      if (rarete === "bleu" && (partie.staffClubDonnes || 0) < 2 && Math.random() < 0.35) {
+        partie.staffClubDonnes = (partie.staffClubDonnes || 0) + 1;
+        const dispo = Object.keys(STAFF_CLUB).filter((n) => !(partie.staffClub || []).includes(n));
+        if (dispo.length) return { rarete: "bleu", type: "staffClub", nom: hasardParmi(dispo) };
+      }
+      if (rarete === "bleu" && Math.random() < 0.25)
+        return { rarete: "bleu", type: "consommable", nom: hasardParmi(Object.keys(CONSOMMABLES)) };
+      return creerOrbe(rarete, true);
+    }
+
     function creerOrbe(rarete, staffGaranti = false) {
       if (staffGaranti) {
         // l'orbe porte sa carte staff quoi qu'il arrive (l'or y ajoute sa prime)
@@ -826,6 +901,34 @@
           : `🧰 Inventaire staff plein (${PLAFOND_STAFF}) — <strong>${orbe.membre}</strong> revendu <strong>+2M</strong>` +
             (orbe.montantBonus ? ` <strong>+${orbe.montantBonus}M</strong>` : "") +
             `<br><small>Assigne tes cartes avant d'en gagner d'autres !</small>`;
+      } else if (orbe.type === "relique") {
+        // le trésor d'une partie : la Relique (unique, très rare)
+        gagnerCarteStaff(orbe.nom); // vit dans l'inventaire, s'assigne comme une carte
+        partie.reliqueRecue = orbe.nom;
+        ONZE_JUICE.jouer("icone");
+        revele.innerHTML = `🏺 <strong>${orbe.nom}</strong> !<br><small>${RELIQUES[orbe.nom].desc}<br>Une RELIQUE — la seule de ta partie. Assigne-la comme une carte staff.</small>`;
+      } else if (orbe.type === "staffClub") {
+        partie.staffClub = partie.staffClub || [];
+        partie.staffClub.push(orbe.nom);
+        ONZE_JUICE.jouer("unique");
+        revele.innerHTML = `🏟️ <strong>${orbe.nom}</strong> rejoint le club !<br><small>${STAFF_CLUB[orbe.nom].desc} (effet d'équipe, permanent)</small>`;
+      } else if (orbe.type === "consommable") {
+        gagnerCarteStaff(orbe.nom);
+        revele.innerHTML = `🧪 <strong>${orbe.nom}</strong><br><small>${CONSOMMABLES[orbe.nom].desc} Utilise-le depuis l'inventaire staff.</small>`;
+      } else if (orbe.type === "iconique") {
+        // sublime une spécialisation existante en version ICONIQUE (×1,5)
+        const porteurs = [...partie.terrain, ...partie.banc].filter((j) =>
+          (j.specialisations || []).some((s) => !(j.specsIconiques || []).includes(s)));
+        if (porteurs.length) {
+          const j = hasardParmi(porteurs);
+          const spec = hasardParmi(j.specialisations.filter((s) => !(j.specsIconiques || []).includes(s)));
+          j.specsIconiques = [...(j.specsIconiques || []), spec];
+          ONZE_JUICE.jouer("fusion3");
+          revele.innerHTML = `🌟 <strong>${spec}</strong> devient ICONIQUE sur ${j.nom} !<br><small>Version dorée : les bonus de la spécialisation ×1,5 — la seule de ta partie.</small>`;
+        } else {
+          partie.or += 4;
+          revele.innerHTML = `🌟 Personne à sublimer… <strong>+4M</strong> de compensation.<br><small>Il fallait une spécialisation sur le terrain.</small>`;
+        }
       } else {
         const nombre = orbe.type === "duo" ? 2 : 1;
         for (let n = 0; n < nombre; n++) placerAuClub({ ...orbe.fiche, etoiles: 1 });
@@ -1065,7 +1168,10 @@
       perdant.serie = perdant.serie < 0 ? perdant.serie - 1 : -1;
       if (perdant.fantome) return; // l'Équipe B encaisse sans conséquence pour le club cloné
       perdant.prestige = Math.max(0, perdant.prestige - ONZE.degatsPrestige(ecart, partie.manche));
-      if (perdant.prestige === 0) perdant.vivant = false;
+      if (perdant.prestige === 0 && perdant.vivant) {
+        perdant.vivant = false;
+        if (!gagnant.ia) partie.compteurs.coupsDeGrace = (partie.compteurs.coupsDeGrace || 0) + 1; // le Fossoyeur
+      }
     }
 
     function finDeManche(resultat, monAdversaire, resultatsIA) {
@@ -1122,7 +1228,21 @@
       const serieAbs = Math.abs(je.serie);
       const bonusSerie = serieAbs >= 6 ? 3 : serieAbs >= 5 ? 2 : serieAbs >= 3 ? 1 : 0;
       const bonusVictoire = !amical && victoire ? (aPhilosophie("Guichets fermés") ? 2 : 1) : 0;
-      const revenu = sponsors + base + bonusVictoire + bonusSerie;
+      // les effets par manche du Staff du club et des Reliques
+      const bonusIntendant = (partie.staffClub || []).includes("L'Intendant") ? 1 : 0;
+      if ((partie.staffClub || []).includes("La Mascotte")) partie.compteurs.ferveur++;
+      if (partie.terrain.some((j) => j.relique === "Le Ballon Fétiche")) partie.compteurs.ferveur++;
+      const gardienCage = partie.terrain.find((j) => (j.ligne || j.poste) === "GAR" && j.relique === "La Cage Immaculée");
+      if (gardienCage && resultat.phases.length) {
+        const miTemps = Math.ceil(resultat.phases.length / 2);
+        const encaissesMi1 = resultat.phases[miTemps - 1].scoreB;
+        let propres = (encaissesMi1 === 0 ? 1 : 0) + (resultat.scoreB - encaissesMi1 === 0 ? 1 : 0);
+        if (propres) {
+          moi().prestige = Math.min(PRESTIGE_DEPART, moi().prestige + 3 * propres);
+          signaler(`🧤 La Cage Immaculée : +${3 * propres} prestige !`);
+        }
+      }
+      const revenu = sponsors + base + bonusVictoire + bonusSerie + bonusIntendant;
       partie.or += revenu;
       gagnerXP(XP_GRATUITE_PAR_MANCHE + (aPhilosophie("Centre de formation") ? 1 : 0));
       if (partie.staffEnRetard && partie.manche >= partie.staffEnRetard) {
@@ -1133,7 +1253,7 @@
       }
 
       partie.orbesEnAttente = coupe
-        ? BUTIN_COUPE[partie.manche].map((rarete) => creerOrbe(rarete, true)) // ~2 composants garantis
+        ? BUTIN_COUPE[partie.manche].map((rarete) => creerOrbeCoupe(rarete)) // ~2 composants + trésors tardifs
         : amical
           ? partie.butin[partie.manche].map((orbe) => creerOrbe(orbe.rarete, orbe.staffGaranti))
           : [];
@@ -1168,6 +1288,17 @@
         setTimeout(() => { volet.remove(); continuer(); }, 600);
       });
 
+      // ---- les compteurs des Icônes de fin de partie (groupes III-V) ----
+      cpt.butsCumules = (cpt.butsCumules || 0) + resultat.scoreA; // le Grand Renard
+      const nomsTitulaires = partie.terrain.map((j) => j.nom.replace(/ ★+$/, ""));
+      const compteEcole = (ecole) => partie.terrain.filter((j) => j.ecole === ecole || j.ecoleBonus === ecole).length;
+      if (compteEcole("École de la Rue") >= 5) cpt.manchesRue5 = (cpt.manchesRue5 || 0) + 1; // la Samba
+      if (nomsTitulaires.includes("Billy") && nomsTitulaires.includes("Jamie"))
+        cpt.manchesBillyJamie = (cpt.manchesBillyJamie || 0) + 1; // le Kick & Rush éternel
+      if (partie.terrain.filter((j) => j.unique && j.ecole === "La Grinta").length >= 2)
+        cpt.manchesGrintaUniques = (cpt.manchesGrintaUniques || 0) + 1; // la Remontada
+      if (!amical && victoire && resultat.ecart >= 3) cpt.serieGrosEcarts = (cpt.serieGrosEcarts || 0) + 1; // El Huracán
+      else if (!amical) cpt.serieGrosEcarts = 0;
       if (monAdversaire) partie.dernierAdversaire = monAdversaire.nom;
       const resume = amical
         ? `M${partie.manche} · ${resultat.scoreA}-${resultat.scoreB} ${partie.appariement.nomAdversaire} · +${revenu}M`
@@ -1204,6 +1335,7 @@
       }
       partie.compteurs.ventesManche = 0;
       partie.compteurs.scoutsManche = 0;
+      partie.compteurs.fusionsManche = 0;
       if (!partie.verrou) nouvelleBoutique();
       preparerManche();
       afficher();
@@ -1616,6 +1748,8 @@
     function assignerStaff(indiceCarte) {
       const carte = partie.staff[indiceCarte];
       if (!carte) return;
+      if (RELIQUES[carte]) return assignerRelique(indiceCarte);
+      if (CONSOMMABLES[carte]) return utiliserConsommable(indiceCarte);
       const tous = [
         ...partie.terrain.map((j, i) => ({ j, ref: "terrain:" + i })),
         ...partie.banc.map((j, i) => ({ j, ref: "banc:" + i })),
@@ -1680,10 +1814,117 @@
       const resultat = ONZE.assignerCarte(fiche, carte);
       if (!resultat.ok) return signaler(resultat.raison);
       partie.staff.splice(indiceCarte, 1);
-      if (resultat.evenement.type === "spec") partie.compteurs.specsCreees++;
+      if (resultat.evenement.type === "spec") {
+        partie.compteurs.specsCreees++;
+        // le Cobaye (Icône) : « le staff teste tout sur lui — ses
+        // spécialisations sont Iconiques » (×1,5)
+        if (fiche.icone && fiche.nom === "Le Cobaye")
+          fiche.specsIconiques = [...(fiche.specsIconiques || []), resultat.evenement.nom];
+      }
       if (resultat.evenement.type === "embleme") partie.compteurs.emblemes++;
       celebrerStaff(resultat.evenement);
       afficher();
+    }
+
+    /* ---- Les Reliques : assignation (une par joueur, définitive) ---- */
+    function assignerRelique(indiceCarte) {
+      const nom = partie.staff[indiceCarte];
+      const relique = RELIQUES[nom];
+      const candidats = [...partie.terrain, ...partie.banc]
+        .filter((j) => !j.relique && (!relique.gardien || j.poste === "GAR"));
+      if (!candidats.length) return signaler(relique.gardien
+        ? "Il faut un gardien sans relique pour la Cage Immaculée."
+        : "Personne ne peut porter cette relique (une seule par joueur).");
+      const voile = document.createElement("div");
+      voile.className = "voile-fiche";
+      voile.innerHTML = `<div class="fiche-joueur" style="max-width:360px">
+        <h3>🏺 ${nom}</h3>
+        <div class="sous-titre">${relique.desc}</div>
+        <div class="sous-titre" style="color:#E8C547">Choisis son porteur — c'est DÉFINITIF.</div>
+        ${candidats.map((j, i) => `<button class="fermer" style="text-align:left;margin-top:4px" data-porteur="${i}">
+          <span class="pastille p-${j.poste}">${ONZE_UI.GLYPHES.postes[j.poste]}</span> ${j.nom}</button>`).join("")}
+        <button class="fermer" data-annuler>Annuler</button>
+      </div>`;
+      voile.addEventListener("click", (e) => {
+        const bouton = e.target.closest("[data-porteur]");
+        if (bouton) {
+          const j = candidats[Number(bouton.dataset.porteur)];
+          j.relique = nom;
+          partie.staff.splice(indiceCarte, 1);
+          ONZE_JUICE.jouer("unique");
+          signaler(`🏺 ${j.nom} porte ${nom} !`);
+          voile.remove();
+          afficher();
+          return;
+        }
+        if (e.target === voile || e.target.closest("[data-annuler]")) voile.remove();
+      });
+      el("app").appendChild(voile);
+    }
+
+    /* ---- Les consommables : Rupture, Reconversion, la Doublure ---- */
+    function utiliserConsommable(indiceCarte) {
+      const nom = partie.staff[indiceCarte];
+      const tous = [...partie.terrain, ...partie.banc];
+      const candidats = nom === "La Doublure"
+        ? tous.filter((j) => !j.icone && j.cout >= 1 && j.cout <= 3)
+        : nom === "Reconversion"
+          ? tous.filter((j) => (j.specialisations || []).length)
+          : tous.filter((j) => (j.specialisations || []).length || (j.staffCartes || []).length);
+      if (!candidats.length) return signaler("Personne d'éligible pour « " + nom + " » pour l'instant.");
+      const voile = document.createElement("div");
+      voile.className = "voile-fiche";
+      voile.innerHTML = `<div class="fiche-joueur" style="max-width:360px">
+        <h3>🧪 ${nom}</h3>
+        <div class="sous-titre">${CONSOMMABLES[nom].desc}</div>
+        ${candidats.map((j, i) => `<button class="fermer" style="text-align:left;margin-top:4px" data-cible="${i}">
+          <span class="pastille p-${j.poste}">${ONZE_UI.GLYPHES.postes[j.poste]}</span> ${j.nom}
+          <small style="color:#96A699">${(j.specialisations || []).map((s) => "🧪" + s).join(" ")}${(j.staffCartes || []).map((c) => " 🧰" + c).join(" ")}</small></button>`).join("")}
+        <button class="fermer" data-annuler>Annuler</button>
+      </div>`;
+      voile.addEventListener("click", (e) => {
+        const bouton = e.target.closest("[data-cible]");
+        if (bouton) {
+          const j = candidats[Number(bouton.dataset.cible)];
+          partie.staff.splice(indiceCarte, 1);
+          if (nom === "Rupture de contrat") {
+            // cartes et spécialisations redeviennent des composants
+            for (const carte of j.staffCartes || []) partie.staff.push(carte);
+            for (const spec of j.specialisations || []) {
+              const combo = Object.entries(ONZE.SPECIALISATIONS).find(([, s]) => s.nom === spec);
+              if (combo) for (const composant of combo[0].split(" + ")) partie.staff.push(composant);
+            }
+            j.staffCartes = []; j.specialisations = []; j.specsIconiques = [];
+            signaler(`✂️ ${j.nom} libéré — les composants reviennent à l'inventaire.`);
+          } else if (nom === "Reconversion") {
+            const ancienne = hasardParmi(j.specialisations);
+            const autres = Object.values(ONZE.SPECIALISATIONS).map((s) => s.nom).filter((s) => s !== ancienne);
+            const nouvelle = hasardParmi(autres);
+            j.specialisations = j.specialisations.map((s) => (s === ancienne ? nouvelle : s));
+            j.specsIconiques = (j.specsIconiques || []).filter((s) => s !== ancienne);
+            ONZE_JUICE.jouer("fusion");
+            signaler(`🔄 ${j.nom} : ${ancienne} devient ${nouvelle} !`);
+          } else { // La Doublure
+            const original = partie.pool.find((x) => x.nom === j.nom.replace(/ ★+$/, ""));
+            if (original) {
+              partie.pool.splice(partie.pool.indexOf(original), 1);
+              placerAuClub({ ...original, etoiles: 1 });
+              const fusions = ONZE.fusionnerEffectif(partie.terrain, partie.banc);
+              if (fusions.length) celebrerFusions(fusions);
+              ONZE_JUICE.jouer("achat");
+              signaler(`👥 Une doublure de ${original.nom} sort du centre de formation !`);
+            } else {
+              partie.staff.push(nom); // le pool est vide : le consommable est rendu
+              signaler("Plus aucune copie dans le pool — la Doublure attendra.");
+            }
+          }
+          voile.remove();
+          afficher();
+          return;
+        }
+        if (e.target === voile || e.target.closest("[data-annuler]")) voile.remove();
+      });
+      el("app").appendChild(voile);
     }
     /* 🧪 Le Labo : la grille des 36 spécialisations + les emblèmes */
     function ouvrirLabo() {
@@ -1929,7 +2170,7 @@
       const etoiles = (fiche.etoiles || 1) >= 2 ? `<span class="etoiles">${"★".repeat(fiche.etoiles)}</span>` : "";
       const nbSpecs = (fiche.specialisations || []).length;
       const nbCartes = (fiche.staffCartes || []).length;
-      const staff = `${"🧪".repeat(nbSpecs)}${"🧰".repeat(nbCartes)}${fiche.ecoleBonus ? "🛂" : ""}`;
+      const staff = `${"🧪".repeat(nbSpecs)}${"🧰".repeat(nbCartes)}${fiche.ecoleBonus ? "🛂" : ""}${fiche.relique ? "🏺" : ""}${(fiche.specsIconiques || []).length ? "🌟" : ""}`;
       const choisi = selection && selection.nomListe === nomListe && selection.indice === indice;
       return `<div class="jeton cout-${fiche.cout}${choisi ? " choisi" : ""}" data-liste="${nomListe}" data-indice="${indice}" onclick="tapJeton('${nomListe}', ${indice})">
         ${pastilleHTML(fiche)} <span class="note-jeton">${note}</span> ${etoiles}<br>${fiche.nom}<br>
@@ -2017,8 +2258,11 @@
       // L'inventaire staff (colonne gauche) — tap = assigner
       el("inventaire-staff").innerHTML = partie.staff.length
         ? `<span style="color:#96A699;font-size:0.58rem;text-transform:uppercase;letter-spacing:1px">🧰 Staff à assigner</span>` +
-          partie.staff.map((carte, i) =>
-            `<span class="badge${carte === "Passeport" ? " presque" : ""}" style="cursor:pointer;display:block;text-align:left" onclick="assignerStaff(${i})">${carte === "Passeport" ? "🛂" : "🧰"} ${carte}</span>`).join("")
+          partie.staff.map((carte, i) => {
+            const icone = RELIQUES[carte] ? "🏺" : CONSOMMABLES[carte] ? "🧪" : carte === "Passeport" ? "🛂" : "🧰";
+            const rare = RELIQUES[carte] || carte === "Passeport";
+            return `<span class="badge${rare ? " presque" : ""}" style="cursor:pointer;display:block;text-align:left" onclick="assignerStaff(${i})">${icone} ${carte}</span>`;
+          }).join("")
         : "";
 
       // La ligne de progression des manches (barre de stage TFT)
@@ -2096,7 +2340,8 @@
         !partie.quetesVisibles.includes(x.id) &&
         !partie.icônesDebloquees.includes(x.id) &&
         !queteEstPerdue(x.id) &&
-        (partie.manche >= 4 || ONZE_ICONES.liste.indexOf(x) < 12));
+        (partie.manche >= 4 || ONZE_ICONES.liste.indexOf(x) < 12) &&
+        (partie.manche >= 8 || ONZE_ICONES.liste.indexOf(x) < 23)); // les groupes III-V arrivent au milieu de partie
       return candidates.length ? hasardParmi(candidates).id : null;
     }
     function verifierQuetes(apercu) {

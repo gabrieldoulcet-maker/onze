@@ -352,8 +352,11 @@ function calculerSynergies(equipe) {
   }
   for (const [nom, nb] of Object.entries(archetypes)) {
     if (nom === "Capitaine") {
-      if (nb === 1) actives.push({ nom, nb, s: 1, type: "archetype" });
-      if (nb >= 2) actives.push({ nom: "Guerre des égos", nb, s: 1, type: "archetype" });
+      // Relique « Le Brassard du Fondateur » : DEUX Capitaines coexistent
+      // (le bonus double), la guerre des égos est annulée
+      const brassard = equipe.joueurs.some((j) => j.relique === "Le Brassard du Fondateur");
+      if (nb === 1 || (brassard && nb >= 2)) actives.push({ nom, nb, s: brassard && nb >= 2 ? 2 : 1, type: "archetype" });
+      else if (nb >= 2) actives.push({ nom: "Guerre des égos", nb, s: 1, type: "archetype" });
       continue;
     }
     const s = (PALIERS_ARCHETYPES[nom] || [2, 4, 6]).filter((p) => nb >= p).length;
@@ -403,8 +406,10 @@ function equipeDepuisFiches(nomClub, coach, fiches) {
     for (const nomSpec of j.specialisations || []) {
       const spec = Object.values(SPECIALISATIONS).find((x) => x.nom === nomSpec);
       if (!spec) continue;
+      // version ICONIQUE (les Radiants) : boosts ×1,5
+      const facteurIconique = (j.specsIconiques || []).includes(nomSpec) ? 1.5 : 1;
       for (const [stat, montant] of Object.entries(spec.boosts)) {
-        if (stat in j.statsBase) j.boosts[stat] = (j.boosts[stat] || 0) + montant;
+        if (stat in j.statsBase) j.boosts[stat] = (j.boosts[stat] || 0) + Math.round(montant * facteurIconique);
       }
     }
     j.stats = {};
@@ -424,6 +429,7 @@ function equipeDepuisFiches(nomClub, coach, fiches) {
       const total = s(equipe, "Football Total");
       let facteur = total >= 3 ? 0 : total === 2 ? 0.3 : total === 1 ? 0.6 : 1;
       if (j.unique === "Le Professeur") facteur = 0;
+      if (j.relique === "Le Sifflet Avalé") facteur = 0; // l'arbitre ne voit plus rien
       malus *= facteur;
       j.malusHorsPoste = malus;
       for (const stat of Object.keys(j.stats)) j.stats[stat] = Math.max(5, Math.round(j.stats[stat] * (1 - malus)));
@@ -495,7 +501,12 @@ function forme(j, ctx, equipe) {
   const fatigue = 1 - progression * (1 - (j.stats.endurance || 50) / 100) * 0.6;
   let mental = 1;
   if (ctx.momentChaud()) mental = 0.88 + ((j.stats.mental || 50) / 100) * 0.24;
-  return fatigue * mental;
+  // Relique « Le Maillot Retourné » : la rage de l'ancien — bonus quand
+  // l'adversaire aligne des joueurs de son École d'origine
+  let rage = 1;
+  if (j.relique === "Le Maillot Retourné" && j.ecole && ctx.ecolesAdverses &&
+      ctx.ecolesAdverses[equipe.nom] && ctx.ecolesAdverses[equipe.nom].has(j.ecole)) rage = 1.12;
+  return fatigue * mental * rage;
 }
 function forceCollective(equipe, joueurs, s1, s2, ctx) {
   if (!joueurs.length) return 0;
@@ -547,6 +558,9 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
   // un rythme de buts par MATCH comparable (décision n°20)
   const condense = (NB_PHASES - (ctx.nbPhases || NB_PHASES)) * 2.5;
   let qualite = duo(finisseur, "tir", "placement") * forme(finisseur, ctx, attaque) * (improvise ? 0.6 : 1) + de(38) + bonusQualite + condense;
+  // Relique « La Chaussure Dépareillée » : xG dopé… mais 10 % de tirs
+  // dans les nuages — le chaos assumé
+  if (finisseur.relique === "La Chaussure Dépareillée") qualite *= proba(0.10) ? 0.2 : 1.35;
   // Anti-emballement : un match plié se gère — l'équipe qui mène de 3+
   // lève le pied, le rythme de buts ralentit (écarts fleuves évités)
   const avance = ctx.scoreDe(attaque) - ctx.scoreAdverse(attaque);
@@ -722,6 +736,20 @@ function resoudrePhase(eqA, eqB, ctx) {
   }
 
   // --- Duel n°1 : le milieu — Passe + Vision des milieux ---
+  // Staff du club « Le Bus du Club » : le premier duel d'équipe de
+  // chaque match est gagné d'office (objet de soutien, non assigné)
+  if (!attaque && ctx.numero === 1) {
+    const busGagnants = [eqA, eqB].filter((e) =>
+      (e.staffClub || []).includes("Le Bus du Club") && !(((e === eqA ? eqB : eqA).staffClub || []).includes("Le Bus du Club")));
+    if (busGagnants.length === 1) {
+      attaque = busGagnants[0];
+      const porteurBus = attaque.joueurs.find((j) => ligneDe(j) === "MIL") || attaque.joueurs[0];
+      evenements.push({ type: "possession", acteurs: [porteurBus.nom],
+        texte: `Le Bus du Club a déposé l'équipe à l'heure — ${attaque.nom} démarre pied au plancher !`,
+        synergie: null, equipe: attaque.nom });
+      ctx.dernierPorteur = { nom: porteurBus.nom, equipe: attaque.nom };
+    }
+  }
   if (!attaque) {
     // Matrice « passe qui progresse » : Passe+Vision du porteur contre
     // Placement+Vitesse des milieux adverses (l'interception)
@@ -904,6 +932,11 @@ function simulerMatch(eqA, eqB, nbPhases = NB_PHASES) {
     scoreDe: (eq) => (eq === eqA ? scoreA : scoreB),
     scoreAdverse: (eq) => (eq === eqA ? scoreB : scoreA),
     momentChaud: () => ctx.numero > nbPhases - 2 || (ctx.numero > nbPhases - 4 && Math.abs(scoreA - scoreB) <= 1),
+    // pour le Maillot Retourné : les Écoles présentes chez l'adversaire
+    ecolesAdverses: {
+      [eqA.nom]: new Set(eqB.joueurs.map((j) => j.ecole).filter(Boolean)),
+      [eqB.nom]: new Set(eqA.joueurs.map((j) => j.ecole).filter(Boolean)),
+    },
   };
   for (let n = 1; n <= nbPhases; n++) {
     ctx.numero = n;

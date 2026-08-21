@@ -387,9 +387,11 @@ const ONZE_UI = (() => {
       ${fiche.description ? `<div class="description">${fiche.description}</div>` : ""}
       ${fiche.ecoleBonus ? `<div class="sous-titre">🛂 Emblème : compte aussi comme <strong>${fiche.ecoleBonus}</strong></div>` : ""}
       ${fiche.citoyenDuMonde ? `<div class="sous-titre">🌍 Citoyen du monde : +1 dans toutes tes Écoles actives</div>` : ""}
+      ${fiche.relique ? `<div class="sous-titre" style="color:#E8C547">🏺 <strong>${fiche.relique}</strong> — Relique (définitive)</div>` : ""}
       ${(fiche.specialisations || []).map((nom) => {
         const spec = Object.values(ONZE.SPECIALISATIONS).find((x) => x.nom === nom);
-        return `<div class="sous-titre">🧪 <strong>${nom}</strong>${spec && spec.effet ? " — " + spec.effet : ""}</div>`;
+        const iconique = (fiche.specsIconiques || []).includes(nom);
+        return `<div class="sous-titre">${iconique ? "🌟" : "🧪"} <strong>${nom}${iconique ? " (Iconique ×1,5)" : ""}</strong>${spec && spec.effet ? " — " + spec.effet : ""}</div>`;
       }).join("")}
       ${(fiche.staffCartes || []).map((c) => `<div class="sous-titre">🧰 ${c} <small>(en attente d'une 2ᵉ carte)</small></div>`).join("")}
       ${lignes}
