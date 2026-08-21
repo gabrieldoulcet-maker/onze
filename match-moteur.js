@@ -52,7 +52,11 @@ function baseDegats(manche) {
   return 17;
 }
 function degatsPrestige(ecart, manche = 10) {
-  return ecart > 0 ? baseDegats(manche) + ecart : 0;
+  // La composante écart est relevée (×1,25) depuis le rééquilibrage « 2-3 buts
+  // par match » (décision 25) : moitié moins de buts qu'avant, donc
+  // chaque but d'écart pèse un quart de plus — le rythme d'élimination TFT
+  // (première élim ~M11-13, fin ~M17-19) est préservé.
+  return ecart > 0 ? baseDegats(manche) + Math.round(1.25 * ecart) : 0;
 }
 
 /* ============================================================
@@ -551,7 +555,7 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
   const malusMurs = Math.min(murs.reduce((t, j) => t + (j.stats.placement || 0), 0) * 0.05, 8);
   let parade = gardien.cageVide
     ? 10 + de(10)
-    : (gardien.stats.reflexes || 40) * 0.65 * forme(gardien, ctx, defense) + de(26) + malusMurs;
+    : (gardien.stats.reflexes || 40) * 0.90 * forme(gardien, ctx, defense) + de(26) + malusMurs;
 
   let classe = false;
   const virtuose = s(attaque, "Virtuose");
@@ -601,15 +605,25 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
   if (blocage) {
     evenements.push({ type: "blocage", acteurs: [finisseur.nom], texte: blocage.texte, synergie: blocage.synergie, equipe: defense.nom });
   } else {
+    // la MARGE du duel : un tir qui passait à un cheveu est un
+    // presque-but (pres) — le rendu et le stade le célèbrent (OHHH)
+    const marge = qualite - parade;
     evenements.push({
       type: "arret", acteurs: [finisseur.nom, gardien.nom],
+      marge, pres: marge > -10,
       texte: gardien.cageVide
         ? `${finisseur.nom} vise la cage vide… et dévisse ! Incroyable raté !`
-        : varie(
-          `${finisseur.nom} frappe… mais ${gardien.nom} s'envole et détourne ! Quel arrêt !`,
-          `${finisseur.nom} arme sa frappe… ${gardien.nom} gagne son face-à-face du bout des gants !`,
-          `La tentative de ${finisseur.nom} est cadrée… mais ${gardien.nom} dit non !`
-        ),
+        : marge > -10
+          ? varie(
+            `${finisseur.nom} croyait l'avoir mise au fond… ${gardien.nom} sort l'arrêt RÉFLEXE ! Le stade n'en revient pas !`,
+            `La frappe de ${finisseur.nom} prend la lucarne… et ${gardien.nom} la détourne du bout des gants ! OHHH !`,
+            `${finisseur.nom} arme… c'est cadré, c'est fort — ${gardien.nom} s'envole et la sort du cadre !`
+          )
+          : varie(
+            `${finisseur.nom} frappe… mais ${gardien.nom} s'envole et détourne ! Quel arrêt !`,
+            `${finisseur.nom} arme sa frappe… ${gardien.nom} gagne son face-à-face du bout des gants !`,
+            `La tentative de ${finisseur.nom} est cadrée… mais ${gardien.nom} dit non !`
+          ),
       equipe: defense.nom,
       synergie: s(defense, "Mur") && proba(0.3) ? "Mur" : null,
     });
@@ -630,7 +644,7 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
       });
       return true;
     }
-    evenements.push({ type: "arret", acteurs: [finisseur.nom, gardien.nom], texte: `…mais ${gardien.nom} s'y reprend à deux fois et gagne son duel !`, equipe: defense.nom, synergie: null });
+    evenements.push({ type: "arret", acteurs: [finisseur.nom, gardien.nom], pres: secondTir - secondeParade > -10, texte: `…mais ${gardien.nom} s'y reprend à deux fois et gagne son duel !`, equipe: defense.nom, synergie: null });
   }
 
   let renard = s(attaque, "Renard");
@@ -649,7 +663,7 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
       });
       return true;
     }
-    evenements.push({ type: "arret", acteurs: [opportuniste.nom, gardien.nom], texte: `…mais ${gardien.nom} réalise le double arrêt !`, equipe: defense.nom, synergie: null });
+    evenements.push({ type: "arret", acteurs: [opportuniste.nom, gardien.nom], pres: reprise - paradeReprise > -10, texte: `…mais ${gardien.nom} réalise le double arrêt !`, equipe: defense.nom, synergie: null });
   }
   return false;
 }
@@ -787,7 +801,11 @@ function resoudrePhase(eqA, eqB, ctx) {
     // l'encombrement dilue le marquage : une ligne à 2 défend plein pot,
     // un bus à 4-5 se marche dessus (−7 % par défenseur au-delà de 2)
     const dilution = Math.max(0.72, 1 - 0.07 * Math.max(0, defenseursUtiles.length - 2));
-    percee = forceAtt + bonusAtt + de(50) > forceDef * dilution + de(50);
+    // +8 plat à l'attaque : plus de percées converties en OCCASIONS —
+    // le gardien renforcé (parade ×0.90) garde les buts/match à 2-3.
+    // C'est le réglage de la dramaturgie (décision 25) : un match plein
+    // produit ~6 occasions pour ~2,6 buts, les presque-buts existent.
+    percee = forceAtt + bonusAtt + 8 + de(50) > forceDef * dilution + de(50);
 
     if (!percee) {
       const rue = s(attaque, "École de la Rue");

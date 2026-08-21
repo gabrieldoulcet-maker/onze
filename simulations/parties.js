@@ -40,7 +40,7 @@ const phasesDeManche = (manche) => manche <= 3 ? 4 : manche <= 9 ? 6 : 8;
 /* ---- La courbe des IA : LE réglage que cette simulation calibre.
    Doit rester identique à genererEquipeIA de partie.html. ---- */
 const NIVEAU_IA = (manche) => Math.min(3 + Math.floor(manche / 4), 9);
-const BUDGET_IA = (manche) => Math.min(1 + 1.45 * manche, 22);
+const BUDGET_IA = (manche) => Math.min(1 + 1.48 * manche, 22);
 
 /* Règle fondamentale (backlog 4) : les IA piochent dans le MÊME pool
    que le bot — copie exacte de genererEquipeIA de partie.html. Les
