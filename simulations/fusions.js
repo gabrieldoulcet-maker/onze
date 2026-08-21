@@ -25,9 +25,8 @@ function unePartie(manchesMax) {
   let or = 0, niveau = 3, xp = 0, serie = 0;
   const effectif = []; // copies possédées
   let mancheFusion = null;
-  // plan de butin (comme partie.html) : orbes [2,2,2,1] sur les manches 1-3
-  const valeurs = [2, 2, 2, 1].sort(() => Math.random() - 0.5);
-  const repartition = Math.random() < 0.5 ? [1, 2, 1] : [2, 1, 1];
+  // plan de butin (comme partie.html) : gris/gris, gris/bleu, or
+  const PLAN_BUTIN = { 1: ["gris", "gris"], 2: ["gris", "bleu"], 3: ["or"] };
 
   const tirerCarte = () => {
     const odds = ODDS_PAR_NIVEAU[Math.min(niveau, 5)];
@@ -80,39 +79,39 @@ function unePartie(manchesMax) {
     xp += 2;
     while (XP_POUR_MONTER[niveau] && xp >= XP_POUR_MONTER[niveau]) { xp -= XP_POUR_MONTER[niveau]; niveau++; }
     if (manche <= 3) {
-      for (let n = 0; n < repartition[manche - 1]; n++) {
-        const valeur = valeurs.shift();
-        if (manche === 3 && n === 0) { // le duo du centre de formation
-          const possedes = new Set(effectif.map((j) => j.nom));
-          let candidats = pool.filter((j) => j.cout === 1 && pool.filter((x) => x.nom === j.nom).length >= 2);
-          const doublons = candidats.filter((j) => possedes.has(j.nom));
-          if (doublons.length && Math.random() < 0.7) candidats = doublons;
-          if (candidats.length) {
-            const nom = hasardParmi(candidats).nom;
-            for (let k = 0; k < 2; k++) {
-              pool.splice(pool.findIndex((j) => j.nom === nom), 1);
-              effectif.push({ ...joueurs.find((j) => j.nom === nom), etoiles: 1 });
-            }
-            const fusions = M.fusionnerEffectif(effectif, []);
-            if (fusions.length && mancheFusion === null) mancheFusion = manche;
-          }
-          continue;
-        }
+      const ajouterJoueur = (coutMax, coutMin = 1) => {
+        const possedes = new Set(effectif.map((j) => j.nom));
+        let candidats = pool.filter((j) => j.cout >= coutMin && j.cout <= coutMax);
+        const doublons = candidats.filter((j) => possedes.has(j.nom));
+        if (doublons.length && Math.random() < 0.6) candidats = doublons;
+        if (!candidats.length) return;
+        const fiche = hasardParmi(candidats);
+        pool.splice(pool.indexOf(fiche), 1);
+        effectif.push({ ...fiche, etoiles: 1 });
+        const fusions = M.fusionnerEffectif(effectif, []);
+        if (fusions.length && mancheFusion === null) mancheFusion = manche;
+      };
+      for (const rarete of PLAN_BUTIN[manche]) {
         const tirage = Math.random();
-        if (tirage < 0.35) or += valeur;
-        else if (tirage < 0.65 && valeur >= 2) { /* carte staff : sans effet ici */ }
-        else {
-          const possedes = new Set(effectif.map((j) => j.nom));
-          let candidats = pool.filter((j) => j.cout >= 1 && j.cout <= valeur);
-          const doublons = candidats.filter((j) => possedes.has(j.nom));
-          if (doublons.length && Math.random() < 0.6) candidats = doublons;
-          if (candidats.length) {
-            const fiche = hasardParmi(candidats);
-            pool.splice(pool.indexOf(fiche), 1);
-            effectif.push({ ...fiche, etoiles: 1 });
-            const fusions = M.fusionnerEffectif(effectif, []);
-            if (fusions.length && mancheFusion === null) mancheFusion = manche;
-          }
+        if (rarete === "gris") { if (tirage < 0.5) or += 1 + Math.round(Math.random()); else ajouterJoueur(1); }
+        else if (rarete === "bleu") { if (tirage < 0.35) or += 2 + Math.round(Math.random()); else if (tirage < 0.65) { /* staff */ } else ajouterJoueur(2); }
+        else { // or : duo 60 %
+          if (tirage < 0.6) {
+            const possedes = new Set(effectif.map((j) => j.nom));
+            let candidats = pool.filter((j) => j.cout === 1 && pool.filter((x) => x.nom === j.nom).length >= 2);
+            const doublons = candidats.filter((j) => possedes.has(j.nom));
+            if (doublons.length && Math.random() < 0.7) candidats = doublons;
+            if (candidats.length) {
+              const nom = hasardParmi(candidats).nom;
+              for (let k = 0; k < 2; k++) {
+                pool.splice(pool.findIndex((j) => j.nom === nom), 1);
+                effectif.push({ ...joueurs.find((j) => j.nom === nom), etoiles: 1 });
+              }
+              const fusions = M.fusionnerEffectif(effectif, []);
+              if (fusions.length && mancheFusion === null) mancheFusion = manche;
+            }
+          } else if (tirage < 0.8) { or += 2; /* staff */ }
+          else ajouterJoueur(3, 2);
         }
       }
     }

@@ -40,11 +40,13 @@
     </div>
 
     <div class="classement" id="classement"></div>
+    <div class="classement" id="prochain-adversaire" style="text-align:center;cursor:pointer"></div>
 
     <div class="section-titre"><span>Boutique</span><span id="odds-info"></span></div>
     <div class="boutique" id="boutique"></div>
     <div class="ligne-refresh">
       <button id="btn-refresh">🔄 Boutique (2M)</button>
+      <button id="btn-verrou" style="flex:0 0 52px">🔓</button>
       <button id="btn-xp">📈 +4 XP (4M)</button>
     </div>
 
@@ -58,6 +60,10 @@
 
     <div class="message-erreur" id="message"></div>
     <button class="principal" id="btn-match">⚽ Jouer la manche</button>
+    <details class="classement" style="margin-top:4px">
+      <summary style="cursor:pointer;color:#96A699;font-size:0.78rem">📜 Historique des manches</summary>
+      <div id="historique"></div>
+    </details>
   </div>
 
   <!-- ================= VUE MATCH ================= -->
@@ -100,7 +106,7 @@
     const COUT_XP = 4;
     const XP_GRATUITE_PAR_MANCHE = 2;
     const TAILLE_BOUTIQUE = 5;
-    const TAILLE_BANC = 8;
+    const TAILLE_BANC = 9; // TFT : 9 places, pas une de plus
     const PRESTIGE_DEPART = 40; // calibré en simulation (simulations/parties.js)
     const DERNIERE_MANCHE_AMICALE = 3;
     const POOL_PAR_COUT = { 1: 30, 2: 25, 3: 18, 4: 10, 5: 9 };
@@ -147,12 +153,14 @@
       partie = {
         manche: 1, coachs,
         or: OR_DEPART, niveau: 3, xp: 0, staff: [], butin: null, orbesEnAttente: [],
+        verrou: false, dernierAdversaire: null, appariement: null, historique: [],
         terrain: STARTERS.map((j) => ({ ...j, etoiles: 1 })), banc: [], boutique: [], pool: [],
         exempt: null,
       };
       construirePool();
       partie.butin = planifierButin();
       nouvelleBoutique(false);
+      preparerManche();
       montrer("mercato");
       afficherMercato();
     }
@@ -293,46 +301,55 @@
     /* ---- Le butin des amicaux : orbes façon TFT (design/economie.md).
        Valeur totale identique pour tout le monde (7M sur les 3 amicaux),
        la variance porte sur la composition : or, joueur gratuit, ou Staff. ---- */
+    /* Trois raretés d'orbes (gris < bleu < or), tables de butin
+       croissantes — même plan pour les 8 coachs (équité de valeur). */
     function planifierButin() {
-      // 4 orbes de valeurs [2,2,2,1], répartis 1-2 par amical
-      const valeurs = [2, 2, 2, 1].sort(() => Math.random() - 0.5);
-      const repartition = Math.random() < 0.5 ? [1, 2, 1] : [2, 1, 1];
-      const plan = { 1: [], 2: [], 3: [] };
-      let i = 0;
-      for (let manche = 1; manche <= 3; manche++)
-        for (let n = 0; n < repartition[manche - 1]; n++) plan[manche].push(valeurs[i++]);
-      return plan;
+      return { 1: ["gris", "gris"], 2: ["gris", "bleu"], 3: ["or"] };
     }
-    function creerOrbe(valeur, duo = false) {
-      if (duo) {
-        // Le duo du centre de formation : 2 copies du même joueur coût 1,
-        // orientées vers l'effectif — la rampe de lancement de la 1re fusion
-        const possedes = new Set([...partie.terrain, ...partie.banc].map((j) => j.nom));
-        let candidats = partie.pool.filter((j) => j.cout === 1);
-        const doublons = candidats.filter((j) => possedes.has(j.nom) && partie.pool.filter((x) => x.nom === j.nom).length >= 2);
-        if (doublons.length && Math.random() < 0.7) candidats = doublons;
-        const noms = [...new Set(candidats.filter((j) => partie.pool.filter((x) => x.nom === j.nom).length >= 2).map((j) => j.nom))];
-        if (!noms.length) return { type: "or", montant: valeur };
-        const nom = hasardParmi(noms);
-        const fiche = partie.pool.find((j) => j.nom === nom);
-        partie.pool.splice(partie.pool.indexOf(fiche), 1);
-        partie.pool.splice(partie.pool.findIndex((j) => j.nom === nom), 1);
-        return { type: "duo", fiche };
-      }
-      const tirage = Math.random();
-      if (tirage < 0.35) return { type: "or", montant: valeur };
-      if (tirage < 0.65 && valeur >= 2) return { type: "staff", membre: hasardParmi(MEMBRES_STAFF) };
-      // L'orbe-joueur oriente : 60 % du temps, il vise une copie d'un
-      // joueur déjà au club (le chemin vers la première fusion, façon TFT)
+    /* Les orbes-joueurs orientent : ils visent volontiers une copie d'un
+       joueur déjà au club (le chemin vers la première fusion, façon TFT). */
+    function piocherJoueur(coutMax, coutMin = 1) {
       const possedes = new Set([...partie.terrain, ...partie.banc].map((j) => j.nom));
-      let candidats = partie.pool.filter((j) => j.cout >= 1 && j.cout <= valeur);
+      let candidats = partie.pool.filter((j) => j.cout >= coutMin && j.cout <= coutMax);
       const doublons = candidats.filter((j) => possedes.has(j.nom));
       if (doublons.length && Math.random() < 0.6) candidats = doublons;
-      if (!candidats.length) return { type: "or", montant: valeur };
+      if (!candidats.length) return null;
       const fiche = hasardParmi(candidats);
       partie.pool.splice(partie.pool.indexOf(fiche), 1);
-      return { type: "joueur", fiche };
+      return fiche;
     }
+    function creerOrbe(rarete) {
+      const tirage = Math.random();
+      if (rarete === "gris") {
+        if (tirage < 0.5) return { rarete, type: "or", montant: de2(1, 2) };
+        const fiche = piocherJoueur(1);
+        return fiche ? { rarete, type: "joueur", fiche } : { rarete, type: "or", montant: 2 };
+      }
+      if (rarete === "bleu") {
+        if (tirage < 0.35) return { rarete, type: "or", montant: de2(2, 3) };
+        if (tirage < 0.65) return { rarete, type: "staff", membre: hasardParmi(MEMBRES_STAFF) };
+        const fiche = piocherJoueur(2);
+        return fiche ? { rarete, type: "joueur", fiche } : { rarete, type: "or", montant: 3 };
+      }
+      // or : le duo du centre de formation domine la table
+      if (tirage < 0.6) {
+        const possedes = new Set([...partie.terrain, ...partie.banc].map((j) => j.nom));
+        let candidats = partie.pool.filter((j) => j.cout === 1 && partie.pool.filter((x) => x.nom === j.nom).length >= 2);
+        const doublons = candidats.filter((j) => possedes.has(j.nom));
+        if (doublons.length && Math.random() < 0.7) candidats = doublons;
+        if (candidats.length) {
+          const nom = hasardParmi(candidats).nom;
+          const fiche = partie.pool.find((j) => j.nom === nom);
+          partie.pool.splice(partie.pool.indexOf(fiche), 1);
+          partie.pool.splice(partie.pool.findIndex((j) => j.nom === nom), 1);
+          return { rarete, type: "duo", fiche };
+        }
+      }
+      if (tirage < 0.8) return { rarete, type: "staff", membre: hasardParmi(MEMBRES_STAFF), montantBonus: 2 };
+      const fiche = piocherJoueur(3, 2);
+      return fiche ? { rarete, type: "joueur", fiche } : { rarete, type: "or", montant: 4 };
+    }
+    const de2 = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
     function ouvrirOrbe(bouton, indice) {
       const orbe = partie.orbesEnAttente[indice];
       if (!orbe || orbe.ouvert) return;
@@ -344,7 +361,10 @@
         revele.innerHTML = `🪙 <strong>+${orbe.montant}M</strong><br><small>La billetterie a bien marché.</small>`;
       } else if (orbe.type === "staff") {
         partie.staff.push(orbe.membre);
-        revele.innerHTML = `🧰 <strong>${orbe.membre}</strong> rejoint le club !<br><small>Carte Staff — le système complet arrive bientôt.</small>`;
+        if (orbe.montantBonus) partie.or += orbe.montantBonus;
+        revele.innerHTML = `🧰 <strong>${orbe.membre}</strong> rejoint le club !` +
+          (orbe.montantBonus ? ` <strong>+${orbe.montantBonus}M</strong>` : "") +
+          `<br><small>Carte Staff — le système complet arrive bientôt.</small>`;
       } else {
         const nombre = orbe.type === "duo" ? 2 : 1;
         for (let n = 0; n < nombre; n++) {
@@ -387,26 +407,42 @@
       return ONZE.equipeDepuisFiches(coach.nom, coach.nom, compo);
     }
 
-    /* ---- La manche : appariements, mon match, matchs IA, dégâts ---- */
+    /* ---- La préparation de manche : l'appariement se décide AU MERCATO
+       (façon TFT : le prochain adversaire est annoncé, jamais deux fois
+       le même de suite) et les équipes IA sont figées → scoutables. ---- */
+    function preparerManche() {
+      const amical = partie.manche <= DERNIERE_MANCHE_AMICALE;
+      for (const c of partie.coachs) if (c.ia && c.vivant) c.equipe = genererEquipeIA(c);
+      if (amical) {
+        partie.appariement = { amical: true, nomAdversaire: "Amical — " + AMICAUX[partie.manche - 1].nom };
+        return;
+      }
+      const autres = partie.coachs.filter((c) => c.vivant && c.ia).sort(() => Math.random() - 0.5);
+      // pas de revanche immédiate si un autre adversaire est possible
+      let indice = autres.findIndex((c) => c.nom !== partie.dernierAdversaire);
+      if (indice === -1) indice = 0;
+      const monAdversaire = autres.splice(indice, 1)[0];
+      const pairesIA = [];
+      while (autres.length >= 2) pairesIA.push([autres.shift(), autres.shift()]);
+      partie.exempt = autres.length ? autres[0] : null;
+      partie.appariement = { amical: false, monAdversaire, pairesIA, nomAdversaire: monAdversaire.nom };
+    }
+
+    /* ---- La manche : le match utilise l'appariement annoncé ---- */
     function jouerManche() {
       const verdict = verdictFormation();
       if (verdict) return signaler(verdict);
-      const amical = partie.manche <= DERNIERE_MANCHE_AMICALE;
+      const amical = partie.appariement.amical;
 
       let monAdversaire = null, equipeAdverse, resultatsIA = [];
       if (amical) {
         equipeAdverse = genererEquipeAmicale(partie.manche);
       } else {
-        const vivants = partie.coachs.filter((c) => c.vivant);
-        const autres = vivants.slice(1).sort(() => Math.random() - 0.5);
-        monAdversaire = autres.shift();
-        const pairesIA = [];
-        while (autres.length >= 2) pairesIA.push([autres.shift(), autres.shift()]);
-        partie.exempt = autres.length ? autres[0] : null;
-        equipeAdverse = genererEquipeIA(monAdversaire);
+        monAdversaire = partie.appariement.monAdversaire;
+        equipeAdverse = monAdversaire.equipe;
         // Les matchs des autres coachs se jouent pour de vrai aussi
-        resultatsIA = pairesIA.map(([c1, c2]) => {
-          const r = ONZE.simulerMatch(genererEquipeIA(c1), genererEquipeIA(c2));
+        resultatsIA = partie.appariement.pairesIA.map(([c1, c2]) => {
+          const r = ONZE.simulerMatch(c1.equipe, c2.equipe);
           return { c1, c2, scoreA: r.scoreA, scoreB: r.scoreB };
         });
       }
@@ -479,19 +515,25 @@
         (bonusVictoire ? ` +1 victoire` : "") + `)</span></div></div>`;
 
       partie.orbesEnAttente = amical
-        ? partie.butin[partie.manche].map((valeur, i) =>
-            creerOrbe(valeur, partie.manche === DERNIERE_MANCHE_AMICALE && i === 0))
+        ? partie.butin[partie.manche].map((rarete) => creerOrbe(rarete))
         : [];
       if (partie.orbesEnAttente.length) {
         html += `<div class="classement" style="text-align:center"><strong>🎁 Le butin de l'amical !</strong><br>` +
           `<small>Touche chaque orbe pour l'ouvrir.</small></div><div class="orbes">` +
-          partie.orbesEnAttente.map((o, i) => `<button class="orbe" onclick="ouvrirOrbe(this, ${i})">🎁</button>`).join("") +
+          partie.orbesEnAttente.map((o, i) => `<button class="orbe ${o.rarete}" onclick="ouvrirOrbe(this, ${i})">🎁</button>`).join("") +
           `</div>`;
       }
       el("resultats").innerHTML = html;
       el("resultats").classList.remove("masque");
       if (!partie.orbesEnAttente.length) el("btn-continuer").classList.remove("masque");
 
+      if (monAdversaire) partie.dernierAdversaire = monAdversaire.nom;
+      const resume = amical
+        ? `M${partie.manche} · ${resultat.scoreA}-${resultat.scoreB} ${partie.appariement.nomAdversaire} · +${revenu}M`
+        : `M${partie.manche} · ${resultat.scoreA}-${resultat.scoreB} vs ${monAdversaire.nom} ` +
+          (victoire ? "✅" : resultat.scoreA === resultat.scoreB ? "🤝" : `❌ -${ONZE.degatsPrestige(resultat.ecart, partie.manche)}💚`) +
+          ` · +${revenu}M`;
+      partie.historique.unshift(resume);
       partie.manche++;
     }
 
@@ -507,7 +549,8 @@
         el("classement-final").innerHTML = ligneClassement();
         return;
       }
-      nouvelleBoutique();
+      if (!partie.verrou) nouvelleBoutique(); // 🔒 verrou : la boutique reste
+      preparerManche();
       montrer("mercato");
       afficherMercato();
       window.scrollTo({ top: 0 });
@@ -518,8 +561,41 @@
       return partie.coachs.slice().sort((a, b) => b.prestige - a.prestige).map((c) => {
         const classes = "coach" + (c.ia ? "" : " moi") + (c.vivant ? "" : " mort");
         const serie = c.serie > 1 ? ` 🔥${c.serie}` : "";
-        return `<div class="${classes}"><span>${c.nom}${serie}</span><span>💚 ${c.prestige}</span></div>`;
+        const indice = partie.coachs.indexOf(c);
+        return `<div class="${classes}" style="cursor:pointer" onclick="scouterIndice(${indice})"><span>🔎 ${c.nom}${serie}</span><span>💚 ${c.prestige}</span></div>`;
       }).join("");
+    }
+    /* Scouting : taper un club du classement ouvre son vestiaire —
+       onze complet, synergies actives, ADN (comme le tien) */
+    function scouterIndice(indice) {
+      const coach = partie.coachs[indice];
+      if (!coach.ia) return ouvrirVestiaire(null); // toi-même
+      if (!coach.vivant) return signaler(coach.nom + " a déjà quitté le tournoi.");
+      ouvrirVestiaire(coach);
+    }
+    function ouvrirVestiaire(coach) {
+      const equipe = coach
+        ? (coach.equipe || genererEquipeIA(coach))
+        : ONZE.equipeDepuisFiches("Mon Club", "Toi", partie.terrain);
+      const axes = ONZE.adnClub(equipe);
+      const valeursAxes = Object.values(axes);
+      const maxAxe = Math.max(...valeursAxes), minAxe = Math.min(...valeursAxes);
+      const voile = document.createElement("div");
+      voile.className = "voile-fiche";
+      voile.innerHTML = `<div class="fiche-joueur">
+        <h3>🔎 ${equipe.nom}</h3>
+        <div class="sous-titre">${coach ? "École " + coach.ecole + " · vestiaire scouté" : "ton propre vestiaire"}</div>
+        <div class="synergies" style="margin-bottom:8px">${ONZE_UI.badges(equipe)}</div>
+        ${equipe.joueurs.map((j) => `<div class="ligne-stat"><span class="nom-stat">${j.poste}</span>` +
+          `<span style="flex:1">${j.nom}</span><span class="valeur-stat">${j.note}</span></div>`).join("")}
+        <div style="margin-top:8px">${Object.entries(axes).map(([axe, valeur]) => {
+          const classe = valeur === maxAxe && maxAxe > minAxe ? "forte" : valeur === minAxe && maxAxe > minAxe ? "faible" : "";
+          return `<div class="axe"><span class="nom-axe">${axe}</span><span class="barre-axe"><div class="${classe}" style="width:${valeur}%"></div></span><span class="valeur-axe">${valeur}</span></div>`;
+        }).join("")}</div>
+        <button class="fermer">Fermer</button>
+      </div>`;
+      voile.addEventListener("click", (e) => { if (e.target === voile || e.target.classList.contains("fermer")) voile.remove(); });
+      document.body.appendChild(voile);
     }
     /* Carte compacte : note globale + 2 stats signatures, jamais plus
        (design/stats.md). Tap sur la carte → fiche complète. */
@@ -561,6 +637,19 @@
       el("serie").textContent = moi().serie > 0 ? "🔥 " + moi().serie : moi().serie < 0 ? "❄️ " + (-moi().serie) : "—";
       el("staff").textContent = partie.staff.length;
       el("classement").innerHTML = ligneClassement();
+      // ⚔️ l'adversaire annoncé (tap = scouting de son vestiaire)
+      if (partie.appariement) {
+        el("prochain-adversaire").innerHTML = partie.appariement.amical
+          ? `🤝 Prochain match : <strong>${partie.appariement.nomAdversaire}</strong> <small>(aucun dégât)</small>`
+          : `⚔️ Prochain adversaire : <strong>${partie.appariement.nomAdversaire}</strong> <small>· touche pour scouter</small>`;
+        el("prochain-adversaire").onclick = partie.appariement.amical ? null
+          : () => ouvrirVestiaire(partie.appariement.monAdversaire);
+      }
+      el("btn-verrou").textContent = partie.verrou ? "🔒" : "🔓";
+      el("btn-verrou").style.background = partie.verrou ? "#4a3d18" : "";
+      el("historique").innerHTML = partie.historique.length
+        ? partie.historique.map((h) => `<div class="coach"><span>${h}</span></div>`).join("")
+        : `<div class="coach"><span>Rien encore — la saison commence.</span></div>`;
       const odds = ODDS_PAR_NIVEAU[Math.min(partie.niveau, 10)];
       el("odds-info").textContent = odds.map((v, i) => v ? `${v}%c${i + 1}` : null).filter(Boolean).join(" ");
       el("boutique").innerHTML = partie.boutique.map((fiche, i) =>
@@ -611,6 +700,11 @@
         el("btn-match").addEventListener("click", jouerManche);
         el("btn-continuer").addEventListener("click", continuer);
         el("btn-refresh").addEventListener("click", refresh);
+        el("btn-verrou").addEventListener("click", () => {
+          partie.verrou = !partie.verrou;
+          signaler(partie.verrou ? "🔒 Boutique verrouillée : elle t'attendra à la prochaine manche." : "🔓 Boutique déverrouillée.");
+          afficherMercato();
+        });
         el("btn-xp").addEventListener("click", acheterXP);
         el("btn-rejouer").addEventListener("click", nouvellePartie);
         el("btn-vitesse").addEventListener("click", () => {

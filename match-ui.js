@@ -17,11 +17,37 @@ const ONZE_UI = (() => {
 
   function basculerVitesse() { vitesse = vitesse === 1 ? 2 : 1; return vitesse; }
 
-  // Les badges de synergies d'une équipe (ex : « Tiki-Taka 5 »)
+  /* Les badges de synergies : compte / seuil suivant (« 3/5 »), et un
+     badge éteint ✨ quand il ne manque qu'UN joueur pour allumer une
+     famille — l'appel d'achat le plus efficace du mercato. */
   function badges(equipe) {
-    return equipe.synergies
-      .map((s) => `<span class="badge">${s.nom} ${s.nb}</span>`)
-      .join("");
+    const paliersDe = (nom, type) =>
+      (type === "ecole" ? ONZE.PALIERS_ECOLES[nom] : ONZE.PALIERS_ARCHETYPES[nom]) || null;
+    const rendus = [];
+    const vus = new Set();
+    for (const sy of equipe.synergies) {
+      vus.add(sy.nom);
+      const paliers = paliersDe(sy.nom, sy.type);
+      const prochain = paliers ? paliers.find((p) => p > sy.nb) : null;
+      const libelle = prochain ? `${sy.nb}/${prochain}` : `${sy.nb}`;
+      const presque = prochain && prochain - sy.nb === 1 ? " presque" : "";
+      rendus.push(`<span class="badge${presque}">${sy.nom} ${libelle}${presque ? " ✨" : ""}</span>`);
+    }
+    // familles pas encore actives mais à UN joueur du premier palier
+    const comptes = {};
+    for (const j of equipe.joueurs) {
+      if (j.ecole) comptes[j.ecole + "|ecole"] = (comptes[j.ecole + "|ecole"] || 0) + 1;
+      if (j.archetype) comptes[j.archetype + "|archetype"] = (comptes[j.archetype + "|archetype"] || 0) + 1;
+    }
+    for (const [cle, nb] of Object.entries(comptes)) {
+      const [nom, type] = cle.split("|");
+      if (vus.has(nom) || nom === "Capitaine") continue;
+      const paliers = paliersDe(nom, type);
+      if (paliers && paliers[0] - nb === 1) {
+        rendus.push(`<span class="badge inactif">${nom} ${nb}/${paliers[0]} ✨</span>`);
+      }
+    }
+    return rendus.join("");
   }
 
   function blocPhase(recit, minute, numero, total) {
