@@ -75,9 +75,9 @@ const NOMS_STATS = {
 
 /* Le profil = la forme (poids relatifs) ; le coût = la taille. */
 const PROFILS_ARCHETYPES = {
-  "Virtuose":   { dribble: 3, technique: 3, vitesse: 2, passe: 1.5, tir: 1.5, vision: 1.5, endurance: 1, placement: 1, mental: 1, tacle: 0.5 },
+  "Virtuose":   { dribble: 3, technique: 3, vitesse: 2, passe: 1.8, tir: 1.8, vision: 1.5, endurance: 1, placement: 1, mental: 1, tacle: 0.5 },
   "Sentinelle": { tacle: 3, placement: 3, mental: 2, endurance: 1.5, vitesse: 1.5, vision: 1.5, passe: 1, technique: 1, dribble: 0.5, tir: 0.5 },
-  "Créateur":   { passe: 3, vision: 3, technique: 2.5, dribble: 1.5, mental: 1.5, placement: 1, endurance: 1, vitesse: 1, tir: 1, tacle: 0.5 },
+  "Créateur":   { passe: 2.7, vision: 2.7, technique: 2.5, dribble: 1.5, mental: 1.5, placement: 1.1, endurance: 1, vitesse: 1, tir: 1.1, tacle: 0.6 },
   "Finisseur":  { tir: 3, placement: 3, vitesse: 2, mental: 1.5, technique: 1.5, dribble: 1.5, endurance: 1, passe: 1, vision: 1, tacle: 0.5 },
   "Moteur":     { endurance: 3, vitesse: 2.5, tacle: 2, passe: 1.5, technique: 1.5, placement: 1.5, mental: 1.5, vision: 1, dribble: 1, tir: 1 },
   "Mur":        { placement: 3, tacle: 2.5, mental: 2, endurance: 1.5, vitesse: 1, technique: 1, passe: 1, vision: 1, dribble: 0.5, tir: 0.5,
@@ -88,7 +88,7 @@ const PROFILS_ARCHETYPES = {
   "Mentor":     { vision: 3, mental: 3, passe: 2, technique: 1.5, placement: 1.5, endurance: 1, vitesse: 0.8, tacle: 1, dribble: 1, tir: 1 },
   "Capitaine":  { mental: 3, passe: 2.5, vision: 2, placement: 1.5, endurance: 1.5, tacle: 1.5, technique: 1.5, vitesse: 1, dribble: 0.8, tir: 1,
                   reflexes: 2.5, aerien: 1.5, pied: 1.5 },
-  "Piston":     { vitesse: 3, endurance: 3, dribble: 1.8, passe: 1.5, tacle: 1.5, placement: 1.5, technique: 1.2, tir: 1, vision: 1, mental: 1 },
+  "Piston":     { vitesse: 3, endurance: 3, dribble: 1.8, passe: 1.7, tacle: 1.5, placement: 1.7, technique: 1.2, tir: 1, vision: 1, mental: 1 },
   "":           { endurance: 1, vitesse: 1, technique: 1, tir: 1, passe: 1, dribble: 1, tacle: 1, placement: 1, vision: 1, mental: 1,
                   reflexes: 1, pied: 1, aerien: 1 }, // les réservistes sans archétype
 };
@@ -97,17 +97,17 @@ const PROFIL_BASE_GARDIEN = { reflexes: 3, aerien: 2, pied: 1.8, placement: 2, m
 
 /* La touche d'École : petit plus thématique sur des stats PRÉCISES */
 const TOUCHES_ECOLES = {
-  "Tiki-Taka": { passe: 6, technique: 4 },
-  "Catenaccio": { tacle: 6, placement: 4 },
-  "Kick & Rush": { aerien: 6, endurance: 4, placement: 2 },
-  "École de la Rue": { dribble: 6, technique: 4 },
-  "La Grinta": { mental: 8 },
-  "Football Total": { vision: 5, vitesse: 3 },
+  "Tiki-Taka": { passe: 2, technique: 2 },
+  "Catenaccio": { tacle: 3, placement: 2 },
+  "Kick & Rush": { aerien: 4, endurance: 3, passe: 2 },
+  "École de la Rue": { dribble: 6, technique: 4, passe: 3 },
+  "La Grinta": { mental: 8, tacle: 3 },
+  "Football Total": { vision: 6, vitesse: 4, passe: 2 },
   "L'Académie": { technique: 4, mental: 3 },
-  "Les Internationaux": { vision: 4, mental: 3 },
-  "Le Douzième Homme": { mental: 5, placement: 3 },
-  "Les Pros": { placement: 4, technique: 3 },
-  "Les Revanchards": { mental: 5, endurance: 3 },
+  "Les Internationaux": { vision: 1, mental: 2 },
+  "Le Douzième Homme": { mental: 6, placement: 5, endurance: 4 },
+  "Les Pros": { placement: 1, technique: 1 },
+  "Les Revanchards": { mental: 5, endurance: 3, placement: 2 },
 };
 
 /* Ajustements à la main : réservés aux Uniques (design/stats.md) */
@@ -289,10 +289,10 @@ const equipeASpec = (equipe, nom) => equipe.joueurs.some((j) => aSpec(j, nom));
    événements de match, en plus des boosts.
    ============================================================ */
 const PALIERS_ECOLES = {
-  "La Grinta": [3, 6, 9], "Catenaccio": [2, 4, 6, 9], "Kick & Rush": [2, 5],
-  "École de la Rue": [1, 3, 5, 7, 10], "Tiki-Taka": [3, 5, 7], "Football Total": [3, 5, 7, 10],
-  "L'Académie": [2, 3], "Les Internationaux": [2, 3], "Le Douzième Homme": [3, 4, 6],
-  "Les Pros": [2, 3], "Les Revanchards": [2, 3, 4],
+  "La Grinta": [2, 4, 6], "Catenaccio": [2, 4, 6, 9], "Kick & Rush": [2, 5],
+  "École de la Rue": [1, 3, 5, 7, 10], "Tiki-Taka": [3, 5, 7], "Football Total": [2, 4, 6, 9],
+  "L'Académie": [2, 3], "Les Internationaux": [3, 4], "Le Douzième Homme": [3, 4, 6],
+  "Les Pros": [2, 4], "Les Revanchards": [2, 3, 4],
 };
 const PALIERS_ARCHETYPES = {
   "Mur": [2, 4, 6], "Moteur": [2, 4, 6], "Sentinelle": [2, 4, 6],
@@ -301,29 +301,35 @@ const PALIERS_ARCHETYPES = {
   "Guerrier": [2, 4, 6], "Mentor": [3, 5, 7], "Capitaine": [1],
 };
 /* Chaque famille booste des stats précises, ×s (palier atteint) */
+/* Les valeurs des paliers — LE terrain d'équilibrage de la méta
+   (simulations/familles.js pour la force brute, simulations/meta.js
+   pour le round-robin des stratégies). Leçon des mesures : le duel du
+   milieu (Passe+Vision) décide chaque phase — les boosts de passe et
+   de vision ont un levier bien plus fort que dribble/tir : ils se
+   paient plus cher ici. */
 const BOOSTS_FAMILLES = {
-  "Tiki-Taka": { passe: 5, technique: 3 },
-  "Catenaccio": { tacle: 5, placement: 3 },
+  "Tiki-Taka": { passe: 1, technique: 1 },
+  "Catenaccio": { tacle: 3, placement: 2 },
   "Kick & Rush": { aerien: 5, endurance: 3 },
-  "École de la Rue": { dribble: 5, technique: 3 },
-  "La Grinta": { mental: 6 },
-  "Football Total": { vision: 4, vitesse: 3 },
+  "École de la Rue": { dribble: 6, technique: 4, passe: 3 },
+  "La Grinta": { mental: 6, tacle: 3 },
+  "Football Total": { vision: 6, vitesse: 5, passe: 5 },
   "L'Académie": { technique: 4, mental: 3 },
-  "Les Internationaux": { vision: 3, mental: 3 },
-  "Le Douzième Homme": { mental: 4, placement: 3 },
-  "Les Pros": { placement: 3, technique: 3 },
-  "Les Revanchards": { mental: 4 },
-  "Mur": { placement: 4, reflexes: 5 },
-  "Moteur": { endurance: 5, vitesse: 3 },
-  "Sentinelle": { placement: 4, tacle: 3 },
-  "Virtuose": { dribble: 4, technique: 3 },
-  "Finisseur": { tir: 5, placement: 2 },
-  "Créateur": { passe: 4, vision: 3 },
-  "Piston": { vitesse: 4, endurance: 3 },
-  "Renard": { placement: 4, vitesse: 2 },
-  "Chanceux": { mental: 3 },
-  "Guerrier": { mental: 4, tacle: 2 },
-  "Mentor": { vision: 4, mental: 2 },
+  "Les Internationaux": { vision: 1, mental: 2 },
+  "Le Douzième Homme": { mental: 5, placement: 5 },
+  "Les Pros": { placement: 1, technique: 1 },
+  "Les Revanchards": { mental: 4, placement: 2 },
+  "Mur": { placement: 2, reflexes: 4 },
+  "Moteur": { endurance: 3, vitesse: 2 },
+  "Sentinelle": { placement: 2, tacle: 3 },
+  "Virtuose": { dribble: 6, technique: 4 },
+  "Finisseur": { tir: 7, placement: 3 },
+  "Créateur": { passe: 1, vision: 2 },
+  "Piston": { vitesse: 7, endurance: 5 },
+  "Renard": { placement: 5, vitesse: 3 },
+  "Chanceux": { mental: 3, vitesse: 4 },
+  "Guerrier": { mental: 4, tacle: 5 },
+  "Mentor": { vision: 6, mental: 3 },
   "Capitaine": { mental: 4 },
   "Guerre des égos": { mental: -8 },
 };
@@ -500,7 +506,7 @@ function forme(j, ctx, equipe) {
   const progression = Math.max(0, (ctx.numero - nb / 2) / nb);
   const fatigue = 1 - progression * (1 - (j.stats.endurance || 50) / 100) * 0.6;
   let mental = 1;
-  if (ctx.momentChaud()) mental = 0.88 + ((j.stats.mental || 50) / 100) * 0.24;
+  if (ctx.momentChaud()) mental = 0.95 + ((j.stats.mental || 50) / 100) * 0.10; // levier du mental borné (méta)
   // Relique « Le Maillot Retourné » : la rage de l'ancien — bonus quand
   // l'adversaire aligne des joueurs de son École d'origine
   let rage = 1;
@@ -709,7 +715,7 @@ function resoudrePhase(eqA, eqB, ctx) {
     const kr = s(eq, "Kick & Rush");
     const etat = ctx.etat[eq.nom];
     const disponible = kr >= 2 ? true : (kr >= 1 && !etat.ballonLongUtilise);
-    if (!attaque && disponible && proba(0.15)) {
+    if (!attaque && disponible && proba(0.12)) {
       etat.ballonLongUtilise = true;
       etat.duelsAeriens = (etat.duelsAeriens || 0) + 1;
       attaque = eq;
@@ -761,9 +767,9 @@ function resoudrePhase(eqA, eqB, ctx) {
       const m = lesMilieux(eq);
       let bonus = 0;
       if (aUnique(eq, "Don Álvaro")) bonus += 10;
-      if (s(eq, "La Grinta") && ctx.scoreDe(eq) < ctx.scoreAdverse(eq)) bonus += 6 * s(eq, "La Grinta");
+      if (s(eq, "La Grinta") && ctx.scoreDe(eq) < ctx.scoreAdverse(eq)) bonus += 10 * s(eq, "La Grinta");
       if (aUnique(eq, "El Pibe") && ctx.scoreDe(eq) < ctx.scoreAdverse(eq)) bonus += 8;
-      if (s(eq, "Kick & Rush") >= 2 && ctx.numero >= 3) bonus += 8;
+      if (s(eq, "Kick & Rush") >= 2 && ctx.numero >= 3) bonus += 6;
       if (s(eq, "École de la Rue") >= 2) bonus += Math.min(ctx.etat[eq.nom].flow * 3, 15); // le Flow
       if (ctx.scoreDe(eq) < ctx.scoreAdverse(eq)) bonus += 10; // l'équipe menée pousse
       if (ctx.scoreDe(eq) - ctx.scoreAdverse(eq) >= 3) bonus -= 12; // le match est plié, on gère
@@ -773,8 +779,10 @@ function resoudrePhase(eqA, eqB, ctx) {
       const m = lesMilieux(eq);
       return forceCollective(eq, m.joueurs, "placement", "vitesse", ctx) * m.facteur;
     };
-    const forceA = progression(eqA) - 0.7 * interception(eqB) + de(70);
-    const forceB = progression(eqB) - 0.7 * interception(eqA) + de(70);
+    // le dé du milieu est LARGE (équilibrage méta : sans lui, les profils
+    // passe/vision décident chaque phase et écrasent la méta)
+    const forceA = progression(eqA) - 0.9 * interception(eqB) + de(150);
+    const forceB = progression(eqB) - 0.9 * interception(eqA) + de(150);
     attaque = forceA >= forceB ? eqA : eqB;
     const milieux = parPoste(attaque, "MIL");
     const autresChamp = attaque.joueurs.filter((j) => j.poste !== "GAR");
@@ -825,7 +833,7 @@ function resoudrePhase(eqA, eqB, ctx) {
     }
     if (typePercee.type === "aerien") ctx.duelAerienEnCours = true;
     let bonusAtt = 0;
-    if (s(attaque, "La Grinta") && ctx.scoreDe(attaque) < ctx.scoreAdverse(attaque)) bonusAtt += 6 * s(attaque, "La Grinta");
+    if (s(attaque, "La Grinta") && ctx.scoreDe(attaque) < ctx.scoreAdverse(attaque)) bonusAtt += 10 * s(attaque, "La Grinta");
     // l'encombrement dilue le marquage : une ligne à 2 défend plein pot,
     // un bus à 4-5 se marche dessus (−7 % par défenseur au-delà de 2)
     const dilution = Math.max(0.72, 1 - 0.07 * Math.max(0, defenseursUtiles.length - 2));
@@ -897,7 +905,7 @@ function resoudrePhase(eqA, eqB, ctx) {
     if (!cate && equipeASpec(defense, "Contre-attaquant") && proba(0.08)) {
       evenements.push({ type: "contre", acteurs: [], texte: `Ballon récupéré — la contre-attaque part comme à l'entraînement !`, synergie: "Contre-attaquant", equipe: defense.nom });
       butMarque = tenterTir(defense, attaque, ctx, evenements, 5);
-    } else if (cate && proba(0.05 * cate)) {
+    } else if (cate && proba(0.04 * cate)) {
       evenements.push({ type: "contre", acteurs: [], texte: `Récupération et contre éclair de ${defense.nom} — tout le monde est pris de vitesse !`, synergie: "Catenaccio", equipe: defense.nom });
       butMarque = tenterTir(defense, attaque, ctx, evenements, cate >= 2 ? 8 : 0);
     }
