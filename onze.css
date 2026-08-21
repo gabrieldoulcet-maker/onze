@@ -264,3 +264,16 @@ button.principal:disabled { background: #2A3A2C; color: #6C7A6E; }
 
 /* ---- Le jeton sélectionné pour un échange (formation libre) ---- */
 .jeton.choisi { outline: 2px solid #E8C547; box-shadow: 0 0 14px rgba(232, 197, 71, 0.6); }
+
+/* ---- Pastilles de poste : une couleur par poste, partout la même ---- */
+.pastille {
+  display: inline-block; min-width: 14px; padding: 0 2px;
+  border-radius: 4px; font-size: 0.56rem; font-weight: 800;
+  color: #0B100C; text-align: center; vertical-align: 1px;
+}
+.pastille.p-GAR { background: #E8C547; }
+.pastille.p-DÉF { background: #4F9EC5; }
+.pastille.p-MIL { background: #4FC57C; }
+.pastille.p-ATT { background: #E8654F; }
+.pastille.alerte { outline: 2px solid #FF9D3C; box-shadow: 0 0 6px rgba(255, 157, 60, 0.7); }
+.glyphes-famille { font-size: 0.62rem; letter-spacing: 1px; }

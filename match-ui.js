@@ -11,6 +11,23 @@
    ============================================================ */
 
 const ONZE_UI = (() => {
+  /* Les glyphes de familles — un par École et par archétype, uniques,
+     sans conflit avec 🧰⭐🧪🛂🌍🔥🎯🏆🎁😱. Même code visuel partout :
+     jetons, boutique, scouting, badges de synergies. */
+  const GLYPHES = {
+    postes: { "GAR": "G", "DÉF": "D", "MIL": "M", "ATT": "A" },
+    ecoles: {
+      "Tiki-Taka": "🎹", "Catenaccio": "🛡️", "Kick & Rush": "🚀", "École de la Rue": "🛹",
+      "La Grinta": "🐺", "Football Total": "🌀", "L'Académie": "📚", "Les Internationaux": "✈️",
+      "Le Douzième Homme": "📣", "Les Pros": "💼", "Les Revanchards": "🥊",
+    },
+    archetypes: {
+      "Mur": "🗿", "Moteur": "🔋", "Sentinelle": "👁️", "Virtuose": "🎩", "Finisseur": "🥅",
+      "Créateur": "🪄", "Piston": "💨", "Renard": "🦊", "Chanceux": "🍀", "Guerrier": "💪",
+      "Mentor": "🦉", "Capitaine": "🎖️",
+    },
+  };
+  const glyphe = (nom) => GLYPHES.ecoles[nom] || GLYPHES.archetypes[nom] || "";
   const DELAI_PHASE_MS = 5000;     // 8 phases → ~40 s de match
   const DELAI_EVENEMENT_MS = 1400; // les actions d'une phase s'égrènent
   let vitesse = 1;                 // 1 = direct, 2 = accéléré
@@ -31,7 +48,7 @@ const ONZE_UI = (() => {
       const prochain = paliers ? paliers.find((p) => p > sy.nb) : null;
       const libelle = prochain ? `${sy.nb}/${prochain}` : `${sy.nb}`;
       const presque = prochain && prochain - sy.nb === 1 ? " presque" : "";
-      rendus.push(`<span class="badge${presque}">${sy.nom} ${libelle}${presque ? " ✨" : ""}</span>`);
+      rendus.push(`<span class="badge${presque}" data-famille="${sy.nom}">${glyphe(sy.nom)} ${sy.nom} ${libelle}${presque ? " ✨" : ""}</span>`);
     }
     // familles pas encore actives mais à UN joueur du premier palier
     const comptes = {};
@@ -44,7 +61,7 @@ const ONZE_UI = (() => {
       if (vus.has(nom) || nom === "Capitaine") continue;
       const paliers = paliersDe(nom, type);
       if (paliers && paliers[0] - nb === 1) {
-        rendus.push(`<span class="badge inactif">${nom} ${nb}/${paliers[0]} ✨</span>`);
+        rendus.push(`<span class="badge inactif" data-famille="${nom}">${glyphe(nom)} ${nom} ${nb}/${paliers[0]} ✨</span>`);
       }
     }
     return rendus.join("");
@@ -173,5 +190,5 @@ const ONZE_UI = (() => {
     (document.getElementById("app") || document.body).appendChild(voile);
   }
 
-  return { rejouer, badges, basculerVitesse, ouvrirFiche };
+  return { rejouer, badges, basculerVitesse, ouvrirFiche, GLYPHES, glyphe };
 })();

@@ -211,6 +211,7 @@
   <!-- ===== Centre : synergies | plateau + banc | classement ===== -->
   <div class="centre">
     <div class="col-synergies">
+      <button id="btn-legende" style="background:#182219;color:#96A699;border:1px solid #24331F;border-radius:6px;font-size:0.6rem;padding:2px;cursor:pointer">？ Légende</button>
       <div id="synergies-club"></div>
       <div class="mini-adn" id="axes-adn"></div>
       <div id="inventaire-staff" style="margin-top:6px;display:flex;flex-direction:column;gap:3px"></div>
@@ -513,7 +514,7 @@
     /* Formation LIBRE (décision n°21) : seule contrainte, au plus
        1 joueur sur la ligne de but. Bus intégral, zéro milieu,
        trois attaquants — tout est permis. */
-    const ligneDe = (j) => j.ligne || j.poste;
+    // ligneDe vient du moteur (match-moteur.js, portée globale)
     function verdictFormation() {
       if (partie.terrain.length === 0) return "Achète au moins un joueur !";
       if (partie.terrain.filter((j) => ligneDe(j) === "GAR").length > 1) return "Un seul joueur dans les buts.";
@@ -950,6 +951,26 @@
       el("app").appendChild(volet);
     }
 
+    /* La légende complète des pastilles et glyphes */
+    function ouvrirLegende() {
+      const volet = document.createElement("div");
+      volet.className = "volet";
+      const lignePoste = (p, nom) => `<span class="pastille p-${p}">${ONZE_UI.GLYPHES.postes[p]}</span> ${nom}`;
+      volet.innerHTML = `<div class="panneau">
+        <strong>？ La légende</strong>
+        <div class="coach" style="margin-top:6px"><span>${lignePoste("GAR", "Gardien")} · ${lignePoste("DÉF", "Défenseur")} · ${lignePoste("MIL", "Milieu")} · ${lignePoste("ATT", "Attaquant")}<br>
+        <small style="color:#96A699">Pastille = poste joué. Liseré orange = hors-poste (malus). 😱 = joueur de champ dans les buts.</small></span></div>
+        <div style="margin-top:6px"><strong style="font-size:0.75rem">Les 11 Écoles</strong><br>
+        ${Object.entries(ONZE_UI.GLYPHES.ecoles).map(([nom, g]) => `<span class="badge" data-famille="${nom}" style="cursor:pointer">${g} ${nom}</span>`).join(" ")}</div>
+        <div style="margin-top:6px"><strong style="font-size:0.75rem">Les 12 archétypes</strong><br>
+        ${Object.entries(ONZE_UI.GLYPHES.archetypes).map(([nom, g]) => `<span class="badge" data-famille="${nom}" style="cursor:pointer">${g} ${nom}</span>`).join(" ")}</div>
+        <div class="coach" style="margin-top:6px"><span><small style="color:#96A699">🧪 spécialisation · 🧰 carte staff · 🛂 emblème · ⭐ Unique · 🏆 Icône</small></span></div>
+        <button class="fermer-volet">Fermer</button>
+      </div>`;
+      volet.addEventListener("click", (e) => { if (e.target === volet || e.target.classList.contains("fermer-volet")) volet.remove(); });
+      el("app").appendChild(volet);
+    }
+
     /* ================= Volet classement / scouting ================= */
     function ligneClassement() {
       return partie.coachs.slice().sort((a, b) => b.prestige - a.prestige).map((c) => {
@@ -999,8 +1020,8 @@
         <h3>🔎 ${equipe.nom}</h3>
         <div class="sous-titre">${coach ? "École " + coach.ecole + " · vestiaire scouté" : "ton propre vestiaire"}</div>
         <div class="synergies" style="margin-bottom:8px">${ONZE_UI.badges(equipe)}</div>
-        ${equipe.joueurs.map((j) => `<div class="ligne-stat"><span class="nom-stat">${j.poste}</span>` +
-          `<span style="flex:1">${j.nom}</span><span class="valeur-stat">${j.note}</span></div>`).join("")}
+        ${equipe.joueurs.map((j) => `<div class="ligne-stat"><span class="nom-stat"><span class="pastille p-${j.poste}">${ONZE_UI.GLYPHES.postes[j.poste]}</span></span>` +
+          `<span style="flex:1">${j.nom} <span class="glyphes-famille">${ONZE_UI.glyphe(j.ecole)}${ONZE_UI.glyphe(j.archetype)}</span></span><span class="valeur-stat">${j.note}</span></div>`).join("")}
         <div style="margin-top:8px">${Object.entries(axes).map(([axe, valeur]) => {
           const classe = valeur === maxAxe && maxAxe > minAxe ? "forte" : valeur === minAxe && maxAxe > minAxe ? "faible" : "";
           return `<div class="axe"><span class="nom-axe">${axe}</span><span class="barre-axe"><div class="${classe}" style="width:${valeur}%"></div></span><span class="valeur-axe">${valeur}</span></div>`;
@@ -1152,17 +1173,25 @@
     }
 
     /* ================= Affichage de l'écran unique ================= */
+    /* La pastille : le poste JOUÉ, en couleur ; liseré d'alerte si le
+       joueur est hors-poste (😱 pour un joueur de champ aux buts). */
+    function pastilleHTML(fiche) {
+      const ligne = ligneDe(fiche);
+      const horsPoste = ligne !== fiche.poste;
+      const panique = ligne === "GAR" && fiche.poste !== "GAR";
+      return `<span class="pastille p-${ligne}${horsPoste ? " alerte" : ""}">${panique ? "😱" : ONZE_UI.GLYPHES.postes[ligne]}</span>`;
+    }
     function jetonHTML(fiche, nomListe, indice) {
       const stats = ONZE.genererStats(fiche);
       const note = ONZE.noteGlobale(stats);
       const etoiles = (fiche.etoiles || 1) >= 2 ? `<span class="etoiles">${"★".repeat(fiche.etoiles)}</span>` : "";
       const nbSpecs = (fiche.specialisations || []).length;
       const nbCartes = (fiche.staffCartes || []).length;
-      const staff = nbSpecs || nbCartes
-        ? `<br><span style="font-size:0.5rem">${"🧪".repeat(nbSpecs)}${"🧰".repeat(nbCartes)}${fiche.ecoleBonus ? "🛂" : ""}</span>` : "";
+      const staff = `${"🧪".repeat(nbSpecs)}${"🧰".repeat(nbCartes)}${fiche.ecoleBonus ? "🛂" : ""}`;
       const choisi = selection && selection.nomListe === nomListe && selection.indice === indice;
       return `<div class="jeton cout-${fiche.cout}${choisi ? " choisi" : ""}" onclick="tapJeton('${nomListe}', ${indice})">
-        <span class="note-jeton">${note}</span> ${etoiles}<br>${fiche.nom}${staff}</div>`;
+        ${pastilleHTML(fiche)} <span class="note-jeton">${note}</span> ${etoiles}<br>${fiche.nom}<br>
+        <span class="glyphes-famille">${ONZE_UI.glyphe(fiche.ecole)}${ONZE_UI.glyphe(fiche.archetype)}${staff}</span></div>`;
     }
     function afficher() {
       const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
@@ -1204,10 +1233,10 @@
         const note = ONZE.noteGlobale(stats);
         const signatures = ONZE.statsSignatures(stats).map((x) => `${x.nom} ${x.valeur}`).join(" · ");
         return `<div class="carte-boutique cout-${fiche.cout}" onclick="ONZE_UI.ouvrirFiche(tousLesJoueurs.find((j) => j.nom === '${fiche.nom.replace(/'/g, "\\'")}'))">
-          <span class="haut"><span>${note} ${fiche.poste}</span><span class="prix">${fiche.cout}M</span></span>
+          <span class="haut"><span>${note} ${pastilleHTML(fiche)}</span><span class="prix">${fiche.cout}M</span></span>
           <span><strong>${fiche.nom}</strong></span>
           <span class="signatures">${signatures}</span>
-          <span class="traits-carte">${fiche.unique ? "⭐ " + fiche.unique : (fiche.ecole || "")}<br>${fiche.archetype || ""}</span>
+          <span class="traits-carte"><span class="glyphes-famille">${ONZE_UI.glyphe(fiche.ecole)}${ONZE_UI.glyphe(fiche.archetype)}</span> ${fiche.unique ? "⭐ " + fiche.unique : (fiche.ecole || "")}<br>${fiche.archetype || ""}</span>
           <button onclick="event.stopPropagation(); acheter(${i})" ${partie.or < fiche.cout ? "disabled" : ""}>Recruter ${fiche.cout}M</button>
         </div>`;
       }).join("");
@@ -1412,6 +1441,7 @@
         el("btn-refresh").addEventListener("click", refresh);
         el("btn-xp").addEventListener("click", acheterXP);
         el("btn-historique").addEventListener("click", ouvrirClassement);
+        el("btn-legende").addEventListener("click", ouvrirLegende);
         el("btn-verrou").addEventListener("click", () => {
           partie.verrou = !partie.verrou;
           if (partie.verrou) partie.compteurs.verrous++;
