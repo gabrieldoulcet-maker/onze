@@ -91,7 +91,7 @@ const ONZE_UI = (() => {
         else if (resultat.scoreB > resultat.scoreA) verdict = `🏆 Victoire de ${equipeB.nom} !`;
         else verdict = "🤝 Match nul !";
         const prestige = resultat.ecart > 0
-          ? `<br><small style="color:#96A699">Dégâts de prestige : ${resultat.ecart} (écart de buts)</small>` : "";
+          ? `<br><small style="color:#96A699">Dégâts de prestige : ${ONZE.degatsPrestige(resultat.ecart)} (6 + 3 × ${resultat.ecart} d'écart)</small>` : "";
         bloc.innerHTML = `Score final : <strong>${resultat.scoreA} – ${resultat.scoreB}</strong><br>${verdict}${prestige}`;
         elements.recit.appendChild(bloc);
         bloc.scrollIntoView({ behavior: "smooth", block: "end" });

@@ -20,6 +20,14 @@ Registre des décisions actées. Une décision qui n'est pas ici n'existe pas.
 13. **Le fun principal d'ONZE est LA CONSTRUCTION de l'équipe, pas le match** — le match est la célébration de la construction. Conséquences : le mercato est l'écran prioritaire en polish et en feedback (badges qui s'allument, fusions 3★ mises en scène, arrivée des Uniques), le match reste court et accélérable (×2), et son récit doit nommer les synergies du joueur pour montrer sa compo briller.
 14. **Économie de la vraie partie : on démarre pauvre**, comme dans TFT — c'est la montée progressive des revenus (droits TV + intérêts + séries) qui crée la courbe de tension. Le 30M de départ n'existe qu'en mode bac à sable (draft.html).
 15. **Jouer sans gardien est permis** : la cage vide se paie en pluie de buts encaissés, mais c'est un choix de compo légitime.
+16. **Économie = copie exacte de TFT** (`design/economie.md`) : départ 0M, manches 1-3 amicales PvE sans dégâts, droits TV 2/2/3/4 puis 5M, sponsors avant revenu de base, primes de série 3-4/5/6+, table XP officielle, onze complet au niveau 9.
+17. **Le butin d'ouverture (amicaux) est une proposition d'orientation, l'équité porte sur la valeur totale** : composition aléatoire (or, joueur gratuit, carte Staff) qui peut lancer une École imprévue, valeur équivalente pour les 8 coachs, et chaque récompense s'ouvre comme un petit événement (l'orbe).
+
+## Idées retenues pour plus tard (pas avant le polish de la boucle actuelle)
+
+- **Masse salariale** (contrainte d'effectif au-delà de l'or).
+- **Blessures / cartons** (aléas de match qui pèsent sur la manche suivante).
+- **Valeur marchande** (cote des joueurs qui évolue, revente spéculative).
 
 ## À trancher (phase 1 — le jeu sur papier)
 

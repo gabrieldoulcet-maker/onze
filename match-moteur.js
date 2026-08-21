@@ -22,6 +22,23 @@ const proba = (p) => Math.random() < p;
 // Variantes de textes pour que deux matchs ne se racontent pas pareil
 const varie = (...variantes) => hasard(variantes);
 
+/* Casting tournant : on choisit de préférence un joueur encore peu mis
+   en scène dans ce match, pour que le récit (et demain l'animation)
+   fasse vivre toute l'équipe au lieu de radoter sur deux noms. */
+function choisirParmi(equipe, ctx, candidats) {
+  if (!candidats || candidats.length === 0) return null;
+  const apparitions = ctx.etat[equipe.nom].apparitions;
+  let minimum = Infinity;
+  for (const j of candidats) minimum = Math.min(minimum, apparitions[j.nom] || 0);
+  const frais = candidats.filter((j) => (apparitions[j.nom] || 0) <= minimum);
+  const choix = hasard(frais);
+  apparitions[choix.nom] = (apparitions[choix.nom] || 0) + 1;
+  return choix;
+}
+
+/* Dégâts de prestige du perdant — source unique pour le jeu ET l'affichage */
+function degatsPrestige(ecart) { return ecart > 0 ? 6 + 3 * ecart : 0; }
+
 /* ============================================================
    STATS DES JOUEURS — dérivées du coût et du poste
    Talent de base = 3 + coût (de 4 à 8). À affiner en playtest.
@@ -255,21 +272,25 @@ function synergieDecisive(liste, marge) {
 function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
   const etatDef = ctx.etat[defense.nom];
   const attaquants = parPoste(attaque, "ATT");
-  const finisseur = hasard(attaquants.length ? attaquants : attaque.joueurs.filter((j) => j.poste !== "GAR"));
+  const candidatsTir = [...attaquants];
+  const milieuxAtt = parPoste(attaque, "MIL");
+  if (milieuxAtt.length && (candidatsTir.length === 0 || proba(0.35))) candidatsTir.push(...milieuxAtt);
+  if (candidatsTir.length === 0) candidatsTir.push(...attaque.joueurs.filter((j) => j.poste !== "GAR"));
+  const finisseur = choisirParmi(attaque, ctx, candidatsTir);
   // Jouer sans gardien est permis : la cage est vide, presque tout rentre
   const gardien = parPoste(defense, "GAR")[0] || { nom: "la cage vide", def: 0, att: 0, cageVide: true };
 
   // Il Professore : le piège du hors-jeu, une occasion annulée par match
   if (aUnique(defense, "Il Professore") && !etatDef.professoreUtilise && proba(0.5)) {
     etatDef.professoreUtilise = true;
-    evenements.push({ texte: `Drapeau levé ! Le piège du hors-jeu d'Il Professore se referme sur ${finisseur.nom}.`, synergie: "Il Professore", equipe: defense.nom });
+    evenements.push({ type: "hors_jeu", acteurs: [finisseur.nom], texte: `Drapeau levé ! Le piège du hors-jeu d'Il Professore se referme sur ${finisseur.nom}.`, synergie: "Il Professore", equipe: defense.nom });
     return false;
   }
   // Les Sentinelles peuvent couper la trajectoire
   const sentinelle = s(defense, "Sentinelle");
   if (sentinelle && proba(0.08 * sentinelle)) {
     const defenseur = hasard(parPoste(defense, "DÉF").length ? parPoste(defense, "DÉF") : defense.joueurs);
-    evenements.push({ texte: `${finisseur.nom} arme son tir… mais ${defenseur.nom} surgit et coupe la trajectoire !`, synergie: "Sentinelle", equipe: defense.nom });
+    evenements.push({ type: "interception", acteurs: [defenseur.nom, finisseur.nom], texte: `${finisseur.nom} arme son tir… mais ${defenseur.nom} surgit et coupe la trajectoire !`, synergie: "Sentinelle", equipe: defense.nom });
     return false;
   }
 
@@ -297,10 +318,17 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
 
   if (but) {
     evenements.push({
+      type: "but", acteurs: [finisseur.nom, gardien.nom],
       but: true, buteur: finisseur.nom, equipe: attaque.nom,
       texte: classe
         ? `${finisseur.nom} invente un geste de classe — le gardien est cloué sur place…`
-        : `${finisseur.nom} se présente face à ${gardien.nom}…`,
+        : varie(
+          `${finisseur.nom} se présente face à ${gardien.nom}…`,
+          `${finisseur.nom} surgit entre les lignes et ajuste ${gardien.nom}…`,
+          `Contrôle orienté, frappe sèche de ${finisseur.nom}…`,
+          `${finisseur.nom} croise sa frappe au ras du poteau…`,
+          `Enchaînement de ${finisseur.nom} dans la surface…`
+        ),
       cri: `BUUUT de ${finisseur.nom} pour ${attaque.nom} !`,
       synergie: classe ? "Virtuose" : synergieDecisive(
         [{ nom: "Finisseur", valeur: 0.8 * s(attaque, "Finisseur") }, { nom: "Créateur", valeur: 0.6 * s(attaque, "Créateur") }],
@@ -314,6 +342,7 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
   const chanceux = s(attaque, "Chanceux");
   if (chanceux && proba(0.06 * chanceux)) {
     evenements.push({
+      type: "but", acteurs: [finisseur.nom],
       but: true, buteur: finisseur.nom, equipe: attaque.nom,
       texte: `La frappe de ${finisseur.nom} est repoussée… non ! Poteau RENTRANT ! La chance ${chanceux >= 2 ? "insolente" : "sourit"} !`,
       cri: `BUUUT de ${finisseur.nom} pour ${attaque.nom} !`,
@@ -323,9 +352,10 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
   }
 
   if (blocage) {
-    evenements.push({ texte: blocage.texte, synergie: blocage.synergie, equipe: defense.nom });
+    evenements.push({ type: "blocage", acteurs: [finisseur.nom], texte: blocage.texte, synergie: blocage.synergie, equipe: defense.nom });
   } else {
     evenements.push({
+      type: "arret", acteurs: [finisseur.nom, gardien.nom],
       texte: gardien.cageVide
         ? `${finisseur.nom} vise la cage vide… et dévisse ! Incroyable raté !`
         : varie(
@@ -342,19 +372,20 @@ function tenterTir(attaque, defense, ctx, evenements, bonusQualite = 0) {
   const renard = s(attaque, "Renard");
   if (renard && proba(0.10 * renard)) {
     const renards = attaque.joueurs.filter((j) => j.archetype === "Renard");
-    const opportuniste = renards.length ? hasard(renards) : finisseur;
-    evenements.push({ texte: `Le ballon traîne dans la surface… ${opportuniste.nom} a suivi !`, synergie: "Renard", equipe: attaque.nom });
+    const opportuniste = renards.length ? choisirParmi(attaque, ctx, renards) : finisseur;
+    evenements.push({ type: "rebond", acteurs: [opportuniste.nom], texte: `Le ballon traîne dans la surface… ${opportuniste.nom} a suivi !`, synergie: "Renard", equipe: attaque.nom });
     const qualiteReprise = opportuniste.att + de(8);
     const paradeReprise = (gardien.cageVide ? 1 : gardien.def) + de(6);
     if (qualiteReprise > paradeReprise) {
       evenements.push({
+        type: "but", acteurs: [opportuniste.nom, gardien.nom],
         but: true, buteur: opportuniste.nom, equipe: attaque.nom,
         texte: `Reprise à bout portant…`,
         cri: `BUUUT de ${opportuniste.nom} pour ${attaque.nom} !`, synergie: null,
       });
       return true;
     }
-    evenements.push({ texte: `…mais ${gardien.nom} réalise le double arrêt !`, equipe: defense.nom, synergie: null });
+    evenements.push({ type: "arret", acteurs: [opportuniste.nom, gardien.nom], texte: `…mais ${gardien.nom} réalise le double arrêt !`, equipe: defense.nom, synergie: null });
   }
   return false;
 }
@@ -382,6 +413,7 @@ function resoudrePhase(eqA, eqB, ctx) {
       const hammer = aUnique(eq, "The Hammer");
       if (hammer) bonusTir += 1.5;
       evenements.push({
+        type: "ballon_long", acteurs: [],
         texte: hammer
           ? `Longue transversale… The Hammer écrase son duel aérien, le ballon devient un boulet !`
           : `Longue transversale de ${eq.nom} par-dessus tout le monde — pur Kick & Rush !`,
@@ -395,7 +427,7 @@ function resoudrePhase(eqA, eqB, ctx) {
       if (aUnique(eq, "La Lambretta") && proba(0.10)) {
         attaque = eq;
         bonusTir += 1;
-        evenements.push({ texte: `La Lambretta décolle — la passe par-dessus la défense trouve son homme à bout portant !`, synergie: "La Lambretta", equipe: eq.nom });
+        evenements.push({ type: "lambretta", acteurs: [], texte: `La Lambretta décolle — la passe par-dessus la défense trouve son homme à bout portant !`, synergie: "La Lambretta", equipe: eq.nom });
         break;
       }
     }
@@ -410,14 +442,21 @@ function resoudrePhase(eqA, eqB, ctx) {
     const marge = Math.abs(forceA - forceB);
     const sy = synergieDecisive(attaque === eqA ? bA : bB, marge);
     const milieux = parPoste(attaque, "MIL");
-    const porteur = hasard(milieux.length ? milieux : attaque.joueurs);
+    const autresChamp = attaque.joueurs.filter((j) => j.poste !== "GAR");
+    // 7 fois sur 10 le milieu porte le jeu, sinon un autre joueur de champ
+    const candidatsPorteur = milieux.length && !proba(0.3) ? milieux : autresChamp;
+    const porteur = choisirParmi(attaque, ctx, candidatsPorteur.length ? candidatsPorteur : attaque.joueurs);
     ctx.etat[attaque.nom].confiance++;
     evenements.push({
+      type: "possession", acteurs: [porteur.nom],
       texte: varie(
         `${porteur.nom} gagne la bataille du milieu pour ${attaque.nom}.`,
         `${porteur.nom} ratisse le ballon et met ${attaque.nom} dans le sens du jeu.`,
         `${porteur.nom} dicte le tempo — possession pour ${attaque.nom}.`,
-        `${porteur.nom} s'arrache dans l'entrejeu et oriente pour ${attaque.nom}.`
+        `${porteur.nom} s'arrache dans l'entrejeu et oriente pour ${attaque.nom}.`,
+        `${porteur.nom} récupère haut et lance l'attaque de ${attaque.nom}.`,
+        `Pressing gagnant : ${porteur.nom} arrache le ballon pour ${attaque.nom}.`,
+        `${porteur.nom} trouve l'intervalle — ${attaque.nom} s'installe dans le camp adverse.`
       ), synergie: sy, equipe: attaque.nom,
     });
   }
@@ -437,10 +476,10 @@ function resoudrePhase(eqA, eqB, ctx) {
       const rue = s(attaque, "École de la Rue");
       if (rue && proba(0.12 * rue)) {
         const dribbleurs = attaque.joueurs.filter((j) => j.poste !== "GAR");
-        const dribbleur = hasard(dribbleurs);
+        const dribbleur = choisirParmi(attaque, ctx, dribbleurs);
         ctx.etat[attaque.nom].flow++;
         if (aUnique(attaque, "O Rei da Rua")) ctx.etat[attaque.nom].flow++;
-        evenements.push({ texte: `${dribbleur.nom} est bloqué… petit pont ! La rue ne s'arrête jamais.`, synergie: "École de la Rue", equipe: attaque.nom });
+        evenements.push({ type: "geste", acteurs: [dribbleur.nom], texte: `${dribbleur.nom} est bloqué… petit pont ! La rue ne s'arrête jamais.`, synergie: "École de la Rue", equipe: attaque.nom });
         percee = forceAtt + de(10) + 2 > forceDef + de(10);
       }
     }
@@ -448,15 +487,21 @@ function resoudrePhase(eqA, eqB, ctx) {
     else {
       ctx.etat[defense.nom].confiance++;
       const defenseurs = parPoste(defense, "DÉF");
-      const defenseur = hasard(defenseurs.length ? defenseurs : defense.joueurs);
+      const candidatsStop = defenseurs.length && !proba(0.25)
+        ? defenseurs : defense.joueurs.filter((j) => j.poste !== "GAR");
+      const defenseur = choisirParmi(defense, ctx, candidatsStop.length ? candidatsStop : defense.joueurs);
       const sy = totalBonus(bDef) >= 3 && proba(0.25)
         ? bDef.filter((b) => b.valeur > 0).sort((a, b) => b.valeur - a.valeur)[0].nom : null;
       evenements.push({
+        type: "percee_stoppee", acteurs: [defenseur.nom],
         texte: varie(
           `${defenseur.nom} ferme la porte — la défense de ${defense.nom} tient bon.`,
           `${defenseur.nom} jaillit et coupe l'attaque net. Rien ne passe.`,
           `Tacle parfait de ${defenseur.nom} — le stade apprécie.`,
-          `${defense.nom} recule en bloc, ${defenseur.nom} dégage le danger.`
+          `${defense.nom} recule en bloc, ${defenseur.nom} dégage le danger.`,
+          `${defenseur.nom} lit la passe avant tout le monde et intercepte.`,
+          `Duel d'épaule gagné par ${defenseur.nom} — le public gronde.`,
+          `${defenseur.nom} accompagne l'attaquant jusqu'à la ligne et sort le ballon proprement.`
         ), synergie: sy, equipe: defense.nom,
       });
     }
@@ -469,7 +514,7 @@ function resoudrePhase(eqA, eqB, ctx) {
   if (!butMarque) {
     const cate = s(defense, "Catenaccio");
     if (cate && proba(0.12 * cate)) {
-      evenements.push({ texte: `Récupération et contre éclair de ${defense.nom} — tout le monde est pris de vitesse !`, synergie: "Catenaccio", equipe: defense.nom });
+      evenements.push({ type: "contre", acteurs: [], texte: `Récupération et contre éclair de ${defense.nom} — tout le monde est pris de vitesse !`, synergie: "Catenaccio", equipe: defense.nom });
       butMarque = tenterTir(defense, attaque, ctx, evenements, cate >= 2 ? 1 : 0);
     }
   }
@@ -489,8 +534,8 @@ function simulerMatch(eqA, eqB) {
   const ctx = {
     numero: 0,
     etat: {
-      [eqA.nom]: { flow: 0, confiance: 0, ballonLongUtilise: false, professoreUtilise: false, santo: {}, murs: {} },
-      [eqB.nom]: { flow: 0, confiance: 0, ballonLongUtilise: false, professoreUtilise: false, santo: {}, murs: {} },
+      [eqA.nom]: { flow: 0, confiance: 0, ballonLongUtilise: false, professoreUtilise: false, santo: {}, murs: {}, apparitions: {} },
+      [eqB.nom]: { flow: 0, confiance: 0, ballonLongUtilise: false, professoreUtilise: false, santo: {}, murs: {}, apparitions: {} },
     },
     scoreDe: (eq) => (eq === eqA ? scoreA : scoreB),
     scoreAdverse: (eq) => (eq === eqA ? scoreB : scoreA),
@@ -505,6 +550,7 @@ function simulerMatch(eqA, eqB) {
         const pantera = aUnique(eq, "La Pantera");
         if (pantera) {
           evenements.push({
+            type: "but", acteurs: [pantera.nom],
             but: true, buteur: pantera.nom, equipe: eq.nom,
             texte: `Tout le stade retient son souffle… La Pantera surgit de nulle part, comme toujours quand tout est encore possible.`,
             cri: `BUUUT de ${pantera.nom} pour ${eq.nom} !`, synergie: "La Pantera",
@@ -526,6 +572,6 @@ function compterButs(evenements, eq) {
 }
 
 /* ---- Export navigateur + node ---- */
-const ONZE = { creerEquipe, equipeDepuisFiches, simulerMatch, calculerSynergies, statsJoueur, fusionnerEffectif, NB_PHASES, PALIERS_ECOLES, PALIERS_ARCHETYPES };
+const ONZE = { creerEquipe, equipeDepuisFiches, simulerMatch, calculerSynergies, statsJoueur, fusionnerEffectif, degatsPrestige, NB_PHASES, PALIERS_ECOLES, PALIERS_ARCHETYPES };
 if (typeof module !== "undefined") module.exports = ONZE;
 if (typeof window !== "undefined") window.ONZE = ONZE;

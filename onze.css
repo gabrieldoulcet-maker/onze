@@ -184,3 +184,23 @@ button.principal:disabled { background: #2A3A2C; color: #6C7A6E; }
   100% { opacity: 0; transform: translateX(-50%) scale(1); }
 }
 .etoiles { color: #E8C547; letter-spacing: 1px; }
+
+/* ---- Le butin des amicaux : des orbes qu'on ouvre (décision n°17) ---- */
+.orbes { display: flex; gap: 14px; justify-content: center; margin: 12px 0; }
+.orbe {
+  width: 84px; height: 84px; border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #F5E08A, #B8860B);
+  border: none; cursor: pointer;
+  font-size: 2rem; box-shadow: 0 0 24px rgba(232, 197, 71, 0.5);
+  animation: orbePulse 1.6s ease infinite;
+}
+@keyframes orbePulse {
+  0%, 100% { box-shadow: 0 0 18px rgba(232,197,71,0.4); }
+  50% { box-shadow: 0 0 38px rgba(232,197,71,0.8); }
+}
+.orbe-revele {
+  background: #182219; border: 1px solid #E8C547; border-radius: 12px;
+  padding: 10px 12px; font-size: 0.85rem; text-align: center;
+  animation: apparait 0.4s ease; max-width: 200px;
+}
+.orbe-revele strong { color: #E8C547; }
