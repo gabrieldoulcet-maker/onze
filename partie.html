@@ -203,7 +203,7 @@
     <span class="manche-info" id="btn-historique">📜 M<span id="manche">1</span> ·
       💚 <span id="prestige">40</span> · Niv <span id="niveau">3</span> ·
       XP <span id="xp">0</span>/<span id="xp-suivant">6</span> ·
-      <span id="serie">—</span> · 🧰 <span id="staff">0</span></span>
+      <span id="serie">—</span> · 🧰 <span id="staff">0</span> · 🔥 <span id="ferveur">0</span></span>
     <span class="annonce" id="annonce"></span>
     <button id="btn-vitesse" class="masque">⏩ ×2</button>
   </div>
@@ -214,6 +214,7 @@
       <div id="synergies-club"></div>
       <div class="mini-adn" id="axes-adn"></div>
       <div id="inventaire-staff" style="margin-top:6px;display:flex;flex-direction:column;gap:3px"></div>
+      <div id="quetes-liste" style="margin-top:6px;display:flex;flex-direction:column;gap:3px"></div>
     </div>
     <div class="plateau">
       <div class="terrain" id="terrain-scene">
@@ -252,6 +253,7 @@
   </div><!-- /app -->
 
   <script src="match-moteur.js"></script>
+  <script src="icones.js"></script>
   <script src="match-ui.js"></script>
   <script>
     /* ============================================================
@@ -349,7 +351,14 @@
         appariement: null, historique: [], exempt: null, matchEnCours: false,
         philosophies: [], philosophiesVues: [], staffEnRetard: null, tailleBoutique: TAILLE_BOUTIQUE,
         hiversVus: [],
+        compteurs: { relances: 0, verrous: 0, ventesManche: 0, scoutsManche: 0, orbeOr: 0,
+          specsCreees: 0, emblemes: 0, premierHiver: 0, sansEncaisser: 0, onzeInchange: 0,
+          derniereCompo: null, aeriensMatch: 0, bourreau: 0, remontada: 0, phenix: 0,
+          serrurier: 0, ferveur: 0 },
+        quetesVisibles: [], icônesDebloquees: [], garanties: [],
       };
+      partie.quetesVisibles = ["gus-et-titi", ...ONZE_ICONES.liste.slice(0, 12).map((x) => x.id)
+        .sort(() => Math.random() - 0.5).slice(0, 2)];
       construirePool();
       nouvelleBoutique(false);
       preparerManche();
@@ -392,12 +401,18 @@
       return candidats.length ? hasardParmi(candidats) : null;
     }
     function nouvelleBoutique(rendre = true) {
-      if (rendre) for (const c of partie.boutique) if (c) partie.pool.push(c);
+      if (rendre) for (const c of partie.boutique) if (c && !c.estIcone) partie.pool.push(c);
       partie.boutique = [];
       for (let i = 0; i < partie.tailleBoutique; i++) {
         const carte = tirerCarte();
         if (carte) partie.pool.splice(partie.pool.indexOf(carte), 1);
         partie.boutique.push(carte);
+      }
+      // L'Icône débloquée est GARANTIE : elle prend la première carte
+      if (partie.garanties.length) {
+        const premiere = partie.boutique[0];
+        if (premiere) partie.pool.push(premiere);
+        partie.boutique[0] = { estIcone: true, id: partie.garanties[0] };
       }
     }
 
@@ -407,6 +422,7 @@
     function acheter(indice) {
       const fiche = partie.boutique[indice];
       if (!fiche) return;
+      if (fiche.estIcone) return acheterIcone(indice);
       if (partie.or < fiche.cout) return signaler("Pas assez d'or pour " + fiche.nom + ".");
       const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
       if (partie.terrain.length + partie.banc.length >= max + TAILLE_BANC)
@@ -431,6 +447,7 @@
       for (const carte of fiche.staffCartes || []) partie.staff.push(carte);
       for (const spec of fiche.specialisations || []) partie.staff.push(spec);
       const copies = Math.pow(3, (fiche.etoiles || 1) - 1);
+      partie.compteurs.ventesManche++;
       partie.or += fiche.cout * copies;
       const original = tousLesJoueurs.find((j) => j.nom === fiche.nom);
       if (original) for (let c = 0; c < copies; c++) partie.pool.push(original);
@@ -451,6 +468,7 @@
       if (partie.or < COUT_REFRESH) return signaler("Pas assez d'or.");
       partie.or -= COUT_REFRESH;
       partie.verrou = false;
+      partie.compteurs.relances++;
       nouvelleBoutique();
       afficher();
     }
@@ -543,6 +561,7 @@
       const orbe = partie.orbesEnAttente[indice];
       if (!orbe || orbe.ouvert) return;
       orbe.ouvert = true;
+      if (orbe.rarete === "or") partie.compteurs.orbeOr++;
       const revele = document.createElement("div");
       revele.className = "orbe-revele";
       if (orbe.type === "or") {
@@ -677,6 +696,34 @@
       const je = moi();
       const amical = partie.manche <= DERNIERE_MANCHE_AMICALE;
       const victoire = resultat.scoreA > resultat.scoreB;
+      const serieAvantMatch = je.serie;
+
+      // ---- compteurs de quêtes (design/icones.md) ----
+      const cpt = partie.compteurs;
+      const compo = partie.terrain.map((j) => j.nom + (j.etoiles || 1)).sort().join("|");
+      cpt.onzeInchange = compo === cpt.derniereCompo ? cpt.onzeInchange + 1 : 1;
+      cpt.derniereCompo = compo;
+      const aeriens = (resultat.etats && resultat.etats["Mon Club"] && resultat.etats["Mon Club"].duelsAeriens) || 0;
+      cpt.aeriensMatch = Math.max(cpt.aeriensMatch, aeriens);
+      cpt.sansEncaisser = resultat.scoreB === 0 ? cpt.sansEncaisser + 1 : 0;
+      if (amical && victoire && resultat.ecart >= 3) cpt.bourreau++;
+      if (!amical && resultat.scoreA === 0 && resultat.scoreB === 0) cpt.serrurier++;
+      if (victoire && serieAvantMatch <= -3) cpt.phenix++;
+      // remontada : mené de 2 à un moment, victoire au bout
+      let pire = 0;
+      for (const phase of resultat.phases) pire = Math.min(pire, phase.scoreA - phase.scoreB);
+      if (victoire && pire <= -2) cpt.remontada++;
+      // ---- la Ferveur : gestes, buts d'anthologie, remontadas, arrêts décisifs ----
+      let ferveurGagnee = 0;
+      for (const phase of resultat.phases) for (const ev of phase.evenements) {
+        const deMoi = ev.equipe === "Mon Club";
+        if (deMoi && ev.type === "geste") ferveurGagnee += 1;
+        if (deMoi && ev.but && ["Virtuose", "Chanceux", "La Pantera"].includes(ev.synergie)) ferveurGagnee += 2;
+        if (deMoi && ev.type === "blocage") ferveurGagnee += 1; // l'arrêt décisif
+      }
+      if (victoire && pire <= -2) ferveurGagnee += 3; // la remontada
+      cpt.ferveur += ferveurGagnee;
+      if (ferveurGagnee) signaler("🔥 +" + ferveurGagnee + " Ferveur !");
 
       if (amical) {
         if (victoire) je.serie = je.serie > 0 ? je.serie + 1 : 1;
@@ -768,6 +815,8 @@
         el("app").appendChild(volet);
         return;
       }
+      partie.compteurs.ventesManche = 0;
+      partie.compteurs.scoutsManche = 0;
       if (!partie.verrou) nouvelleBoutique();
       preparerManche();
       afficher();
@@ -787,6 +836,7 @@
       // ton rang au prestige (0 = dernier → premier servi, tout l'étal)
       const vivants = partie.coachs.filter((c) => c.vivant);
       const rang = vivants.slice().sort((a, b) => a.prestige - b.prestige).indexOf(moi());
+      if (rang === 0) partie.compteurs.premierHiver++;
       const nbChoix = Math.max(2, 6 - rang);
       const etal = [];
       for (let i = 0; i < nbChoix; i++) {
@@ -891,6 +941,7 @@
       const coach = partie.coachs[indice];
       if (!coach.ia) return ouvrirVestiaire(null);
       if (!coach.vivant) return signaler(coach.nom + " a déjà quitté le tournoi.");
+      partie.compteurs.scoutsManche++;
       ouvrirVestiaire(coach);
     }
     function ouvrirVestiaire(coach) {
@@ -951,6 +1002,8 @@
         const resultat = ONZE.assignerCarte(fiche, carte);
         if (!resultat.ok) return signaler(resultat.raison);
         partie.staff.splice(indiceCarte, 1);
+        if (resultat.evenement.type === "spec") partie.compteurs.specsCreees++;
+        if (resultat.evenement.type === "embleme") partie.compteurs.emblemes++;
         celebrerStaff(resultat.evenement);
         afficher();
       });
@@ -1025,6 +1078,7 @@
       el("xp-suivant").textContent = XP_POUR_MONTER[partie.niveau] || "MAX";
       el("serie").textContent = moi().serie > 0 ? "🔥" + moi().serie : moi().serie < 0 ? "❄️" + (-moi().serie) : "—";
       el("staff").textContent = partie.staff.length;
+      el("ferveur").textContent = partie.compteurs.ferveur;
 
       // Le terrain : les titulaires à leur ligne + les places libres
       for (const poste of ["GAR", "DÉF", "MIL", "ATT"]) el("ligne-" + poste).innerHTML = "";
@@ -1041,6 +1095,15 @@
         : `<div class="jeton vide" style="flex:1">Banc vide (${TAILLE_BANC} places)</div>`;
       el("boutique").innerHTML = partie.boutique.map((fiche, i) => {
         if (!fiche) return `<div class="carte-boutique vendue">—</div>`;
+        if (fiche.estIcone) {
+          const icone = ONZE_ICONES.parId(fiche.id);
+          return `<div class="carte-boutique" style="border:1px solid #E8C547;box-shadow:0 0 12px rgba(232,197,71,0.35)">
+            <span class="haut-carte"><span>🏆 ICÔNE</span><span class="prix">${icone.cout}M</span></span>
+            <span><strong>${icone.nom}</strong></span>
+            <span class="traits-carte">${icone.ecole || "Sans École"}${icone.archetype ? " · " + icone.archetype : ""}</span>
+            <button onclick="event.stopPropagation(); acheter(${i})" ${partie.or < icone.cout ? "disabled" : ""}>Signer ${icone.cout}M</button>
+          </div>`;
+        }
         const stats = ONZE.genererStats(fiche);
         const note = ONZE.noteGlobale(stats);
         const signatures = ONZE.statsSignatures(stats).map((x) => `${x.nom} ${x.valeur}`).join(" · ");
@@ -1092,6 +1155,14 @@
             <div class="barre-prestige"><div style="width:${Math.round(100 * c.prestige / PRESTIGE_DEPART)}%"></div></div></div>`;
         }).join("");
 
+      // Les quêtes en colonne gauche (tap = détail)
+      el("quetes-liste").innerHTML = partie.quetesVisibles.map((id) => {
+        const icone = ONZE_ICONES.parId(id);
+        let progres = ""; try { progres = icone.progression(partie, apercu); } catch (e) {}
+        return `<span class="badge inactif" style="cursor:pointer;display:block;text-align:left" onclick="voletQuetes()">🎯 ${icone.nom}<br><small style="color:#9CC4EF">${progres}</small></span>`;
+      }).join("");
+      verifierQuetes(apercu);
+
       // Bouton de manche
       if (!partie.matchEnCours) {
         const verdict = verdictFormation();
@@ -1100,6 +1171,95 @@
           : `⚽ Manche ${partie.manche}` + (formationIncomplete() ? " 😬" : "");
       }
       sauvegarder();
+    }
+
+    function acheterIcone(indice) {
+      const icone = ONZE_ICONES.parId(partie.boutique[indice].id);
+      if (partie.or < icone.cout) return signaler("Pas assez d'or pour " + icone.nom + ".");
+      const arrivants = icone.duo
+        ? icone.duo.map((fiche) => ({ ...fiche, etoiles: 1 }))
+        : [{ nom: icone.nom, cout: icone.cout, poste: icone.poste, ecole: icone.ecole,
+             archetype: icone.archetype, unique: null, icone: true, etoiles: 1,
+             description: icone.identite }];
+      const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
+      const placesLibres = (max - partie.terrain.length) + (TAILLE_BANC - partie.banc.length);
+      if (placesLibres < arrivants.length) return signaler("Pas assez de place pour " + icone.nom + ".");
+      partie.or -= icone.cout;
+      partie.garanties = partie.garanties.filter((id) => id !== icone.id);
+      partie.boutique[indice] = null;
+      for (const arrivant of arrivants) {
+        if (!partie.matchEnCours && partie.terrain.length < max) partie.terrain.push(arrivant);
+        else partie.banc.push(arrivant);
+      }
+      const banniere = document.createElement("div");
+      banniere.className = "fusion-banniere";
+      banniere.innerHTML = `✨ ${icone.nom} ${icone.duo ? "arrivent" : "arrive"} au club ! ✨<br><small>${icone.identite}</small>`;
+      el("app").appendChild(banniere);
+      setTimeout(() => banniere.remove(), 3000);
+      afficher();
+    }
+
+    /* ================= Les quêtes d'Icônes (design/icones.md) ================= */
+    function queteEstPerdue(id) {
+      if (id === "globe-trotteur") return partie.manche >= 8 && (partie.compteurs.relances || 0) < 4;
+      if (id === "bourreau") return partie.manche > 3 && !partie.compteurs.bourreau;
+      if (id === "repeche") return partie.hiversVus.length >= 2 && !partie.compteurs.premierHiver;
+      if (id === "gus-et-titi") return !partie.terrain.concat(partie.banc).some((j) => (j.nom === "Gus" || j.nom === "Titi") && !j.icone);
+      return false;
+    }
+    function tirerNouvelleQuete() {
+      const candidates = ONZE_ICONES.liste.filter((x) =>
+        !partie.quetesVisibles.includes(x.id) &&
+        !partie.icônesDebloquees.includes(x.id) &&
+        !queteEstPerdue(x.id) &&
+        (partie.manche >= 4 || ONZE_ICONES.liste.indexOf(x) < 12));
+      return candidates.length ? hasardParmi(candidates).id : null;
+    }
+    function verifierQuetes(apercu) {
+      for (const id of [...partie.quetesVisibles]) {
+        const icone = ONZE_ICONES.parId(id);
+        if (!icone) continue;
+        if (queteEstPerdue(id)) {
+          partie.quetesVisibles = partie.quetesVisibles.filter((x) => x !== id);
+          const remplacante = tirerNouvelleQuete();
+          if (remplacante) partie.quetesVisibles.push(remplacante);
+          continue;
+        }
+        let fait = false;
+        try { fait = icone.test(partie, apercu); } catch (e) { fait = false; }
+        if (fait) {
+          partie.quetesVisibles = partie.quetesVisibles.filter((x) => x !== id);
+          partie.icônesDebloquees.push(id);
+          partie.garanties.push(id);
+          const banniere = document.createElement("div");
+          banniere.className = "fusion-banniere";
+          banniere.innerHTML = `🏆 ICÔNE DÉBLOQUÉE ! 🏆<br><strong>${icone.nom}</strong><small>${icone.identite}<br>Garantie à ta prochaine relance de mercato.</small>`;
+          el("app").appendChild(banniere);
+          setTimeout(() => banniere.remove(), 3400);
+          const remplacante = tirerNouvelleQuete();
+          if (remplacante) partie.quetesVisibles.push(remplacante);
+        }
+      }
+    }
+    function voletQuetes() {
+      const apercu = equipeDuClub();
+      const volet = document.createElement("div");
+      volet.className = "volet";
+      volet.innerHTML = `<div class="panneau">
+        <strong>🎯 Les quêtes d'Icônes</strong> <small style="color:#96A699">· 🔥 Ferveur : ${partie.compteurs.ferveur}</small>
+        ${partie.quetesVisibles.map((id) => {
+          const icone = ONZE_ICONES.parId(id);
+          let progres = ""; try { progres = icone.progression(partie, apercu); } catch (e) {}
+          return `<div class="coach" style="display:block;margin-top:6px">
+            <strong>${icone.nom}</strong> <span style="color:#E8C547">(${icone.poste === "DUO" ? "duo " : ""}${icone.cout}M)</span><br>
+            <small>${icone.condition} — <span style="color:#9CC4EF">${progres}</span></small><br>
+            <small style="color:#96A699;font-style:italic">${icone.identite}</small></div>`;
+        }).join("")}
+        ${partie.icônesDebloquees.length ? `<div class="coach" style="margin-top:8px"><span>🏆 Débloquées : ${partie.icônesDebloquees.map((id) => ONZE_ICONES.parId(id).nom).join(", ")}</span></div>` : ""}
+        <button class="fermer-volet">Fermer</button>
+      </div>`;
+      volet.addEventListener("click", (e) => { if (e.target === volet || e.target.classList.contains("fermer-volet")) volet.remove(); });
+      el("app").appendChild(volet);
     }
 
     /* ================= Sauvegarde locale =================
@@ -1124,6 +1284,13 @@
         partie = sauvegarde;
         partie.matchEnCours = false;
         partie.orbesEnAttente = [];
+        // migration des sauvegardes d'avant les Icônes
+        partie.compteurs = partie.compteurs || { relances: 0, verrous: 0, ventesManche: 0, scoutsManche: 0,
+          orbeOr: 0, specsCreees: 0, emblemes: 0, premierHiver: 0, sansEncaisser: 0, onzeInchange: 0,
+          derniereCompo: null, aeriensMatch: 0, bourreau: 0, remontada: 0, phenix: 0, serrurier: 0, ferveur: 0 };
+        partie.quetesVisibles = partie.quetesVisibles || ["gus-et-titi"];
+        partie.icônesDebloquees = partie.icônesDebloquees || [];
+        partie.garanties = partie.garanties || [];
         preparerManche();
         afficher();
         proposerPhilosophie();
@@ -1149,6 +1316,7 @@
         el("btn-historique").addEventListener("click", ouvrirClassement);
         el("btn-verrou").addEventListener("click", () => {
           partie.verrou = !partie.verrou;
+          if (partie.verrou) partie.compteurs.verrous++;
           signaler(partie.verrou ? "🔒 La boutique t'attendra à la prochaine manche." : "🔓 Boutique déverrouillée.");
           afficher();
         });

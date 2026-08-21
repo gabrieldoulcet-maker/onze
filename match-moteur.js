@@ -127,7 +127,8 @@ function genererStats(fiche) {
   const profilArchetype = PROFILS_ARCHETYPES[fiche.archetype || ""] || PROFILS_ARCHETYPES[""];
   const stats = {};
   // budget : le coût fait la taille, pas la forme (coût 0 = réserviste)
-  const budgetMoyen = 38 + 6 * (fiche.cout || 0);
+  let budgetMoyen = 38 + 6 * (fiche.cout || 0);
+  if (fiche.icone) budgetMoyen *= 1.15; // une Icône s'est méritée (design/icones.md)
   let sommePoids = 0;
   const poids = {};
   for (const stat of cles) {
@@ -638,6 +639,7 @@ function resoudrePhase(eqA, eqB, ctx) {
     const disponible = kr >= 2 ? true : (kr >= 1 && !etat.ballonLongUtilise);
     if (!attaque && disponible && proba(0.15)) {
       etat.ballonLongUtilise = true;
+      etat.duelsAeriens = (etat.duelsAeriens || 0) + 1;
       attaque = eq;
       const hammer = aUnique(eq, "The Hammer");
       if (hammer) bonusTir += 15;
@@ -726,6 +728,7 @@ function resoudrePhase(eqA, eqB, ctx) {
     } else {
       forceDef = forceCollective(defense, defenseurs.length ? defenseurs : defense.joueurs.filter((j) => j.poste !== "GAR"), typePercee.def[0], typePercee.def[1], ctx);
     }
+    if (typePercee.type === "aerien") ctx.duelAerienEnCours = true;
     let bonusAtt = 0;
     if (s(attaque, "La Grinta") && ctx.scoreDe(attaque) < ctx.scoreAdverse(attaque)) bonusAtt += 6 * s(attaque, "La Grinta");
     percee = forceAtt + bonusAtt + de(50) > forceDef + de(50);
@@ -739,6 +742,10 @@ function resoudrePhase(eqA, eqB, ctx) {
         evenements.push({ type: "geste", acteurs: [dribbleur.nom], texte: `${dribbleur.nom} est bloqué… petit pont ! La rue ne s'arrête jamais.`, synergie: "École de la Rue", equipe: attaque.nom });
         percee = forceAtt + bonusAtt + 8 + de(50) > forceDef + de(50);
       }
+    }
+    if (ctx.duelAerienEnCours) {
+      ctx.etat[(percee ? attaque : defense).nom].duelsAeriens = (ctx.etat[(percee ? attaque : defense).nom].duelsAeriens || 0) + 1;
+      ctx.duelAerienEnCours = false;
     }
     if (!percee) {
       const candidatsStop = defenseurs.length && !proba(0.25) ? defenseurs : defense.joueurs.filter((j) => j.poste !== "GAR");
@@ -815,7 +822,7 @@ function simulerMatch(eqA, eqB) {
     }
     phases.push({ numero: n, minute: MINUTES[n - 1], evenements, scoreA, scoreB });
   }
-  return { phases, scoreA, scoreB, ecart: Math.abs(scoreA - scoreB) };
+  return { phases, scoreA, scoreB, ecart: Math.abs(scoreA - scoreB), etats: ctx.etat };
 }
 function compterButs(evenements, eq) {
   return evenements.filter((ev) => ev.but && ev.equipe === eq.nom).length;
@@ -830,7 +837,7 @@ function fusionnerEffectif(terrain, banc) {
     const tout = [
       ...terrain.map((j) => ({ j, liste: terrain })),
       ...banc.map((j) => ({ j, liste: banc })),
-    ];
+    ].filter((e) => !e.j.icone); // les Icônes sont des copies uniques
     const groupes = {};
     for (const e of tout) {
       const cle = e.j.nom + "|" + (e.j.etoiles || 1);
