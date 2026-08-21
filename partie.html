@@ -166,6 +166,15 @@
     .journal .titre-phase { font-size: 0.56rem; margin-bottom: 0; }
     .journal .cri { font-size: 0.74rem; }
     .journal:empty { display: none; }
+    /* Pendant la scène animée, le journal complet est replié derrière 📜
+       (le bandeau compact prend le relais) ; déplié, il passe DEVANT. */
+    .journal.replie { display: none; }
+    .journal { z-index: 8; }
+    .tableau-match { z-index: 9; }
+    .tableau-match .btn-journal {
+      background: none; border: 1px solid #24331F; border-radius: 6px;
+      color: #96A699; font-size: 0.7rem; cursor: pointer; padding: 0 5px; margin-left: 6px;
+    }
 
     /* ---- La barre boutique du bas (copie TFT) ---- */
     /* La boutique garde sa hauteur de contenu : c'est le TERRAIN qui se
@@ -336,8 +345,10 @@
           <span id="nom-adversaire-match"></span>
           <span class="score-match"> <span id="score-a">0</span> – <span id="score-b">0</span> </span>
           <span id="chrono"></span>
+          <button class="btn-journal" id="btn-journal" title="Journal du match">📜</button>
         </div>
         <div class="journal" id="recit"></div>
+        <div class="bandeau-recit" id="bandeau-recit"></div>
       </div>
       <div class="rangee-banc" id="banc"></div>
     </div>
@@ -368,6 +379,8 @@
   <script src="icones.js"></script>
   <script src="synergies-data.js"></script>
   <script src="match-ui.js"></script>
+  <script src="match-scene.js"></script>
+  <script src="juice.js"></script>
   <script>
     /* ============================================================
        Logique de partie : économie TFT (design/economie.md),
@@ -609,6 +622,15 @@
       partie.or -= fiche.cout;
       partie.boutique[indice] = null;
       placerAuClub({ ...fiche, etoiles: 1 });
+      // l'arrivée d'un Unique est un ÉVÉNEMENT (fanfare + bannière)
+      if (fiche.unique) {
+        ONZE_JUICE.jouer("unique");
+        const banniere = document.createElement("div");
+        banniere.className = "fusion-banniere";
+        banniere.innerHTML = `⭐ ${fiche.unique} ⭐<br>${fiche.nom} signe au club !<small>Son pouvoir Unique s'active sur le terrain.</small>`;
+        el("app").appendChild(banniere);
+        setTimeout(() => banniere.remove(), 2400);
+      } else ONZE_JUICE.jouer("achat");
       const fusions = ONZE.fusionnerEffectif(partie.terrain, partie.banc);
       if (fusions.length) celebrerFusions(fusions);
       afficher();
@@ -623,6 +645,7 @@
       for (const spec of fiche.specialisations || []) partie.staff.push(spec);
       const copies = Math.pow(3, (fiche.etoiles || 1) - 1);
       partie.compteurs.ventesManche++;
+      ONZE_JUICE.jouer("vente");
       partie.or += fiche.cout * copies;
       const original = tousLesJoueurs.find((j) => j.nom === fiche.nom);
       if (original) for (let c = 0; c < copies; c++) partie.pool.push(original);
@@ -658,6 +681,7 @@
       partie.or -= COUT_REFRESH;
       partie.verrou = false;
       partie.compteurs.relances++;
+      ONZE_JUICE.jouer("refresh");
       nouvelleBoutique();
       afficher();
     }
@@ -698,12 +722,13 @@
       fusions.forEach((f, i) => {
         setTimeout(() => {
           const banniere = document.createElement("div");
-          banniere.className = "fusion-banniere";
+          banniere.className = "fusion-banniere" + (f.etoiles >= 3 ? " trois-etoiles" : "");
+          ONZE_JUICE.jouer(f.etoiles >= 3 ? "fusion3" : "fusion");
           banniere.innerHTML = f.etoiles >= 3
             ? `🌟 LÉGENDE DU CLUB ! 🌟<br>${f.nom} atteint les 3 étoiles !<small>Le sommet absolu — niveau maximum</small>`
             : `✨ FUSION ! ✨<br>${f.nom} devient Titulaire 2★<small>Trois copies réunies — les stats grimpent</small>`;
           el("app").appendChild(banniere);
-          setTimeout(() => banniere.remove(), 2700);
+          setTimeout(() => banniere.remove(), f.etoiles >= 3 ? 3400 : 2700);
         }, i * 900);
       });
     }
@@ -977,11 +1002,23 @@
       el("btn-match").disabled = true;
       el("btn-match").textContent = "⏱ Match…";
       el("recit").innerHTML = "";
+      // La scène animée (phase 3) : le terrain devient la scène, le
+      // récit complet se replie derrière 📜, le bandeau prend le relais
+      if (sceneMatch) sceneMatch.detruire();
+      sceneMatch = ONZE_SCENE.creer(el("terrain-scene"), monEquipe, equipeAdverse);
+      el("recit").classList.add("replie");
+      el("bandeau-recit").innerHTML = "";
       afficher();
       ONZE_UI.rejouer(resultat, monEquipe, equipeAdverse, {
         chrono: el("chrono"), scoreA: el("score-a"), scoreB: el("score-b"), recit: el("recit"),
+        bandeau: el("bandeau-recit"),
       }, () => finDeManche(resultat, monAdversaire, resultatsIA),
-        { sansPrestige: amical || partie.appariement.coupe, manche: partie.manche, delaiPhase: format.delaiPhase, delaiEvenement: format.delaiEvenement });
+        { sansPrestige: amical || partie.appariement.coupe, manche: partie.manche, delaiPhase: format.delaiPhase, delaiEvenement: format.delaiEvenement,
+          scene: sceneMatch,
+          // l'enjeu du match dose la célébration : 1 amical/coupe,
+          // 2 PvP, 3 quand une élimination est dans l'air
+          enjeu: amical || partie.appariement.coupe ? 1
+            : (partie.manche >= 13 || moi().prestige <= 15 || (monAdversaire && monAdversaire.prestige <= 15)) ? 3 : 2 });
     }
 
     function appliquerResultat(gagnant, perdant, ecart) {
@@ -1105,6 +1142,9 @@
 
     function continuer() {
       partie.matchEnCours = false;
+      if (sceneMatch) { sceneMatch.detruire(); sceneMatch = null; }
+      el("recit").classList.remove("replie");
+      el("bandeau-recit").innerHTML = "";
       el("terrain-scene").style.paddingTop = "";
       el("tableau-match").classList.add("masque");
       el("btn-vitesse").classList.add("masque");
@@ -1412,6 +1452,7 @@
         <div class="coach" style="margin-top:4px;color:#96A699"><span id="annonce-volet"></span></div>
         ${partie.philosophies.length ? `<div class="coach" style="margin-top:4px"><span>🧭 ${partie.philosophies.join(" · ")}</span></div>` : ""}
         <button class="fermer-volet" onclick="basculerDetente(); this.closest('.volet').remove()">${modeDetente ? "⏱ Réactiver le chrono (référence)" : "🧘 Mode détente (sans chrono)"}</button>
+        <button class="fermer-volet" onclick="this.textContent = ONZE_JUICE.basculer() ? '🔊 Sons : activés' : '🔇 Sons : coupés'">${ONZE_JUICE.estActif() ? "🔊 Sons : activés" : "🔇 Sons : coupés"}</button>
         <button class="fermer-volet" style="background:#3A2A24;color:#D4A66B" onclick="if (confirm('Abandonner cette partie ?')) recommencerPartie()">🔁 Nouvelle partie</button>
         <details style="margin-top:8px"><summary style="cursor:pointer;color:#96A699;font-size:0.8rem">📜 Historique des manches</summary>
         <div style="font-size:0.76rem;margin-top:4px">${partie.historique.map((h) => `<div class="coach"><span>${h}</span></div>`).join("") || "La saison commence."}</div></details>
@@ -1720,6 +1761,8 @@
     const CLE_DETENTE = "onze-mode-detente";
     let modeDetente = false;
     let dernierMatch = null; // { resultat, eqA, eqB } — pour le recap ⚔️
+    let sceneMatch = null; // la scène animée du match (match-scene.js)
+    let synergiesConnues = null; // paliers déjà célébrés (pour le son)
     let pageGauche = "synergies"; // la bascule du panneau gauche (⇄ staff/quêtes)
     try { modeDetente = localStorage.getItem(CLE_DETENTE) === "1"; } catch (e) {}
     const chrono = { restant: 0, total: 0, intervalle: null, action: null, dernierBip: -1 };
@@ -1900,6 +1943,12 @@
       const apercu = equipeDuClub();
       el("synergies-club").innerHTML = ONZE_UI.badges(apercu) ||
         `<span style="color:#5A6A5C;font-size:0.68rem">Réunis des joueurs d'une même École ou d'un même archétype.</span>`;
+      // Le son de palier : une famille vient de s'allumer ou de monter
+      const clesSynergies = new Set(apercu.synergies.map((sy) => sy.nom + "|" + sy.s));
+      if (synergiesConnues) {
+        for (const cle of clesSynergies) if (!synergiesConnues.has(cle)) { ONZE_JUICE.jouer("palier"); break; }
+      }
+      synergiesConnues = clesSynergies;
       const axes = ONZE.adnClub(apercu);
       const valeursAxes = Object.values(axes);
       const maxAxe = Math.max(...valeursAxes), minAxe = Math.min(...valeursAxes);
@@ -1968,6 +2017,7 @@
       partie.garanties = partie.garanties.filter((id) => id !== icone.id);
       partie.boutique[indice] = null;
       for (const arrivant of arrivants) placerAuClub(arrivant);
+      ONZE_JUICE.jouer("icone");
       const banniere = document.createElement("div");
       banniere.className = "fusion-banniere";
       banniere.innerHTML = `✨ ${icone.nom} ${icone.duo ? "arrivent" : "arrive"} au club ! ✨<br><small>${icone.identite}</small>`;
@@ -2279,6 +2329,8 @@
           const replie = el("boutique-barre").classList.toggle("repliee");
           el("btn-sac").textContent = replie ? "👜" : "🪙";
         });
+        // Le journal complet du match, replié derrière 📜 pendant la scène
+        el("btn-journal").addEventListener("click", () => el("recit").classList.toggle("replie"));
         // Bascule du panneau gauche : synergies+ADN ⇄ staff+quêtes
         el("btn-bascule-gauche").addEventListener("click", () => {
           pageGauche = pageGauche === "synergies" ? "staff" : "synergies";

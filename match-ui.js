@@ -110,6 +110,7 @@ const ONZE_UI = (() => {
         action: () => {
           elements.chrono.textContent = `⏱ ${phase.minute}ᵉ minute — phase ${phase.numero}/${resultat.phases.length}`;
           blocCourant = blocPhase(elements.recit, phase.minute, phase.numero);
+          if (options.scene) options.scene.debutPhase(phase);
         },
       });
       phase.evenements.forEach((ev) => {
@@ -118,6 +119,20 @@ const ONZE_UI = (() => {
           action: () => {
             if (ev.but) { if (ev.equipe === equipeA.nom) scores.a++; else scores.b++; }
             ajouterEvenement(elements, blocCourant, ev, scores);
+            // la scène animée + le bandeau compact (optionnels)
+            if (options.scene) options.scene.evenement(ev, delaiEvenement / vitesse);
+            // le juice : célébration proportionnelle à l'enjeu (mes buts),
+            // soupir sur les buts encaissés, gant sur les arrêts
+            if (typeof ONZE_JUICE !== "undefined") {
+              if (ev.but && ev.equipe === equipeA.nom) ONZE_JUICE.but(options.enjeu || 2, options.scene && options.scene.racine);
+              else if (ev.but) ONZE_JUICE.jouer("defaite");
+              else if (ev.type === "arret") ONZE_JUICE.jouer("arret");
+            }
+            if (elements.bandeau) {
+              const chip = ev.synergie
+                ? ` <span class="tag-synergie" style="color:${typeof ONZE_SCENE !== "undefined" ? ONZE_SCENE.couleurFamille(ev.synergie) : "#E8C547"}">✦ ${ev.synergie}</span>` : "";
+              elements.bandeau.innerHTML = (ev.but ? `⚽ ${ev.cri} <strong>${scores.a} – ${scores.b}</strong>` : ev.texte) + chip;
+            }
           },
         });
       });
