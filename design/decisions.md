@@ -32,13 +32,13 @@ Registre des décisions actées. Une décision qui n'est pas ici n'existe pas.
 
 ## Backlog priorisé (battue TFT, août 2026 — dans cet ordre)
 
-1. **Le clone fantôme** : nombre impair de survivants → au lieu d'un exempt, un coach affronte « l'équipe B » (le clone) d'un club vivant, traitée comme une entité à part entière dans l'appariement.
-2. **Fenêtre d'appariement dégressive** : jamais deux fois le même adversaire dans les 5 dernières manches quand 8 clubs sont vivants ; la fenêtre se resserre au fil des éliminations, et se réinitialise à 3 survivants.
+1. ✅ **Le clone fantôme** (fait) : nombre impair de survivants → au lieu d'un exempt, un coach affronte « l'équipe B » (le clone) d'un club vivant, traitée comme une entité à part entière dans l'appariement.
+2. ✅ **Fenêtre d'appariement dégressive** (fait) : jamais deux fois le même adversaire dans les 5 dernières manches quand 8 clubs sont vivants ; la fenêtre se resserre au fil des éliminations, et se réinitialise à 3 survivants.
 3. ✅ **La règle des nuls** (décision 23) — actée et appliquée.
 4. ✅ **Les 7 IA piochent dans le même pool de copies que le joueur** — corrigé (elles composaient depuis le catalogue sans toucher au pool ; désormais chaque copie prise manque en boutique, et revient au pool à la recomposition ou à l'élimination du club).
 5. **Équité du sac pour les composants staff** : un exemplaire de chaque composant par cycle de coupes (tirage en sac, comme TFT) — plus de doublons de malchance.
-6. **Philosophies : raretés argent / or / prismatique + 1 relance par écran de choix.**
-7. **Limite d'inventaire staff : 10 cartes** (au-delà, assigner avant d'en gagner de nouvelles).
+6. ✅ **Philosophies : raretés argent / or / prismatique + 1 relance par écran** (fait — odds par manche 4/7/10, nouvelle Philosophie prismatique « Le Labo ouvert »).
+7. ✅ **Limite d'inventaire staff : 10 cartes** (fait — une carte gagnée à inventaire plein est revendue +2M, annoncé ; les retours de vente de joueurs ne sont jamais perdus).
 8. **Tutoriel / première partie guidée** — indispensable avant les playtests publics. Et **jauge de confiance par joueur** : prototype derrière un drapeau de test, à explorer après le match animé.
 
 ## Idées retenues pour plus tard (pas avant le polish de la boucle actuelle)

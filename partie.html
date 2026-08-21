@@ -397,6 +397,15 @@
       "Coach technique", "Kiné", "Adjoint tactique", "Scout"];
     // Le Passeport est rare (l'équivalent de la Spatule)
     const tirerCarteStaff = () => Math.random() < 0.1 ? "Passeport" : hasardParmi(MEMBRES_STAFF);
+    /* Backlog 7 : l'inventaire staff est plafonné à 10 cartes. Une carte
+       GAGNÉE à inventaire plein est revendue +2M (annoncé) ; les retours
+       de vente d'un joueur, eux, ne sont jamais perdus. */
+    const PLAFOND_STAFF = 10;
+    function gagnerCarteStaff(carte) {
+      if (partie.staff.length >= PLAFOND_STAFF) { partie.or += 2; return null; }
+      partie.staff.push(carte);
+      return carte;
+    }
     const STARTERS = [
       { nom: "Gus",    cout: 0, poste: "GAR", ecole: "", archetype: "", unique: null },
       { nom: "Marcel", cout: 0, poste: "DÉF", ecole: "", archetype: "", unique: null },
@@ -455,21 +464,32 @@
     /* Les Philosophies de club (les augments de TFT) : un choix parmi 3
        aux manches 4, 7 et 10 — effets définitifs jusqu'à la fin. */
     const MANCHES_PHILOSOPHIE = [4, 7, 10];
+    /* Backlog 6 : chaque écran de Philosophies tire une RARETÉ (argent /
+       or / prismatique, façon augments TFT) — les 3 propositions sont du
+       même étage, les gros effets n'arrivent qu'aux écrans chanceux ou
+       tardifs — et offre UNE relance 🎲. */
     const PHILOSOPHIES = [
-      { nom: "Droits TV majorés", emoji: "📺", desc: "+1M de revenu de base à chaque manche." },
-      { nom: "Mécènes", emoji: "🏦", desc: "Tes sponsors suivent jusqu'à +7M d'intérêts (au lieu de 5)." },
-      { nom: "Centre de formation", emoji: "🎓", desc: "+1 XP gratuit supplémentaire par manche." },
-      { nom: "Guichets fermés", emoji: "🎟️", desc: "La prime de victoire passe à +2M." },
-      { nom: "Trésor de guerre", emoji: "💰", desc: "+10M immédiatement." },
-      { nom: "Académie des jeunes", emoji: "🐣", desc: "Un joueur coût 1 gratuit rejoint ton banc chaque manche." },
-      { nom: "Organigramme étoffé", emoji: "🧰", desc: "Une carte staff maintenant, une autre dans 3 manches." },
-      { nom: "Réseau de recruteurs", emoji: "🔭", desc: "Le mercato propose 6 joueurs au lieu de 5." },
-      { nom: "Préparation physique", emoji: "🏃", desc: "+5 Endurance pour toute l'équipe." },
-      { nom: "Culture de la gagne", emoji: "🔥", desc: "+5 Mental pour toute l'équipe." },
-      { nom: "Forteresse", emoji: "🧱", desc: "+4 Tacle et +4 Placement pour toute l'équipe." },
-      { nom: "Jeu de possession", emoji: "🎯", desc: "+4 Passe et +4 Technique pour toute l'équipe." },
-      { nom: "Direction patiente", emoji: "🩹", desc: "+10 prestige immédiatement (plafonné au départ)." },
+      { nom: "Droits TV majorés", emoji: "📺", rarete: "argent", desc: "+1M de revenu de base à chaque manche." },
+      { nom: "Centre de formation", emoji: "🎓", rarete: "argent", desc: "+1 XP gratuit supplémentaire par manche." },
+      { nom: "Guichets fermés", emoji: "🎟️", rarete: "argent", desc: "La prime de victoire passe à +2M." },
+      { nom: "Préparation physique", emoji: "🏃", rarete: "argent", desc: "+5 Endurance pour toute l'équipe." },
+      { nom: "Culture de la gagne", emoji: "🔥", rarete: "argent", desc: "+5 Mental pour toute l'équipe." },
+      { nom: "Direction patiente", emoji: "🩹", rarete: "argent", desc: "+10 prestige immédiatement (plafonné au départ)." },
+      { nom: "Mécènes", emoji: "🏦", rarete: "or", desc: "Tes sponsors suivent jusqu'à +7M d'intérêts (au lieu de 5)." },
+      { nom: "Organigramme étoffé", emoji: "🧰", rarete: "or", desc: "Une carte staff maintenant, une autre dans 3 manches." },
+      { nom: "Réseau de recruteurs", emoji: "🔭", rarete: "or", desc: "Le mercato propose 6 joueurs au lieu de 5." },
+      { nom: "Forteresse", emoji: "🧱", rarete: "or", desc: "+4 Tacle et +4 Placement pour toute l'équipe." },
+      { nom: "Jeu de possession", emoji: "🎯", rarete: "or", desc: "+4 Passe et +4 Technique pour toute l'équipe." },
+      { nom: "Trésor de guerre", emoji: "💰", rarete: "prismatique", desc: "+10M immédiatement." },
+      { nom: "Académie des jeunes", emoji: "🐣", rarete: "prismatique", desc: "Un joueur coût 1 gratuit rejoint ton banc chaque manche." },
+      { nom: "Le Labo ouvert", emoji: "⚗️", rarete: "prismatique", desc: "2 cartes staff immédiatement." },
     ];
+    const RARETES_PHILO = {
+      argent: { nom: "Argent", emoji: "🥈", couleur: "#C0C8CC" },
+      or: { nom: "Or", emoji: "🥇", couleur: "#E8C547" },
+      prismatique: { nom: "Prismatique", emoji: "💎", couleur: "#9CC4EF" },
+    };
+    const ODDS_RARETE_PHILO = { 4: [60, 35, 5], 7: [25, 55, 20], 10: [10, 50, 40] }; // argent / or / prismatique
     const aPhilosophie = (nom) => partie.philosophies.includes(nom);
     const BOOSTS_PHILOSOPHIES = {
       "Préparation physique": { endurance: 5 },
@@ -758,11 +778,15 @@
         partie.or += orbe.montant;
         revele.innerHTML = `🪙 <strong>+${orbe.montant}M</strong><br><small>La billetterie a bien marché.</small>`;
       } else if (orbe.type === "staff") {
-        partie.staff.push(orbe.membre);
+        const gardee = gagnerCarteStaff(orbe.membre);
         if (orbe.montantBonus) partie.or += orbe.montantBonus;
-        revele.innerHTML = `🧰 <strong>${orbe.membre}</strong> rejoint le club !` +
-          (orbe.montantBonus ? ` <strong>+${orbe.montantBonus}M</strong>` : "") +
-          `<br><small>Carte Staff — le système complet arrive bientôt.</small>`;
+        revele.innerHTML = gardee
+          ? `🧰 <strong>${orbe.membre}</strong> rejoint le club !` +
+            (orbe.montantBonus ? ` <strong>+${orbe.montantBonus}M</strong>` : "") +
+            `<br><small>Carte Staff — le système complet arrive bientôt.</small>`
+          : `🧰 Inventaire staff plein (${PLAFOND_STAFF}) — <strong>${orbe.membre}</strong> revendu <strong>+2M</strong>` +
+            (orbe.montantBonus ? ` <strong>+${orbe.montantBonus}M</strong>` : "") +
+            `<br><small>Assigne tes cartes avant d'en gagner d'autres !</small>`;
       } else {
         const nombre = orbe.type === "duo" ? 2 : 1;
         for (let n = 0; n < nombre; n++) placerAuClub({ ...orbe.fiche, etoiles: 1 });
@@ -1028,8 +1052,9 @@
       gagnerXP(XP_GRATUITE_PAR_MANCHE + (aPhilosophie("Centre de formation") ? 1 : 0));
       if (partie.staffEnRetard && partie.manche >= partie.staffEnRetard) {
         partie.staffEnRetard = null;
-        partie.staff.push(tirerCarteStaff());
-        signaler("🧰 La carte staff promise est arrivée !");
+        signaler(gagnerCarteStaff(tirerCarteStaff())
+          ? "🧰 La carte staff promise est arrivée !"
+          : "🧰 Inventaire plein (" + PLAFOND_STAFF + ") — la carte promise est revendue +2M.");
       }
 
       partie.orbesEnAttente = coupe
@@ -1173,21 +1198,43 @@
       if (!MANCHES_PHILOSOPHIE.includes(partie.manche)) return;
       if (partie.philosophiesVues.includes(partie.manche)) return;
       partie.philosophiesVues.push(partie.manche);
-      const choix = PHILOSOPHIES.filter((p) => !partie.philosophies.includes(p.nom))
-        .sort(() => Math.random() - 0.5).slice(0, 3);
+      // La rareté de l'écran (mêmes 3 étages pour les 3 propositions)
+      const odds = ODDS_RARETE_PHILO[partie.manche] || [25, 55, 20];
+      const tirage = Math.random() * 100;
+      const rarete = tirage < odds[0] ? "argent" : tirage < odds[0] + odds[1] ? "or" : "prismatique";
+      const ORDRE_REPLI = { argent: ["argent", "or", "prismatique"], or: ["or", "argent", "prismatique"], prismatique: ["prismatique", "or", "argent"] };
+      const tirerTrois = () => {
+        let pool = [];
+        for (const r of ORDRE_REPLI[rarete]) {
+          pool = pool.concat(PHILOSOPHIES.filter((p) => p.rarete === r && !partie.philosophies.includes(p.nom))
+            .sort(() => Math.random() - 0.5));
+          if (pool.length >= 3) break; // étage épuisé → on complète à l'étage voisin
+        }
+        return pool.slice(0, 3);
+      };
+      let choix = tirerTrois();
+      let relanceDispo = true;
+      const fiche = RARETES_PHILO[rarete];
       const volet = document.createElement("div");
       volet.className = "volet";
-      volet.innerHTML = `<div class="panneau" style="text-align:center">
-        <strong>🧭 Choisis la Philosophie de ton club</strong><br>
-        <small style="color:#96A699">Un seul choix — définitif jusqu'à la fin de la partie.</small>
-        ${choix.map((p, i) => `<button class="fermer-volet" style="text-align:left" data-philo="${i}">
-          ${p.emoji} <strong>${p.nom}</strong><br><small style="color:#96A699">${p.desc}</small></button>`).join("")}
-      </div>`;
+      const rendre = () => {
+        volet.innerHTML = `<div class="panneau" style="text-align:center">
+          <strong>🧭 Choisis la Philosophie de ton club</strong><br>
+          <span style="color:${fiche.couleur};font-weight:800">${fiche.emoji} Écran ${fiche.nom}</span><br>
+          <small style="color:#96A699">Un seul choix — définitif jusqu'à la fin de la partie.</small>
+          ${choix.map((p, i) => `<button class="fermer-volet" style="text-align:left;border-color:${fiche.couleur}55" data-philo="${i}">
+            ${p.emoji} <strong>${p.nom}</strong><br><small style="color:#96A699">${p.desc}</small></button>`).join("")}
+          <button class="fermer-volet" data-relance ${relanceDispo ? "" : "disabled"}
+            style="width:auto;padding:6px 12px;color:#9CC4EF">🎲 Relancer les 3 (${relanceDispo ? 1 : 0})</button>
+        </div>`;
+      };
+      rendre();
       const choisirPhilo = (philo) => {
         partie.philosophies.push(philo.nom);
         if (philo.nom === "Trésor de guerre") partie.or += 10;
         if (philo.nom === "Direction patiente") moi().prestige = Math.min(PRESTIGE_DEPART, moi().prestige + 10);
-        if (philo.nom === "Organigramme étoffé") { partie.staff.push(tirerCarteStaff()); partie.staffEnRetard = partie.manche + 3; }
+        if (philo.nom === "Organigramme étoffé") { gagnerCarteStaff(tirerCarteStaff()); partie.staffEnRetard = partie.manche + 3; }
+        if (philo.nom === "Le Labo ouvert") { gagnerCarteStaff(tirerCarteStaff()); gagnerCarteStaff(tirerCarteStaff()); }
         if (philo.nom === "Réseau de recruteurs") { partie.tailleBoutique = 6; nouvelleBoutique(); }
         volet.remove();
         signaler(philo.emoji + " " + philo.nom + " adoptée !");
@@ -1195,6 +1242,12 @@
         lancerChronoMercato();
       };
       volet.addEventListener("click", (e) => {
+        if (e.target.closest("[data-relance]") && relanceDispo) {
+          relanceDispo = false;
+          choix = tirerTrois();
+          rendre();
+          return;
+        }
         const bouton = e.target.closest("[data-philo]");
         if (!bouton) return;
         arreterChrono();
