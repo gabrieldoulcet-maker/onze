@@ -28,6 +28,19 @@ Registre des décisions actées. Une décision qui n'est pas ici n'existe pas.
 21. **Formation libre (1 gardien max), hors-poste autorisé avec malus progressifs** : ligne adjacente au poste −10 %, à deux lignes −25 %, joueur de champ dans les buts −50 % avec réflexes plancher (😱). Le poste affiché reste le poste naturel. **Football Total = l'École qui les ignore** : ses paliers réduisent puis annulent les malus hors-poste (c'est son identité principale) ; Ruud y est immunisé par son Unique.
 22. **La pression du temps fait partie du fun de la construction** : ~35 s de préparation par manche (20 s pendant les amicaux), coup d'envoi automatique à zéro, ~30 s sur les écrans d'événement, urgence visuelle et sonore sur les 5 dernières secondes. Le « mode détente » (sans chrono) existe en option, désactivé par défaut — le chrono est l'expérience de référence, calibré pour qu'un joueur qui connaît le jeu ait juste assez de temps, jamais confortablement trop.
 
+23. **La règle des nuls : un match nul GÈLE les séries** — il ne casse ni n'allonge une série (de victoires comme de défaites) ; les primes de série lisent la série gelée telle quelle. Appliqué en août 2026.
+
+## Backlog priorisé (battue TFT, août 2026 — dans cet ordre)
+
+1. **Le clone fantôme** : nombre impair de survivants → au lieu d'un exempt, un coach affronte « l'équipe B » (le clone) d'un club vivant, traitée comme une entité à part entière dans l'appariement.
+2. **Fenêtre d'appariement dégressive** : jamais deux fois le même adversaire dans les 5 dernières manches quand 8 clubs sont vivants ; la fenêtre se resserre au fil des éliminations, et se réinitialise à 3 survivants.
+3. ✅ **La règle des nuls** (décision 23) — actée et appliquée.
+4. ✅ **Les 7 IA piochent dans le même pool de copies que le joueur** — corrigé (elles composaient depuis le catalogue sans toucher au pool ; désormais chaque copie prise manque en boutique, et revient au pool à la recomposition ou à l'élimination du club).
+5. **Équité du sac pour les composants staff** : un exemplaire de chaque composant par cycle de coupes (tirage en sac, comme TFT) — plus de doublons de malchance.
+6. **Philosophies : raretés argent / or / prismatique + 1 relance par écran de choix.**
+7. **Limite d'inventaire staff : 10 cartes** (au-delà, assigner avant d'en gagner de nouvelles).
+8. **Tutoriel / première partie guidée** — indispensable avant les playtests publics. Et **jauge de confiance par joueur** : prototype derrière un drapeau de test, à explorer après le match animé.
+
 ## Idées retenues pour plus tard (pas avant le polish de la boucle actuelle)
 
 - **Masse salariale** (contrainte d'effectif au-delà de l'or).

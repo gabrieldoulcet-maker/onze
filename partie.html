@@ -790,7 +790,13 @@
       return ONZE.equipeDepuisFiches(gabarit.nom, gabarit.nom, fiches); // nom seul dans le récit
     }
     /* Courbe calibrée (simulations/parties.js) : ~50 % de top 4 */
+    /* Règle TFT fondamentale : les 7 IA piochent dans le MÊME pool de
+       copies que le joueur. Chaque copie prise manque en boutique (une
+       École contestée se raréfie) ; les copies reviennent au pool quand
+       l'équipe est recomposée ou que le club est éliminé. */
     function genererEquipeIA(coach) {
+      if (coach.copiesPrises) for (const fiche of coach.copiesPrises) partie.pool.push(fiche);
+      coach.copiesPrises = [];
       const niveau = Math.min(3 + Math.floor(partie.manche / 4), 9);
       const taille = TITULAIRES_PAR_NIVEAU[niveau];
       let budget = Math.min(1 + 1.35 * partie.manche, 21);
@@ -800,12 +806,17 @@
       for (const poste of besoins) {
         const slotsRestants = besoins.length - compo.length;
         const coutMax = Math.max(1, Math.min(5, Math.floor(budget - (slotsRestants - 1))));
-        let candidats = tousLesJoueurs.filter((j) => j.poste === poste && j.cout <= coutMax);
+        const nomsPris = new Set(compo.map((j) => j.nom));
+        let candidats = partie.pool.filter((j) => j.poste === poste && j.cout <= coutMax && !nomsPris.has(j.nom));
         const fideles = candidats.filter((j) => j.ecole === coach.ecole);
         if (fideles.length && Math.random() < 0.75) candidats = fideles;
         candidats.sort((a, b) => b.cout - a.cout);
         const choix = candidats[Math.floor(Math.random() * Math.min(3, candidats.length))] || candidats[0];
-        if (choix) { compo.push(choix); budget -= choix.cout; }
+        if (choix) {
+          compo.push(choix); budget -= choix.cout;
+          partie.pool.splice(partie.pool.indexOf(choix), 1);
+          coach.copiesPrises.push(choix);
+        }
       }
       return ONZE.equipeDepuisFiches(coach.nom, coach.nom, compo);
     }
@@ -821,7 +832,14 @@
           if (fusions.length) celebrerFusions(fusions);
         }
       }
-      for (const c of partie.coachs) if (c.ia && c.vivant) c.equipe = genererEquipeIA(c);
+      for (const c of partie.coachs) if (c.ia) {
+        if (c.vivant) { c.equipe = genererEquipeIA(c); }
+        else if (c.copiesPrises && c.copiesPrises.length) {
+          // club éliminé : ses copies retournent au pool (règle TFT)
+          for (const fiche of c.copiesPrises) partie.pool.push(fiche);
+          c.copiesPrises = [];
+        }
+      }
       if (amical) {
         partie.appariement = { amical: true, nomAdversaire: "Amical — " + AMICAUX[partie.manche - 1].nom };
         return;
@@ -921,7 +939,7 @@
     }
 
     function appliquerResultat(gagnant, perdant, ecart) {
-      if (ecart === 0) { gagnant.serie = 0; perdant.serie = 0; return; }
+      if (ecart === 0) return; // décision 23 : un nul GÈLE les séries (ni cassées ni allongées)
       gagnant.serie = gagnant.serie > 0 ? gagnant.serie + 1 : 1;
       perdant.serie = perdant.serie < 0 ? perdant.serie - 1 : -1;
       perdant.prestige = Math.max(0, perdant.prestige - ONZE.degatsPrestige(ecart, partie.manche));
@@ -1358,7 +1376,7 @@
       const rendre = () => {
         const c = clubs[indice];
         const adverse = !!c.ia;
-        const equipe = adverse ? (c.equipe || genererEquipeIA(c)) : equipeDuClub();
+        const equipe = adverse ? (c.equipe = c.equipe || genererEquipeIA(c)) : equipeDuClub();
         voile.setAttribute("data-equipe-adverse", adverse ? "1" : "");
         voile.equipeScoutee = adverse ? equipe : null;
         const axes = ONZE.adnClub(equipe);
