@@ -137,15 +137,22 @@ function synergieDecisive(liste, marge) {
 /* ============================================================
    CRÉATION D'ÉQUIPE — depuis les données de design/joueurs.json
    ============================================================ */
-function creerEquipe(nomClub, coach, noms, tousLesJoueurs) {
-  const joueurs = noms.map((nom) => {
-    const fiche = tousLesJoueurs.find((j) => j.nom === nom);
-    if (!fiche) throw new Error("Joueur introuvable : " + nom);
-    return { ...fiche, ...statsJoueur(fiche) };
-  });
+// Depuis des fiches joueurs déjà en main (le mercato s'en sert)
+function equipeDepuisFiches(nomClub, coach, fiches) {
+  const joueurs = fiches.map((fiche) => ({ ...fiche, ...statsJoueur(fiche) }));
   const equipe = { nom: nomClub, coach, joueurs };
   equipe.synergies = calculerSynergies(equipe);
   return equipe;
+}
+
+// Depuis des noms cherchés dans design/joueurs.json (les équipes de test)
+function creerEquipe(nomClub, coach, noms, tousLesJoueurs) {
+  const fiches = noms.map((nom) => {
+    const fiche = tousLesJoueurs.find((j) => j.nom === nom);
+    if (!fiche) throw new Error("Joueur introuvable : " + nom);
+    return fiche;
+  });
+  return equipeDepuisFiches(nomClub, coach, fiches);
 }
 
 /* ============================================================
@@ -296,6 +303,6 @@ function simulerMatch(eqA, eqB) {
 }
 
 /* ---- Export navigateur + node ---- */
-const ONZE = { creerEquipe, simulerMatch, calculerSynergies, statsJoueur, NB_PHASES };
+const ONZE = { creerEquipe, equipeDepuisFiches, simulerMatch, calculerSynergies, statsJoueur, NB_PHASES };
 if (typeof module !== "undefined") module.exports = ONZE;
 if (typeof window !== "undefined") window.ONZE = ONZE;

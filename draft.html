@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ONZE — Mercato</title>
+  <link rel="stylesheet" href="onze.css">
+</head>
+<body>
+
+  <header>
+    <h1>ON<span>ZE</span></h1>
+    <p>Mercato — compose ton équipe, puis joue le match</p>
+  </header>
+
+  <!-- ================= ÉCRAN MERCATO ================= -->
+  <div id="ecran-mercato">
+
+    <div class="bandeau-club">
+      <div>🏟️ <strong id="mon-club">Mon Club</strong><br>
+        <small style="color:#96A699">Niveau <span id="niveau">5</span> — <span id="nb-titulaires-max">5</span> titulaires</small></div>
+      <div class="or"><span id="or">30</span>M 🪙</div>
+    </div>
+
+    <div class="section-titre"><span>Boutique</span><span id="odds-info"></span></div>
+    <div class="boutique" id="boutique"></div>
+    <div class="ligne-refresh">
+      <button id="btn-refresh">🔄 Nouvelle boutique (2M)</button>
+    </div>
+
+    <div class="section-titre"><span>Titulaires (<span id="nb-titulaires">0</span>/<span id="nb-titulaires-max2">5</span>)</span></div>
+    <div class="synergies" id="synergies-club" style="max-width:420px;width:100%;margin-bottom:6px;"></div>
+    <div class="groupe-cartes" id="terrain"></div>
+
+    <div class="section-titre"><span>Banc</span></div>
+    <div class="groupe-cartes" id="banc"></div>
+
+    <div class="message-erreur" id="message"></div>
+    <button class="principal" id="btn-match" disabled>Chargement…</button>
+  </div>
+
+  <!-- ================= ÉCRAN MATCH ================= -->
+  <div id="ecran-match" class="masque" style="width:100%;display:flex;flex-direction:column;align-items:center;">
+    <div class="tableau">
+      <div class="equipe-nom" id="nom-a"></div>
+      <div class="score"><span id="score-a">0</span> – <span id="score-b">0</span></div>
+      <div class="equipe-nom" id="nom-b"></div>
+      <div class="chrono" id="chrono"></div>
+    </div>
+    <button class="principal masque" id="btn-retour">↩ Retour au mercato</button>
+    <div class="recit" id="recit"></div>
+  </div>
+
+  <script src="match-moteur.js"></script>
+  <script src="match-ui.js"></script>
+  <script>
+    /* ============================================================
+       MERCATO — chiffres repris de TFT (décision n°2) :
+       pool 30/25/18/10/9 copies par coût, refresh 2M,
+       odds par niveau de boutique. XP et intérêts viendront
+       avec les manches ; ici : une séance d'achats, un match.
+       ============================================================ */
+    const OR_DEPART = 30;
+    const COUT_REFRESH = 2;
+    const NIVEAU_CLUB = 5;          // fixe pour ce prototype
+    const TITULAIRES_MAX = 5;       // montée 5 → 11 : plus tard
+    const TAILLE_BOUTIQUE = 5;
+    const TAILLE_BANC = 8;
+    const POOL_PAR_COUT = { 1: 30, 2: 25, 3: 18, 4: 10, 5: 9 };
+    // Chances d'apparition par coût, au niveau 5 (odds TFT)
+    const ODDS = { 1: 45, 2: 33, 3: 20, 4: 2, 5: 0 };
+
+    const el = (id) => document.getElementById(id);
+    let tousLesJoueurs = [];
+    let pool = [];        // toutes les copies restantes en circulation
+    let or = OR_DEPART;
+    let boutique = [];    // 5 fiches (ou null si achetée)
+    let terrain = [];     // fiches titulaires
+    let banc = [];        // fiches remplaçants
+
+    /* ---- Le pool : POOL_PAR_COUT copies de chaque joueur ---- */
+    function construirePool() {
+      pool = [];
+      for (const j of tousLesJoueurs) {
+        for (let c = 0; c < (POOL_PAR_COUT[j.cout] || 0); c++) pool.push(j);
+      }
+    }
+
+    /* ---- Tirage d'une carte selon les odds du niveau ---- */
+    function tirerCarte() {
+      const tirage = Math.random() * 100;
+      let cumul = 0, coutChoisi = 1;
+      for (const [cout, chance] of Object.entries(ODDS)) {
+        cumul += chance;
+        if (tirage < cumul) { coutChoisi = Number(cout); break; }
+      }
+      let candidats = pool.filter((j) => j.cout === coutChoisi);
+      if (candidats.length === 0) candidats = pool; // coût épuisé : on élargit
+      return candidats.length ? hasardParmi(candidats) : null;
+    }
+    const hasardParmi = (t) => t[Math.floor(Math.random() * t.length)];
+
+    function nouvelleBoutique() {
+      // Les cartes non achetées retournent dans le pool
+      for (const c of boutique) if (c) pool.push(c);
+      boutique = [];
+      for (let i = 0; i < TAILLE_BOUTIQUE; i++) {
+        const carte = tirerCarte();
+        if (carte) pool.splice(pool.indexOf(carte), 1);
+        boutique.push(carte);
+      }
+    }
+
+    /* ---- Actions du joueur ---- */
+    function acheter(indice) {
+      const fiche = boutique[indice];
+      if (!fiche) return;
+      if (or < fiche.cout) return signaler("Pas assez d'or pour " + fiche.nom + ".");
+      if (terrain.length + banc.length >= TITULAIRES_MAX + TAILLE_BANC)
+        return signaler("Effectif complet — vends quelqu'un d'abord.");
+      or -= fiche.cout;
+      boutique[indice] = null;
+      if (terrain.length < TITULAIRES_MAX) terrain.push(fiche); else banc.push(fiche);
+      afficher();
+    }
+    function vendre(liste, indice) {
+      const fiche = liste[indice];
+      or += fiche.cout;          // revente au prix d'achat (simple pour l'instant)
+      pool.push(fiche);
+      liste.splice(indice, 1);
+      afficher();
+    }
+    function basculer(liste, indice) {
+      const fiche = liste[indice];
+      if (liste === banc && terrain.length >= TITULAIRES_MAX)
+        return signaler("Terrain plein (" + TITULAIRES_MAX + ") — fais descendre quelqu'un d'abord.");
+      liste.splice(indice, 1);
+      (liste === banc ? terrain : banc).push(fiche);
+      afficher();
+    }
+    function refresh() {
+      if (or < COUT_REFRESH) return signaler("Pas assez d'or pour relancer la boutique.");
+      or -= COUT_REFRESH;
+      nouvelleBoutique();
+      afficher();
+    }
+    function signaler(texte) {
+      el("message").textContent = texte;
+      setTimeout(() => { if (el("message").textContent === texte) el("message").textContent = ""; }, 2500);
+    }
+
+    /* ---- La formation est-elle valable ? (contrainte de postes) ---- */
+    function verdictFormation() {
+      if (terrain.length !== TITULAIRES_MAX) return "Aligne " + TITULAIRES_MAX + " titulaires.";
+      const nb = (poste) => terrain.filter((j) => j.poste === poste).length;
+      if (nb("GAR") !== 1) return "Il faut exactement 1 gardien.";
+      if (nb("DÉF") < 1) return "Il faut au moins 1 défenseur.";
+      if (nb("MIL") < 1) return "Il faut au moins 1 milieu.";
+      if (nb("ATT") < 1) return "Il faut au moins 1 attaquant.";
+      return null; // formation valable
+    }
+
+    /* ---- Affichage ---- */
+    function carteHTML(fiche, actionsHTML) {
+      return `<div class="carte cout-${fiche.cout}">
+        <span class="poste-badge">${fiche.poste}</span>
+        <span class="infos"><span class="nom">${fiche.nom}</span> <span style="color:#E8C547">${fiche.cout}M</span><br>
+        <span class="traits">${fiche.ecole} · ${fiche.archetype}</span></span>
+        <span class="actions">${actionsHTML}</span>
+      </div>`;
+    }
+    function afficher() {
+      el("or").textContent = or;
+      el("boutique").innerHTML = boutique.map((fiche, i) =>
+        fiche
+          ? carteHTML(fiche, `<button class="achat" onclick="acheter(${i})" ${or < fiche.cout ? "disabled" : ""}>${fiche.cout}M</button>`)
+          : `<div class="carte vide">— vendu —</div>`
+      ).join("");
+      el("btn-refresh").disabled = or < COUT_REFRESH;
+      el("nb-titulaires").textContent = terrain.length;
+      el("terrain").innerHTML = terrain.length
+        ? terrain.map((fiche, i) => carteHTML(fiche,
+            `<button onclick="basculer(terrain, ${i})">Banc</button><button class="vente" onclick="vendre(terrain, ${i})">Vendre</button>`)).join("")
+        : `<div class="carte vide">Achète des joueurs dans la boutique 👆</div>`;
+      el("banc").innerHTML = banc.length
+        ? banc.map((fiche, i) => carteHTML(fiche,
+            `<button onclick="basculer(banc, ${i})">Titulariser</button><button class="vente" onclick="vendre(banc, ${i})">Vendre</button>`)).join("")
+        : `<div class="carte vide">Personne sur le banc</div>`;
+      // Synergies des titulaires, en direct
+      const apercu = ONZE.equipeDepuisFiches("Mon Club", "Toi", terrain);
+      el("synergies-club").innerHTML = apercu.synergies.length
+        ? ONZE_UI.badges(apercu)
+        : `<span style="color:#5A6A5C;font-size:0.72rem">Les synergies s'activent à 2 joueurs de la même École ou du même archétype.</span>`;
+      // Bouton match
+      const verdict = verdictFormation();
+      el("btn-match").disabled = !!verdict;
+      el("btn-match").textContent = verdict ? "⚽ " + verdict : "⚽ Jouer le match !";
+    }
+
+    /* ---- Le match : ton équipe contre un adversaire de test ---- */
+    const ADVERSAIRES = [
+      { nom: "La Masia Rebelle", coach: "Coach Fantôme", noms: ["Rubén", "Gorka", "Unai", "Xabi", "Aitor"] },
+      { nom: "Fortezza Nero", coach: "Coach Fantôme", noms: ["Gianluca", "Aurelio", "Mattia", "Tommaso", "Federico"] },
+      { nom: "Union Bitume", coach: "Coach Fantôme", noms: ["Bakary", "Nino", "Ratko", "Brahim", "Rodrigo"] },
+    ];
+    function jouerMatch() {
+      const monEquipe = ONZE.equipeDepuisFiches("Mon Club", "Toi", terrain);
+      const compo = hasardParmi(ADVERSAIRES);
+      const adversaire = ONZE.creerEquipe(compo.nom, compo.coach, compo.noms, tousLesJoueurs);
+      el("ecran-mercato").classList.add("masque");
+      el("ecran-match").classList.remove("masque");
+      el("btn-retour").classList.add("masque");
+      el("nom-a").innerHTML = `${monEquipe.nom}<small>Toi</small>`;
+      el("nom-b").innerHTML = `${adversaire.nom}<small>${compo.coach}</small>`;
+      window.scrollTo({ top: 0 });
+      const resultat = ONZE.simulerMatch(monEquipe, adversaire);
+      ONZE_UI.rejouer(resultat, monEquipe, adversaire, {
+        chrono: el("chrono"), scoreA: el("score-a"), scoreB: el("score-b"), recit: el("recit"),
+      }, () => el("btn-retour").classList.remove("masque"));
+    }
+    function retourMercato() {
+      el("ecran-match").classList.add("masque");
+      el("ecran-mercato").classList.remove("masque");
+      window.scrollTo({ top: 0 });
+      afficher();
+    }
+
+    /* ---- Mise en place ---- */
+    fetch("design/joueurs.json")
+      .then((rep) => rep.json())
+      .then((donnees) => {
+        tousLesJoueurs = donnees;
+        construirePool();
+        nouvelleBoutique();
+        el("odds-info").textContent = "niveau " + NIVEAU_CLUB + " : " +
+          Object.entries(ODDS).filter(([, v]) => v > 0).map(([c, v]) => v + "% coût " + c).join(" · ");
+        el("btn-match").addEventListener("click", jouerMatch);
+        el("btn-retour").addEventListener("click", retourMercato);
+        el("btn-refresh").addEventListener("click", refresh);
+        afficher();
+      })
+      .catch((e) => {
+        el("btn-match").textContent = "Erreur de chargement des joueurs";
+        console.error(e);
+      });
+  </script>
+
+</body>
+</html>

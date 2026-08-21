@@ -21,3 +21,9 @@ Trois lignes par session : **fait / bloqué / prochaine tâche**. C'est ce qui p
 - **Fait :** les vraies données sont dans le jeu. `design/joueurs.json` (71 joueurs) et `design/staff.md` déposés ; `decisions.md` déplacé dans `design/` (+ décisions 11 et 12 : cœur du fun = draft + synergies + staff en phase 4, match animé 2D en phase 3). Le match utilise maintenant deux équipes tirées des vrais joueurs (La Masia Rebelle, Tiki-Taka vs Fortezza Nero, Catenaccio) et les synergies Écoles/archétypes paliers 2/4/6 sont branchées sur les duels, avec une ligne de récit quand une synergie fait la différence. Moteur isolé dans `match-moteur.js` pour les tests en masse.
 - **Bloqué :** rien. (Équilibrage volontairement sommaire : les paramètres bougeront beaucoup, on affinera quand tout sera en place.)
 - **Prochaine tâche :** retours de Gabriel sur les synergies + son plu/ennuyé du prototype v1, puis prochaine brique (draft/boutique ou montée 5→11 ?).
+
+## Session 4 — 21 août 2026
+
+- **Fait :** le jeu devient jouable. Nouvelle page `draft.html` (le Mercato) : 30M d'or, boutique de 5 cartes aux couleurs du coût, refresh 2M, pool 30/25/18/10/9 et odds TFT niveau 5, achat/vente/banc/titularisation, synergies visibles en direct, contrainte de formation (1 GAR, au moins 1 DÉF/MIL/ATT), puis match contre un adversaire aléatoire (3 compos IA) et retour au mercato. `index.html` devient le menu du jeu. Style commun extrait dans `onze.css`, affichage du match partagé dans `match-ui.js`. Parcours complet testé en navigateur automatisé (mobile portrait) : achat → formation valide → match → retour, zéro erreur.
+- **Bloqué :** rien. Gabriel retravaille joueurs et synergies dans une autre conversation → tout est piloté par `design/joueurs.json`, prêt à réadapter.
+- **Prochaine tâche :** intégrer les nouveaux joueurs/synergies de Gabriel dès qu'ils arrivent ; ensuite enchaîner les manches (XP, intérêts, prestige, élimination) pour une vraie partie.

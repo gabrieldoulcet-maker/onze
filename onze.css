@@ -1,0 +1,166 @@
+/* ============================================================
+   ONZE — Style commun (match.html, draft.html)
+   Mobile-first portrait, thème pelouse de nuit.
+   ============================================================ */
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: #101711;
+  color: #E7EEE7;
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 12px 40px;
+}
+header { text-align: center; margin-bottom: 12px; }
+header h1 { font-size: 1.6rem; margin: 0; letter-spacing: 2px; }
+header h1 span { color: #4FC57C; }
+header p { color: #96A699; margin: 4px 0 0; font-size: 0.85rem; }
+
+/* ---- Tableau d'affichage (score) ---- */
+.tableau {
+  width: 100%; max-width: 420px;
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; gap: 8px;
+  background: #182219; border: 1px solid #24331F;
+  border-radius: 12px; padding: 12px; margin-bottom: 10px;
+}
+.equipe-nom { font-weight: 700; font-size: 0.9rem; text-align: center; }
+.equipe-nom small { display: block; font-weight: 400; color: #96A699; font-size: 0.68rem; margin-top: 2px; }
+.score {
+  font-size: 2rem; font-weight: 800;
+  background: #0B100C; border-radius: 8px;
+  padding: 4px 14px; min-width: 92px; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.chrono { grid-column: 1 / -1; text-align: center; color: #96A699; font-size: 0.8rem; min-height: 1.1em; }
+
+/* ---- Cartes d'effectif / badges de synergies ---- */
+.effectifs {
+  width: 100%; max-width: 420px;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px; margin-bottom: 12px;
+}
+.effectif {
+  background: #182219; border: 1px solid #24331F;
+  border-radius: 10px; padding: 8px; font-size: 0.76rem;
+}
+.effectif h2 { font-size: 0.8rem; margin: 0 0 4px; color: #4FC57C; }
+.synergies { margin: 0 0 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+.badge {
+  background: #24331F; color: #A9DDB6;
+  border-radius: 6px; padding: 2px 6px;
+  font-size: 0.66rem; font-weight: 700;
+}
+.effectif ul { list-style: none; margin: 0; padding: 0; }
+.effectif li { padding: 2px 0; color: #C9D6C9; display: flex; justify-content: space-between; gap: 4px; }
+.effectif .poste { color: #96A699; font-size: 0.68rem; min-width: 28px; }
+.effectif .ecole { color: #7E9483; font-size: 0.62rem; text-align: right; }
+
+/* ---- Boutons ---- */
+button.principal {
+  width: 100%; max-width: 420px;
+  background: #4FC57C; color: #0B100C;
+  border: none; border-radius: 12px;
+  padding: 14px; font-size: 1.05rem; font-weight: 800;
+  cursor: pointer; margin-bottom: 14px;
+}
+button.principal:disabled { background: #2A3A2C; color: #6C7A6E; }
+
+/* ---- Récit du match ---- */
+.recit { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 8px; }
+.phase {
+  background: #182219; border-left: 3px solid #35502F;
+  border-radius: 8px; padding: 10px 12px;
+  font-size: 0.88rem; line-height: 1.45;
+  animation: apparait 0.4s ease;
+}
+.phase .titre-phase { color: #96A699; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+.phase .evenement { margin-top: 4px; animation: apparait 0.4s ease; }
+.phase.but { border-left-color: #4FC57C; background: #1B2E1E; }
+.phase .cri { color: #4FC57C; font-weight: 800; font-size: 1rem; }
+.phase.final { border-left-color: #E8C547; background: #262516; text-align: center; font-weight: 700; }
+.tag-synergie {
+  display: inline-block; background: #2A3F5A; color: #9CC4EF;
+  border-radius: 6px; padding: 1px 6px; font-size: 0.68rem;
+  font-weight: 700; margin-left: 4px; vertical-align: 1px;
+}
+@keyframes apparait {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   Mercato (draft.html)
+   ============================================================ */
+.bandeau-club {
+  width: 100%; max-width: 420px;
+  display: flex; justify-content: space-between; align-items: center;
+  background: #182219; border: 1px solid #24331F;
+  border-radius: 12px; padding: 10px 12px; margin-bottom: 10px;
+  font-size: 0.85rem;
+}
+.bandeau-club .or { color: #E8C547; font-weight: 800; font-size: 1.1rem; }
+.section-titre {
+  width: 100%; max-width: 420px;
+  color: #96A699; font-size: 0.75rem; text-transform: uppercase;
+  letter-spacing: 1px; margin: 8px 0 6px;
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+.boutique, .groupe-cartes {
+  width: 100%; max-width: 420px;
+  display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px;
+}
+.carte {
+  display: grid; grid-template-columns: auto 1fr auto;
+  align-items: center; gap: 8px;
+  background: #182219; border: 1px solid #24331F;
+  border-radius: 10px; padding: 8px 10px;
+  font-size: 0.82rem;
+}
+.carte.cout-1 { border-left: 4px solid #8B9E8E; }
+.carte.cout-2 { border-left: 4px solid #4FC57C; }
+.carte.cout-3 { border-left: 4px solid #4F9EC5; }
+.carte.cout-4 { border-left: 4px solid #A66BD4; }
+.carte.cout-5 { border-left: 4px solid #E8C547; }
+.carte .poste-badge {
+  background: #0B100C; color: #96A699;
+  border-radius: 6px; padding: 4px 6px;
+  font-size: 0.68rem; font-weight: 700; min-width: 34px; text-align: center;
+}
+.carte .infos .nom { font-weight: 700; }
+.carte .infos .traits { color: #7E9483; font-size: 0.68rem; }
+.carte .actions { display: flex; gap: 6px; }
+.carte button {
+  background: #24331F; color: #A9DDB6;
+  border: none; border-radius: 8px;
+  padding: 8px 10px; font-size: 0.78rem; font-weight: 700;
+  cursor: pointer;
+}
+.carte button.achat { background: #4FC57C; color: #0B100C; }
+.carte button.vente { background: #3A2A24; color: #D4A66B; }
+.carte button:disabled { background: #2A3A2C; color: #6C7A6E; }
+.carte.vide {
+  justify-content: center; color: #5A6A5C;
+  border-style: dashed; text-align: center; display: flex;
+}
+.ligne-refresh {
+  width: 100%; max-width: 420px;
+  display: flex; gap: 8px; margin-bottom: 6px;
+}
+.ligne-refresh button {
+  flex: 1;
+  background: #24331F; color: #A9DDB6;
+  border: none; border-radius: 10px;
+  padding: 10px; font-size: 0.85rem; font-weight: 700;
+  cursor: pointer;
+}
+.ligne-refresh button:disabled { background: #2A3A2C; color: #6C7A6E; }
+.message-erreur {
+  width: 100%; max-width: 420px;
+  color: #E88C7D; font-size: 0.8rem; text-align: center;
+  min-height: 1.2em; margin-bottom: 8px;
+}
+.masque { display: none !important; }

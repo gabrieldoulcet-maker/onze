@@ -4,98 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ONZE — Prototype de match</title>
-  <style>
-    /* ============================================================
-       ONZE — Prototype match v2 : vraies données + synergies
-       Le moteur vit dans match-moteur.js, les 71 joueurs dans
-       design/joueurs.json. Mobile-first portrait.
-       ============================================================ */
-    * { box-sizing: border-box; }
-    body {
-      font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-      background: #101711;
-      color: #E7EEE7;
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 16px 12px 40px;
-    }
-    header { text-align: center; margin-bottom: 12px; }
-    header h1 { font-size: 1.6rem; margin: 0; letter-spacing: 2px; }
-    header h1 span { color: #4FC57C; }
-    header p { color: #96A699; margin: 4px 0 0; font-size: 0.85rem; }
-
-    .tableau {
-      width: 100%; max-width: 420px;
-      display: grid; grid-template-columns: 1fr auto 1fr;
-      align-items: center; gap: 8px;
-      background: #182219; border: 1px solid #24331F;
-      border-radius: 12px; padding: 12px; margin-bottom: 10px;
-    }
-    .equipe-nom { font-weight: 700; font-size: 0.9rem; text-align: center; }
-    .equipe-nom small { display: block; font-weight: 400; color: #96A699; font-size: 0.68rem; margin-top: 2px; }
-    .score {
-      font-size: 2rem; font-weight: 800;
-      background: #0B100C; border-radius: 8px;
-      padding: 4px 14px; min-width: 92px; text-align: center;
-      font-variant-numeric: tabular-nums;
-    }
-    .chrono { grid-column: 1 / -1; text-align: center; color: #96A699; font-size: 0.8rem; min-height: 1.1em; }
-
-    .effectifs {
-      width: 100%; max-width: 420px;
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 8px; margin-bottom: 12px;
-    }
-    .effectif {
-      background: #182219; border: 1px solid #24331F;
-      border-radius: 10px; padding: 8px; font-size: 0.76rem;
-    }
-    .effectif h2 { font-size: 0.8rem; margin: 0 0 4px; color: #4FC57C; }
-    .synergies { margin: 0 0 6px; display: flex; flex-wrap: wrap; gap: 4px; }
-    .badge {
-      background: #24331F; color: #A9DDB6;
-      border-radius: 6px; padding: 2px 6px;
-      font-size: 0.66rem; font-weight: 700;
-    }
-    .effectif ul { list-style: none; margin: 0; padding: 0; }
-    .effectif li { padding: 2px 0; color: #C9D6C9; display: flex; justify-content: space-between; gap: 4px; }
-    .effectif .poste { color: #96A699; font-size: 0.68rem; min-width: 28px; }
-    .effectif .ecole { color: #7E9483; font-size: 0.62rem; text-align: right; }
-
-    button.principal {
-      width: 100%; max-width: 420px;
-      background: #4FC57C; color: #0B100C;
-      border: none; border-radius: 12px;
-      padding: 14px; font-size: 1.05rem; font-weight: 800;
-      cursor: pointer; margin-bottom: 14px;
-    }
-    button.principal:disabled { background: #2A3A2C; color: #6C7A6E; }
-
-    .recit { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 8px; }
-    .phase {
-      background: #182219; border-left: 3px solid #35502F;
-      border-radius: 8px; padding: 10px 12px;
-      font-size: 0.88rem; line-height: 1.45;
-      animation: apparait 0.4s ease;
-    }
-    .phase .titre-phase { color: #96A699; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
-    .phase .evenement { margin-top: 4px; animation: apparait 0.4s ease; }
-    .phase.but { border-left-color: #4FC57C; background: #1B2E1E; }
-    .phase .cri { color: #4FC57C; font-weight: 800; font-size: 1rem; }
-    .phase.final { border-left-color: #E8C547; background: #262516; text-align: center; font-weight: 700; }
-    .tag-synergie {
-      display: inline-block; background: #2A3F5A; color: #9CC4EF;
-      border-radius: 6px; padding: 1px 6px; font-size: 0.68rem;
-      font-weight: 700; margin-left: 4px; vertical-align: 1px;
-    }
-    @keyframes apparait {
-      from { opacity: 0; transform: translateY(8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-  </style>
+  <link rel="stylesheet" href="onze.css">
 </head>
 <body>
 
@@ -121,20 +30,16 @@
   <div class="recit" id="recit"></div>
 
   <script src="match-moteur.js"></script>
+  <script src="match-ui.js"></script>
   <script>
-    /* ============================================================
-       Deux équipes de test tirées des 71 vrais joueurs :
+    /* Deux équipes de test aux identités opposées, tirées des 71
+       vrais joueurs (design/joueurs.json) :
        - La Masia Rebelle : Tiki-Taka (possession) + Créateurs
-       - Fortezza Nero    : Catenaccio (défense/contres) + Murs
-       Deux identités opposées = le meilleur démonstrateur.
-       ============================================================ */
+       - Fortezza Nero    : Catenaccio (défense/contres) + Murs */
     const COMPO_A = { nom: "La Masia Rebelle", coach: "Coach Gabriel",
       noms: ["Rubén", "Gorka", "Unai", "Xabi", "Aitor"] };
     const COMPO_B = { nom: "Fortezza Nero", coach: "Coach Fantôme",
       noms: ["Gianluca", "Aurelio", "Mattia", "Tommaso", "Federico"] };
-
-    const DELAI_PHASE_MS = 5000;     // 8 phases → ~40 s de match
-    const DELAI_EVENEMENT_MS = 1400; // les actions d'une phase s'égrènent
 
     const el = (id) => document.getElementById(id);
     let equipeA = null, equipeB = null;
@@ -142,89 +47,26 @@
     function afficherFiche(conteneur, eq) {
       conteneur.innerHTML =
         `<h2>${eq.nom}</h2>` +
-        `<div class="synergies">` +
-        eq.synergies.map((s) => `<span class="badge">${s.nom} ${s.nb}</span>`).join("") +
-        `</div><ul>` +
+        `<div class="synergies">${ONZE_UI.badges(eq)}</div><ul>` +
         eq.joueurs.map((j) =>
           `<li><span class="poste">${j.poste}</span><span>${j.nom}</span><span class="ecole">${j.archetype}</span></li>`
         ).join("") +
         `</ul>`;
     }
 
-    function blocPhase(minute, numero) {
-      const bloc = document.createElement("div");
-      bloc.className = "phase";
-      bloc.innerHTML = `<div class="titre-phase">${minute}ᵉ — Phase ${numero}</div>`;
-      el("recit").appendChild(bloc);
-      bloc.scrollIntoView({ behavior: "smooth", block: "end" });
-      return bloc;
-    }
-
-    function ajouterEvenement(bloc, ev, scores) {
-      const ligne = document.createElement("div");
-      ligne.className = "evenement";
-      let html = ev.texte;
-      if (ev.synergie) html += ` <span class="tag-synergie">✦ ${ev.synergie}</span>`;
-      if (ev.but) {
-        bloc.classList.add("but");
-        html += `<br><span class="cri">⚽ ${ev.cri}</span> <strong>${scores.a} – ${scores.b}</strong>`;
-        el("score-a").textContent = scores.a;
-        el("score-b").textContent = scores.b;
-      }
-      ligne.innerHTML = html;
-      bloc.appendChild(ligne);
-      ligne.scrollIntoView({ behavior: "smooth", block: "end" });
-    }
-
-    /* Rejoue le match calculé par le moteur, au rythme du direct */
     function jouer() {
       const btn = el("btn-simuler");
       btn.disabled = true;
       btn.textContent = "Match en cours…";
-      el("recit").innerHTML = "";
-      el("score-a").textContent = "0";
-      el("score-b").textContent = "0";
-
       const resultat = ONZE.simulerMatch(equipeA, equipeB);
-      let scores = { a: 0, b: 0 };
-      let attente = 300;
-
-      resultat.phases.forEach((phase) => {
-        setTimeout(() => {
-          el("chrono").textContent = `⏱ ${phase.minute}ᵉ minute — phase ${phase.numero}/${ONZE.NB_PHASES}`;
-        }, attente);
-        let bloc = null;
-        setTimeout(((p) => () => { bloc = blocPhase(p.minute, p.numero); })(phase), attente);
-        phase.evenements.forEach((ev) => {
-          attente += DELAI_EVENEMENT_MS;
-          setTimeout(() => {
-            if (ev.but) { if (ev.equipe === equipeA.nom) scores.a++; else scores.b++; }
-            ajouterEvenement(bloc, ev, scores);
-          }, attente);
-        });
-        attente += Math.max(DELAI_PHASE_MS - phase.evenements.length * DELAI_EVENEMENT_MS, 600);
+      ONZE_UI.rejouer(resultat, equipeA, equipeB, {
+        chrono: el("chrono"), scoreA: el("score-a"), scoreB: el("score-b"), recit: el("recit"),
+      }, () => {
+        btn.disabled = false;
+        btn.textContent = "🔁 Rejouer le match";
       });
-
-      setTimeout(() => {
-        el("chrono").textContent = "⏱ Coup de sifflet final";
-        const bloc = document.createElement("div");
-        bloc.className = "phase final";
-        let verdict;
-        if (resultat.scoreA > resultat.scoreB) verdict = `🏆 Victoire de ${equipeA.nom} !`;
-        else if (resultat.scoreB > resultat.scoreA) verdict = `🏆 Victoire de ${equipeB.nom} !`;
-        else verdict = "🤝 Match nul !";
-        const prestige = resultat.ecart > 0
-          ? `<br><small style="color:#96A699">Dégâts de prestige : ${resultat.ecart} (écart de buts)</small>` : "";
-        bloc.innerHTML = `Score final : <strong>${resultat.scoreA} – ${resultat.scoreB}</strong><br>${verdict}${prestige}`;
-        el("recit").appendChild(bloc);
-        bloc.scrollIntoView({ behavior: "smooth", block: "end" });
-        const btn2 = el("btn-simuler");
-        btn2.disabled = false;
-        btn2.textContent = "🔁 Rejouer le match";
-      }, attente + 400);
     }
 
-    /* ---- Chargement des 71 joueurs puis mise en place ---- */
     fetch("design/joueurs.json")
       .then((rep) => rep.json())
       .then((tous) => {
