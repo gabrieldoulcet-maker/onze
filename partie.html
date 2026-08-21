@@ -376,6 +376,7 @@
 
   </div><!-- /app -->
 
+  <script src="donnees-eco.js"></script>
   <script src="match-moteur.js"></script>
   <script src="icones.js"></script>
   <script src="synergies-data.js"></script>
@@ -390,23 +391,21 @@
        et le banc restent utilisables (achats → banc), les
        changements de compo prennent effet à la manche suivante.
        ============================================================ */
+    /* Les chiffres d'économie vivent dans donnees-eco.js (source de
+       vérité unique, partagée avec les simulations) — ici, des alias. */
     const OR_DEPART = 0;
-    const COUT_REFRESH = 2;
-    const COUT_XP = 4;
-    const XP_GRATUITE_PAR_MANCHE = 2;
-    const TAILLE_BOUTIQUE = 5;
-    const TAILLE_BANC = 9;
-    const PRESTIGE_DEPART = 40; // calibré en simulation
-    const DERNIERE_MANCHE_AMICALE = 3;
-    const POOL_PAR_COUT = { 1: 30, 2: 25, 3: 18, 4: 10, 5: 9 };
-    const droitsTV = (manche) => [2, 2, 3, 4][manche - 1] ?? 5;
-    const XP_POUR_MONTER = { 3: 6, 4: 10, 5: 20, 6: 36, 7: 60, 8: 68, 9: 68 };
-    const TITULAIRES_PAR_NIVEAU = { 3: 5, 4: 6, 5: 7, 6: 8, 7: 9, 8: 10, 9: 11, 10: 11 };
-    const ODDS_PAR_NIVEAU = {
-      3: [75, 25, 0, 0, 0], 4: [55, 30, 15, 0, 0], 5: [45, 33, 20, 2, 0],
-      6: [30, 40, 25, 5, 0], 7: [19, 30, 40, 10, 1], 8: [18, 25, 32, 22, 3],
-      9: [10, 20, 25, 35, 10], 10: [5, 10, 20, 40, 25],
-    };
+    const COUT_REFRESH = ONZE_ECO.COUT_REFRESH;
+    const COUT_XP = ONZE_ECO.COUT_XP;
+    const XP_GRATUITE_PAR_MANCHE = ONZE_ECO.XP_GRATUITE_PAR_MANCHE;
+    const TAILLE_BOUTIQUE = ONZE_ECO.TAILLE_BOUTIQUE;
+    const TAILLE_BANC = ONZE_ECO.TAILLE_BANC;
+    const PRESTIGE_DEPART = ONZE_ECO.PRESTIGE_DEPART;
+    const DERNIERE_MANCHE_AMICALE = ONZE_ECO.DERNIERE_MANCHE_AMICALE;
+    const POOL_PAR_COUT = ONZE_ECO.POOL_PAR_COUT;
+    const droitsTV = ONZE_ECO.droitsTV;
+    const XP_POUR_MONTER = ONZE_ECO.XP_POUR_MONTER;
+    const TITULAIRES_PAR_NIVEAU = ONZE_ECO.TITULAIRES_PAR_NIVEAU;
+    const ODDS_PAR_NIVEAU = ONZE_ECO.ODDS_PAR_NIVEAU;
     const MEMBRES_STAFF = ["Prépa physique", "Coach mental", "Analyste vidéo", "Coach de finition",
       "Coach technique", "Kiné", "Adjoint tactique", "Scout"];
     /* Le SAC équitable (backlog 5, règle TFT) : un exemplaire de chaque
@@ -478,7 +477,7 @@
     /* Les matchs de coupe (l'équivalent des Krugs/Loups de TFT) :
        manches PvE intercalées, adversaire scripté à thème, AUCUN dégât
        de prestige, ~2 composants staff via orbes chacune. */
-    const MANCHES_COUPE = [6, 9, 12, 15];
+    const MANCHES_COUPE = ONZE_ECO.MANCHES_COUPE;
     const COUPES = {
       6: { nom: "Les Loups du Comté", ecole: "Kick & Rush" },
       9: { nom: "Le Onze des Anciens", ecole: "Catenaccio" },
@@ -503,9 +502,9 @@
 
     function genererEquipeCoupe() {
       const coupe = COUPES[partie.manche];
-      const niveau = Math.min(3 + Math.floor(partie.manche / 4), 9);
+      const niveau = ONZE_ECO.niveauIA(partie.manche);
       const taille = TITULAIRES_PAR_NIVEAU[niveau];
-      let budget = Math.min(1 + 1.48 * partie.manche, 22) * 0.8; // battable
+      let budget = ONZE_ECO.budgetIA(partie.manche) * 0.8; // battable
       const compo = [];
       const besoins = ["GAR"];
       for (let i = 0; i < taille - 1; i++) besoins.push(["DÉF", "MIL", "ATT"][i % 3]);
@@ -529,7 +528,7 @@
 
     /* Les Philosophies de club (les augments de TFT) : un choix parmi 3
        aux manches 4, 7 et 10 — effets définitifs jusqu'à la fin. */
-    const MANCHES_PHILOSOPHIE = [4, 7, 10];
+    const MANCHES_PHILOSOPHIE = ONZE_ECO.MANCHES_PHILOSOPHIE;
     /* Backlog 6 : chaque écran de Philosophies tire une RARETÉ (argent /
        or / prismatique, façon augments TFT) — les 3 propositions sont du
        même étage, les gros effets n'arrivent qu'aux écrans chanceux ou
@@ -965,9 +964,9 @@
     function genererEquipeIA(coach) {
       if (coach.copiesPrises) for (const fiche of coach.copiesPrises) partie.pool.push(fiche);
       coach.copiesPrises = [];
-      const niveau = Math.min(3 + Math.floor(partie.manche / 4), 9);
+      const niveau = ONZE_ECO.niveauIA(partie.manche);
       const taille = TITULAIRES_PAR_NIVEAU[niveau];
-      let budget = Math.min(1 + 1.48 * partie.manche, 22);
+      let budget = ONZE_ECO.budgetIA(partie.manche);
       const compo = [];
       const besoins = ["GAR"];
       for (let i = 0; i < taille - 1; i++) besoins.push(["DÉF", "MIL", "ATT"][i % 3]);
@@ -1226,10 +1225,9 @@
         }
       }
 
-      const sponsors = Math.min(Math.floor(partie.or / 10), aPhilosophie("Mécènes") ? 7 : 5);
+      const sponsors = ONZE_ECO.sponsors(partie.or, aPhilosophie("Mécènes") ? 7 : 5);
       const base = droitsTV(partie.manche) + (aPhilosophie("Droits TV majorés") ? 1 : 0);
-      const serieAbs = Math.abs(je.serie);
-      const bonusSerie = serieAbs >= 6 ? 3 : serieAbs >= 5 ? 2 : serieAbs >= 3 ? 1 : 0;
+      const bonusSerie = ONZE_ECO.bonusSerie(je.serie);
       const bonusVictoire = !amical && victoire ? (aPhilosophie("Guichets fermés") ? 2 : 1) : 0;
       // les effets par manche du Staff du club et des Reliques
       const bonusIntendant = (partie.staffClub || []).includes("L'Intendant") ? 1 : 0;
@@ -1389,7 +1387,7 @@
        un étal de joueurs dont certains arrivent avec une carte staff.
        La priorité va aux clubs en difficulté : mieux tu es classé,
        moins il reste de choix quand ton tour arrive. */
-    const MANCHES_MERCATO_HIVER = [8, 13];
+    const MANCHES_MERCATO_HIVER = ONZE_ECO.MANCHES_MERCATO_HIVER;
     function proposerMercatoHiver() {
       if (!MANCHES_MERCATO_HIVER.includes(partie.manche)) return;
       if (partie.hiversVus.includes(partie.manche)) return;

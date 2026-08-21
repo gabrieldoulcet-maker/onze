@@ -10,14 +10,13 @@
 const M = require("../match-moteur.js");
 const joueurs = JSON.parse(require("fs").readFileSync(__dirname + "/../design/joueurs.json", "utf8"));
 
-const POOL_PAR_COUT = { 1: 30, 2: 25, 3: 18, 4: 10, 5: 9 };
-const ODDS_PAR_NIVEAU = {
-  3: [75, 25, 0, 0, 0], 4: [55, 30, 15, 0, 0], 5: [45, 33, 20, 2, 0],
-};
-const droitsTV = (manche) => [2, 2, 3, 4][manche - 1] ?? 5;
-const XP_POUR_MONTER = { 3: 6, 4: 10, 5: 20 };
+const ECO = require("../donnees-eco.js");
+const POOL_PAR_COUT = ECO.POOL_PAR_COUT;
+const ODDS_PAR_NIVEAU = ECO.ODDS_PAR_NIVEAU;
+const droitsTV = ECO.droitsTV;
+const XP_POUR_MONTER = ECO.XP_POUR_MONTER;
 const hasardParmi = (t) => t[Math.floor(Math.random() * t.length)];
-const TITULAIRES_PAR_NIVEAU_IA = { 3: 5, 4: 6, 5: 7, 6: 8, 7: 9, 8: 10, 9: 11 };
+const TITULAIRES_PAR_NIVEAU_IA = ECO.TITULAIRES_PAR_NIVEAU;
 const ECOLES_IA = ["Catenaccio", "Tiki-Taka", "École de la Rue", "Kick & Rush",
   "Football Total", "La Grinta", "Les Pros"];
 
@@ -28,9 +27,9 @@ function iaPrennentLeursCopies(ias, pool, manche) {
   for (const ia of ias) {
     for (const f of ia.copiesPrises) pool.push(f);
     ia.copiesPrises = [];
-    const niveau = Math.min(3 + Math.floor(manche / 4), 9);
+    const niveau = ECO.niveauIA(manche);
     const taille = TITULAIRES_PAR_NIVEAU_IA[niveau];
-    let budget = Math.min(1 + 1.48 * manche, 22);
+    let budget = ECO.budgetIA(manche);
     const besoins = ["GAR"];
     for (let i = 0; i < taille - 1; i++) besoins.push(["DÉF", "MIL", "ATT"][i % 3]);
     const compo = [];
@@ -113,9 +112,8 @@ function unePartie(manchesMax) {
     // ---- fin de manche : match (50 % de victoire), revenus, XP, butin ----
     const victoire = Math.random() < 0.5;
     serie = victoire ? (serie > 0 ? serie + 1 : 1) : (serie < 0 ? serie - 1 : -1);
-    const sponsors = Math.min(Math.floor(or / 10), 5);
-    const serieAbs = Math.abs(serie);
-    const bonusSerie = serieAbs >= 6 ? 3 : serieAbs >= 5 ? 2 : serieAbs >= 3 ? 1 : 0;
+    const sponsors = ECO.sponsors(or);
+    const bonusSerie = ECO.bonusSerie(serie);
     or += sponsors + droitsTV(manche) + (manche > 3 && victoire ? 1 : 0) + bonusSerie;
     xp += 2;
     while (XP_POUR_MONTER[niveau] && xp >= XP_POUR_MONTER[niveau]) { xp -= XP_POUR_MONTER[niveau]; niveau++; }

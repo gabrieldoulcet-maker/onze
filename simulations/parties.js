@@ -10,16 +10,13 @@
 const M = require("../match-moteur.js");
 const joueurs = JSON.parse(require("fs").readFileSync(__dirname + "/../design/joueurs.json", "utf8"));
 
-/* ---- Constantes copiées de partie.html ---- */
-const POOL_PAR_COUT = { 1: 30, 2: 25, 3: 18, 4: 10, 5: 9 };
-const ODDS_PAR_NIVEAU = {
-  3: [75, 25, 0, 0, 0], 4: [55, 30, 15, 0, 0], 5: [45, 33, 20, 2, 0],
-  6: [30, 40, 25, 5, 0], 7: [19, 30, 40, 10, 1], 8: [18, 25, 32, 22, 3],
-  9: [10, 20, 25, 35, 10], 10: [5, 10, 20, 40, 25],
-};
-const droitsTV = (m) => [2, 2, 3, 4][m - 1] ?? 5;
-const XP_POUR_MONTER = { 3: 6, 4: 10, 5: 20, 6: 36, 7: 60, 8: 68, 9: 68 };
-const TITULAIRES_PAR_NIVEAU = { 3: 5, 4: 6, 5: 7, 6: 8, 7: 9, 8: 10, 9: 11, 10: 11 };
+/* ---- La source de vérité unique : donnees-eco.js ---- */
+const ECO = require("../donnees-eco.js");
+const POOL_PAR_COUT = ECO.POOL_PAR_COUT;
+const ODDS_PAR_NIVEAU = ECO.ODDS_PAR_NIVEAU;
+const droitsTV = ECO.droitsTV;
+const XP_POUR_MONTER = ECO.XP_POUR_MONTER;
+const TITULAIRES_PAR_NIVEAU = ECO.TITULAIRES_PAR_NIVEAU;
 const STARTERS = [
   { nom: "Gus", cout: 0, poste: "GAR", ecole: "", archetype: "", unique: null },
   { nom: "Marcel", cout: 0, poste: "DÉF", ecole: "", archetype: "", unique: null },
@@ -34,13 +31,12 @@ const COACHS_IA = [
   { nom: "Le Consortium", ecole: "Les Pros" },
 ];
 const hasardParmi = (t) => t[Math.floor(Math.random() * t.length)];
-// décision n°20 : durée (nombre de phases) proportionnelle aux enjeux
-const phasesDeManche = (manche) => manche <= 3 ? 4 : manche <= 9 ? 6 : 8;
+const phasesDeManche = ECO.phasesDeManche;
 
 /* ---- La courbe des IA : LE réglage que cette simulation calibre.
    Doit rester identique à genererEquipeIA de partie.html. ---- */
-const NIVEAU_IA = (manche) => Math.min(3 + Math.floor(manche / 4), 9);
-const BUDGET_IA = (manche) => Math.min(1 + 1.48 * manche, 22);
+const NIVEAU_IA = ECO.niveauIA;
+const BUDGET_IA = ECO.budgetIA;
 
 /* Règle fondamentale (backlog 4) : les IA piochent dans le MÊME pool
    que le bot — copie exacte de genererEquipeIA de partie.html. Les
@@ -89,7 +85,7 @@ function preparerEquipesIA(coachs, etat, manche) {
 const MODE = process.argv[3] || "normal";
 function botAchete(etat) {
   if (MODE === "eco" && etat.manche <= 7) return; // on encaisse, on économise
-  const { pool, boutique } = etat;
+  const { boutique } = etat;
   const possedes = [...etat.terrain, ...etat.banc];
   const nbCopies = (nom) => possedes.filter((j) => j.nom === nom && (j.etoiles || 1) === 1).length;
   const nbFamille = (fiche) => possedes.filter((j) => j.ecole === fiche.ecole || j.archetype === fiche.archetype).length;
@@ -157,7 +153,7 @@ function unePartie() {
     terrain: STARTERS.map((j) => ({ ...j, etoiles: 1 })), banc: [], boutique: [],
   };
   for (const j of joueurs) for (let c = 0; c < POOL_PAR_COUT[j.cout]; c++) etat.pool.push(j);
-  const PRESTIGE_DEPART = 40;
+  const PRESTIGE_DEPART = ECO.PRESTIGE_DEPART;
   const coachs = [{ nom: "Bot", ia: false, prestige: PRESTIGE_DEPART, serie: 0, vivant: true }];
   for (const c of COACHS_IA) coachs.push({ ...c, ia: true, prestige: PRESTIGE_DEPART, serie: 0, vivant: true });
   const bot = coachs[0];
@@ -239,9 +235,8 @@ function unePartie() {
       }
     }
     // revenus
-    const sponsors = Math.min(Math.floor(etat.or / 10), 5);
-    const serieAbs = Math.abs(bot.serie);
-    const bonusSerie = serieAbs >= 6 ? 3 : serieAbs >= 5 ? 2 : serieAbs >= 3 ? 1 : 0;
+    const sponsors = ECO.sponsors(etat.or);
+    const bonusSerie = ECO.bonusSerie(bot.serie);
     etat.or += sponsors + droitsTV(manche) + bonusSerie + (manche > 3 && bot.serie > 0 ? 1 : 0);
     etat.xp += 2;
     while (XP_POUR_MONTER[etat.niveau] && etat.xp >= XP_POUR_MONTER[etat.niveau]) {
