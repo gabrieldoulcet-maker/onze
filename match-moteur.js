@@ -28,13 +28,50 @@ const varie = (...variantes) => hasard(variantes);
    ============================================================ */
 function statsJoueur(j) {
   const T = 3 + j.cout;
+  // Montée en étoiles : 1★ → 2★ (Titulaire) → 3★ (Légende), façon TFT
+  const facteur = [1, 1.8, 3.2][(j.etoiles || 1) - 1] || 1;
+  const arrondi = (x) => Math.round(x * facteur);
   switch (j.poste) {
-    case "GAR": return { att: 1, def: T + 1 };
-    case "DÉF": return { att: Math.max(1, T - 3), def: T };
-    case "MIL": return { att: T - 1, def: T - 1 };
-    case "ATT": return { att: T, def: Math.max(1, T - 4) };
+    case "GAR": return { att: 1, def: arrondi(T + 1) };
+    case "DÉF": return { att: arrondi(Math.max(1, T - 3)), def: arrondi(T) };
+    case "MIL": return { att: arrondi(T - 1), def: arrondi(T - 1) };
+    case "ATT": return { att: arrondi(T), def: arrondi(Math.max(1, T - 4)) };
     default: return { att: 1, def: 1 };
   }
+}
+
+/* Fusion des copies au mercato : 3 exemplaires identiques → une étoile
+   de plus (3★ maximum). Modifie terrain/banc sur place et renvoie la
+   liste des fusions, pour que l'interface les mette en scène. */
+function fusionnerEffectif(terrain, banc) {
+  const fusions = [];
+  let encore = true;
+  while (encore) {
+    encore = false;
+    const tout = [
+      ...terrain.map((j) => ({ j, liste: terrain })),
+      ...banc.map((j) => ({ j, liste: banc })),
+    ];
+    const groupes = {};
+    for (const e of tout) {
+      const cle = e.j.nom + "|" + (e.j.etoiles || 1);
+      (groupes[cle] = groupes[cle] || []).push(e);
+    }
+    for (const cle of Object.keys(groupes)) {
+      const groupe = groupes[cle];
+      if (groupe.length >= 3 && (groupe[0].j.etoiles || 1) < 3) {
+        // On garde de préférence l'exemplaire déjà titulaire
+        groupe.sort((a, b) => (a.liste === terrain ? 0 : 1) - (b.liste === terrain ? 0 : 1));
+        const garde = groupe[0].j;
+        garde.etoiles = (garde.etoiles || 1) + 1;
+        for (const e of groupe.slice(1, 3)) e.liste.splice(e.liste.indexOf(e.j), 1);
+        fusions.push({ nom: garde.nom, etoiles: garde.etoiles });
+        encore = true;
+        break;
+      }
+    }
+  }
+  return fusions;
 }
 
 /* ============================================================
@@ -114,7 +151,11 @@ const aUnique = (equipe, nomUnique) => equipe.joueurs.find((j) => j.unique === n
    CRÉATION D'ÉQUIPE
    ============================================================ */
 function equipeDepuisFiches(nomClub, coach, fiches) {
-  const joueurs = fiches.map((fiche) => ({ ...fiche, ...statsJoueur(fiche) }));
+  const joueurs = fiches.map((fiche) => ({
+    ...fiche,
+    ...statsJoueur(fiche),
+    nom: (fiche.etoiles || 1) >= 2 ? `${fiche.nom} ${"★".repeat(fiche.etoiles)}` : fiche.nom,
+  }));
   const equipe = { nom: nomClub, coach, joueurs };
   equipe.synergies = calculerSynergies(equipe);
   return equipe;
@@ -485,6 +526,6 @@ function compterButs(evenements, eq) {
 }
 
 /* ---- Export navigateur + node ---- */
-const ONZE = { creerEquipe, equipeDepuisFiches, simulerMatch, calculerSynergies, statsJoueur, NB_PHASES, PALIERS_ECOLES, PALIERS_ARCHETYPES };
+const ONZE = { creerEquipe, equipeDepuisFiches, simulerMatch, calculerSynergies, statsJoueur, fusionnerEffectif, NB_PHASES, PALIERS_ECOLES, PALIERS_ARCHETYPES };
 if (typeof module !== "undefined") module.exports = ONZE;
 if (typeof window !== "undefined") window.ONZE = ONZE;

@@ -121,13 +121,20 @@
         return signaler("Effectif complet — vends quelqu'un d'abord.");
       or -= fiche.cout;
       boutique[indice] = null;
-      if (terrain.length < TITULAIRES_MAX) terrain.push(fiche); else banc.push(fiche);
+      // Chaque copie achetée est un exemplaire à soi (1 étoile)
+      const copie = { ...fiche, etoiles: 1 };
+      if (terrain.length < TITULAIRES_MAX) terrain.push(copie); else banc.push(copie);
+      // 3 copies identiques → fusion automatique, façon TFT
+      const fusions = ONZE.fusionnerEffectif(terrain, banc);
+      if (fusions.length) celebrerFusions(fusions);
       afficher();
     }
     function vendre(liste, indice) {
       const fiche = liste[indice];
-      or += fiche.cout;          // revente au prix d'achat (simple pour l'instant)
-      pool.push(fiche);
+      const copies = Math.pow(3, (fiche.etoiles || 1) - 1); // un 2★ vaut 3 copies
+      or += fiche.cout * copies;
+      const original = tousLesJoueurs.find((j) => j.nom === fiche.nom);
+      for (let c = 0; c < copies; c++) pool.push(original);
       liste.splice(indice, 1);
       afficher();
     }
@@ -145,6 +152,22 @@
       nouvelleBoutique();
       afficher();
     }
+
+    /* La fusion, mise en scène comme l'événement qu'elle est */
+    function celebrerFusions(fusions) {
+      fusions.forEach((f, i) => {
+        setTimeout(() => {
+          const banniere = document.createElement("div");
+          banniere.className = "fusion-banniere";
+          banniere.innerHTML = f.etoiles >= 3
+            ? `🌟 LÉGENDE DU CLUB ! 🌟<br>${f.nom} atteint les 3 étoiles !<small>Le sommet absolu — niveau maximum</small>`
+            : `✨ FUSION ! ✨<br>${f.nom} devient Titulaire 2★<small>Trois copies réunies — les stats grimpent</small>`;
+          document.body.appendChild(banniere);
+          setTimeout(() => banniere.remove(), 2700);
+        }, i * 900);
+      });
+    }
+
     function signaler(texte) {
       el("message").textContent = texte;
       setTimeout(() => { if (el("message").textContent === texte) el("message").textContent = ""; }, 2500);
@@ -163,9 +186,10 @@
 
     /* ---- Affichage ---- */
     function carteHTML(fiche, actionsHTML) {
+      const etoiles = (fiche.etoiles || 1) >= 2 ? ` <span class="etoiles">${"★".repeat(fiche.etoiles)}</span>` : "";
       return `<div class="carte cout-${fiche.cout}">
         <span class="poste-badge">${fiche.poste}</span>
-        <span class="infos"><span class="nom">${fiche.nom}</span> <span style="color:#E8C547">${fiche.cout}M</span><br>
+        <span class="infos"><span class="nom">${fiche.nom}${etoiles}</span> <span style="color:#E8C547">${fiche.cout}M</span><br>
         <span class="traits">${fiche.unique ? "⭐ " + fiche.unique + " · " : ""}${fiche.ecole ? fiche.ecole + " · " : ""}${fiche.archetype}</span></span>
         <span class="actions">${actionsHTML}</span>
       </div>`;

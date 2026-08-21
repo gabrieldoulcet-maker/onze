@@ -164,3 +164,23 @@ button.principal:disabled { background: #2A3A2C; color: #6C7A6E; }
   min-height: 1.2em; margin-bottom: 8px;
 }
 .masque { display: none !important; }
+
+/* ---- La fusion : un événement mis en scène (décision n°13) ---- */
+.fusion-banniere {
+  position: fixed; top: 30%; left: 50%; transform: translateX(-50%);
+  background: linear-gradient(135deg, #E8C547, #B8860B);
+  color: #1A1405; font-weight: 800; font-size: 1.05rem;
+  padding: 16px 22px; border-radius: 14px; text-align: center;
+  box-shadow: 0 0 40px rgba(232, 197, 71, 0.55);
+  z-index: 50; pointer-events: none;
+  animation: fusionPop 2.6s ease forwards;
+}
+.fusion-banniere small { display: block; font-weight: 600; font-size: 0.78rem; margin-top: 4px; }
+@keyframes fusionPop {
+  0%   { opacity: 0; transform: translateX(-50%) scale(0.4); }
+  12%  { opacity: 1; transform: translateX(-50%) scale(1.15); }
+  20%  { transform: translateX(-50%) scale(1); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) scale(1); }
+}
+.etoiles { color: #E8C547; letter-spacing: 1px; }
