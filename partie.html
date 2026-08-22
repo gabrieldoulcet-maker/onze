@@ -154,6 +154,14 @@
     .jeton .etoiles { font-size: 0.54rem; text-shadow: 0 0 5px rgba(242, 193, 78, 0.8); }
     .jeton.vide { border: 2px dashed var(--ligne); color: #ffffff55; background: transparent; min-height: 30px;
       display: flex; align-items: center; justify-content: center; text-align: center; }
+    /* La case vide de la grille de placement : un emplacement EXPLICITE */
+    .case-vide {
+      width: 62px; min-height: 36px; border: 2px dashed var(--ligne-forte);
+      border-radius: var(--r-carte-banc); background: rgba(6, 13, 8, 0.25);
+      display: flex; align-items: center; justify-content: center;
+      color: #ffffff55; font-size: 1rem; font-weight: 700; cursor: pointer;
+    }
+    .case-vide.verrouillee { border-color: var(--ligne); background: transparent; color: #ffffff18; cursor: default; }
     .jeton.cout-1 { --couleur-cout: var(--cout-1); } .jeton.cout-2 { --couleur-cout: var(--cout-2); }
     .jeton.cout-3 { --couleur-cout: var(--cout-3); } .jeton.cout-4 { --couleur-cout: var(--cout-4); }
     .jeton.cout-5 { --couleur-cout: var(--cout-5); background: var(--fond-carte-or); } .jeton.cout-0 { --couleur-cout: #5F7A64; }
@@ -2322,6 +2330,55 @@
        (lignes échangées sur le terrain, titularisation banc↔terrain).
        Re-tap sur le même : ouvre le menu (fiche, ligne, banc, vendre). */
     let selection = null;
+    /* Titularisation banc → terrain sur une ligne précise — partagée par
+       le drag & drop et le tap sur une case vide (grille de placement). */
+    function titulariserDepuisBanc(indice, idLigne) {
+      const fiche = partie.banc[indice];
+      if (!fiche) return afficher();
+      const gardienEnPlace = partie.terrain.find((j) => j !== fiche && ligneDe(j) === "GAR");
+      const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
+      if (partie.terrain.length >= max) {
+        // terrain plein : échange auto avec un joueur de la ligne visée
+        const sortant = partie.terrain.find((j) => ligneDe(j) === idLigne) || partie.terrain[0];
+        const indiceSortant = partie.terrain.indexOf(sortant);
+        partie.banc.splice(indice, 1);
+        const ligneRecue = ligneDe(sortant);
+        sortant.ligne = undefined;
+        partie.banc.push(sortant);
+        fiche.ligne = idLigne === fiche.poste ? undefined : idLigne;
+        if (idLigne === "GAR" && fiche.poste !== "GAR" && gardienEnPlace) fiche.ligne = ligneRecue === fiche.poste ? undefined : ligneRecue;
+        partie.terrain.splice(indiceSortant, 0, fiche);
+      } else {
+        partie.banc.splice(indice, 1);
+        if (idLigne === "GAR" && gardienEnPlace) {
+          if (fiche.poste === "GAR") { // 2ᵉ gardien : échange intelligent
+            partie.terrain.splice(partie.terrain.indexOf(gardienEnPlace), 1);
+            gardienEnPlace.ligne = undefined;
+            partie.banc.push(gardienEnPlace);
+            fiche.ligne = undefined;
+          } else fiche.ligne = undefined; // pas de 2ᵉ dans les buts : ligne naturelle
+        } else fiche.ligne = idLigne === fiche.poste ? undefined : idLigne;
+        partie.terrain.push(fiche);
+      }
+      afficher();
+    }
+    /* Tap sur une case vide de la grille : place la sélection ICI. */
+    function tapCaseVide(ligne) {
+      if (!selection) return;
+      const sel = selection;
+      selection = null;
+      if (partie.matchEnCours) { afficher(); return signaler("⏳ Les changements prendront effet à la manche suivante."); }
+      if (sel.nomListe === "terrain") {
+        const j = partie.terrain[sel.indice];
+        if (!j) return afficher();
+        if (ligne === "GAR" && partie.terrain.some((x) => x !== j && ligneDe(x) === "GAR")) return afficher();
+        j.ligne = ligne === j.poste ? undefined : ligne;
+        afficher();
+        return;
+      }
+      if (sel.nomListe === "banc") titulariserDepuisBanc(sel.indice, ligne);
+    }
+
     function tapJeton(nomListe, indice) {
       if (!selection) {
         selection = { nomListe, indice };
@@ -2546,14 +2603,27 @@
       el("staff").textContent = partie.staff.length;
       el("ferveur").textContent = partie.compteurs.ferveur;
 
-      // Le terrain : les titulaires à leur LIGNE JOUÉE (formation libre)
+      // Le terrain : la GRILLE DE CASES explicites (post-playtest 3) —
+      // chaque ligne (cage + DÉF/MIL/ATT) montre ses emplacements, vides
+      // compris ; un joueur posé occupe visiblement SA case ; au-delà des
+      // places du niveau, les cases restent verrouillées (grisées).
       for (const poste of ["GAR", "DÉF", "MIL", "ATT"]) el("ligne-" + poste).innerHTML = "";
-      partie.terrain.forEach((fiche, i) => {
-        el("ligne-" + (fiche.ligne || fiche.poste)).insertAdjacentHTML("beforeend", jetonHTML(fiche, "terrain", i));
-      });
-      const libres = max - partie.terrain.length;
-      for (let i = 0; i < libres; i++)
-        el("ligne-MIL").insertAdjacentHTML("beforeend", `<div class="jeton vide">+</div>`);
+      const parLigneTerrain = { "GAR": [], "DÉF": [], "MIL": [], "ATT": [] };
+      partie.terrain.forEach((fiche, i) => parLigneTerrain[fiche.ligne || fiche.poste].push([fiche, i]));
+      const quotaLigne = Math.ceil((max - 1) / 3);
+      let videsDisponibles = max - partie.terrain.length;
+      for (const poste of ["GAR", "DÉF", "MIL", "ATT"]) {
+        const zone = el("ligne-" + poste);
+        for (const [fiche, i] of parLigneTerrain[poste]) zone.insertAdjacentHTML("beforeend", jetonHTML(fiche, "terrain", i));
+        const cible = poste === "GAR" ? 1 : quotaLigne;
+        for (let v = parLigneTerrain[poste].length; v < cible; v++) {
+          const dispo = videsDisponibles > 0;
+          if (dispo) videsDisponibles--;
+          zone.insertAdjacentHTML("beforeend", dispo
+            ? `<div class="case-vide" data-ligne="${poste}" onclick="tapCaseVide('${poste}')">+</div>`
+            : `<div class="case-vide verrouillee" title="Monte en niveau pour débloquer cette place"></div>`);
+        }
+      }
 
       // Banc et boutique dans le tiroir
       el("banc").innerHTML = partie.banc.length
@@ -2960,32 +3030,8 @@
           fiche.ligne = idLigne === fiche.poste ? undefined : idLigne;
           afficher(); return;
         }
-        // banc → terrain : titularisation sur la ligne visée
-        const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
-        if (partie.terrain.length >= max) {
-          // terrain plein : échange auto avec un joueur de la ligne visée
-          const sortant = partie.terrain.find((j) => ligneDe(j) === idLigne) || partie.terrain[0];
-          const indiceSortant = partie.terrain.indexOf(sortant);
-          partie.banc.splice(indice, 1);
-          const ligneRecue = ligneDe(sortant);
-          sortant.ligne = undefined;
-          partie.banc.push(sortant);
-          fiche.ligne = idLigne === fiche.poste ? undefined : idLigne;
-          if (idLigne === "GAR" && fiche.poste !== "GAR" && gardienEnPlace) fiche.ligne = ligneRecue === fiche.poste ? undefined : ligneRecue;
-          partie.terrain.splice(indiceSortant, 0, fiche);
-        } else {
-          partie.banc.splice(indice, 1);
-          if (idLigne === "GAR" && gardienEnPlace) {
-            if (fiche.poste === "GAR") { // 2ᵉ gardien : échange intelligent
-              partie.terrain.splice(partie.terrain.indexOf(gardienEnPlace), 1);
-              gardienEnPlace.ligne = undefined;
-              partie.banc.push(gardienEnPlace);
-              fiche.ligne = undefined;
-            } else fiche.ligne = undefined; // pas de 2ᵉ dans les buts : ligne naturelle
-          } else fiche.ligne = idLigne === fiche.poste ? undefined : idLigne;
-          partie.terrain.push(fiche);
-        }
-        afficher(); return;
+        titulariserDepuisBanc(indice, idLigne);
+        return;
       }
       // 4. vers le banc : sortie du terrain
       if (sous.banc && nomListe === "terrain") {
