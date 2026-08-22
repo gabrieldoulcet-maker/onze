@@ -182,6 +182,50 @@ const verifier = (nom, ok) => {
   });
   verifier("labo 🧪 : la grille des 36 s'ouvre", !!labo);
 
+  // ---- Staff en drag & drop : 2 glissers CONSÉCUTIFS (le 2ᵉ fut un bug :
+  //      la sélection de texte du 1er déclenchait un drag natif → pointercancel),
+  //      aperçu de la spécialisation pendant le survol, confirmation de fusion ----
+  await page.evaluate(() => {
+    arreterChrono();
+    const noms = Object.keys(ONZE.COMPOSANTS_STAFF).filter((n) => n !== "Passeport");
+    partie.staff = [noms[0], noms[1]];
+    if (!partie.terrain.length && partie.banc.length) partie.terrain.push(partie.banc.shift());
+    partie.terrain[0].staffCartes = [];
+    partie.terrain[0].specialisations = [];
+    afficher();
+  });
+  await page.click("#btn-bascule-gauche");
+  const unDragStaff = async () => {
+    const bb = await (await page.$(".badge-staff")).boundingBox();
+    const jb = await (await page.$('.jeton[data-liste="terrain"][data-indice="0"]')).boundingBox();
+    await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2);
+    await page.mouse.down();
+    let apercu = "";
+    for (let p = 1; p <= 6; p++) {
+      await page.mouse.move(bb.x + (jb.x + jb.width / 2 - bb.x) * p / 6, bb.y + (jb.y + jb.height / 2 - bb.y) * p / 6);
+      await page.waitForTimeout(25);
+      const bulle = await page.$(".fantome .etiquette-apercu");
+      if (bulle) apercu = await bulle.textContent();
+    }
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+    return apercu;
+  };
+  const apercu1 = await unDragStaff();
+  verifier("drag staff 1 : la carte est posée + aperçu « 1ʳᵉ carte » pendant le survol",
+    await page.evaluate(() => partie.staff.length === 1 && (partie.terrain[0].staffCartes || []).length === 1) &&
+    apercu1.includes("1ʳᵉ carte"));
+  const apercu2 = await unDragStaff();
+  verifier("drag staff 2 (consécutif) : aperçu de la spécialisation + demande de confirmation",
+    apercu2.includes("→") &&
+    await page.evaluate(() => !!document.querySelector("[data-choix='oui']")));
+  await page.evaluate(() => document.querySelector("[data-choix='oui']").click());
+  verifier("fusion confirmée : spécialisation appliquée, inventaire vidé",
+    await page.evaluate(() => partie.staff.length === 0 &&
+      ((partie.terrain[0].specialisations || []).length + (partie.terrain[0].emblemes || []).length) >= 1));
+  await page.evaluate(() => { document.querySelectorAll(".fusion-banniere, .voile-fiche").forEach((v) => v.remove()); });
+  await page.click("#btn-bascule-gauche");
+
   // ---- Sauvegarde/restauration : recharger la page reprend la partie ----
   const mancheAvant = await page.evaluate(() => { sauvegarder(); return partie.manche; });
   await page.reload();

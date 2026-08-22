@@ -90,7 +90,13 @@ body {
   flex-direction: column;
   align-items: center;
   padding: 16px 12px 40px;
+  /* Un jeu, pas un document : sans ça, un 1er glisser sélectionne du texte
+     et le glisser SUIVANT déclenche un drag natif du navigateur, qui coupe
+     le flux de pointeurs (pointercancel) et gèle nos drags maison. */
+  -webkit-user-select: none;
+  user-select: none;
 }
+input, textarea { -webkit-user-select: text; user-select: text; }
 header { text-align: center; margin-bottom: 12px; }
 header h1 { font-family: var(--police-display); font-weight: 400; font-size: 1.7rem; margin: 0; letter-spacing: 1px; transform: var(--pente); }
 header h1 span { color: var(--gazon-electrique); }

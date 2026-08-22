@@ -355,6 +355,12 @@
     .jeton.source-drag { opacity: 0.35; }
     .ligne-terrain.cible, .rangee-banc.cible { background: rgba(61, 226, 107, 0.18); border-radius: 8px; }
     .jeton.cible { outline: 2px dashed var(--gazon-electrique); }
+    .jeton.cible-staff { box-shadow: var(--lueur-fusion); }
+    .etiquette-apercu {
+      position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+      background: var(--surface-2); color: var(--or-trophee); font-size: 0.62rem; font-weight: 800;
+      border: 1px solid var(--or-trophee); border-radius: 6px; padding: 1px 6px; white-space: nowrap;
+    }
     .zone-vente {
       position: absolute; inset: 0; z-index: 110; display: none;
       align-items: center; justify-content: center;
@@ -2152,28 +2158,41 @@
         const fiche = partie[nomListe][Number(indice)];
         const enAttente = (fiche.staffCartes || [])[0];
         const fusion = enAttente ? apercuCombo(enAttente, carte) : null;
-        if (fusion) {
-          // confirmation : une fusion est définitive
-          const confirmation = document.createElement("div");
-          confirmation.className = "voile-fiche";
-          confirmation.innerHTML = `<div class="fiche-joueur" style="max-width:300px;text-align:center">
-            <h3>⚗️ Fusionner ?</h3>
-            <div class="sous-titre">${enAttente} + ${carte} sur ${fiche.nom}<br>→ <strong>${fusion}</strong></div>
-            <div style="color:var(--alerte-claire);font-size:0.72rem;margin-bottom:6px">C'est définitif.</div>
-            <button class="fermer" data-choix="oui" style="background:var(--gazon-electrique);color:var(--nuit-profonde)">Fusionner</button>
-            <button class="fermer" data-choix="non">Annuler</button>
-          </div>`;
-          confirmation.addEventListener("click", (e2) => {
-            const choix = e2.target.dataset && e2.target.dataset.choix;
-            if (e2.target === confirmation || choix === "non") return confirmation.remove();
-            if (choix === "oui") { confirmation.remove(); appliquerCarte(fiche, carte, indiceCarte); }
-          });
-          el("app").appendChild(confirmation);
-          return;
-        }
+        if (fusion) return confirmerFusionStaff(fiche, carte, indiceCarte, enAttente, fusion);
         appliquerCarte(fiche, carte, indiceCarte);
       });
       el("app").appendChild(voile);
+    }
+    /* Une fusion de staff est DÉFINITIVE : confirmation partagée par le
+       tap-choisir et le drag & drop. */
+    function confirmerFusionStaff(fiche, carte, indiceCarte, enAttente, fusion) {
+      const confirmation = document.createElement("div");
+      confirmation.className = "voile-fiche";
+      confirmation.innerHTML = `<div class="fiche-joueur" style="max-width:300px;text-align:center">
+        <h3>⚗️ Fusionner ?</h3>
+        <div class="sous-titre">${enAttente} + ${carte} sur ${fiche.nom}<br>→ <strong>${fusion}</strong></div>
+        <div style="color:var(--alerte-claire);font-size:0.72rem;margin-bottom:6px">C'est définitif.</div>
+        <button class="fermer" data-choix="oui" style="background:var(--gazon-electrique);color:var(--nuit-profonde)">Fusionner</button>
+        <button class="fermer" data-choix="non">Annuler</button>
+      </div>`;
+      confirmation.addEventListener("click", (e2) => {
+        const choix = e2.target.dataset && e2.target.dataset.choix;
+        if (e2.target === confirmation || choix === "non") return confirmation.remove();
+        if (choix === "oui") { confirmation.remove(); appliquerCarte(fiche, carte, indiceCarte); }
+      });
+      el("app").appendChild(confirmation);
+    }
+    /* Le DRAG & DROP du staff (post-playtest 4) : une carte glissée de
+       l'inventaire directement sur un joueur — le tap-choisir reste. */
+    function deposerStaffSur(indiceCarte, fiche) {
+      const carte = partie.staff[indiceCarte];
+      if (!carte || !fiche) return;
+      if (RELIQUES[carte]) return assignerRelique(indiceCarte);      // choix guidé conservé
+      if (CONSOMMABLES[carte]) return utiliserConsommable(indiceCarte);
+      const enAttente = (fiche.staffCartes || [])[0];
+      const fusion = enAttente ? apercuCombo(enAttente, carte) : null;
+      if (fusion) return confirmerFusionStaff(fiche, carte, indiceCarte, enAttente, fusion);
+      appliquerCarte(fiche, carte, indiceCarte);
     }
     function appliquerCarte(fiche, carte, indiceCarte) {
       const resultat = ONZE.assignerCarte(fiche, carte);
@@ -2713,7 +2732,7 @@
           partie.staff.map((carte, i) => {
             const icone = RELIQUES[carte] ? "🏺" : CONSOMMABLES[carte] ? "🧪" : carte === "Passeport" ? "🛂" : "🧰";
             const rare = RELIQUES[carte] || carte === "Passeport";
-            return `<span class="badge${rare ? " presque" : ""}" style="cursor:pointer;display:block;text-align:left" onclick="assignerStaff(${i})">${icone} ${carte}</span>`;
+            return `<span class="badge badge-staff${rare ? " presque" : ""}" data-staff="${i}" style="cursor:grab;display:block;text-align:left;touch-action:none" onclick="assignerStaff(${i})">${icone} ${carte}</span>`;
           }).join("")
         : "";
 
@@ -2996,6 +3015,82 @@
     document.addEventListener("click", (e) => {
       if (drag.depasse) { e.stopPropagation(); e.preventDefault(); }
     }, true);
+
+    /* ---- Le drag du STAFF : inventaire → joueur, aperçu en survol ---- */
+    const dragStaff = { candidat: null, actif: false, indice: -1, fantome: null, depasse: false };
+    document.addEventListener("pointerdown", (e) => {
+      const badge = e.target.closest(".badge-staff");
+      if (!badge) return;
+      dragStaff.candidat = { x: e.clientX, y: e.clientY, indice: Number(badge.dataset.staff) };
+    });
+    document.addEventListener("pointermove", (e) => {
+      if (dragStaff.candidat && !dragStaff.actif &&
+          Math.hypot(e.clientX - dragStaff.candidat.x, e.clientY - dragStaff.candidat.y) > 8) {
+        dragStaff.actif = true;
+        dragStaff.depasse = true;
+        dragStaff.indice = dragStaff.candidat.indice;
+        const carte = partie.staff[dragStaff.indice];
+        const f = document.createElement("div");
+        f.className = "fantome";
+        f.innerHTML = `<span class="badge" style="font-size:0.72rem">🧰 ${carte}</span>`;
+        el("app").appendChild(f);
+        dragStaff.fantome = f;
+      }
+      if (!dragStaff.actif) return;
+      e.preventDefault();
+      dragStaff.fantome.style.transform = `translate3d(${e.clientX - 24}px, ${e.clientY - 34}px, 0) rotate(-4deg)`;
+      document.querySelectorAll(".jeton.cible-staff").forEach((x) => x.classList.remove("cible-staff"));
+      const dessous = document.elementFromPoint(e.clientX, e.clientY);
+      const jeton = dessous && dessous.closest(".jeton[data-liste]");
+      let apercu = "";
+      if (jeton) {
+        jeton.classList.add("cible-staff");
+        const fiche = partie[jeton.dataset.liste][Number(jeton.dataset.indice)];
+        const carte = partie.staff[dragStaff.indice];
+        if (fiche && carte && !RELIQUES[carte] && !CONSOMMABLES[carte]) {
+          const enAttente = (fiche.staffCartes || [])[0];
+          apercu = enAttente ? "⚗️ → " + (apercuCombo(enAttente, carte) || "combo impossible")
+            : "1ʳᵉ carte — petit bonus";
+        }
+      }
+      let bulle = dragStaff.fantome.querySelector(".etiquette-apercu");
+      if (apercu) {
+        if (!bulle) { bulle = document.createElement("span"); bulle.className = "etiquette-apercu"; dragStaff.fantome.appendChild(bulle); }
+        bulle.textContent = apercu;
+      } else if (bulle) bulle.remove();
+    }, { passive: false });
+    document.addEventListener("pointerup", (e) => {
+      dragStaff.candidat = null;
+      if (!dragStaff.actif) return;
+      dragStaff.actif = false;
+      if (dragStaff.fantome) dragStaff.fantome.remove();
+      dragStaff.fantome = null;
+      document.querySelectorAll(".jeton.cible-staff").forEach((x) => x.classList.remove("cible-staff"));
+      const dessous = document.elementFromPoint(e.clientX, e.clientY);
+      const jeton = dessous && dessous.closest(".jeton[data-liste]");
+      if (jeton) {
+        const fiche = partie[jeton.dataset.liste][Number(jeton.dataset.indice)];
+        deposerStaffSur(dragStaff.indice, fiche);
+      }
+      setTimeout(() => { dragStaff.depasse = false; }, 80);
+    });
+    document.addEventListener("pointercancel", () => {
+      dragStaff.candidat = null;
+      if (!dragStaff.actif) return;
+      dragStaff.actif = false;
+      if (dragStaff.fantome) dragStaff.fantome.remove();
+      dragStaff.fantome = null;
+      document.querySelectorAll(".jeton.cible-staff").forEach((x) => x.classList.remove("cible-staff"));
+      setTimeout(() => { dragStaff.depasse = false; }, 80);
+    });
+    document.addEventListener("click", (e) => {
+      if (dragStaff.depasse) { e.stopPropagation(); e.preventDefault(); }
+    }, true);
+    // le drag NATIF du navigateur (texte sélectionné, image…) couperait nos
+    // gestes d'un pointercancel : jamais pendant un drag maison
+    document.addEventListener("dragstart", (e) => {
+      if (drag.candidat || drag.actif || dragStaff.candidat || dragStaff.actif) e.preventDefault();
+    });
 
     function finirDrag(sous) {
       const { fiche, nomListe, indice } = drag;
