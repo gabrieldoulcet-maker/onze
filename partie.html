@@ -2538,7 +2538,7 @@
           <span class="gemme"></span><span class="gemme-chiffre">${fiche.cout}</span>
           <span class="ligne-identite"><span class="note-ecusson">${note}</span><span class="nom-carte">${fiche.nom}</span>${pastilleHTML(fiche)}</span>
           <span class="signatures">${signatures}</span>
-          <span class="sous-carte">${fiche.unique ? "✦ " + fiche.unique : `<span style="color:var(--craie-sourde);font-style:normal">${fiche.ecole || ""}${fiche.archetype ? " · " + fiche.archetype : ""}</span>`}</span>
+          <span class="sous-carte">${fiche.unique ? "✦ " + fiche.unique : ""}</span>
           <span class="pied-carte"><span class="ecussons">${ONZE_UI.glyphe(fiche.ecole)}${ONZE_UI.glyphe(fiche.archetype)}</span>
             <button onclick="event.stopPropagation(); acheter(${i})" ${partie.or < fiche.cout ? "disabled" : ""}>${fiche.cout}M</button></span>
         </div>`;
