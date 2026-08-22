@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Passion+One:wght@400;700;900&family=Archivo:ital,wght@0,400;0,600;0,700;0,800;1,400;1,700&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#060D08; color:#EDF5EC; font-family:'Archivo',sans-serif; }
+a { color:#3DE26B; } a:hover { color:#F2C14E; }
+</style>
+</helmet>
+<section style="display:flex; flex-direction:column; gap:30px; padding:44px; min-width:1600px;">
+  <svg width="0" height="0" style="position:absolute;">
+    <defs>
+      <symbol id="ec-tiki" viewBox="0 0 48 48"><line x1="24" y1="11" x2="11" y2="36" stroke="#FDF8EA" stroke-width="4"></line><line x1="24" y1="11" x2="37" y2="36" stroke="#FDF8EA" stroke-width="4"></line><line x1="11" y1="36" x2="37" y2="36" stroke="#FDF8EA" stroke-width="4"></line><circle cx="24" cy="10" r="6.5" fill="#FDF8EA" stroke="#0A160D" stroke-width="2.5"></circle><circle cx="10" cy="37" r="6.5" fill="#FDF8EA" stroke="#0A160D" stroke-width="2.5"></circle><circle cx="38" cy="37" r="6.5" fill="#FDF8EA" stroke="#0A160D" stroke-width="2.5"></circle></symbol>
+      <symbol id="ec-cate" viewBox="0 0 48 48"><path d="M16 21 v-7 a8 8 0 0 1 16 0 v7" fill="none" stroke="#FDF8EA" stroke-width="5"></path><rect x="11" y="21" width="26" height="20" rx="5" fill="#FDF8EA"></rect><circle cx="24" cy="29" r="3.5" fill="#0A160D"></circle><rect x="22.5" y="30" width="3" height="7" fill="#0A160D"></rect></symbol>
+      <symbol id="ec-kick" viewBox="0 0 48 48"><circle cx="9" cy="38" r="6" fill="#FDF8EA"></circle><path d="M10 34 Q22 8 38 16" fill="none" stroke="#FDF8EA" stroke-width="5"></path><path d="M34 8 L46 18 L32 22 Z" fill="#FDF8EA"></path></symbol>
+      <symbol id="ec-rue" viewBox="0 0 48 48"><path d="M24 3 L45 24 L24 45 L3 24 Z" fill="#FDF8EA"></path><path d="M24 11 L37 24 L24 37 L11 24 Z" fill="#0A160D"></path><circle cx="24" cy="24" r="6" fill="#FDF8EA"></circle></symbol>
+      <symbol id="ec-total" viewBox="0 0 48 48"><circle cx="24" cy="24" r="15" fill="none" stroke="#FDF8EA" stroke-width="5"></circle><path d="M39 16 L46 24 L36 26 Z" fill="#FDF8EA"></path><path d="M14 8 L22 4 L20 14 Z" fill="#FDF8EA"></path><path d="M10 38 L4 30 L14 30 Z" fill="#FDF8EA"></path></symbol>
+      <symbol id="ec-grinta" viewBox="0 0 48 48"><path d="M7 10 L16 40 L23 16 Z" fill="#FDF8EA"></path><path d="M25 16 L32 40 L41 10 Z" fill="#FDF8EA"></path></symbol>
+      <symbol id="ec-acad" viewBox="0 0 48 48"><path d="M24 8 L45 19 L24 30 L3 19 Z" fill="#FDF8EA"></path><path d="M15 25 v9 q9 7 18 0 v-9" fill="#FDF8EA"></path><line x1="42" y1="21" x2="42" y2="33" stroke="#F2C14E" stroke-width="3"></line><circle cx="42" cy="35" r="3" fill="#F2C14E"></circle></symbol>
+      <symbol id="ec-inter" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="none" stroke="#FDF8EA" stroke-width="4.5"></circle><ellipse cx="24" cy="24" rx="8.5" ry="18" fill="none" stroke="#FDF8EA" stroke-width="3.5"></ellipse><line x1="6" y1="24" x2="42" y2="24" stroke="#FDF8EA" stroke-width="3.5"></line></symbol>
+      <symbol id="ec-douze" viewBox="0 0 48 48"><line x1="11" y1="5" x2="11" y2="44" stroke="#FDF8EA" stroke-width="5"></line><path d="M14 7 H40 L33 15.5 L40 24 H14 Z" fill="#FDF8EA"></path></symbol>
+      <symbol id="ec-pros" viewBox="0 0 48 48"><path d="M18 17 v-5 h12 v5" fill="none" stroke="#FDF8EA" stroke-width="4.5"></path><rect x="7" y="17" width="34" height="22" rx="5" fill="#FDF8EA"></rect><rect x="20" y="24" width="8" height="7" rx="2" fill="#0A160D"></rect></symbol>
+      <symbol id="ec-revan" viewBox="0 0 48 48"><path d="M24 4 L38 21 H30 V32 H18 V21 H10 Z" fill="#FDF8EA"></path><circle cx="12" cy="40" r="4" fill="#FDF8EA"></circle><circle cx="24" cy="42" r="4" fill="#FDF8EA"></circle><circle cx="36" cy="40" r="4" fill="#FDF8EA"></circle></symbol>
+      <symbol id="ec-mur" viewBox="0 0 48 48"><rect x="6" y="12" width="17" height="9" fill="#FDF8EA"></rect><rect x="25" y="12" width="17" height="9" fill="#FDF8EA"></rect><rect x="6" y="23" width="11" height="9" fill="#FDF8EA"></rect><rect x="19" y="23" width="16" height="9" fill="#FDF8EA"></rect><rect x="37" y="23" width="5" height="9" fill="#FDF8EA"></rect><rect x="6" y="34" width="17" height="9" fill="#FDF8EA"></rect><rect x="25" y="34" width="17" height="9" fill="#FDF8EA"></rect></symbol>
+      <symbol id="ec-sent" viewBox="0 0 48 48"><path d="M15 44 L17.5 16 H30.5 L33 44 Z" fill="#FDF8EA"></path><rect x="14" y="8" width="6" height="9" fill="#FDF8EA"></rect><rect x="21" y="8" width="6" height="9" fill="#FDF8EA"></rect><rect x="28" y="8" width="6" height="9" fill="#FDF8EA"></rect><rect x="21.5" y="24" width="5" height="9" rx="2.5" fill="#0A160D"></rect></symbol>
+      <symbol id="ec-piston" viewBox="0 0 48 48"><path d="M24 3 L33 14 H28.5 V34 H33 L24 45 L15 34 H19.5 V14 H15 Z" fill="#FDF8EA"></path></symbol>
+      <symbol id="ec-crea" viewBox="0 0 48 48"><path d="M24 4 L37 25 L24 44 L11 25 Z" fill="#FDF8EA"></path><circle cx="24" cy="25" r="4.5" fill="#0A160D"></circle><line x1="24" y1="30" x2="24" y2="42" stroke="#0A160D" stroke-width="3"></line></symbol>
+      <symbol id="ec-virt" viewBox="0 0 48 48"><path d="M24 3 L29 19 L45 24 L29 29 L24 45 L19 29 L3 24 L19 19 Z" fill="#FDF8EA"></path><circle cx="38" cy="9" r="3.5" fill="#F2C14E"></circle></symbol>
+      <symbol id="ec-moteur" viewBox="0 0 48 48"><rect x="20" y="4" width="8" height="40" rx="3" fill="#FDF8EA"></rect><rect x="20" y="4" width="8" height="40" rx="3" fill="#FDF8EA" transform="rotate(60 24 24)"></rect><rect x="20" y="4" width="8" height="40" rx="3" fill="#FDF8EA" transform="rotate(120 24 24)"></rect><circle cx="24" cy="24" r="11" fill="#FDF8EA"></circle><circle cx="24" cy="24" r="5" fill="#0A160D"></circle></symbol>
+      <symbol id="ec-fini" viewBox="0 0 48 48"><circle cx="24" cy="24" r="17.5" fill="none" stroke="#FDF8EA" stroke-width="4.5"></circle><circle cx="24" cy="24" r="9" fill="none" stroke="#FDF8EA" stroke-width="4"></circle><circle cx="24" cy="24" r="3.5" fill="#FDF8EA"></circle></symbol>
+      <symbol id="ec-renard" viewBox="0 0 48 48"><path d="M8 6 L19 17 L7 21 Z" fill="#FDF8EA"></path><path d="M40 6 L29 17 L41 21 Z" fill="#FDF8EA"></path><path d="M7 19 L41 19 L24 44 Z" fill="#FDF8EA"></path><circle cx="17" cy="24" r="2.5" fill="#0A160D"></circle><circle cx="31" cy="24" r="2.5" fill="#0A160D"></circle></symbol>
+      <symbol id="ec-chanc" viewBox="0 0 48 48"><circle cx="24" cy="13" r="8.5" fill="#FDF8EA"></circle><circle cx="14" cy="27" r="8.5" fill="#FDF8EA"></circle><circle cx="34" cy="27" r="8.5" fill="#FDF8EA"></circle><path d="M24 28 Q26 38 30 44" fill="none" stroke="#FDF8EA" stroke-width="4"></path></symbol>
+      <symbol id="ec-guer" viewBox="0 0 48 48"><line x1="11" y1="9" x2="37" y2="39" stroke="#FDF8EA" stroke-width="5"></line><line x1="37" y1="9" x2="11" y2="39" stroke="#FDF8EA" stroke-width="5"></line><line x1="9" y1="32" x2="20" y2="32" stroke="#FDF8EA" stroke-width="4" transform="rotate(49 14 32)"></line><line x1="28" y1="32" x2="39" y2="32" stroke="#FDF8EA" stroke-width="4" transform="rotate(-49 34 32)"></line></symbol>
+      <symbol id="ec-mentor" viewBox="0 0 48 48"><path d="M24 3 C32 12 34 17 24 24 C14 17 16 12 24 3 Z" fill="#F2C14E"></path><rect x="19" y="24" width="10" height="19" rx="4" fill="#FDF8EA"></rect><rect x="17" y="27" width="14" height="4" rx="2" fill="#0A160D"></rect></symbol>
+      <symbol id="ec-capi" viewBox="0 0 48 48"><rect x="5" y="15" width="38" height="18" rx="9" fill="#FDF8EA"></rect><path d="M24 17 L26 22.5 L32 22.5 L27.5 26 L29 32 L24 28.5 L19 32 L20.5 26 L16 22.5 L22 22.5 Z" fill="#0A160D"></path></symbol>
+    </defs>
+  </svg>
+  <div style="display:flex; align-items:baseline; gap:16px;">
+    <div style="font-family:'Passion One'; font-size:34px; color:#F2C14E; letter-spacing:1px; transform:skewX(-6deg);">ONZE · LOT 2 — L'ALPHABET VISUEL</div>
+    <div style="font-size:14px; color:#9DB3A0;">23 écussons en formes libres (identité <a href="#1a">1a</a> · La Finale) + signalétique complète</div>
+  </div>
+  <div style="background:#0A160D; border:1px solid #1E3A24; border-radius:18px; padding:26px; display:flex; flex-direction:column; gap:16px;">
+    <div style="display:flex; align-items:baseline; gap:14px;">
+      <div style="font-family:'Passion One'; font-size:22px;">LES 11 ÉCOLES</div>
+      <div style="font-size:12px; color:#9DB3A0;">chaque tuile : 64 px · badge actif (illuminé) · badge éteint · mini 16 px sur carte</div>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(6, 1fr); gap:14px;">
+      <sc-for list="{{ ecoles }}" as="e" hint-placeholder-count="11">
+        <div style="background:#0E1F12; border:1px solid #1E3A24; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:10px; align-items:center;">
+          <svg width="64" height="64" viewBox="0 0 48 48" style="filter:drop-shadow(0 3px 0 rgba(0,0,0,0.5));"><use href="#{{ e.id }}"></use></svg>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <div style="width:44px; height:44px; border-radius:50%; background:#17301D; display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 2px #3DE26B, 0 0 16px rgba(61,226,107,0.55);"><svg width="28" height="28" viewBox="0 0 48 48"><use href="#{{ e.id }}"></use></svg></div>
+            <div style="width:44px; height:44px; border-radius:50%; border:2px dashed #3A4A3C; display:flex; align-items:center; justify-content:center;"><svg width="28" height="28" viewBox="0 0 48 48" style="filter:grayscale(1); opacity:0.35;"><use href="#{{ e.id }}"></use></svg></div>
+            <div style="width:24px; height:24px; border-radius:50%; background:#060D08; border:1px solid #3A5A40; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 48 48"><use href="#{{ e.id }}"></use></svg></div>
+          </div>
+          <div style="font-weight:700; font-size:12px; text-align:center;">{{ e.nom }}</div>
+          <div style="font-size:10px; color:#5F7A64; text-align:center; line-height:1.35;">{{ e.motif }}</div>
+        </div>
+      </sc-for>
+      <div style="border:1px dashed #1E3A24; border-radius:12px; padding:14px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#5F7A64; text-align:center; line-height:1.5;">silhouettes libres :<br>aucune n'a le même<br>gabarit qu'une autre</div>
+    </div>
+  </div>
+  <div style="background:#0A160D; border:1px solid #1E3A24; border-radius:18px; padding:26px; display:flex; flex-direction:column; gap:16px;">
+    <div style="font-family:'Passion One'; font-size:22px;">LES 12 ARCHÉTYPES</div>
+    <div style="display:grid; grid-template-columns:repeat(6, 1fr); gap:14px;">
+      <sc-for list="{{ archetypes }}" as="e" hint-placeholder-count="12">
+        <div style="background:#0E1F12; border:1px solid #1E3A24; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:10px; align-items:center;">
+          <svg width="64" height="64" viewBox="0 0 48 48" style="filter:drop-shadow(0 3px 0 rgba(0,0,0,0.5));"><use href="#{{ e.id }}"></use></svg>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <div style="width:44px; height:44px; border-radius:50%; background:#17301D; display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 2px #3DE26B, 0 0 16px rgba(61,226,107,0.55);"><svg width="28" height="28" viewBox="0 0 48 48"><use href="#{{ e.id }}"></use></svg></div>
+            <div style="width:44px; height:44px; border-radius:50%; border:2px dashed #3A4A3C; display:flex; align-items:center; justify-content:center;"><svg width="28" height="28" viewBox="0 0 48 48" style="filter:grayscale(1); opacity:0.35;"><use href="#{{ e.id }}"></use></svg></div>
+            <div style="width:24px; height:24px; border-radius:50%; background:#060D08; border:1px solid #3A5A40; display:flex; align-items:center; justify-content:center;"><svg width="16" height="16" viewBox="0 0 48 48"><use href="#{{ e.id }}"></use></svg></div>
+          </div>
+          <div style="font-weight:700; font-size:12px; text-align:center;">{{ e.nom }}</div>
+          <div style="font-size:10px; color:#5F7A64; text-align:center; line-height:1.35;">{{ e.motif }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  <div style="display:flex; gap:30px; align-items:stretch;">
+    <div style="flex:1.2; background:#0A160D; border:1px solid #1E3A24; border-radius:18px; padding:26px; display:flex; flex-direction:column; gap:18px;">
+      <div style="font-family:'Passion One'; font-size:22px;">SIGNALÉTIQUE</div>
+      <div style="display:flex; gap:26px; align-items:flex-start;">
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="font-size:11px; color:#9DB3A0; letter-spacing:2px;">PASTILLES DE POSTE</div>
+          <div style="display:flex; gap:8px;">
+            <div style="width:34px; height:34px; border-radius:9px; background:#F5C531; color:#1A1405; font-weight:800; font-size:16px; display:flex; align-items:center; justify-content:center; box-shadow:inset 0 -4px 0 rgba(0,0,0,0.25);">G</div>
+            <div style="width:34px; height:34px; border-radius:9px; background:#3E9BE0; color:#04121F; font-weight:800; font-size:16px; display:flex; align-items:center; justify-content:center; box-shadow:inset 0 -4px 0 rgba(0,0,0,0.25);">D</div>
+            <div style="width:34px; height:34px; border-radius:9px; background:#3DCC6E; color:#04240E; font-weight:800; font-size:16px; display:flex; align-items:center; justify-content:center; box-shadow:inset 0 -4px 0 rgba(0,0,0,0.25);">M</div>
+            <div style="width:34px; height:34px; border-radius:9px; background:#E8503F; color:#1F0704; font-weight:800; font-size:16px; display:flex; align-items:center; justify-content:center; box-shadow:inset 0 -4px 0 rgba(0,0,0,0.25);">A</div>
+            <div style="width:34px; height:34px; border-radius:9px; background:#3DCC6E; color:#04240E; font-weight:800; font-size:16px; display:flex; align-items:center; justify-content:center; box-shadow:inset 0 -4px 0 rgba(0,0,0,0.25), 0 0 0 2.5px #FF9D3C, 0 0 12px rgba(255,157,60,0.8);">M</div>
+          </div>
+          <div style="font-size:10px; color:#5F7A64;">le 5ᵉ : liseré orange = hors-poste</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="font-size:11px; color:#9DB3A0; letter-spacing:2px;">CADRES DE COÛT (mini)</div>
+          <div style="display:flex; gap:8px;">
+            <div style="width:44px; height:30px; border-radius:8px; border:2.5px solid #98A79D; background:linear-gradient(160deg,#17301D,#0C1B10); position:relative;"><div style="position:absolute; top:-6px; right:4px; width:11px; height:11px; transform:rotate(45deg); background:#98A79D; border-radius:2px;"></div></div>
+            <div style="width:44px; height:30px; border-radius:8px; border:2.5px solid #3DCC6E; background:linear-gradient(160deg,#17301D,#0C1B10); position:relative;"><div style="position:absolute; top:-6px; right:4px; width:11px; height:11px; transform:rotate(45deg); background:#3DCC6E; border-radius:2px;"></div></div>
+            <div style="width:44px; height:30px; border-radius:8px; border:2.5px solid #3E9BE0; background:linear-gradient(160deg,#17301D,#0C1B10); position:relative;"><div style="position:absolute; top:-6px; right:4px; width:11px; height:11px; transform:rotate(45deg); background:#3E9BE0; border-radius:2px;"></div></div>
+            <div style="width:44px; height:30px; border-radius:8px; border:2.5px solid #A85CE8; background:linear-gradient(160deg,#17301D,#0C1B10); position:relative;"><div style="position:absolute; top:-6px; right:4px; width:11px; height:11px; transform:rotate(45deg); background:#A85CE8; border-radius:2px;"></div></div>
+            <div style="width:44px; height:30px; border-radius:8px; border:2.5px solid #F2C14E; background:linear-gradient(160deg,#1F1C10,#0C1B10); box-shadow:0 0 14px rgba(242,193,78,0.35); position:relative;"><div style="position:absolute; top:-6px; right:4px; width:11px; height:11px; transform:rotate(45deg); background:#F2C14E; border-radius:2px;"></div></div>
+          </div>
+          <div style="font-size:10px; color:#5F7A64;">gemme de coût sur l'épaule droite · l'or rayonne seul</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:26px; align-items:flex-start;">
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="font-size:11px; color:#9DB3A0; letter-spacing:2px;">ÉTOILES</div>
+          <div style="display:flex; gap:16px; align-items:center; font-size:22px;">
+            <span style="color:#C9D6C9;">★</span>
+            <span style="color:#EDF5EC; text-shadow:0 0 8px rgba(237,245,236,0.5);">★★</span>
+            <span style="color:#F2C14E; text-shadow:0 0 14px rgba(242,193,78,0.9);">★★★</span>
+          </div>
+          <div style="font-size:10px; color:#5F7A64;">l'or n'arrive qu'à 3★</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="font-size:11px; color:#9DB3A0; letter-spacing:2px;">MONNAIES</div>
+          <div style="display:flex; gap:14px; align-items:center;">
+            <div style="width:38px; height:38px; border-radius:50%; background:radial-gradient(circle at 32% 28%, #F8DE8E, #C98F1B); color:#1A1405; font-weight:800; font-size:17px; display:flex; align-items:center; justify-content:center; box-shadow:inset 0 -4px 0 rgba(0,0,0,0.25);">M</div>
+            <svg width="34" height="38" viewBox="0 0 34 40"><path d="M17 2 C26 12 30 18 17 27 C4 18 8 12 17 2 Z" fill="#E8503F"></path><path d="M17 12 C22 18 23 21 17 26 C11 21 12 18 17 12 Z" fill="#F2C14E"></path><rect x="10" y="27" width="14" height="9" rx="4.5" fill="#E8503F"></rect></svg>
+          </div>
+          <div style="font-size:10px; color:#5F7A64;">M€ (pièce) · Ferveur (flamme)</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="font-size:11px; color:#9DB3A0; letter-spacing:2px;">RELIQUE</div>
+          <svg width="38" height="38" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="none" stroke="#F2C14E" stroke-width="4"></circle><path d="M24 10 L36 24 L24 38 L12 24 Z" fill="#A85CE8"></path><path d="M24 10 L30 24 L24 38 L18 24 Z" fill="#C08DF0"></path></svg>
+          <div style="font-size:10px; color:#5F7A64;">gemme sertie d'or</div>
+        </div>
+      </div>
+    </div>
+    <div style="flex:1; background:#0A160D; border:1px solid #1E3A24; border-radius:18px; padding:26px; display:flex; flex-direction:column; gap:18px;">
+      <div style="font-family:'Passion One'; font-size:22px;">ORBES DE BUTIN &amp; CARTE STAFF</div>
+      <div style="display:flex; gap:22px; align-items:center;">
+        <div style="display:flex; flex-direction:column; align-items:center; gap:6px;"><div style="width:64px; height:64px; border-radius:50%; background:radial-gradient(circle at 30% 30%, #D8DDD8, #7A857C); box-shadow:0 0 16px rgba(200,210,200,0.35), inset 0 -8px 14px rgba(0,0,0,0.3);"></div><div style="font-size:11px; color:#9DB3A0;">commun</div></div>
+        <div style="display:flex; flex-direction:column; align-items:center; gap:6px;"><div style="width:64px; height:64px; border-radius:50%; background:radial-gradient(circle at 30% 30%, #9CC4EF, #2A5A9E); box-shadow:0 0 20px rgba(120,170,240,0.5), inset 0 -8px 14px rgba(0,0,0,0.3);"></div><div style="font-size:11px; color:#9DB3A0;">rare</div></div>
+        <div style="display:flex; flex-direction:column; align-items:center; gap:6px;"><div style="width:64px; height:64px; border-radius:50%; background:radial-gradient(circle at 30% 30%, #F8DE8E, #B8860B); box-shadow:0 0 28px rgba(242,193,78,0.7), inset 0 -8px 14px rgba(0,0,0,0.3);"></div><div style="font-size:11px; color:#F2C14E; font-weight:700;">or</div></div>
+        <div style="width:110px; height:70px; border-radius:10px; border:2.5px dashed #9DB3A0; background:linear-gradient(160deg,#152318,#0C1B10); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;">
+          <svg width="22" height="22" viewBox="0 0 48 48"><rect x="12" y="8" width="24" height="34" rx="4" fill="#FDF8EA"></rect><rect x="18" y="4" width="12" height="8" rx="3" fill="#9DB3A0"></rect><line x1="17" y1="20" x2="31" y2="20" stroke="#0A160D" stroke-width="3"></line><line x1="17" y1="27" x2="31" y2="27" stroke="#0A160D" stroke-width="3"></line><line x1="17" y1="34" x2="26" y2="34" stroke="#0A160D" stroke-width="3"></line></svg>
+          <div style="font-size:10px; font-weight:700; color:#C9D6C9;">CARTE STAFF</div>
+        </div>
+        <div style="font-size:11px; color:#5F7A64; line-height:1.5; max-width:170px;">La carte Staff est neutre (pointillés craie) : elle se pose SUR un joueur, elle ne rivalise avec aucune couleur signifiante.</div>
+      </div>
+      <div style="border-top:1px solid #1E3A24; padding-top:14px; font-size:12px; color:#9DB3A0; line-height:1.6;">Test de lisibilité : chaque écusson reste identifiable à 16 px (rangée mini ci-dessus). Style commun : silhouette craie pleine, découpes nuit, un seul accent or autorisé par écusson (tassel, étincelle, flamme).</div>
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      ecoles: [
+        { id:'ec-tiki', nom:'Tiki-Taka', motif:'le triangle de passes' },
+        { id:'ec-cate', nom:'Catenaccio', motif:'le verrou' },
+        { id:'ec-kick', nom:'Kick & Rush', motif:'le long ballon' },
+        { id:'ec-rue', nom:'École de la Rue', motif:'la plaque de rue' },
+        { id:'ec-total', nom:'Football Total', motif:'la rotation permanente' },
+        { id:'ec-grinta', nom:'La Grinta', motif:'les crocs' },
+        { id:'ec-acad', nom:"L'Académie", motif:'la coiffe du diplômé' },
+        { id:'ec-inter', nom:'Les Internationaux', motif:'le globe' },
+        { id:'ec-douze', nom:'Le Douzième Homme', motif:'le drapeau du kop' },
+        { id:'ec-pros', nom:'Les Pros', motif:'la mallette du métier' },
+        { id:'ec-revan', nom:'Les Revanchards', motif:'la flèche qui renaît des braises' }
+      ],
+      archetypes: [
+        { id:'ec-mur', nom:'Mur', motif:'la brique' },
+        { id:'ec-sent', nom:'Sentinelle', motif:'la tour de guet' },
+        { id:'ec-piston', nom:'Piston', motif:'l’aller-retour' },
+        { id:'ec-crea', nom:'Créateur', motif:'la plume' },
+        { id:'ec-virt', nom:'Virtuose', motif:'l’étincelle à 8 branches' },
+        { id:'ec-moteur', nom:'Moteur', motif:'l’engrenage' },
+        { id:'ec-fini', nom:'Finisseur', motif:'la cible' },
+        { id:'ec-renard', nom:'Renard', motif:'le museau' },
+        { id:'ec-chanc', nom:'Chanceux', motif:'le trèfle' },
+        { id:'ec-guer', nom:'Guerrier', motif:'les lames croisées' },
+        { id:'ec-mentor', nom:'Mentor', motif:'la torche (accent or)' },
+        { id:'ec-capi', nom:'Capitaine', motif:'le brassard étoilé' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

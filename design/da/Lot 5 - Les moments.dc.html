@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Passion+One:wght@400;700;900&family=Archivo:ital,wght@0,400;0,600;0,700;0,800;1,400;1,700&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#060D08; color:#EDF5EC; font-family:'Archivo',sans-serif; }
+a { color:#3DE26B; } a:hover { color:#F2C14E; }
+@keyframes tourneRayons { from { transform:rotate(0deg);} to { transform:rotate(360deg);} }
+</style>
+</helmet>
+<section style="display:flex; flex-direction:column; gap:30px; padding:44px; min-width:2400px;">
+  <svg width="0" height="0" style="position:absolute;">
+    <defs>
+      <symbol id="ec-rue" viewBox="0 0 48 48"><path d="M24 3 L45 24 L24 45 L3 24 Z" fill="#FDF8EA"></path><path d="M24 11 L37 24 L24 37 L11 24 Z" fill="#0A160D"></path><circle cx="24" cy="24" r="6" fill="#FDF8EA"></circle></symbol>
+      <symbol id="ec-virt" viewBox="0 0 48 48"><path d="M24 3 L29 19 L45 24 L29 29 L24 45 L19 29 L3 24 L19 19 Z" fill="#FDF8EA"></path><circle cx="38" cy="9" r="3.5" fill="#F2C14E"></circle></symbol>
+    </defs>
+  </svg>
+  <div style="display:flex; align-items:baseline; gap:16px;">
+    <div style="font-family:'Passion One'; font-size:34px; color:#F2C14E; letter-spacing:1px; transform:skewX(-6deg);">ONZE · LOT 5 — LES MOMENTS</div>
+    <div style="font-size:14px; color:#9DB3A0;">FX &amp; célébrations en états-clés — chaque rangée = une timeline, l'animation est codée ensuite</div>
+  </div>
+
+  <!-- BUT -->
+  <div style="background:#0A160D; border:1px solid #1E3A24; border-radius:18px; padding:24px; display:flex; flex-direction:column; gap:14px;">
+    <div style="font-family:'Passion One'; font-size:22px;">LE BUT <span style="font-size:12px; font-family:'Archivo'; color:#9DB3A0;">— célébration proportionnelle à l'enjeu : 3 intensités, même squelette</span></div>
+    <div style="display:flex; gap:20px;">
+      <sc-for list="{{ buts }}" as="b" hint-placeholder-count="3">
+        <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+          <div style="position:relative; height:200px; border-radius:12px; overflow:hidden; background:radial-gradient(ellipse at 50% 120%, #135223, #081209 80%);">
+            <div style="position:absolute; inset:0; background:{{ b.flash }};"></div>
+            <sc-if value="{{ b.rayons }}" hint-placeholder-val="{{ false }}"><div style="position:absolute; left:50%; top:55%; width:400px; height:400px; margin:-200px; background:conic-gradient(from 0deg, rgba(242,193,78,0.25) 0deg 10deg, transparent 10deg 30deg, rgba(242,193,78,0.25) 30deg 40deg, transparent 40deg 60deg, rgba(242,193,78,0.25) 60deg 70deg, transparent 70deg 90deg, rgba(242,193,78,0.25) 90deg 100deg, transparent 100deg 120deg, rgba(242,193,78,0.25) 120deg 130deg, transparent 130deg 150deg, rgba(242,193,78,0.25) 150deg 160deg, transparent 160deg 180deg, rgba(242,193,78,0.25) 180deg 190deg, transparent 190deg 210deg, rgba(242,193,78,0.25) 210deg 220deg, transparent 220deg 240deg, rgba(242,193,78,0.25) 240deg 250deg, transparent 250deg 270deg, rgba(242,193,78,0.25) 270deg 280deg, transparent 280deg 300deg, rgba(242,193,78,0.25) 300deg 310deg, transparent 310deg 330deg, rgba(242,193,78,0.25) 330deg 340deg, transparent 340deg 360deg); border-radius:50%; animation:tourneRayons 10s linear infinite;"></div></sc-if>
+            <div style="position:absolute; left:0; right:0; top:44%; text-align:center; font-family:'Passion One'; font-weight:900; font-size:{{ b.taille }}; line-height:1; transform:skewX(-6deg) rotate(-3deg); color:{{ b.couleur }}; text-shadow:0 4px 0 #04240E, 0 0 {{ b.halo }} {{ b.haloCouleur }};">{{ b.mot }}</div>
+            <sc-if value="{{ b.confettis }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute; left:14%; top:18%; width:9px; height:14px; background:#3DE26B; transform:rotate(24deg); border-radius:2px;"></div>
+              <div style="position:absolute; left:28%; top:8%; width:8px; height:12px; background:#F2C14E; transform:rotate(-40deg); border-radius:2px;"></div>
+              <div style="position:absolute; right:22%; top:12%; width:9px; height:14px; background:#E8503F; transform:rotate(50deg); border-radius:2px;"></div>
+              <div style="position:absolute; right:10%; top:30%; width:8px; height:12px; background:#3E9BE0; transform:rotate(-18deg); border-radius:2px;"></div>
+              <div style="position:absolute; left:8%; top:44%; width:8px; height:12px; background:#F2C14E; transform:rotate(70deg); border-radius:2px;"></div>
+              <div style="position:absolute; right:34%; top:4%; width:8px; height:12px; background:#3DE26B; transform:rotate(-60deg); border-radius:2px;"></div>
+            </sc-if>
+            <div style="position:absolute; bottom:8px; left:0; right:0; text-align:center; font-size:12px; font-weight:700; color:#C9D6C9;">{{ b.score }}</div>
+          </div>
+          <div style="font-size:12px; color:#9DB3A0; line-height:1.5;"><b style="color:#EDF5EC;">{{ b.niveau }}</b> — {{ b.desc }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- FUSIONS -->
+  <div style="display:flex; gap:30px;">
+    <div style="flex:1; background:#0A160D; border:1px solid #1E3A24; border-radius:18px; padding:24px; display:flex; flex-direction:column; gap:14px;">
+      <div style="font-family:'Passion One'; font-size:22px;">FUSION ★★ <span style="font-size:12px; font-family:'Archivo'; color:#9DB3A0;">— l'éclat vert, 4 keyframes (~0,9 s)</span></div>
+      <div style="display:flex; gap:14px; align-items:center; background:#081209; border-radius:12px; padding:18px 14px;">
+        <sc-for list="{{ fusion2 }}" as="k" hint-placeholder-count="4">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px;">
+            <div style="position:relative; width:110px; height:70px;">
+              <sc-if value="{{ k.deux }}" hint-placeholder-val="{{ false }}"><div style="position:absolute; left:0; top:6px; width:64px; height:42px; border-radius:7px; border:2px solid #98A79D; background:linear-gradient(160deg,#17301D,#0C1B10); transform:rotate(-7deg);"></div><div style="position:absolute; right:0; top:6px; width:64px; height:42px; border-radius:7px; border:2px solid #98A79D; background:linear-gradient(160deg,#17301D,#0C1B10); transform:rotate(7deg);"></div></sc-if>
+              <sc-if value="{{ k.eclair }}" hint-placeholder-val="{{ false }}"><div style="position:absolute; left:50%; top:50%; width:80px; height:80px; margin:-40px; border-radius:50%; background:radial-gradient(circle, rgba(61,226,107,0.9), rgba(61,226,107,0) 70%);"></div><div style="position:absolute; left:50%; top:50%; width:100px; height:3px; margin:-1.5px -50px; background:#B4FFC8; transform:rotate(30deg);"></div><div style="position:absolute; left:50%; top:50%; width:100px; height:3px; margin:-1.5px -50px; background:#B4FFC8; transform:rotate(-30deg);"></div></sc-if>
+              <sc-if value="{{ k.une }}" hint-placeholder-val="{{ false }}"><div style="position:absolute; left:50%; top:50%; width:70px; height:46px; margin:-23px -35px; border-radius:8px; border:2px solid #3E9BE0; background:linear-gradient(160deg,#17301D,#0C1B10); box-shadow:{{ k.glow }};"><sc-if value="{{ k.etoiles }}" hint-placeholder-val="{{ false }}"><div style="position:absolute; top:-13px; left:50%; transform:translateX(-50%); color:#F2C14E; font-size:12px; text-shadow:0 0 8px rgba(242,193,78,0.9);">★★</div></sc-if></div></sc-if>
+            </div>
+            <div style="font-size:11px; color:#9DB3A0; text-align:center; line-height:1.4;"><b style="color:#3DE26B;">{{ k.t }}</b><br>{{ k.desc }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="flex:1; background:#0A160D; border:1px solid #1E3A24; border-radius:18px; padding:24px; display:flex; flex-direction:column; gap:14px;">
+      <div style="font-family:'Passion One'; font-size:22px;">EXPLOSION ★★★ <span style="font-size:12px; font-family:'Archivo'; color:#9DB3A0;">— l'or, 4 keyframes (~1,6 s) : le seul moment où l'écran s'arrête</span></div>
+      <div style="display:flex; gap:14px; align-items:center; background:#081209; border-radius:12px; padding:18px 14px;">
+        <sc-for list="{{ fusion3 }}" as="k" hint-placeholder-count="4">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px;">
+            <div style="position:relative; width:110px; height:70px;">
+              <sc-if value="{{ k.rayons }}" hint-placeholder-val="{{ false }}"><div style="position:absolute; left:50%; top:50%; width:130px; height:130px; margin:-65px; background:conic-gradient(from 0deg, rgba(242,193,78,0.4) 0deg 14deg, transparent 14deg 36deg, rgba(242,193,78,0.4) 36deg 50deg, transparent 50deg 72deg, rgba(242,193,78,0.4) 72deg 86deg, transparent 86deg 108deg, rgba(242,193,78,0.4) 108deg 122deg, transparent 122deg 144deg, rgba(242,193,78,0.4) 144deg 158deg, transparent 158deg 180deg, rgba(242,193,78,0.4) 180deg 194deg, transparent 194deg 216deg, rgba(242,193,78,0.4) 216deg 230deg, transparent 230deg 252deg, rgba(242,193,78,0.4) 252deg 266deg, transparent 266deg 288deg, rgba(242,193,78,0.4) 288deg 302deg, transparent 302deg 324deg, rgba(242,193,78,0.4) 324deg 338deg, transparent 338deg 360deg); border-radius:50%; animation:tourneRayons 8s linear infinite;"></div></sc-if>
+              <sc-if value="{{ k.flash }}" hint-placeholder-val="{{ false }}"><div style="position:absolute; left:50%; top:50%; width:110px; height:110px; margin:-55px; border-radius:50%; background:radial-gradient(circle, rgba(248,222,142,0.95), rgba(242,193,78,0) 70%);"></div></sc-if>
+              <sc-if value="{{ k.une }}" hint-placeholder-val="{{ false }}"><div style="position:absolute; left:50%; top:50%; width:70px; height:46px; margin:-23px -35px; border-radius:8px; border:2px solid #F2C14E; background:linear-gradient(160deg,#1F1C10,#0C1B10); box-shadow:{{ k.glow }}; transform:scale({{ k.echelle }});"><sc-if value="{{ k.etoiles }}" hint-placeholder-val="{{ false }}"><div style="position:absolute; top:-13px; left:50%; transform:translateX(-50%); color:#F2C14E; font-size:12px; text-shadow:0 0 10px rgba(242,193,78,1);">★★★</div></sc-if></div></sc-if>
+              <sc-if value="{{ k.trois }}" hint-placeholder-val="{{ false }}"><div style="position:absolute; left:-2px; top:12px; width:52px; height:34px; border-radius:6px; border:2px solid #3E9BE0; background:#0C1B10; transform:rotate(-9deg);"></div><div style="position:absolute; left:30px; top:6px; width:52px; height:34px; border-radius:6px; border:2px solid #3E9BE0; background:#0C1B10;"></div><div style="position:absolute; right:-2px; top:12px; width:52px; height:34px; border-radius:6px; border:2px solid #3E9BE0; background:#0C1B10; transform:rotate(9deg);"></div></sc-if>
+            </div>
+            <div style="font-size:11px; color:#9DB3A0; text-align:center; line-height:1.4;"><b style="color:#F2C14E;">{{ k.t }}</b><br>{{ k.desc }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <!-- PALIER + ARRIVÉES + QUÊTE -->
+  <div style="display:flex; gap:30px;">
+    <div style="flex:1; background:#0A160D; border:1px solid #1E3A24; border-radius:18px; padding:24px; display:flex; flex-direction:column; gap:14px;">
+      <div style="font-family:'Passion One'; font-size:22px;">PALIER DE SYNERGIE QUI S'ALLUME</div>
+      <div style="display:flex; gap:14px; align-items:center; background:#081209; border-radius:12px; padding:18px 14px;">
+        <sc-for list="{{ palier }}" as="k" hint-placeholder-count="3">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:8px;">
+            <div style="display:flex; align-items:center; gap:6px; background:rgba(6,13,8,0.9); border-radius:9px; padding:6px 8px; border:1.5px solid {{ k.bord }}; box-shadow:{{ k.glow }};">
+              <div style="width:26px; height:26px; border-radius:50%; background:#17301D; display:flex; align-items:center; justify-content:center; box-shadow:{{ k.ecussonGlow }};"><svg width="17" height="17" viewBox="0 0 48 48" style="opacity:{{ k.op }};"><use href="#ec-rue"></use></svg></div>
+              <div style="font-size:11px; font-weight:700; color:{{ k.couleur }}; line-height:1.2;">Rue<br><span style="color:#9DB3A0;">{{ k.compte }}</span></div>
+            </div>
+            <div style="font-size:11px; color:#9DB3A0; text-align:center; line-height:1.4;"><b style="color:#3DE26B;">{{ k.t }}</b><br>{{ k.desc }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="font-size:12px; color:#9DB3A0; line-height:1.5;">Le badge gonfle (scale 1,25), l'écusson s'embrase, une onde verte traverse la colonne — puis bannière « PALIER 5 » en balayage. Rien ne bouge de place : le layout est stable, seule la lumière change.</div>
+    </div>
+    <div style="flex:1.4; background:#0A160D; border:1px solid #1E3A24; border-radius:18px; padding:24px; display:flex; flex-direction:column; gap:14px;">
+      <div style="font-family:'Passion One'; font-size:22px;">ARRIVÉES — UNIQUE ✦ &amp; ICÔNE</div>
+      <div style="display:flex; gap:16px;">
+        <div style="flex:1; position:relative; height:190px; border-radius:12px; overflow:hidden; background:radial-gradient(ellipse at 50% 120%, #123A1C, #081209 80%); display:flex; align-items:center; justify-content:center;">
+          <div style="position:absolute; top:0; bottom:0; left:46%; width:56px; background:linear-gradient(180deg, rgba(180,220,255,0.16), rgba(180,220,255,0)); filter:blur(4px);"></div>
+          <div style="position:relative; width:130px; height:82px; border-radius:9px; border:2.5px solid #F2C14E; background:linear-gradient(160deg,#17301D,#0C1B10); box-shadow:0 0 22px rgba(242,193,78,0.4); padding:6px 8px;">
+            <div style="position:absolute; top:-11px; left:10px; color:#F2C14E; font-size:15px; text-shadow:0 0 8px rgba(242,193,78,0.9);">✦</div>
+            <div style="font-family:'Passion One'; font-size:15px; transform:skewX(-6deg);">MALANDRO</div>
+            <div style="font-size:10px; font-weight:700; font-style:italic; color:#F2C14E;">O Rei da Rua</div>
+            <div style="font-size:10px; color:#9DB3A0; margin-top:4px;">seul exemplaire de la partie</div>
+          </div>
+          <div style="position:absolute; bottom:8px; left:0; right:0; text-align:center; font-size:11px; color:#9DB3A0;">Unique : projecteur froid + trait ✦ qui scintille 2×</div>
+        </div>
+        <div style="flex:1; position:relative; height:190px; border-radius:12px; overflow:hidden; background:radial-gradient(ellipse at 50% 120%, #1F1C10, #081209 80%); display:flex; align-items:center; justify-content:center;">
+          <div style="position:absolute; left:50%; top:50%; width:300px; height:300px; margin:-150px; background:conic-gradient(from 0deg, rgba(242,193,78,0.3) 0deg 12deg, transparent 12deg 32deg, rgba(242,193,78,0.3) 32deg 44deg, transparent 44deg 64deg, rgba(242,193,78,0.3) 64deg 76deg, transparent 76deg 96deg, rgba(242,193,78,0.3) 96deg 108deg, transparent 108deg 128deg, rgba(242,193,78,0.3) 128deg 140deg, transparent 140deg 160deg, rgba(242,193,78,0.3) 160deg 172deg, transparent 172deg 192deg, rgba(242,193,78,0.3) 192deg 204deg, transparent 204deg 224deg, rgba(242,193,78,0.3) 224deg 236deg, transparent 236deg 256deg, rgba(242,193,78,0.3) 256deg 268deg, transparent 268deg 288deg, rgba(242,193,78,0.3) 288deg 300deg, transparent 300deg 320deg, rgba(242,193,78,0.3) 320deg 332deg, transparent 332deg 352deg, rgba(242,193,78,0.3) 352deg 360deg); border-radius:50%; animation:tourneRayons 12s linear infinite;"></div>
+          <div style="position:relative; width:130px; height:82px; border-radius:9px; border:2.5px solid #F2C14E; background:linear-gradient(160deg,#1F1C10,#0C1B10); box-shadow:0 0 0 2.5px #F2C14E, 0 0 34px rgba(242,193,78,0.65); padding:6px 8px;">
+            <div style="position:absolute; top:-9px; left:8px; background:#F2C14E; color:#1A1405; font-weight:800; font-size:10px; padding:1px 7px; border-radius:999px;">ICÔNE</div>
+            <div style="font-family:'Passion One'; font-size:15px; transform:skewX(-6deg); margin-top:6px;">LE FIDÈLE</div>
+            <div style="font-size:10px; color:#9DB3A0; margin-top:2px;">15 ans au club, le public l'adore</div>
+          </div>
+          <div style="position:absolute; bottom:8px; left:0; right:0; text-align:center; font-size:11px; color:#F2C14E;">Icône : rayons tournants + pluie d'étincelles dorées</div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; background:#081209; border-radius:12px; padding:12px 16px;">
+        <div style="width:40px; height:40px; border-radius:50%; background:radial-gradient(circle at 32% 28%, #F8DE8E, #C98F1B); display:flex; align-items:center; justify-content:center; box-shadow:0 0 18px rgba(242,193,78,0.6);"><svg width="20" height="24" viewBox="0 0 34 40"><path d="M17 2 C26 12 30 18 17 27 C4 18 8 12 17 2 Z" fill="#E8503F"></path><path d="M17 12 C22 18 23 21 17 26 C11 21 12 18 17 12 Z" fill="#F2C14E"></path><rect x="10" y="27" width="14" height="9" rx="4.5" fill="#E8503F"></rect></svg></div>
+        <div style="flex:1;">
+          <div style="font-weight:800; font-size:14px; color:#F2C14E;">QUÊTE ACCOMPLIE — « 10 dribbles en une manche »</div>
+          <div style="font-size:12px; color:#9DB3A0;">La jauge de Ferveur se remplit d'un trait de flamme, le picto 🔥 fait un tour sur lui-même, +40 Ferveur compté en tic-tic-tic.</div>
+        </div>
+        <div style="font-weight:800; font-size:18px; font-variant-numeric:tabular-nums; color:#E8503F;">+40 🔥</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="background:#0A160D; border:1px solid #1E3A24; border-radius:18px; padding:20px 24px; font-size:12px; color:#9DB3A0; line-height:1.7; max-width:1400px;">
+    <b style="color:#EDF5EC;">Règles de mise en scène (pour le code) :</b> tout FX est du CSS pur (transform, opacity, box-shadow, conic-gradient) — jamais de bitmap. Une célébration ne déplace jamais un composant : la lumière s'empile sur le layout stable. Durées : but 0,6–2,5 s selon l'enjeu · fusion ★★ 0,9 s · explosion ★★★ 1,6 s · palier 1,2 s · arrivées 2 s. L'or n'entre en scène que pour ★★★, coût 5, Icônes et trophées — sans exception.
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      buts: [
+        { niveau:'But ordinaire', mot:'BUT !', taille:'44px', couleur:'#EDF5EC', halo:'0px', haloCouleur:'transparent', flash:'none', rayons:false, confettis:false, score:'manche 2 · 1-0', desc:'stamp du mot 0,6 s + flash blanc 80 ms sur le terrain. Discret, le jeu continue.' },
+        { niveau:'But qui fait basculer la manche', mot:'BUUUT !', taille:'62px', couleur:'#3DE26B', halo:'26px', haloCouleur:'rgba(61,226,107,0.7)', flash:'radial-gradient(ellipse at 50% 55%, rgba(61,226,107,0.14), transparent 60%)', rayons:false, confettis:false, score:'manche 5 · 2-2 → 3-2', desc:'le mot grossit, onde verte, tremblement de caméra 120 ms.' },
+        { niveau:'But de légende (finale, Icône)', mot:'LÉGENDE !', taille:'62px', couleur:'#F2C14E', halo:'34px', haloCouleur:'rgba(242,193,78,0.8)', flash:'radial-gradient(ellipse at 50% 55%, rgba(242,193,78,0.16), transparent 60%)', rayons:true, confettis:true, score:'finale · le but du titre', desc:'rayons or tournants, confettis aux couleurs du club, ralenti 0,3×, 2,5 s.' }
+      ],
+      fusion2: [
+        { t:'K1 · 0 ms', desc:'les 2 copies glissent l\u2019une vers l\u2019autre', deux:true, eclair:false, une:false, etoiles:false, glow:'none' },
+        { t:'K2 · 300 ms', desc:'impact : éclair vert en croix', deux:false, eclair:true, une:false, etoiles:false, glow:'none' },
+        { t:'K3 · 450 ms', desc:'la carte fusionnée naît, éclat max', deux:false, eclair:false, une:true, etoiles:true, glow:'0 0 0 3px #3DE26B, 0 0 34px rgba(61,226,107,0.9)' },
+        { t:'K4 · 900 ms', desc:'retombée : lueur verte résiduelle', deux:false, eclair:false, une:true, etoiles:true, glow:'0 0 0 2px #3DE26B, 0 0 14px rgba(61,226,107,0.45)' }
+      ],
+      fusion3: [
+        { t:'K1 · 0 ms', desc:'les 3 cartes ★★ convergent', trois:true, flash:false, rayons:false, une:false, etoiles:false, glow:'none', echelle:'1' },
+        { t:'K2 · 400 ms', desc:'flash or plein cadre (l\u2019écran respire)', trois:false, flash:true, rayons:false, une:false, etoiles:false, glow:'none', echelle:'1' },
+        { t:'K3 · 700 ms', desc:'la ★★★ naît sous les rayons, scale 1,15', trois:false, flash:false, rayons:true, une:true, etoiles:true, glow:'0 0 0 3px #F2C14E, 0 0 40px rgba(242,193,78,0.9)', echelle:'1.15' },
+        { t:'K4 · 1600 ms', desc:'retombée : halo or permanent de la ★★★', trois:false, flash:false, rayons:false, une:true, etoiles:true, glow:'0 0 0 2px #F2C14E, 0 0 18px rgba(242,193,78,0.5)', echelle:'1' }
+      ],
+      palier: [
+        { t:'K1 — éteint', desc:'4/5 · ✨ encore 1', bord:'#1E3A24', glow:'none', ecussonGlow:'none', op:'0.4', couleur:'#9DB3A0', compte:'4/5 ✨' },
+        { t:'K2 — allumage', desc:'le 5ᵉ arrive : badge scale 1,25, embrasement', bord:'#3DE26B', glow:'0 0 26px rgba(61,226,107,0.8)', ecussonGlow:'0 0 0 2px #3DE26B, 0 0 16px rgba(61,226,107,0.9)', op:'1', couleur:'#3DE26B', compte:'5/5 !' },
+        { t:'K3 — régime', desc:'état actif permanent, lueur calme', bord:'#3DE26B', glow:'none', ecussonGlow:'0 0 0 1.5px #3DE26B, 0 0 10px rgba(61,226,107,0.5)', op:'1', couleur:'#3DE26B', compte:'5/5' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Passion+One:wght@400;700;900&family=Archivo:ital,wght@0,400;0,600;0,700;0,800;1,400;1,700&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#060D08; color:#EDF5EC; font-family:'Archivo',sans-serif; }
+a { color:#3DE26B; } a:hover { color:#F2C14E; }
+@keyframes pulseFusion { 0%,100% { box-shadow:0 0 0 2px #3DE26B, 0 0 14px 3px rgba(61,226,107,0.45);} 50% { box-shadow:0 0 0 2px #3DE26B, 0 0 24px 7px rgba(61,226,107,0.75);} }
+@keyframes urgence { 0%,100% { background:#E8503F; } 50% { background:#FF7A5C; } }
+@keyframes anneauEnergie { 0%,100% { box-shadow:0 0 0 2px #FDF8EA, 0 0 10px rgba(253,248,234,0.7);} 50% { box-shadow:0 0 0 3px #FDF8EA, 0 0 18px rgba(253,248,234,1);} }
+@keyframes haloTuto { 0%,100% { box-shadow:0 0 0 3px rgba(242,193,78,0.9), 0 0 0 10px rgba(242,193,78,0);} 50% { box-shadow:0 0 0 3px rgba(242,193,78,0.9), 0 0 0 10px rgba(242,193,78,0.35);} }
+</style>
+</helmet>
+<section style="display:flex; flex-direction:column; gap:30px; padding:44px; min-width:2900px;">
+  <svg width="0" height="0" style="position:absolute;">
+    <defs>
+      <symbol id="ec-rue" viewBox="0 0 48 48"><path d="M24 3 L45 24 L24 45 L3 24 Z" fill="#FDF8EA"></path><path d="M24 11 L37 24 L24 37 L11 24 Z" fill="#0A160D"></path><circle cx="24" cy="24" r="6" fill="#FDF8EA"></circle></symbol>
+      <symbol id="ec-virt" viewBox="0 0 48 48"><path d="M24 3 L29 19 L45 24 L29 29 L24 45 L19 29 L3 24 L19 19 Z" fill="#FDF8EA"></path><circle cx="38" cy="9" r="3.5" fill="#F2C14E"></circle></symbol>
+      <symbol id="ec-grinta" viewBox="0 0 48 48"><path d="M7 10 L16 40 L23 16 Z" fill="#FDF8EA"></path><path d="M25 16 L32 40 L41 10 Z" fill="#FDF8EA"></path></symbol>
+      <symbol id="ec-tiki" viewBox="0 0 48 48"><line x1="24" y1="11" x2="11" y2="36" stroke="#FDF8EA" stroke-width="4"></line><line x1="24" y1="11" x2="37" y2="36" stroke="#FDF8EA" stroke-width="4"></line><line x1="11" y1="36" x2="37" y2="36" stroke="#FDF8EA" stroke-width="4"></line><circle cx="24" cy="10" r="6.5" fill="#FDF8EA" stroke="#0A160D" stroke-width="2.5"></circle><circle cx="10" cy="37" r="6.5" fill="#FDF8EA" stroke="#0A160D" stroke-width="2.5"></circle><circle cx="38" cy="37" r="6.5" fill="#FDF8EA" stroke="#0A160D" stroke-width="2.5"></circle></symbol>
+      <symbol id="ec-renard" viewBox="0 0 48 48"><path d="M8 6 L19 17 L7 21 Z" fill="#FDF8EA"></path><path d="M40 6 L29 17 L41 21 Z" fill="#FDF8EA"></path><path d="M7 19 L41 19 L24 44 Z" fill="#FDF8EA"></path><circle cx="17" cy="24" r="2.5" fill="#0A160D"></circle><circle cx="31" cy="24" r="2.5" fill="#0A160D"></circle></symbol>
+    </defs>
+  </svg>
+  <div style="display:flex; align-items:baseline; gap:16px;">
+    <div style="font-family:'Passion One'; font-size:34px; color:#F2C14E; letter-spacing:1px; transform:skewX(-6deg);">ONZE · LOT 4 — L'INTERFACE</div>
+    <div style="font-size:14px; color:#9DB3A0;">écran maître 844×390 (carte <a href="#1a">1a</a> validée) · panneaux via Tweaks · vocabulaire d'interaction · satellites</div>
+  </div>
+
+  <!-- ═══ ÉCRAN MAÎTRE ═══ -->
+  <div style="display:flex; gap:30px; align-items:flex-start;">
+    <div style="background:#0A160D; border:1px solid #1E3A24; border-radius:18px; padding:24px; display:flex; flex-direction:column; gap:12px;">
+      <div style="font-family:'Passion One'; font-size:22px;">L'ÉCRAN DE JEU MAÎTRE <span style="font-size:12px; font-family:'Archivo'; color:#9DB3A0;">— 844×390 réels · panneau &amp; boutique dans les Tweaks →</span></div>
+      <div style="position:relative; width:844px; height:390px; border-radius:14px; overflow:hidden; background:radial-gradient(ellipse 130% 100% at 50% 120%, #123A1C 0%, #0A1F10 55%, #060D08 100%); flex:0 0 auto; box-shadow:0 12px 40px rgba(0,0,0,0.6);">
+        <!-- bandeau haut -->
+        <div style="position:absolute; top:0; left:0; right:0; height:32px; display:flex; align-items:center; gap:10px; padding:0 10px; background:rgba(6,13,8,0.85);">
+          <div style="display:flex; gap:5px; align-items:center;">
+            <sc-for list="{{ manches }}" as="m" hint-placeholder-count="7">
+              <div style="width:{{ m.taille }}; height:{{ m.taille }}; border-radius:50%; background:{{ m.fond }}; border:1.5px solid {{ m.bord }}; display:flex; align-items:center; justify-content:center; font-size:10px; opacity:{{ m.opacite }}; box-shadow:{{ m.glow }};">{{ m.ico }}</div>
+            </sc-for>
+          </div>
+          <div style="flex:1; height:8px; border-radius:4px; background:#0E1F12; overflow:hidden;"><div style="width:{{ chronoLargeur }}; height:100%; border-radius:4px; background:{{ chronoFond }}; animation:{{ chronoAnim }};"></div></div>
+          <div style="font-weight:800; font-size:13px; font-variant-numeric:tabular-nums; color:{{ chronoTexte }};">{{ chronoVal }}</div>
+        </div>
+        <!-- colonne gauche -->
+        <div style="position:absolute; top:38px; left:8px; width:118px; display:flex; flex-direction:column; gap:4px;">
+          <sc-for list="{{ synergies }}" as="s" hint-placeholder-count="3">
+            <div style="display:flex; align-items:center; gap:6px; background:rgba(6,13,8,0.8); border-radius:8px; padding:4px 6px; border:1px solid {{ s.bord }};">
+              <div style="width:22px; height:22px; border-radius:50%; background:#17301D; display:flex; align-items:center; justify-content:center; box-shadow:{{ s.glow }};"><svg width="14" height="14" viewBox="0 0 48 48" style="opacity:{{ s.op }};"><use href="#{{ s.ec }}"></use></svg></div>
+              <div style="flex:1; font-size:10px; font-weight:700; color:{{ s.couleur }}; line-height:1.15;">{{ s.nom }}<br><span style="color:#9DB3A0;">{{ s.compte }}</span></div>
+            </div>
+          </sc-for>
+          <div style="background:rgba(6,13,8,0.8); border-radius:8px; padding:4px 6px; border:1px solid #1E3A24;">
+            <div style="font-size:10px; font-weight:800; color:#9DB3A0; letter-spacing:1px; margin-bottom:2px;">ADN DU CLUB</div>
+            <sc-for list="{{ adn }}" as="b" hint-placeholder-count="6">
+              <div style="display:flex; align-items:center; gap:4px; padding:0;"><span style="width:24px; font-size:10px; font-weight:700; color:#9DB3A0;">{{ b.nom }}</span><div style="flex:1; height:5px; background:#0E1F12; border-radius:3px; overflow:hidden;"><div style="width:{{ b.largeur }}; height:100%; background:{{ b.couleur }};"></div></div></div>
+            </sc-for>
+          </div>
+          <div style="display:flex; gap:5px;">
+            <div style="flex:1; height:20px; border-radius:6px; background:#0E1F12; border:1px solid #1E3A24; font-size:10px; font-weight:700; color:#C9D6C9; display:flex; align-items:center; justify-content:center;">STAFF</div>
+            <div style="flex:1; height:20px; border-radius:6px; background:#0E1F12; border:1px solid #1E3A24; font-size:10px; font-weight:700; color:#C9D6C9; display:flex; align-items:center; justify-content:center;">QUÊTES</div>
+          </div>
+        </div>
+        <!-- terrain -->
+        <div style="position:absolute; top:38px; left:134px; right:122px; height:{{ terrainHauteur }}; border-radius:10px; background:repeating-linear-gradient(90deg, #135223 0 42px, #0F461D 42px 84px); box-shadow:inset 0 0 30px rgba(0,0,0,0.5), 0 0 24px rgba(61,226,107,0.15); overflow:hidden;">
+          <div style="position:absolute; inset:6px; border:1.5px solid rgba(180,255,200,0.5); border-radius:6px;"></div>
+          <div style="position:absolute; top:6px; bottom:6px; left:50%; width:1.5px; background:rgba(180,255,200,0.5);"></div>
+          <div style="position:absolute; top:50%; left:50%; width:56px; height:56px; border:1.5px solid rgba(180,255,200,0.5); border-radius:50%; transform:translate(-50%,-50%);"></div>
+          <div style="position:absolute; top:50%; left:6px; width:34px; height:80px; border:1.5px solid rgba(180,255,200,0.5); border-left:none; transform:translateY(-50%);"></div>
+          <div style="position:absolute; top:50%; right:6px; width:34px; height:80px; border:1.5px solid rgba(180,255,200,0.5); border-right:none; transform:translateY(-50%);"></div>
+          <sc-for list="{{ pions }}" as="p" hint-placeholder-count="8">
+            <div style="position:absolute; left:{{ p.x }}; top:{{ p.y }}; width:34px; height:34px; border-radius:50%; background:{{ p.fond }}; box-shadow:{{ p.ombre }}; animation:{{ p.anim }}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px; color:{{ p.texte }};">{{ p.ini }}<sc-if value="{{ p.etoiles }}" hint-placeholder-val="{{ false }}"><span style="position:absolute; top:-10px; left:50%; transform:translateX(-50%); color:#F2C14E; font-size:9px; text-shadow:0 0 5px rgba(242,193,78,0.9);">{{ p.etoiles }}</span></sc-if></div>
+          </sc-for>
+        </div>
+        <!-- colonne droite -->
+        <div style="position:absolute; top:38px; right:8px; width:108px; display:flex; flex-direction:column; gap:3px; background:rgba(6,13,8,0.8); border-radius:8px; padding:5px 6px; border:1px solid #1E3A24;">
+          <div style="font-size:10px; font-weight:800; color:#9DB3A0; letter-spacing:1px;">PRESTIGE</div>
+          <sc-for list="{{ clubs }}" as="c" hint-placeholder-count="8">
+            <div style="display:flex; align-items:center; gap:4px;"><span style="width:34px; font-size:10px; font-weight:700; color:{{ c.couleurNom }}; white-space:nowrap; overflow:hidden;">{{ c.nom }}</span><div style="flex:1; height:7px; background:#0E1F12; border-radius:4px; overflow:hidden;"><div style="width:{{ c.pv }}; height:100%; border-radius:4px; background:{{ c.couleur }};"></div></div><span style="font-size:10px; width:12px; text-align:right;">{{ c.marque }}</span></div>
+          </sc-for>
+        </div>
+        <!-- banc -->
+        <div style="position:absolute; left:134px; right:122px; top:{{ bancTop }}; height:40px; display:flex; gap:4px;">
+          <sc-for list="{{ banc }}" as="b" hint-placeholder-count="9">
+            <div style="flex:1; border-radius:6px; border:{{ b.bord }}; background:{{ b.fond }}; padding:2px 4px; overflow:hidden;">
+              <sc-if value="{{ b.nom }}" hint-placeholder-val="{{ true }}">
+                <div style="font-family:'Passion One'; font-size:10px; transform:skewX(-6deg); white-space:nowrap;">{{ b.nom }}</div>
+                <div style="display:flex; align-items:center; gap:2px;"><div style="width:9px; height:9px; border-radius:2px; background:{{ b.posteCouleur }}; font-size:8px; font-weight:800; color:#060D08; display:flex; align-items:center; justify-content:center; line-height:1;">{{ b.poste }}</div><span style="font-size:9px; font-weight:800;">{{ b.note }}</span><span style="color:#F2C14E; font-size:8px; margin-left:auto;">{{ b.etoiles }}</span></div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <!-- boutique -->
+        <sc-if value="{{ boutiqueOuverte }}" hint-placeholder-val="{{ true }}">
+          <div style="position:absolute; left:0; right:0; bottom:0; height:112px; background:rgba(6,13,8,0.92); border-top:1.5px solid #1E3A24; display:flex; align-items:center; gap:8px; padding:0 10px;">
+            <div style="display:flex; flex-direction:column; gap:5px; width:74px;">
+              <div style="display:flex; align-items:center; gap:4px;"><div style="width:20px; height:20px; border-radius:50%; background:radial-gradient(circle at 32% 28%, #F8DE8E, #C98F1B); color:#1A1405; font-weight:800; font-size:10px; display:flex; align-items:center; justify-content:center;">M</div><span style="font-weight:800; font-size:15px; font-variant-numeric:tabular-nums; color:#F2C14E;">12</span></div>
+              <div style="font-size:10px; color:#9DB3A0;">niv 6 · 24/36 xp</div>
+              <div style="height:5px; background:#0E1F12; border-radius:3px; overflow:hidden;"><div style="width:66%; height:100%; background:#3E9BE0;"></div></div>
+              <div style="font-size:9px; color:#5F7A64;">30·35·25·10·0</div>
+            </div>
+            <sc-for list="{{ boutique }}" as="c" hint-placeholder-count="5">
+              <div style="position:relative; width:118px; height:86px; border-radius:9px; border:2px solid {{ c.cadre }}; background:linear-gradient(160deg,#17301D,#0C1B10); box-shadow:{{ c.glow }}; animation:{{ c.anim }}; filter:{{ c.filtre }}; padding:5px 6px; flex:0 0 auto;">
+                <div style="position:absolute; top:-6px; right:8px; width:13px; height:13px; transform:rotate(45deg); background:{{ c.cadre }}; border-radius:2px;"></div>
+                <div style="position:absolute; top:-5px; right:9px; width:11px; text-align:center; font-weight:800; font-size:9px; color:#0A160D;">{{ c.cout }}</div>
+                <sc-if value="{{ c.etoiles }}" hint-placeholder-val="{{ false }}"><div style="position:absolute; top:-9px; left:50%; transform:translateX(-50%); color:#F2C14E; font-size:10px; text-shadow:0 0 6px rgba(242,193,78,0.9);">{{ c.etoiles }}</div></sc-if>
+                <div style="display:flex; align-items:center; gap:4px;">
+                  <div style="width:15px; height:17px; clip-path:polygon(0 0, 100% 0, 100% 68%, 50% 100%, 0 68%); background:#060D08; border-top:2px solid {{ c.cadre }}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:9px;">{{ c.note }}</div>
+                  <div style="flex:1; font-family:'Passion One'; font-size:12px; transform:skewX(-6deg); white-space:nowrap; overflow:hidden;">{{ c.nom }}</div>
+                  <div style="width:13px; height:13px; border-radius:3px; background:{{ c.posteCouleur }}; color:#060D08; font-weight:800; font-size:9px; display:flex; align-items:center; justify-content:center;">{{ c.poste }}</div>
+                </div>
+                <div style="font-size:9px; font-weight:700; color:#9CC4EF; margin-top:2px;">{{ c.stats }}</div>
+                <div style="position:absolute; bottom:5px; left:6px; right:6px; display:flex; align-items:center; justify-content:space-between;">
+                  <div style="display:flex; gap:3px;">
+                    <div style="width:13px; height:13px; border-radius:50%; background:#060D08; border:1px solid #3A5A40; display:flex; align-items:center; justify-content:center;"><svg width="9" height="9" viewBox="0 0 48 48"><use href="#{{ c.ec1 }}"></use></svg></div>
+                    <div style="width:13px; height:13px; border-radius:50%; background:#060D08; border:1px solid #3A5A40; display:flex; align-items:center; justify-content:center;"><svg width="9" height="9" viewBox="0 0 48 48"><use href="#{{ c.ec2 }}"></use></svg></div>
+                  </div>
+                  <div style="min-width:34px; height:16px; border-radius:5px; background:{{ c.prixFond }}; color:#060D08; font-weight:800; font-size:10px; display:flex; align-items:center; justify-content:center;">{{ c.prix }}</div>
+                </div>
+              </div>
+            </sc-for>
+            <div style="display:flex; flex-direction:column; gap:4px; margin-left:auto;">
+              <div style="width:56px; height:26px; border-radius:7px; background:#3DE26B; color:#04240E; font-weight:800; font-size:10px; display:flex; align-items:center; justify-content:center; box-shadow:inset 0 -3px 0 rgba(0,0,0,0.25);">↻ 2M</div>
+              <div style="width:56px; height:26px; border-radius:7px; background:#0E1F12; border:1px solid #3A5A40; color:#C9D6C9; font-weight:800; font-size:10px; display:flex; align-items:center; justify-content:center;">🔒</div>
+              <div style="width:56px; height:26px; border-radius:7px; background:#3E9BE0; color:#04121F; font-weight:800; font-size:10px; display:flex; align-items:center; justify-content:center;">XP 4M</div>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ boutiqueRepliee }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute; left:0; right:0; bottom:0; height:34px; background:rgba(6,13,8,0.92); border-top:1.5px solid #1E3A24; display:flex; align-items:center; gap:10px; padding:0 12px;">
+            <div style="display:flex; align-items:center; gap:4px;"><div style="width:18px; height:18px; border-radius:50%; background:radial-gradient(circle at 32% 28%, #F8DE8E, #C98F1B); color:#1A1405; font-weight:800; font-size:10px; display:flex; align-items:center; justify-content:center;">M</div><span style="font-weight:800; font-size:14px; color:#F2C14E;">12</span></div>
+            <div style="flex:1;"></div>
+            <div style="height:24px; border-radius:7px; background:#3DE26B; color:#04240E; font-weight:800; font-size:10px; display:flex; align-items:center; justify-content:center; padding:0 12px;">▲ BOUTIQUE</div>
+          </div>
+        </sc-if>
+        <!-- panneau -->
+        <sc-if value="{{ panneauVisible }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute; inset:0; background:rgba(4,9,5,0.72); display:flex; align-items:center; justify-content:center;">
+            <div style="width:520px; max-height:340px; border-radius:16px; border:2px solid {{ panneauBord }}; background:linear-gradient(165deg,#152A19,#0A160D); box-shadow:0 20px 60px rgba(0,0,0,0.7); display:flex; flex-direction:column; overflow:hidden;">
+              <div style="display:flex; align-items:center; gap:10px; padding:12px 16px; background:rgba(6,13,8,0.6); border-bottom:1px solid #1E3A24;">
+                <div style="font-family:'Passion One'; font-size:22px; transform:skewX(-6deg); color:#FDF8EA;">{{ panneauTitre }}</div>
+                <div style="font-size:11px; color:#9DB3A0;">{{ panneauSous }}</div>
+                <div style="margin-left:auto; width:30px; height:30px; border-radius:9px; background:#0E1F12; border:1px solid #3A5A40; color:#C9D6C9; font-weight:800; display:flex; align-items:center; justify-content:center;">✕</div>
+              </div>
+              <div style="padding:14px 16px; display:flex; flex-direction:column; gap:8px;">
+                <sc-for list="{{ panneauLignes }}" as="l" hint-placeholder-count="4">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="width:110px; font-size:12px; font-weight:700; color:{{ l.couleurNom }};">{{ l.nom }}</div>
+                    <div style="flex:1; height:9px; background:#060D08; border-radius:5px; overflow:hidden;"><div style="width:{{ l.largeur }}; height:100%; border-radius:5px; background:{{ l.couleur }};"></div></div>
+                    <div style="width:44px; text-align:right; font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; color:{{ l.couleurNom }};">{{ l.val }}</div>
+                  </div>
+                </sc-for>
+                <div style="font-size:12px; font-style:italic; color:#9DB3A0; line-height:1.5; margin-top:2px;">{{ panneauNote }}</div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+      <div style="font-size:12px; color:#9DB3A0; line-height:1.5; max-width:844px;">Chaque info a sa maison : manches+chrono en haut · synergies+ADN à gauche · prestige des 8 clubs à droite · banc 9 places sous le terrain · boutique escamotable en bas. Le panneau (Tweaks) remplace — il ne s'empile pas. Aucun texte sous 10 px réels.</div>
+    </div>
+
+    <!-- vocabulaire -->
+    <div style="width:700px; background:#0A160D; border:1px solid #1E3A24; border-radius:18px; padding:24px; display:flex; flex-direction:column; gap:16px;">
+      <div style="font-family:'Passion One'; font-size:22px;">LE VOCABULAIRE D'INTERACTION</div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <div style="height:44px; border-radius:12px; background:#3DE26B; color:#04240E; font-weight:800; font-size:15px; display:flex; align-items:center; justify-content:center; padding:0 22px; box-shadow:inset 0 -5px 0 rgba(0,0,0,0.25);">COUP D'ENVOI</div>
+        <div style="height:44px; border-radius:12px; background:#0E1F12; border:1.5px solid #3A5A40; color:#C9D6C9; font-weight:800; font-size:15px; display:flex; align-items:center; justify-content:center; padding:0 22px;">SECONDAIRE</div>
+        <div style="height:44px; border-radius:12px; background:#3A1712; border:1.5px solid #E8503F; color:#FF9A8A; font-weight:800; font-size:15px; display:flex; align-items:center; justify-content:center; padding:0 22px;">VENDRE</div>
+        <div style="height:44px; border-radius:12px; background:#0C130D; color:#4A5A4C; font-weight:800; font-size:15px; display:flex; align-items:center; justify-content:center; padding:0 22px;">DÉSACTIVÉ</div>
+      </div>
+      <div style="display:flex; gap:14px;">
+        <div style="flex:1; background:#081209; border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:8px;">
+          <div style="font-size:10px; color:#9DB3A0; letter-spacing:2px;">DRAG &amp; DROP</div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <div style="width:74px; height:48px; border-radius:8px; border:2px solid #3E9BE0; background:linear-gradient(160deg,#17301D,#0C1B10); transform:rotate(-4deg) scale(1.06); box-shadow:0 10px 22px rgba(0,0,0,0.7); padding:3px 6px;"><div style="font-family:'Passion One'; font-size:11px; transform:skewX(-6deg);">NINO</div><div style="font-size:9px; color:#9CC4EF; font-weight:700;">VIT · END</div></div>
+            <div style="width:40px; height:40px; border-radius:50%; border:2.5px dashed #3DE26B; box-shadow:0 0 14px rgba(61,226,107,0.5);"></div>
+            <div style="width:40px; height:40px; border-radius:50%; border:2.5px dashed #3DE26B; opacity:0.5;"></div>
+            <div style="height:36px; border-radius:9px; background:#3A1712; border:1.5px solid #E8503F; color:#FF9A8A; font-weight:800; font-size:11px; display:flex; align-items:center; padding:0 12px;">💰 Vendre Nino — 3M</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;"><div style="width:15px; height:15px; border-radius:4px; background:#3E9BE0; box-shadow:0 0 0 2px #FF9D3C; color:#060D08; font-weight:800; font-size:10px; display:flex; align-items:center; justify-content:center;">D</div><span style="font-size:11px; color:#FF9D3C; font-weight:700;">aperçu du malus hors-poste pendant le geste (−15%)</span></div>
+        </div>
+        <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+          <div style="align-self:flex-start; background:rgba(6,13,8,0.95); border:1px solid #1E3A24; border-radius:999px; padding:6px 14px; font-size:12px; color:#C9D6C9;">⚽ Barrio Bravo 2-0 Aurora FC</div>
+          <div style="align-self:stretch; background:linear-gradient(90deg, rgba(61,226,107,0.18), rgba(61,226,107,0)); border-left:3px solid #3DE26B; padding:8px 14px; font-weight:800; font-size:13px; color:#3DE26B;">FUSION ! Rodrigo passe ★★</div>
+          <div style="align-self:stretch; background:linear-gradient(90deg, rgba(242,193,78,0.18), rgba(242,193,78,0)); border-left:3px solid #F2C14E; padding:8px 14px; font-weight:800; font-size:13px; color:#F2C14E;">ÉCOLE DE LA RUE — PALIER 5 ATTEINT</div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:44px; height:44px; border-radius:12px; background:#3DE26B; animation:haloTuto 1.6s ease infinite;"></div>
+            <div style="background:#FDF8EA; color:#0A160D; border-radius:12px; padding:8px 12px; font-size:12px; font-weight:600; max-width:220px; position:relative;">Appuie ici pour lancer la manche<div style="position:absolute; left:-6px; top:16px; width:12px; height:12px; background:#FDF8EA; transform:rotate(45deg);"></div></div>
+          </div>
+        </div>
+      </div>
+      <div style="border-top:1px solid #1E3A24; padding-top:12px; font-size:12px; color:#9DB3A0; line-height:1.6;">Toasts en pilule discrète (coin haut-droit du terrain, 2,5 s). Bannières en balayage latéral, couleur = sens (vert fusion · or palier/légendaire · bleu calepin). Tout tap ≥ 44 px, même quand le visuel est plus petit.</div>
+    </div>
+  </div>
+
+  <!-- ═══ SATELLITES ═══ -->
+  <div style="background:#0A160D; border:1px solid #1E3A24; border-radius:18px; padding:24px; display:flex; flex-direction:column; gap:14px;">
+    <div style="font-family:'Passion One'; font-size:22px;">LES ÉCRANS SATELLITES <span style="font-size:12px; font-family:'Archivo'; color:#9DB3A0;">— 844×390 · accueil, fin de partie, Philosophie + les petits moments</span></div>
+    <div style="display:flex; gap:20px;">
+      <!-- accueil -->
+      <div style="position:relative; width:844px; height:390px; border-radius:14px; overflow:hidden; background:radial-gradient(ellipse 130% 100% at 50% 120%, #123A1C 0%, #0A1F10 55%, #060D08 100%); flex:0 0 auto;">
+        <div style="position:absolute; top:-60px; left:16%; width:130px; height:480px; background:linear-gradient(180deg, rgba(242,224,160,0.2), rgba(242,224,160,0)); transform:rotate(22deg); filter:blur(6px);"></div>
+        <div style="position:absolute; top:-60px; right:16%; width:130px; height:480px; background:linear-gradient(180deg, rgba(242,224,160,0.2), rgba(242,224,160,0)); transform:rotate(-22deg); filter:blur(6px);"></div>
+        <div style="position:absolute; bottom:0; left:0; right:0; height:60px; background:linear-gradient(180deg, rgba(61,226,107,0), rgba(61,226,107,0.16)); border-top:2px solid rgba(61,226,107,0.3);"></div>
+        <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
+          <div style="transform:rotate(-4deg) skewX(-6deg); display:flex; align-items:center; gap:5px;">
+            <svg width="72" height="72" viewBox="0 0 64 64" style="filter:drop-shadow(0 4px 0 #04240E);"><circle cx="32" cy="32" r="29" fill="#FDF8EA" stroke="#0A160D" stroke-width="5"></circle><polygon points="32,21 42,28.5 38,40.5 26,40.5 22,28.5" fill="#0A160D"></polygon><line x1="32" y1="21" x2="32" y2="7" stroke="#0A160D" stroke-width="4"></line><line x1="42" y1="28.5" x2="54" y2="21" stroke="#0A160D" stroke-width="4"></line><line x1="38" y1="40.5" x2="46" y2="53" stroke="#0A160D" stroke-width="4"></line><line x1="26" y1="40.5" x2="18" y2="53" stroke="#0A160D" stroke-width="4"></line><line x1="22" y1="28.5" x2="10" y2="21" stroke="#0A160D" stroke-width="4"></line></svg>
+            <span style="font-family:'Passion One'; font-weight:900; font-size:82px; line-height:0.9; color:#FDF8EA; text-shadow:0 4px 0 #04240E, 0 8px 20px rgba(0,0,0,0.7);">NZE</span>
+          </div>
+          <div style="width:280px; height:8px; background:linear-gradient(90deg,#F2C14E,#C98F1B); border-radius:999px; box-shadow:0 0 14px rgba(242,193,78,0.6);"></div>
+          <div style="height:52px; border-radius:14px; background:#3DE26B; color:#04240E; font-weight:800; font-size:19px; display:flex; align-items:center; justify-content:center; padding:0 46px; box-shadow:inset 0 -6px 0 rgba(0,0,0,0.25), 0 0 26px rgba(61,226,107,0.4); margin-top:8px;">JOUER</div>
+          <div style="display:flex; gap:12px;">
+            <div style="height:34px; border-radius:9px; background:#0E1F12; border:1px solid #3A5A40; color:#C9D6C9; font-weight:700; font-size:12px; display:flex; align-items:center; padding:0 16px;">⚙ Réglages</div>
+            <div style="height:34px; border-radius:9px; background:#0E1F12; border:1px solid #F2C14E; color:#F2C14E; font-weight:700; font-size:12px; display:flex; align-items:center; padding:0 16px;">🏆 Palmarès</div>
+          </div>
+        </div>
+      </div>
+      <!-- fin de partie -->
+      <div style="position:relative; width:844px; height:390px; border-radius:14px; overflow:hidden; background:radial-gradient(ellipse 130% 100% at 50% 120%, {{ finFond }} 0%, #0A1F10 55%, #060D08 100%); flex:0 0 auto;">
+        <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; padding:26px; gap:12px;">
+          <div style="font-family:'Passion One'; font-weight:900; font-size:56px; transform:skewX(-6deg); color:{{ finCouleur }}; text-shadow:0 4px 0 #04240E, 0 0 34px {{ finGlow }};">{{ finTitre }}</div>
+          <div style="font-size:14px; color:#C9D6C9; margin-top:-8px;">{{ finSous }}</div>
+          <div style="display:flex; gap:20px; align-items:flex-start; margin-top:4px;">
+            <div style="display:flex; flex-direction:column; gap:3px; width:230px;">
+              <sc-for list="{{ finClassement }}" as="c" hint-placeholder-count="4">
+                <div style="display:flex; align-items:center; gap:8px; background:{{ c.fond }}; border-radius:8px; padding:4px 10px; border:1px solid {{ c.bord }};"><span style="font-weight:800; font-size:13px; color:{{ c.couleur }}; width:22px;">{{ c.rang }}</span><span style="font-size:12px; font-weight:700; flex:1;">{{ c.nom }}</span><span style="font-size:12px; color:#9DB3A0;">{{ c.pts }}</span></div>
+              </sc-for>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px; align-items:center;">
+              <div style="font-size:11px; color:#9DB3A0; letter-spacing:2px;">HOMME DE LA PARTIE 🌟</div>
+              <div style="position:relative; width:190px; border-radius:12px; border:2.5px solid #F2C14E; background:linear-gradient(160deg,#1F1C10,#0C1B10); padding:10px 12px; box-shadow:0 0 26px rgba(242,193,78,0.35);">
+                <div style="font-family:'Passion One'; font-size:24px; transform:skewX(-6deg);">MALANDRO</div>
+                <div style="font-size:12px; color:#F2C14E; font-weight:700;">✦ O Rei da Rua · 9,2/10</div>
+                <div style="font-size:11px; color:#9DB3A0; margin-top:4px;">7 buts · 12 dribbles réussis</div>
+              </div>
+              <div style="height:46px; border-radius:12px; background:#3DE26B; color:#04240E; font-weight:800; font-size:16px; display:flex; align-items:center; justify-content:center; padding:0 34px; box-shadow:inset 0 -5px 0 rgba(0,0,0,0.25); margin-top:6px;">REJOUER</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex; gap:20px;">
+      <!-- philosophie -->
+      <div style="position:relative; width:844px; height:390px; border-radius:14px; overflow:hidden; background:radial-gradient(ellipse 130% 100% at 50% 120%, #123A1C 0%, #0A1F10 55%, #060D08 100%); flex:0 0 auto;">
+        <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; padding:24px; gap:14px;">
+          <div style="font-family:'Passion One'; font-size:32px; transform:skewX(-6deg);">CHOISIS TA PHILOSOPHIE</div>
+          <div style="display:flex; gap:18px;">
+            <sc-for list="{{ philos }}" as="ph" hint-placeholder-count="3">
+              <div style="width:210px; height:240px; border-radius:14px; border:2.5px solid {{ ph.bord }}; background:linear-gradient(165deg,{{ ph.fond }},#0C1B10); box-shadow:{{ ph.glow }}; padding:14px; display:flex; flex-direction:column; gap:8px;">
+                <div style="font-size:22px;">{{ ph.medaille }}</div>
+                <div style="font-family:'Passion One'; font-size:21px; transform:skewX(-6deg); color:{{ ph.couleur }};">{{ ph.nom }}</div>
+                <div style="font-size:12px; color:#C9D6C9; line-height:1.5; flex:1;">{{ ph.desc }}</div>
+                <div style="height:38px; border-radius:10px; background:{{ ph.bouton }}; color:#04240E; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center;">CHOISIR</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="height:36px; border-radius:9px; background:#0E1F12; border:1px solid #3A5A40; color:#C9D6C9; font-weight:700; font-size:12px; display:flex; align-items:center; padding:0 18px;">🎲 Relancer (1)</div>
+        </div>
+      </div>
+      <!-- petits moments -->
+      <div style="width:844px; display:flex; flex-direction:column; gap:20px;">
+        <div style="display:flex; gap:20px;">
+          <div style="flex:1; height:185px; border-radius:14px; background:radial-gradient(ellipse at 50% 120%, #123A1C, #060D08 80%); display:flex; align-items:center; justify-content:center; gap:26px;">
+            <div style="flex:0 0 auto; width:74px; height:74px; border-radius:50%; background:radial-gradient(circle at 30% 30%, #D8DDD8, #7A857C); box-shadow:0 0 16px rgba(200,210,200,0.35), inset 0 -9px 14px rgba(0,0,0,0.3);"></div>
+            <div style="flex:0 0 auto; width:88px; height:88px; border-radius:50%; background:radial-gradient(circle at 30% 30%, #9CC4EF, #2A5A9E); box-shadow:0 0 24px rgba(120,170,240,0.55), inset 0 -10px 16px rgba(0,0,0,0.3);"></div>
+            <div style="position:relative; flex:0 0 auto; width:104px; height:104px; border-radius:50%; background:radial-gradient(circle at 30% 30%, #F8DE8E, #B8860B); box-shadow:0 0 40px rgba(242,193,78,0.75), inset 0 -12px 18px rgba(0,0,0,0.3);"><div style="position:absolute; top:-14px; right:-6px; color:#F2C14E; font-size:22px; text-shadow:0 0 10px rgba(242,193,78,1);">✦</div></div>
+            <div style="font-size:12px; color:#9DB3A0; max-width:150px; line-height:1.5;">Butin d'orbes — l'or vibre et déborde de rayons avant l'ouverture</div>
+          </div>
+          <div style="flex:1; height:185px; border-radius:14px; background:#060D08; border:1px solid #1E3A24; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;">
+            <div style="width:54px; height:34px; border:3px solid #3DE26B; border-radius:8px; transform:rotate(90deg); box-shadow:0 0 16px rgba(61,226,107,0.4);"></div>
+            <div style="font-family:'Passion One'; font-size:20px; transform:skewX(-6deg); margin-top:8px;">TOURNE TON TÉLÉPHONE</div>
+            <div style="font-size:12px; color:#9DB3A0;">ONZE se joue en paysage, comme un vrai terrain</div>
+          </div>
+        </div>
+        <div style="height:185px; border-radius:14px; background:#0A160D; border:1px solid #1E3A24; display:flex; align-items:center; justify-content:center; gap:22px;">
+          <div style="width:64px; height:64px; border-radius:15px; background:radial-gradient(circle at 50% 118%, #1B5A2C, #0A160D 70%); border:2px solid #F2C14E; display:flex; align-items:center; justify-content:center;"><svg width="42" height="42" viewBox="0 0 64 64"><circle cx="32" cy="32" r="29" fill="#FDF8EA" stroke="#0A160D" stroke-width="5"></circle><polygon points="32,21 42,28.5 38,40.5 26,40.5 22,28.5" fill="#0A160D"></polygon><line x1="32" y1="21" x2="32" y2="7" stroke="#0A160D" stroke-width="4"></line><line x1="42" y1="28.5" x2="54" y2="21" stroke="#0A160D" stroke-width="4"></line><line x1="38" y1="40.5" x2="46" y2="53" stroke="#0A160D" stroke-width="4"></line><line x1="26" y1="40.5" x2="18" y2="53" stroke="#0A160D" stroke-width="4"></line><line x1="22" y1="28.5" x2="10" y2="21" stroke="#0A160D" stroke-width="4"></line></svg></div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div style="font-family:'Passion One'; font-size:20px; transform:skewX(-6deg);">INSTALLE ONZE SUR TON ÉCRAN D'ACCUEIL</div>
+            <div style="font-size:12px; color:#9DB3A0;">Plein écran, hors-ligne, lancement en 1 tap — invite PWA</div>
+          </div>
+          <div style="height:42px; border-radius:11px; background:#3DE26B; color:#04240E; font-weight:800; font-size:14px; display:flex; align-items:center; padding:0 24px; box-shadow:inset 0 -5px 0 rgba(0,0,0,0.25);">INSTALLER</div>
+          <div style="height:42px; border-radius:11px; background:#0E1F12; border:1px solid #3A5A40; color:#9DB3A0; font-weight:700; font-size:13px; display:flex; align-items:center; padding:0 18px;">Plus tard</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 2988}, &quot;panneau&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;aucun&quot;, &quot;options&quot;: [&quot;aucun&quot;, &quot;fiche joueur&quot;, &quot;famille&quot;, &quot;recap match&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Écran maître&quot;}, &quot;boutiqueEtat&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;ouverte&quot;, &quot;options&quot;: [&quot;ouverte&quot;, &quot;repliée&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Écran maître&quot;}, &quot;chronoUrgence&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Écran maître&quot;}, &quot;ecranFin&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;victoire&quot;, &quot;options&quot;: [&quot;victoire&quot;, &quot;defaite&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Satellites&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const P = { G:'#F5C531', D:'#3E9BE0', M:'#3DCC6E', A:'#E8503F' };
+    const urgence = this.props.chronoUrgence ?? false;
+    const boutique = this.props.boutiqueEtat ?? 'ouverte';
+    const panneau = this.props.panneau ?? 'aucun';
+    const fin = this.props.ecranFin ?? 'victoire';
+    const manches = [
+      { ico:'🤝', fait:true }, { ico:'⚔️', fait:true }, { ico:'🧭', fait:true },
+      { ico:'⚔️', courante:true }, { ico:'❄️' }, { ico:'⚔️' }, { ico:'🏆' }
+    ].map(m => ({
+      ico: m.ico,
+      taille: m.courante ? '26px' : '20px',
+      fond: m.courante ? '#17301D' : '#0E1F12',
+      bord: m.courante ? '#F2C14E' : '#1E3A24',
+      opacite: m.fait ? '0.35' : '1',
+      glow: m.courante ? '0 0 12px rgba(242,193,78,0.6)' : 'none'
+    }));
+    const panneaux = {
+      'fiche joueur': { titre:'MALANDRO', sous:'✦ O Rei da Rua · A · coût 5', bord:'#F2C14E',
+        lignes:[{nom:'DRI',val:'86',largeur:'86%',couleur:'linear-gradient(90deg,#C98F1B,#F2C14E)',couleurNom:'#F2C14E'},{nom:'TEC',val:'84',largeur:'84%',couleur:'linear-gradient(90deg,#C98F1B,#F2C14E)',couleurNom:'#F2C14E'},{nom:'VIT',val:'78',largeur:'78%',couleur:'#3DCC6E',couleurNom:'#9DB3A0'},{nom:'MEN',val:'68',largeur:'68%',couleur:'#3DCC6E',couleurNom:'#9DB3A0'}],
+        note:'« Chaque dribble réussi ajoute un duel bonus à la phase — le chaos devient un plan. »' },
+      'famille': { titre:'ÉCOLE DE LA RUE', sous:'4/5 alignés · palier 3 actif', bord:'#3DE26B',
+        lignes:[{nom:'Palier 3',val:'ACTIF',largeur:'100%',couleur:'#3DE26B',couleurNom:'#3DE26B'},{nom:'Palier 5',val:'4/5',largeur:'80%',couleur:'#3A5A40',couleurNom:'#9DB3A0'},{nom:'Brahim',val:'★',largeur:'53%',couleur:'#3DCC6E',couleurNom:'#EDF5EC'},{nom:'Rodrigo',val:'★★',largeur:'64%',couleur:'#3DCC6E',couleurNom:'#EDF5EC'}],
+        note:'✨ Encore 1 pour le palier 5 — Malandro est à la boutique.' },
+      'recap match': { titre:'RECAP ⚔️', sous:'vs Barrio Bravo · 3-1', bord:'#3E9BE0',
+        lignes:[{nom:'Malandro',val:'9,2',largeur:'92%',couleur:'linear-gradient(90deg,#C98F1B,#F2C14E)',couleurNom:'#F2C14E'},{nom:'Rodrigo',val:'7,8',largeur:'78%',couleur:'#3DCC6E',couleurNom:'#EDF5EC'},{nom:'Iñaki',val:'7,1',largeur:'71%',couleur:'#3DCC6E',couleurNom:'#EDF5EC'},{nom:'Sékou',val:'5,4',largeur:'54%',couleur:'#3A5A40',couleurNom:'#9DB3A0'}],
+        note:'🌟 Homme du match : Malandro — 2 buts, 5 dribbles.' }
+    };
+    const p = panneaux[panneau];
+    const fins = {
+      victoire: { titre:'CHAMPIONS !', sous:'1ᵉʳ sur 8 · 6 manches gagnées de suite', couleur:'#F2C14E', glow:'rgba(242,193,78,0.5)', fond:'#1F1C10' },
+      defaite: { titre:'ÉLIMINÉ', sous:'5ᵉ sur 8 · le club retiendra la leçon', couleur:'#C9D6C9', glow:'rgba(120,140,125,0.3)', fond:'#101A12' }
+    };
+    const f = fins[fin] || fins.victoire;
+    return {
+      manches,
+      chronoLargeur: urgence ? '9%' : '58%',
+      chronoFond: urgence ? '#E8503F' : '#3DE26B',
+      chronoAnim: urgence ? 'urgence 0.5s linear infinite' : 'none',
+      chronoTexte: urgence ? '#FF9A8A' : '#C9D6C9',
+      chronoVal: urgence ? '0:04' : '0:17',
+      terrainHauteur: boutique === 'ouverte' ? '190px' : '268px',
+      bancTop: boutique === 'ouverte' ? '232px' : '310px',
+      boutiqueOuverte: boutique === 'ouverte',
+      boutiqueRepliee: boutique !== 'ouverte',
+      synergies: [
+        { nom:'Rue', compte:'4/5', ec:'ec-rue', bord:'#3DE26B', glow:'0 0 0 1.5px #3DE26B, 0 0 10px rgba(61,226,107,0.5)', couleur:'#3DE26B', op:'1' },
+        { nom:'Virtuose', compte:'3/3', ec:'ec-virt', bord:'#3DE26B', glow:'0 0 0 1.5px #3DE26B, 0 0 10px rgba(61,226,107,0.5)', couleur:'#3DE26B', op:'1' },
+        { nom:'Grinta ✨', compte:'encore 1', ec:'ec-grinta', bord:'#1E3A24', glow:'none', couleur:'#9DB3A0', op:'0.4' }
+      ],
+      adn: [
+        { nom:'ATT', largeur:'82%', couleur:'#3DCC6E' }, { nom:'TEC', largeur:'76%', couleur:'#3DCC6E' },
+        { nom:'VIT', largeur:'64%', couleur:'#3DCC6E' }, { nom:'MEN', largeur:'55%', couleur:'#3DCC6E' },
+        { nom:'DÉF', largeur:'28%', couleur:'#E8503F' }, { nom:'END', largeur:'40%', couleur:'#E8503F' }
+      ],
+      clubs: [
+        { nom:'TOI', pv:'88%', couleur:'#3DE26B', couleurNom:'#3DE26B', marque:'' },
+        { nom:'Barrio', pv:'74%', couleur:'#C9D6C9', couleurNom:'#EDF5EC', marque:'⚔' },
+        { nom:'Aurora', pv:'61%', couleur:'#C9D6C9', couleurNom:'#C9D6C9', marque:'' },
+        { nom:'Norte', pv:'52%', couleur:'#C9D6C9', couleurNom:'#C9D6C9', marque:'🔥' },
+        { nom:'Kop', pv:'45%', couleur:'#C9D6C9', couleurNom:'#C9D6C9', marque:'' },
+        { nom:'Vulcan', pv:'31%', couleur:'#E8503F', couleurNom:'#C9D6C9', marque:'' },
+        { nom:'Lokal', pv:'22%', couleur:'#E8503F', couleurNom:'#C9D6C9', marque:'' },
+        { nom:'Zenith', pv:'9%', couleur:'#E8503F', couleurNom:'#5F7A64', marque:'' }
+      ],
+      pions: [
+        { ini:'GU', x:'4%', y:'38%', fond:'radial-gradient(circle at 32% 26%, #F8DE8E, #B8860B)', texte:'#1A1405', ombre:'inset 0 -5px 7px rgba(0,0,0,0.4), 0 3px 5px rgba(0,0,0,0.5)', anim:'none', etoiles:'' },
+        { ini:'SÉ', x:'16%', y:'16%', fond:'radial-gradient(circle at 32% 26%, #4FE07E, #1B7A3A)', texte:'#04240E', ombre:'inset 0 -5px 7px rgba(0,0,0,0.4), 0 3px 5px rgba(0,0,0,0.5)', anim:'none', etoiles:'' },
+        { ini:'NI', x:'16%', y:'60%', fond:'radial-gradient(circle at 32% 26%, #4FE07E, #1B7A3A)', texte:'#04240E', ombre:'inset 0 -5px 7px rgba(0,0,0,0.4), 0 0 0 2px #FF9D3C, 0 0 8px rgba(255,157,60,0.8)', anim:'none', etoiles:'' },
+        { ini:'IÑ', x:'32%', y:'38%', fond:'radial-gradient(circle at 32% 26%, #4FE07E, #1B7A3A)', texte:'#04240E', ombre:'inset 0 -5px 7px rgba(0,0,0,0.4), 0 3px 5px rgba(0,0,0,0.5)', anim:'none', etoiles:'' },
+        { ini:'RO', x:'42%', y:'14%', fond:'radial-gradient(circle at 32% 26%, #4FE07E, #1B7A3A)', texte:'#04240E', ombre:'inset 0 -5px 7px rgba(0,0,0,0.4)', anim:'anneauEnergie 1.1s ease infinite', etoiles:'★★' },
+        { ini:'MA', x:'44%', y:'62%', fond:'radial-gradient(circle at 32% 26%, #4FE07E, #1B7A3A)', texte:'#04240E', ombre:'inset 0 -5px 7px rgba(0,0,0,0.4), 0 3px 5px rgba(0,0,0,0.5)', anim:'none', etoiles:'' },
+        { ini:'EM', x:'62%', y:'30%', fond:'radial-gradient(circle at 32% 26%, #E87F6F, #8E2E1F)', texte:'#1F0704', ombre:'inset 0 -5px 7px rgba(0,0,0,0.4), 0 3px 5px rgba(0,0,0,0.5)', anim:'none', etoiles:'' },
+        { ini:'VI', x:'74%', y:'52%', fond:'radial-gradient(circle at 32% 26%, #E87F6F, #8E2E1F)', texte:'#1F0704', ombre:'inset 0 -5px 7px rgba(0,0,0,0.4), 0 3px 5px rgba(0,0,0,0.5)', anim:'none', etoiles:'' }
+      ],
+      banc: [
+        { nom:'RODRIGO', poste:'A', posteCouleur:P.A, note:64, etoiles:'★★', bord:'2px solid #3E9BE0', fond:'linear-gradient(160deg,#17301D,#0C1B10)' },
+        { nom:'GUS', poste:'G', posteCouleur:P.G, note:48, etoiles:'', bord:'2px solid #98A79D', fond:'linear-gradient(160deg,#17301D,#0C1B10)' },
+        { nom:'THÉO', poste:'M', posteCouleur:P.M, note:52, etoiles:'', bord:'2px solid #98A79D', fond:'linear-gradient(160deg,#17301D,#0C1B10)' },
+        { nom:'', bord:'2px dashed #24331F', fond:'transparent' }, { nom:'', bord:'2px dashed #24331F', fond:'transparent' },
+        { nom:'', bord:'2px dashed #24331F', fond:'transparent' }, { nom:'', bord:'2px dashed #24331F', fond:'transparent' },
+        { nom:'', bord:'2px dashed #24331F', fond:'transparent' }, { nom:'', bord:'2px dashed #24331F', fond:'transparent' }
+      ],
+      boutique: [
+        { nom:'BRAHIM', note:53, poste:'M', posteCouleur:P.M, cout:1, cadre:'#98A79D', stats:'DRI 62 · TEC 60', ec1:'ec-rue', ec2:'ec-virt', prix:'1M', prixFond:'#3DE26B', glow:'none', anim:'none', filtre:'none', etoiles:'' },
+        { nom:'RODRIGO', note:64, poste:'A', posteCouleur:P.A, cout:3, cadre:'#3E9BE0', stats:'DRI 71 · TEC 69', ec1:'ec-rue', ec2:'ec-virt', prix:'3M', prixFond:'#3DE26B', glow:'0 0 0 2px #3DE26B, 0 0 14px 3px rgba(61,226,107,0.45)', anim:'pulseFusion 1.6s ease infinite', filtre:'none', etoiles:'★★' },
+        { nom:'NICO', note:55, poste:'A', posteCouleur:P.A, cout:1, cadre:'#98A79D', stats:'PLA 60 · VIT 58', ec1:'ec-grinta', ec2:'ec-renard', prix:'1M', prixFond:'#3DE26B', glow:'none', anim:'none', filtre:'none', etoiles:'' },
+        { nom:'IÑAKI', note:70, poste:'M', posteCouleur:P.M, cout:4, cadre:'#A85CE8', stats:'PAS 78 · VIS 76', ec1:'ec-tiki', ec2:'ec-virt', prix:'4M', prixFond:'#3DE26B', glow:'0 0 0 2px #4FA8FF, 0 0 16px 4px rgba(79,168,255,0.55)', anim:'none', filtre:'none', etoiles:'' },
+        { nom:'DUNCAN', note:78, poste:'A', posteCouleur:P.A, cout:5, cadre:'#F2C14E', stats:'TIR 85 · PLA 80', ec1:'ec-rue', ec2:'ec-virt', prix:'5M', prixFond:'#5A6A5C', glow:'none', anim:'none', filtre:'grayscale(0.85) brightness(0.55)', etoiles:'' }
+      ],
+      panneauVisible: !!p,
+      panneauTitre: p ? p.titre : '',
+      panneauSous: p ? p.sous : '',
+      panneauBord: p ? p.bord : '#1E3A24',
+      panneauLignes: p ? p.lignes : [],
+      panneauNote: p ? p.note : '',
+      finTitre: f.titre, finSous: f.sous, finCouleur: f.couleur, finGlow: f.glow, finFond: f.fond,
+      finClassement: fin === 'defaite' ? [
+        { rang:'1', nom:'Barrio Bravo', pts:'92', fond:'#0E1F12', bord:'#1E3A24', couleur:'#C9D6C9' },
+        { rang:'4', nom:'Aurora FC', pts:'61', fond:'#0E1F12', bord:'#1E3A24', couleur:'#C9D6C9' },
+        { rang:'5', nom:'TOI', pts:'54', fond:'#17301D', bord:'#E8503F', couleur:'#FF9A8A' },
+        { rang:'6', nom:'Kop United', pts:'40', fond:'#0E1F12', bord:'#1E3A24', couleur:'#C9D6C9' }
+      ] : [
+        { rang:'1', nom:'TOI', pts:'96', fond:'#1F1C10', bord:'#F2C14E', couleur:'#F2C14E' },
+        { rang:'2', nom:'Barrio Bravo', pts:'78', fond:'#0E1F12', bord:'#1E3A24', couleur:'#C9D6C9' },
+        { rang:'3', nom:'Aurora FC', pts:'65', fond:'#0E1F12', bord:'#1E3A24', couleur:'#C9D6C9' },
+        { rang:'4', nom:'Norte', pts:'51', fond:'#0E1F12', bord:'#1E3A24', couleur:'#C9D6C9' }
+      ],
+      philos: [
+        { nom:'LE PARI', medaille:'🥈', bord:'#98A79D', fond:'#152318', glow:'none', couleur:'#C9D6C9', bouton:'#98A79D', desc:'+3M maintenant. Le mercato n\u2019attend pas les prudents.' },
+        { nom:'LA FILIÈRE', medaille:'🥇', bord:'#F2C14E', fond:'#1F1C10', glow:'0 0 22px rgba(242,193,78,0.3)', couleur:'#F2C14E', bouton:'#F2C14E', desc:'Ton Académie produit un Espoir gratuit toutes les 3 manches.' },
+        { nom:'L\u2019HÉRITAGE', medaille:'💎', bord:'#9CC4EF', fond:'#101A26', glow:'0 0 22px rgba(120,170,240,0.35)', couleur:'#9CC4EF', bouton:'#9CC4EF', desc:'Commence avec une Relique de club transmise par l\u2019ancien coach.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

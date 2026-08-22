@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Passion+One:wght@400;700;900&family=Archivo:ital,wght@0,400;0,600;0,700;0,800;1,400;1,700&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#060D08; color:#EDF5EC; font-family:'Archivo',sans-serif; }
+a { color:#3DE26B; } a:hover { color:#F2C14E; }
+code { font-family:ui-monospace,monospace; }
+</style>
+</helmet>
+<section style="display:flex; flex-direction:column; gap:26px; padding:44px; min-width:1900px; max-width:1900px;">
+  <div style="display:flex; align-items:baseline; gap:16px;">
+    <div style="font-family:'Passion One'; font-size:34px; color:#F2C14E; letter-spacing:1px; transform:skewX(-6deg);">ONZE · TOKENS — PLANCHE D'IMPLÉMENTATION</div>
+    <div style="font-size:14px; color:#9DB3A0;">variables CSS prêtes à coller — la vérité unique des 5 lots</div>
+  </div>
+  <div style="display:flex; gap:26px; align-items:flex-start;">
+    <div style="flex:1.2; display:flex; flex-direction:column; gap:20px;">
+      <div style="background:#0A160D; border:1px solid #1E3A24; border-radius:16px; padding:22px; display:flex; flex-direction:column; gap:10px;">
+        <div style="font-family:'Passion One'; font-size:20px;">COULEURS</div>
+        <sc-for list="{{ couleurs }}" as="g" hint-placeholder-count="4">
+          <div style="display:flex; flex-direction:column; gap:5px;">
+            <div style="font-size:10px; color:#9DB3A0; letter-spacing:2px; margin-top:6px;">{{ g.groupe }}</div>
+            <sc-for list="{{ g.items }}" as="t" hint-placeholder-count="5">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div style="width:30px; height:30px; border-radius:8px; background:{{ t.val }}; border:1px solid #1E3A24; flex:0 0 auto;"></div>
+                <code style="width:220px; font-size:12px; color:#3DE26B;">{{ t.nom }}</code>
+                <code style="width:90px; font-size:12px; color:#EDF5EC;">{{ t.val }}</code>
+                <span style="font-size:12px; color:#9DB3A0;">{{ t.usage }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+      <div style="background:#0A160D; border:1px solid #1E3A24; border-radius:16px; padding:22px; display:flex; flex-direction:column; gap:10px;">
+        <div style="font-family:'Passion One'; font-size:20px;">LUEURS &amp; OMBRES <span style="font-size:12px; font-family:'Archivo'; color:#9DB3A0;">— 1 couleur = 1 sens, box-shadow nommés</span></div>
+        <sc-for list="{{ ombres }}" as="t" hint-placeholder-count="6">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:52px; height:30px; border-radius:8px; background:#17301D; box-shadow:{{ t.demo }}; flex:0 0 auto; margin:6px 8px 6px 0;"></div>
+            <code style="width:190px; font-size:12px; color:#3DE26B;">{{ t.nom }}</code>
+            <code style="flex:1; font-size:11px; color:#C9D6C9;">{{ t.val }}</code>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; gap:20px;">
+      <div style="background:#0A160D; border:1px solid #1E3A24; border-radius:16px; padding:22px; display:flex; flex-direction:column; gap:10px;">
+        <div style="font-family:'Passion One'; font-size:20px;">TYPOGRAPHIE</div>
+        <sc-for list="{{ typos }}" as="t" hint-placeholder-count="6">
+          <div style="display:flex; align-items:baseline; gap:10px;">
+            <code style="width:170px; font-size:12px; color:#3DE26B; flex:0 0 auto;">{{ t.nom }}</code>
+            <span style="font-family:{{ t.famille }}; font-size:{{ t.taille }}; font-weight:{{ t.poids }}; font-style:{{ t.style }}; transform:{{ t.transf }}; color:#EDF5EC; white-space:nowrap;">{{ t.demo }}</span>
+            <span style="font-size:11px; color:#9DB3A0; margin-left:auto; text-align:right;">{{ t.spec }}</span>
+          </div>
+        </sc-for>
+        <div style="font-size:12px; color:#9DB3A0; border-top:1px solid #1E3A24; padding-top:10px; line-height:1.6;">Display : <b style="color:#EDF5EC;">Passion One</b> (900/700), toujours <code>skewX(-6deg)</code>. Texte &amp; chiffres : <b style="color:#EDF5EC;">Archivo</b>, chiffres en <code>font-variant-numeric: tabular-nums</code>. Aucun texte sous 10 px réels.</div>
+      </div>
+      <div style="background:#0A160D; border:1px solid #1E3A24; border-radius:16px; padding:22px; display:flex; flex-direction:column; gap:10px;">
+        <div style="font-family:'Passion One'; font-size:20px;">RAYONS &amp; DIMENSIONS</div>
+        <sc-for list="{{ rayons }}" as="t" hint-placeholder-count="7">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:40px; height:26px; border-radius:{{ t.demo }}; background:#17301D; border:1.5px solid #3A5A40; flex:0 0 auto;"></div>
+            <code style="width:190px; font-size:12px; color:#3DE26B;">{{ t.nom }}</code>
+            <code style="width:70px; font-size:12px; color:#EDF5EC;">{{ t.val }}</code>
+            <span style="font-size:12px; color:#9DB3A0;">{{ t.usage }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="background:#0A160D; border:1px solid #1E3A24; border-radius:16px; padding:22px; display:flex; flex-direction:column; gap:8px;">
+        <div style="font-family:'Passion One'; font-size:20px;">RÈGLES DURES</div>
+        <div style="font-size:12px; color:#C9D6C9; line-height:1.8;">
+          · L'or (<code style="color:#F2C14E;">--or-trophee</code>) uniquement : coût 5, Icônes, ★★★, trophées.<br>
+          · Lueur verte = fusion · bleue = calepin · or = légendaire — jamais d'autre usage.<br>
+          · Les états s'empilent en <code>box-shadow</code>/overlay : la silhouette d'un composant ne change jamais.<br>
+          · Tap ≥ 44 px (zone tactile étendue si le visuel est plus petit).<br>
+          · Tout FX = transform / opacity / box-shadow — zéro bitmap par carte.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      couleurs: [
+        { groupe:'FONDS & SURFACES', items:[
+          { nom:'--nuit-profonde', val:'#060D08', usage:'fond global, hors stade' },
+          { nom:'--fond-stade', val:'#0A160D', usage:'fond d\u2019écran par défaut' },
+          { nom:'--surface-1', val:'#0E1F12', usage:'panneaux, tuiles' },
+          { nom:'--surface-2', val:'#17301D', usage:'cartes, éléments relevés' },
+          { nom:'--gazon', val:'#135223', usage:'terrain (rayures avec #0F461D)' }
+        ]},
+        { groupe:'ACCENTS', items:[
+          { nom:'--gazon-electrique', val:'#3DE26B', usage:'action primaire, positif, fusion' },
+          { nom:'--or-trophee', val:'#F2C14E', usage:'légendaire seulement' },
+          { nom:'--craie', val:'#EDF5EC', usage:'texte principal' },
+          { nom:'--craie-sourde', val:'#9DB3A0', usage:'texte secondaire' },
+          { nom:'--alerte', val:'#E8503F', usage:'destructif, urgence, trous ADN' }
+        ]},
+        { groupe:'POSTES (signifiants)', items:[
+          { nom:'--poste-g', val:'#F5C531', usage:'gardien' },
+          { nom:'--poste-d', val:'#3E9BE0', usage:'défenseur' },
+          { nom:'--poste-m', val:'#3DCC6E', usage:'milieu' },
+          { nom:'--poste-a', val:'#E8503F', usage:'attaquant' }
+        ]},
+        { groupe:'COÛTS (signifiants)', items:[
+          { nom:'--cout-1', val:'#98A79D', usage:'cadre gris' },
+          { nom:'--cout-2', val:'#3DCC6E', usage:'cadre vert' },
+          { nom:'--cout-3', val:'#3E9BE0', usage:'cadre bleu' },
+          { nom:'--cout-4', val:'#A85CE8', usage:'cadre violet' },
+          { nom:'--cout-5', val:'#F2C14E', usage:'cadre or' }
+        ]}
+      ],
+      ombres: [
+        { nom:'--lueur-fusion', val:'0 0 0 2.5px #3DE26B, 0 0 22px 4px rgba(61,226,107,.45)', demo:'0 0 0 2.5px #3DE26B, 0 0 22px 4px rgba(61,226,107,0.45)' },
+        { nom:'--lueur-calepin', val:'0 0 0 2.5px #4FA8FF, 0 0 22px 5px rgba(79,168,255,.55)', demo:'0 0 0 2.5px #4FA8FF, 0 0 22px 5px rgba(79,168,255,0.55)' },
+        { nom:'--lueur-legende', val:'0 0 0 2.5px #F2C14E, 0 0 30px 8px rgba(242,193,78,.55)', demo:'0 0 0 2.5px #F2C14E, 0 0 30px 8px rgba(242,193,78,0.55)' },
+        { nom:'--lueur-horsposte', val:'0 0 0 2.5px #FF9D3C, 0 0 12px rgba(255,157,60,.8)', demo:'0 0 0 2.5px #FF9D3C, 0 0 12px rgba(255,157,60,0.8)' },
+        { nom:'--ombre-carte', val:'0 6px 16px rgba(0,0,0,.5)', demo:'0 6px 16px rgba(0,0,0,0.5)' },
+        { nom:'--ombre-panneau', val:'0 20px 60px rgba(0,0,0,.7)', demo:'0 20px 60px rgba(0,0,0,0.7)' },
+        { nom:'--relief-bouton', val:'inset 0 -5px 0 rgba(0,0,0,.25)', demo:'inset 0 -5px 0 rgba(0,0,0,0.25)' },
+        { nom:'--relief-pion', val:'inset 0 -6px 8px rgba(0,0,0,.4), 0 3px 6px rgba(0,0,0,.5)', demo:'inset 0 -6px 8px rgba(0,0,0,0.4), 0 3px 6px rgba(0,0,0,0.5)' }
+      ],
+      typos: [
+        { nom:'--display-hero', demo:'ONZE', famille:"'Passion One'", taille:'40px', poids:'900', style:'normal', transf:'skewX(-6deg)', spec:'Passion One 900 · logo, titres d\u2019écran' },
+        { nom:'--display-carte', demo:'MALANDRO', famille:"'Passion One'", taille:'22px', poids:'700', style:'normal', transf:'skewX(-6deg)', spec:'700 · noms de cartes (15px à taille réelle)' },
+        { nom:'--texte', demo:'Le petit pont est une politesse.', famille:"'Archivo'", taille:'14px', poids:'400', style:'normal', transf:'none', spec:'Archivo 400 · corps' },
+        { nom:'--texte-fort', demo:'RECRUTER — 5M', famille:"'Archivo'", taille:'14px', poids:'800', style:'normal', transf:'none', spec:'800 · boutons, labels' },
+        { nom:'--citation', demo:'« O Rei da Rua »', famille:"'Archivo'", taille:'14px', poids:'700', style:'italic', transf:'none', spec:'700 italic · surnoms, descriptions' },
+        { nom:'--chiffres', demo:'12M · 3-1 · 0:05', famille:"'Archivo'", taille:'16px', poids:'800', style:'normal', transf:'none', spec:'800 tnum · scores, or, chrono' }
+      ],
+      rayons: [
+        { nom:'--r-carte', val:'10px', demo:'10px', usage:'carte de boutique 150×95' },
+        { nom:'--r-carte-banc', val:'7px', demo:'7px', usage:'carte du banc 64×44' },
+        { nom:'--r-bouton', val:'12px', demo:'12px', usage:'boutons ≥44px' },
+        { nom:'--r-tuile', val:'8px', demo:'8px', usage:'badges, chips, tuiles' },
+        { nom:'--r-panneau', val:'16px', demo:'16px', usage:'panneaux modaux' },
+        { nom:'--r-pilule', val:'999px', demo:'999px', usage:'toasts, tags, compteurs' },
+        { nom:'--tap-min', val:'44px', demo:'6px', usage:'cible tactile minimale' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
