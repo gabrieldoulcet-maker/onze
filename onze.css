@@ -516,3 +516,99 @@ button.principal:disabled { background: #0C130D; color: #4A5A4C; box-shadow: non
 .bulle-tuto button.tuto-passer { background: none; color: #5C6B60; border: 1px solid #C9D6C9; font-weight: 600; }
 .tuto-cible { box-shadow: 0 0 0 3px var(--or-trophee), 0 0 22px rgba(242, 193, 78, 0.7) !important; border-radius: var(--r-tuile); animation: haloTuto 1.2s ease infinite; }
 @keyframes haloTuto { 0%, 100% { box-shadow: 0 0 0 3px #F2C14E, 0 0 22px rgba(242, 193, 78, 0.7); } 50% { box-shadow: 0 0 0 3px #F2C14E, 0 0 34px rgba(242, 193, 78, 1); } }
+
+/* ============================================================
+   LA SCÈNE FM — les superpositions de la nouvelle scène
+   (design/scene-fm.md · décision 26). Le décor est peint dans le
+   canvas par stade.js ; tout ce qui est TEXTE vit ici, en DOM.
+   ============================================================ */
+
+/* R5 — le commentaire : UNE ligne, en bas, la promesse au futur */
+.scene-match .bande-commentaire {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 8;
+  padding: 5px 10px 6px; pointer-events: none;
+  background: linear-gradient(0deg, rgba(6,12,8,0.92) 30%, rgba(6,12,8,0));
+  color: var(--craie-claire); font-size: 0.72rem; font-weight: 600; line-height: 1.25;
+  text-align: center; text-shadow: 0 1px 3px #000;
+  opacity: 0; transform: translateY(6px); transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.scene-match .bande-commentaire.visible { opacity: 1; transform: none; }
+.scene-match .bande-commentaire b { color: var(--or-trophee); }
+/* le CONSTAT (l'issue enfin révélée) : plus fort, plus blanc */
+.scene-match .bande-commentaire.constat {
+  font-size: 0.8rem; font-weight: 800; color: #FDF8EA;
+  animation: constatPop 0.28s ease;
+}
+@keyframes constatPop { from { transform: translateY(5px) scale(0.97); } to { transform: none; } }
+
+/* R5 — au repos, la barre de possession prend la place du commentaire */
+.scene-match .barre-possession {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 8;
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px 8px; pointer-events: none;
+  background: linear-gradient(0deg, rgba(6,12,8,0.9) 30%, rgba(6,12,8,0));
+  opacity: 0; transition: opacity 0.25s ease;
+}
+.scene-match .barre-possession.visible { opacity: 1; }
+.scene-match .barre-possession .pc {
+  font-size: 0.66rem; font-weight: 800; min-width: 34px; color: var(--craie-claire);
+  text-shadow: 0 1px 2px #000;
+}
+.scene-match .barre-possession .pc-eux { text-align: right; }
+.scene-match .barre-possession .rail {
+  flex: 1; height: 4px; border-radius: 2px; overflow: hidden;
+  background: var(--alerte, #E8503F);
+}
+.scene-match .barre-possession .part-moi {
+  height: 100%; width: 50%; background: var(--gazon-electrique, #3DE26B);
+  transition: width 0.2s linear;
+}
+
+/* R2 — le CUT sec entre deux temps forts : carton minute + score */
+.scene-match .carton-cut {
+  position: absolute; inset: 0; z-index: 9; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  background: rgba(4, 8, 6, 0.96);
+  opacity: 0; transition: opacity 0.14s linear;
+}
+.scene-match .carton-cut.visible { opacity: 1; }
+.scene-match .carton-cut .cut-minute {
+  font-family: "Bowlby One SC", system-ui, sans-serif;
+  font-size: 2rem; color: var(--or-trophee); line-height: 1;
+}
+.scene-match .carton-cut .cut-score {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 0.78rem; font-weight: 700; color: var(--craie-sourde);
+}
+.scene-match .carton-cut .cut-score strong {
+  font-size: 1.25rem; color: var(--craie-claire); letter-spacing: 1px;
+}
+
+/* R10 — le bandeau du replay de but */
+.scene-match .bandeau-replay {
+  position: absolute; z-index: 9; pointer-events: none;
+  background: rgba(6,12,8,0.85); border: 1.5px solid var(--or-trophee);
+  border-radius: var(--r-pilule, 999px); padding: 3px 12px;
+  font-size: 0.68rem; font-weight: 800; color: var(--or-trophee);
+}
+
+/* ⚙️ L'écran « Paramètres matchs » (R10) */
+.panneau-params { max-width: 460px; }
+.panneau-params .ligne-param {
+  display: flex; align-items: center; gap: 8px; margin-top: 8px;
+  padding-top: 8px; border-top: 1px solid var(--ligne);
+}
+.panneau-params .param-nom {
+  flex: 0 0 33%; font-size: 0.72rem; font-weight: 700; color: var(--craie-sourde);
+}
+.panneau-params .groupe-opt { flex: 1; display: flex; flex-wrap: wrap; gap: 4px; }
+.panneau-params .groupe-opt.colonne { flex-direction: column; }
+.panneau-params .opt-match, .panneau-params .opt-bascule {
+  background: var(--surface-1); color: var(--craie-claire);
+  border: 1px solid var(--ligne); border-radius: var(--r-pilule, 999px);
+  padding: 5px 10px; font-size: 0.68rem; font-weight: 700; cursor: pointer; width: auto;
+}
+.panneau-params .opt-bascule { border-radius: var(--r-tuile, 8px); text-align: left; }
+.panneau-params .opt-match.active, .panneau-params .opt-bascule.active {
+  background: var(--ligne-forte); border-color: var(--gazon-electrique); color: #FDF8EA;
+}

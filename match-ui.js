@@ -97,35 +97,40 @@ const ONZE_UI = (() => {
     ligne.scrollIntoView({ behavior: "smooth", block: "end" });
   }
 
-  /* File d'étapes jouée en chaîne : la vitesse peut changer en cours
-     de match, chaque étape relit `vitesse` au moment de s'armer.
+  /* ============================================================
+     LE TEMPO DU MATCH — grammaire Football Manager.
+     Manuel : design/scene-fm.md · décision 26.
+     R2 : un match = 2 à 4 TEMPS FORTS rendus, séparés par des CUTS
+          secs (carton minute + score). Le régime « domination » a
+          disparu : entre deux temps forts, on ne montre RIEN.
+     R3 : un temps fort = cut → mise en place (~3 s, les 22 pions
+          glissent) → 4 à 8 temps, l'issue au dernier seulement.
+     R9 : budgets stricts (amical 1 temps fort, manches 4-9 : 2-3,
+          match plein : 3-5). Si ça ne rentre pas, on réduit le
+          NOMBRE de temps forts, JAMAIS leur lisibilité.
+     ============================================================ */
+  const TEMPS_MS = 800;           // plancher de lisibilité — l'arbitrage
+                                  // automatique ne descend jamais dessous
+  const TEMPS_DECISIF_MS = 1000;  // l'armement de la frappe s'étire
+  const TEMPS_ISSUE_MS = 1300;    // la frappe voyage, PUIS l'issue tombe
+  const CUT_MS = 900;             // le carton minute + score
+  const RESPIRATION_MS = 700;     // le souffle après une issue
+  const dureeMiseEnPlace = (nbPhases) => nbPhases <= 4 ? 1500 : nbPhases <= 6 ? 2200 : 3000;
+  const dureeTemps = (t) => t.issue ? TEMPS_ISSUE_MS : t.decisif ? TEMPS_DECISIF_MS : TEMPS_MS;
 
-     Avec une SCÈNE (décision 24), le match alterne deux régimes dans
-     le budget de temps acté (décision 20) :
-     - la DOMINATION : les phases sans occasion se jouent compressées
-       (~2-3 s) — circulation stylée par École, jauge, minute qui défile ;
-     - le RENDU complet : dès qu'une occasion existe (tir, blocage,
-       rebond), chorégraphie temps réel, montée de tension avant,
-       micro-ralenti sur les buts.
-     La domination est la variable d'ajustement du budget temps —
-     jamais les rendus de buts. L'accéléré ×2 SAUTE les phases froides
-     (÷4) et resserre à peine les chaudes (÷1,6). */
-  /* Décision 25 : plancher de 0,8 s par temps de jeu — JAMAIS en
-     dessous. Le temps décisif (la frappe) s'étire à ~1 s. Si le budget
-     serre, on réduit le NOMBRE de rendus, jamais leur lisibilité. */
-  const TEMPS_MS = 800;
-  const TEMPS_DECISIF_MS = 1000;
   const estChaude = (phase) => phase.evenements.some((ev) =>
     ev.but || ev.type === "arret" || ev.type === "blocage" || ev.type === "rebond");
   const aBut = (phase) => phase.evenements.some((ev) => ev.but);
   const prioriteDe = (phase) => Math.max(...phase.evenements.map((ev) =>
     ev.but ? 100 : ev.type === "arret" ? (ev.pres ? 60 : 40) : ev.type === "blocage" ? 30 : ev.type === "rebond" ? 20 : 0));
-  const coutRendu = (action) => 300 + 500 +
-    action.reduce((t, tp) => t + (tp.decisif ? TEMPS_DECISIF_MS : TEMPS_MS), 0);
-  /* Le texte du bandeau pour les temps sans événement moteur */
+  const coutTempsFort = (action, miseEnPlaceMs) =>
+    CUT_MS + miseEnPlaceMs + RESPIRATION_MS + action.reduce((t, tp) => t + dureeTemps(tp), 0);
+
+  /* Le texte de repli quand un temps n'a ni promesse ni événement */
   const texteDuTemps = (t) => {
+    if (t.promesse) return t.promesse;
     if (t.ev) return t.ev.texte;
-    if (t.type === "relais") return `${t.de || "Le bloc"} remise pour ${t.vers} — ça circule.`;
+    if (t.type === "relais") return `${t.de || "Le bloc"} cherche ${t.vers}…`;
     if (t.type === "relais_long") return `Long ballon vers ${t.vers} !`;
     if (t.type === "conduite") return `${t.acteur} porte le ballon et fixe la défense…`;
     if (t.type === "frappe") return `${t.tireur ? t.tireur + " arme sa frappe…" : "La frappe part…"}`;
@@ -144,13 +149,17 @@ const ONZE_UI = (() => {
     let blocCourant = null;
 
     // le facteur de vitesse d'une étape : les froides se sautent en ×2
-    const facteurDe = (rapide) => vitesse === 1 ? 1 : (rapide ? 4 : 1.6);
+    /* Les deux vitesses INDÉPENDANTES de FM (R10) : temps forts et
+       temps morts. Le bouton ×2 du jeu se multiplie par-dessus. */
+    const regVitesse = (typeof ONZE_SCENE !== "undefined") ? ONZE_SCENE.reglages() : { vitesseFort: 1, vitesseMort: 1 };
+    const facteurFort = () => (regVitesse.vitesseFort || 1) * (vitesse === 2 ? 1.6 : 1);
+    const facteurMort = () => (regVitesse.vitesseMort || 1) * (vitesse === 2 ? 4 : 1);
 
     const jouerEvenement = (ev) => {
       evenementsJoues.push(ev);
       if (ev.but) { if (ev.equipe === equipeA.nom) scores.a++; else scores.b++; }
       ajouterEvenement(elements, blocCourant, ev, scores);
-      if (elements.bandeau) {
+      if (elements.bandeau && !options.scene) {   // sans scène, le bandeau porte le récit
         const chip = ev.synergie
           ? ` <span class="tag-synergie" style="color:${typeof ONZE_SCENE !== "undefined" ? ONZE_SCENE.couleurFamille(ev.synergie) : "var(--or-trophee)"}">✦ ${ev.synergie}</span>` : "";
         elements.bandeau.innerHTML = (ev.but ? `⚽ ${ev.cri} <strong>${scores.a} – ${scores.b}</strong>` : ev.texte) + chip;
@@ -163,22 +172,27 @@ const ONZE_UI = (() => {
     };
 
     if (options.scene) {
-      /* ---- Le tempo décision 25 : on ne rend que des promesses,
-         dans le budget strict de la décision 20.
-         1. Chaque phase chaude devient une ACTION construite (3-6
-            temps) via ONZE_SCENE.construireAction.
-         2. Sélection par budget : TOUS les buts sont rendus d'office,
-            puis les meilleures occasions (presque-but > arrêt >
-            blocage) tant que le budget le permet — plafonné par
-            format (amical 2, M4-9 3, M10+ 5). En ×2 : buts seulement.
-         3. Les occasions NON retenues passent au régime compressé
-            avec un accent (flash + OHHH léger).
-         4. Les respirations de domination (1-2 s) absorbent le reste
-            du budget — jamais les rendus. ---- */
+      /* ---- Le tempo « moments-clés » (R2/R3/R9) ----
+         1. Chaque phase à occasion devient un TEMPS FORT construit
+            (4-8 temps) via ONZE_SCENE.construireAction.
+         2. Sélection par budget : TOUS les buts sont rendus d'office
+            (un but ne se compresse jamais — décision 25), puis les
+            meilleures occasions (presque-but > arrêt > blocage) tant
+            que le budget ET le plafond de format le permettent.
+         3. Les phases NON rendues ne sont pas mises en scène du tout :
+            elles filent au journal 📜 avec leur accent sonore, et la
+            minute avance. C'est ça, le filtre « moments-clés ».
+         4. Réglage « Résumé complet » (R10) : le plafond saute, tout
+            ce qui porte une occasion est rendu. ---- */
+      const reg = ONZE_SCENE.reglages();
       const budgetTotal = delaiPhase * resultat.phases.length;
       const nbPhases = resultat.phases.length;
-      const maxRendus = vitesse === 2 ? 99 : nbPhases <= 4 ? 2 : nbPhases <= 6 ? 3 : 5;
-      const actions = new Map(); // phase → temps[]
+      const miseEnPlaceMs = dureeMiseEnPlace(nbPhases);
+      const resume = reg.filtre === "resume";
+      // le plafond de format (R9) — en ×2, seuls les buts sont rendus
+      const maxRendus = resume ? 99 : vitesse === 2 ? 0
+        : nbPhases <= 4 ? 1 : nbPhases <= 6 ? 3 : 5;
+      const actions = new Map();
       for (const phase of resultat.phases) {
         if (estChaude(phase)) actions.set(phase, ONZE_SCENE.construireAction(phase, equipeA, equipeB));
       }
@@ -187,82 +201,96 @@ const ONZE_UI = (() => {
       const rendues = new Set();
       let coutTotal = 0;
       for (const phase of candidates) {
-        const cout = coutRendu(actions.get(phase));
-        const resteApres = budgetTotal - coutTotal - cout - (nbPhases - rendues.size - 1) * 1000;
-        const obligatoire = aBut(phase); // un but ne se compresse JAMAIS
-        if (vitesse === 2 && !obligatoire) continue;
-        if (obligatoire || (rendues.size < maxRendus && resteApres > 0)) {
-          rendues.add(phase);
-          coutTotal += cout;
+        const cout = coutTempsFort(actions.get(phase), miseEnPlaceMs);
+        if (aBut(phase)) { rendues.add(phase); coutTotal += cout; continue; }
+        if (rendues.size < maxRendus && (resume || coutTotal + cout <= budgetTotal)) {
+          rendues.add(phase); coutTotal += cout;
         }
       }
-      const nbNonRendues = nbPhases - rendues.size;
-      const dureeFroide = Math.max(1000, Math.min(2000,
-        nbNonRendues ? (budgetTotal - coutTotal) / nbNonRendues : 1200));
+      // le temps mort restant se répartit sur les phases non rendues
+      const nbMortes = nbPhases - rendues.size;
+      const dureeMorte = Math.max(500, Math.min(1600,
+        nbMortes ? (budgetTotal - coutTotal) / nbMortes : 900));
       const scoresLobby = (options.scoresLobby || []).slice();
+      // la possession affichée vient des VRAIS gains de balle du moteur
+      const comptePossession = { moi: 0, eux: 0 };
+      const compter = (phase) => {
+        for (const ev of phase.evenements) {
+          if (ev.type !== "possession" && ev.type !== "contre") continue;
+          if (ev.equipe === equipeA.nom) comptePossession.moi++; else comptePossession.eux++;
+        }
+        options.scene.majPossession(comptePossession);
+      };
+
       resultat.phases.forEach((phase) => {
-        const rendue = rendues.has(phase);
-        // un rendu SANS but se dégrade en compressé si le spectateur
-        // passe en ×2 en cours de match — un BUT se rend toujours
-        const degradable = rendue && !aBut(phase);
-        const enX2Degrade = () => vitesse === 2 && degradable;
+        if (!rendues.has(phase)) {
+          /* --- TEMPS MORT : rien à l'écran (R2). Le journal encaisse. --- */
+          etapes.push({
+            delai: dureeMorte, mort: true,
+            action: () => {
+              blocCourant = blocPhase(elements.recit, phase.minute, phase.numero);
+              options.scene.reglerMinute(phase.minute, dureeMorte);
+              options.scene.majJaugeCible(phase);
+              phase.evenements.forEach((ev) => { jouerEvenement(ev); options.scene.accent(ev); });
+              compter(phase);
+              if (scoresLobby.length) options.scene.notifierLobby(scoresLobby.shift());
+            },
+          });
+          return;
+        }
+
+        /* --- TEMPS FORT --- */
+        const action = actions.get(phase);
+        const couverts = new Set(action.map((t) => t.ev).filter(Boolean));
+        // 1. le CUT sec : carton minute + score
         etapes.push({
-          delai: 300, rapide: !rendue, optionnelle: degradable,
+          delai: CUT_MS, mort: true,
           action: () => {
             blocCourant = blocPhase(elements.recit, phase.minute, phase.numero);
-            const compresse = !rendue || enX2Degrade();
-            options.scene.debutPhase(phase, {
-              regime: compresse ? "domination" : "rendu",
-              duree: (compresse ? dureeFroide : coutRendu(actions.get(phase))) / facteurDe(compresse),
-            });
+            options.scene.cut({ minute: phase.minute, scoreA: scores.a, scoreB: scores.b,
+              nomA: equipeA.nom, nomB: equipeB.nom }, CUT_MS);
+            options.scene.majJaugeCible(phase);
+            compter(phase);
           },
         });
-        if (rendue) {
-          const action = actions.get(phase);
-          const couverts = new Set(action.map((t) => t.ev).filter(Boolean));
-          // la montée de tension : le spectateur sent l'occasion ARRIVER
-          etapes.push({ delai: 500, optionnelle: degradable, delaiRapide: 120,
-            action: () => { if (!enX2Degrade()) options.scene.tension(500 / facteurDe(false)); } });
-          action.forEach((t) => {
-            // plancher 0,8 s : un temps RENDU ne se brouille jamais
-            const delai = t.decisif ? TEMPS_DECISIF_MS : TEMPS_MS;
-            etapes.push({
-              delai, plancher: TEMPS_MS, optionnelle: degradable, delaiRapide: 260,
-              action: () => {
-                if (enX2Degrade()) { // dégradé : journal + accent, pas de chorégraphie
-                  if (t.ev) { jouerEvenement(t.ev); options.scene.evenementDomination(t.ev); }
-                  return;
-                }
-                if (t.ev) jouerEvenement(t.ev);
-                else if (elements.bandeau) {
-                  const texte = texteDuTemps(t);
-                  if (texte) elements.bandeau.innerHTML = texte;
-                }
-                options.scene.jouerTemps(t, Math.max(TEMPS_MS, delai / facteurDe(false)));
-              },
-            });
-          });
-          // le SOLDE : tout événement de la phase absent de l'action est
-          // consigné (journal, score, juice) — le récit reste complet
+        // 2. la MISE EN PLACE : les 22 pions glissent, la promesse tombe
+        //    et l'horloge se remet à courir pendant tout le temps fort
+        //    (R8) — 3 minutes de jeu, jamais plus : au-delà, la scène
+        //    dépasserait la minute de la phase suivante et MENTIRAIT.
+        const dureeJouee = action.reduce((t, tp) => t + dureeTemps(tp), 0) + RESPIRATION_MS;
+        etapes.push({
+          delai: miseEnPlaceMs,
+          action: () => {
+            options.scene.miseEnPlace(action, miseEnPlaceMs);
+            options.scene.reglerMinute(phase.minute + 3, miseEnPlaceMs + dureeJouee);
+          },
+        });
+        // 3. les temps du temps fort
+        action.forEach((t) => {
           etapes.push({
-            delai: 200,
-            action: () => phase.evenements.forEach((ev) => { if (!couverts.has(ev)) jouerEvenement(ev); }),
+            delai: dureeTemps(t), plancher: 640,
+            action: () => {
+              const duree = dureeTemps(t);
+              if (t.issue) {
+                // l'issue : le journal et le score n'arrivent qu'à la
+                // RÉVÉLATION — sinon le tableau spoile la frappe (R7)
+                options.scene.jouerTemps(t, duree, () => { if (t.ev) jouerEvenement(t.ev); });
+              } else {
+                options.scene.jouerTemps(t, duree);
+                options.scene.commentaire(texteDuTemps(t));
+                if (t.ev) jouerEvenement(t.ev);
+              }
+            },
           });
-        } else {
-          const pas = Math.max(300, (dureeFroide - 300) / (phase.evenements.length + 1));
-          phase.evenements.forEach((ev, iEv) => {
-            etapes.push({
-              delai: pas, rapide: true,
-              action: () => {
-                jouerEvenement(ev);
-                options.scene.evenementDomination(ev);
-                // les autres scores du lobby vivent pendant le compressé
-                if (iEv === 0 && scoresLobby.length) options.scene.notifierLobby(scoresLobby.shift());
-              },
-            });
-          });
-          etapes.push({ delai: pas, rapide: true, action: () => {} });
-        }
+        });
+        // 4. le solde (les événements hors chorégraphie) et la respiration
+        etapes.push({
+          delai: RESPIRATION_MS,
+          action: () => {
+            phase.evenements.forEach((ev) => { if (!couverts.has(ev)) jouerEvenement(ev); });
+            options.scene.repos();
+          },
+        });
       });
     } else resultat.phases.forEach((phase) => {
       // ---- Sans scène (match.html, draft.html) : le tempo historique ----
@@ -305,13 +333,11 @@ const ONZE_UI = (() => {
     (function suivante() {
       const etape = etapes.shift();
       if (!etape) return;
-      const diviseur = options.scene ? facteurDe(etape.rapide) : vitesse;
-      // le plancher de lisibilité (décision 25) : un temps de jeu RENDU
-      // ne descend JAMAIS sous ~0,8 s — en ×2, un rendu sans but se
-      // DÉGRADE en compressé (on réduit le nombre, pas la lisibilité)
-      const delai = (etape.optionnelle && vitesse === 2)
-        ? (etape.delaiRapide || 250)
-        : Math.max(etape.plancher || 0, etape.delai / diviseur);
+      const diviseur = options.scene ? (etape.mort ? facteurMort() : facteurFort()) : vitesse;
+      // Le plancher de lisibilité (R9) : un temps de temps fort ne se
+      // brouille jamais. L'arbitrage automatique reste à 0,8 s ; seul
+      // le réglage explicite « plus vite » peut descendre à 0,64 s.
+      const delai = Math.max(etape.plancher || 0, etape.delai / diviseur);
       setTimeout(() => { etape.action(); suivante(); }, delai);
     })();
   }
