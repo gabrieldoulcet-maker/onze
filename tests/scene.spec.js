@@ -187,6 +187,76 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   verifier("R12 : le Kick & Rush construit au long ballon", pur.adn.kick);
   verifier("R12 : l'École de la Rue construit balle au pied", pur.adn.rue);
 
+  /* ---- LES DEUX FORMATS DE TEMPS FORT : la règle d'allocation, testée
+     de façon DÉTERMINISTE sur des matchs synthétiques (2 à 6 buts).
+     C'est l'arbitrage de Gabriel : tous les buts rendus, tout le monde
+     en grand format tant que ça rentre sous ~50 s, puis bascule du
+     moins important au plus important — et le DERNIER but du match
+     garde toujours le grand format. ---- */
+  const alloc = await page.evaluate(() => {
+    const parEcole = (ecole, n) => tousLesJoueurs.filter((j) => j.ecole === ecole).slice(0, n)
+      .map((j) => ({ ...j, etoiles: 1 }));
+    const eqA = ONZE.equipeDepuisFiches("Nous", "Nous", parEcole("Tiki-Taka", 6));
+    const eqB = ONZE.equipeDepuisFiches("Eux", "Eux", parEcole("Catenaccio", 6));
+    const nA = eqA.joueurs.map((j) => j.nom), nB = eqB.joueurs.map((j) => j.nom);
+    // un match de 8 phases dont `nbButs` finissent au fond, alternées
+    const matchAvec = (nbButs) => ({ phases: Array.from({ length: 8 }, (_, i) => {
+      const numero = i + 1, minute = 10 + i * 10;
+      const pourNous = i % 2 === 0;
+      const eq = pourNous ? "Nous" : "Eux";
+      const noms = pourNous ? nA : nB;
+      if (i < nbButs) return { numero, minute, evenements: [
+        { type: "possession", equipe: eq, acteurs: [noms[1]], texte: "p" },
+        { type: "percee", sousType: "dribble", equipe: eq, acteurs: [noms[2], "X"], texte: "pe" },
+        { type: "but", but: true, buteur: noms[2], equipe: eq, acteurs: [noms[2], "G"], texte: "f", cri: "BUT" },
+      ] };
+      return { numero, minute, evenements: [
+        { type: "possession", equipe: eq, acteurs: [noms[1]], texte: "p" },
+        { type: "percee_stoppee", sousType: "course", equipe: eq === "Nous" ? "Eux" : "Nous", acteurs: [noms[3]], texte: "s" },
+      ] };
+    }) });
+    const mesures = {};
+    for (const nbButs of [2, 3, 4, 5, 6]) {
+      const res = matchAvec(nbButs);
+      const plan = ONZE_UI.planifierTempsForts(res, eqA, eqB, { delaiPhase: 5000, vitesse: 1 });
+      const rendues = [...plan.rendues];
+      const dureeTotale = rendues.reduce((t, p) =>
+        t + ONZE_UI.coutTempsFort(plan.actions.get(p), plan.miseEnPlaceMs, plan.courtes.has(p)), 0);
+      mesures[nbButs] = {
+        rendus: rendues.length,
+        grands: rendues.filter((p) => !plan.courtes.has(p)).length,
+        courts: rendues.filter((p) => plan.courtes.has(p)).length,
+        dureeTotale,
+        dernierButEnGrand: !plan.courtes.has(plan.derniereAvecBut),
+        // tous les buts sont-ils rendus ? (décision 25)
+        tousLesButsRendus: res.phases.filter((p) => p.evenements.some((e) => e.but))
+          .every((p) => plan.rendues.has(p)),
+      };
+    }
+    // le coût des deux formats, mesuré sur la même action
+    const res = matchAvec(3);
+    const plan = ONZE_UI.planifierTempsForts(res, eqA, eqB, { delaiPhase: 5000, vitesse: 1 });
+    const une = plan.actions.get([...plan.rendues][0]);
+    return { mesures,
+      coutGrand: ONZE_UI.coutTempsFort(une, plan.miseEnPlaceMs, false),
+      coutCourt: ONZE_UI.coutTempsFort(une, plan.miseEnPlaceMs, true),
+      tempsCourt: ONZE_UI.actionCourte(une).length, tempsGrand: une.length };
+  });
+  verifier(`Formats : le grand format coûte ~13 s (${(alloc.coutGrand / 1000).toFixed(1)} s, ${alloc.tempsGrand} temps)`,
+    alloc.coutGrand > 11000 && alloc.coutGrand < 15000);
+  verifier(`Formats : le format court coûte ~8 s (${(alloc.coutCourt / 1000).toFixed(1)} s, ${alloc.tempsCourt} temps)`,
+    alloc.coutCourt > 6000 && alloc.coutCourt < 8500);
+  for (const [nbButs, m] of Object.entries(alloc.mesures)) {
+    verifier(`Allocation ${nbButs} buts : ${m.grands} grand + ${m.courts} court = ${(m.dureeTotale / 1000).toFixed(1)} s` +
+      ` (tous les buts rendus : ${m.tousLesButsRendus ? "oui" : "NON"}, dernier but en grand format : ${m.dernierButEnGrand ? "oui" : "NON"})`,
+      m.tousLesButsRendus && m.dernierButEnGrand &&
+      (m.dureeTotale <= 52000 || Number(nbButs) >= 6));
+  }
+  verifier(`Allocation : peu de buts → aucun format court (2 buts : ${alloc.mesures[2].courts})`,
+    alloc.mesures[2].courts === 0);
+  verifier(`Allocation : beaucoup de buts → le format court entre en jeu (5 buts : ${alloc.mesures[5].courts} courts)`,
+    alloc.mesures[5].courts >= 1);
+
   /* ---- R13 : le stade est une couche de thème, pas du dur ---- */
   const stade = await page.evaluate(async () => {
     const src = await (await fetch("/match-scene.js")).text();
@@ -207,7 +277,22 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
 
   /* ---- Un MATCH PLEIN sous instruments : régimes, durées, mouvement,
      étiquettes, ballon jamais téléporté ---- */
-  const releve = await page.evaluate(async () => {
+  /* Le match de relevé doit avoir de la MATIÈRE : un 0-0 à une seule
+     occasion ne prouve rien sur les buts ni sur les formats. On rejoue
+     (jusqu'à 4 fois) jusqu'à décrocher un match avec au moins un but —
+     le moteur n'est pas touché, on tire juste un autre match. */
+  let releve = null;
+  for (let essai = 0; essai < 4; essai++) {
+    releve = await mesurerUnMatch(page);
+    if (releve.buts >= 1 && releve.misesEnPlace >= 2) break;
+    console.log(`   (relevé ${essai + 1} sans matière — ${releve.buts} but(s), ${releve.misesEnPlace} temps fort(s) — on rejoue)`);
+  }
+
+  async function mesurerUnMatch(pageDuMatch) { return pageDuMatch.evaluate(async () => {
+    // repartir propre : si un bilan de manche traîne, on le referme
+    const btn = document.getElementById("btn-continuer");
+    if (btn) btn.click();
+    document.querySelectorAll(".volet").forEach((v) => v.remove());
     arreterChrono();
     partie.manche = 10;
     // on instrumente la scène AVANT qu'elle naisse
@@ -264,17 +349,42 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       cuts: journal.cuts, misesEnPlace: journal.misesEnPlace,
       nbTemps: journal.temps.filter((t) => t.type !== "_miseEnPlace").length,
       // la durée RÉELLE d'une mise en place à l'écran : de son départ au
-      // premier temps de jeu qui la suit (R3 : ~3 s, comprimée si le
-      // budget serre, jamais escamotée)
+      // premier temps de jeu qui la suit. C'est elle qui trahit le
+      // FORMAT du temps fort : ~3 s en grand format, ~1,2 s en court.
       misesEnPlaceMs: journal.temps.map((x, i) => x.type === "_miseEnPlace" && journal.temps[i + 1]
         ? journal.temps[i + 1].t - x.t : null).filter((v) => v !== null),
+      // la durée de chaque temps fort, de sa mise en place à la suivante
+      tempsFortsMs: (() => {
+        const departs = journal.temps.map((x, i) => x.type === "_miseEnPlace" ? i : -1).filter((i) => i >= 0);
+        return departs.map((d, k) => {
+          const suivant = departs[k + 1];
+          const fin = suivant !== undefined ? journal.temps[suivant].t : null;
+          return fin === null ? null : { mep: journal.temps[d + 1] ? journal.temps[d + 1].t - journal.temps[d].t : 0,
+            duree: fin - journal.temps[d].t };
+        }).filter(Boolean);
+      })(),
       // la durée d'affichage d'une issue avant la suite
       issuesMs: journal.temps.map((x, i) => x.issue && journal.temps[i + 1]
         ? journal.temps[i + 1].t - x.t : null).filter((v) => v !== null),
-      // la durée réelle des temps DÉCISIFS non terminaux (percée, frappe) :
-      // l'issue est exclue, sa suite est un cut et fausserait la mesure
-      decisifsMs: journal.temps.map((x, i) => x.decisif && !x.issue && journal.temps[i + 1]
-        ? journal.temps[i + 1].t - x.t : null).filter((v) => v !== null),
+      /* La durée réelle des temps DÉCISIFS non terminaux (percée, frappe).
+         L'issue est exclue : sa suite est un cut et fausserait la mesure.
+         Chaque temps est rattaché à son FORMAT (décision 31) — on le lit
+         sur la mise en place qui l'ouvre : ~3 s en grand, ~1,2 s en
+         court. Les deux formats n'ont pas le même contrat de patience. */
+      decisifs: (() => {
+        const sortie = [];
+        let formatCourant = null;
+        journal.temps.forEach((x, i) => {
+          if (x.type === "_miseEnPlace") {
+            const mep = journal.temps[i + 1] ? journal.temps[i + 1].t - x.t : 0;
+            formatCourant = mep >= 2000 ? "grand" : "court";
+            return;
+          }
+          if (!x.decisif || x.issue || !journal.temps[i + 1]) return;
+          sortie.push({ format: formatCourant, duree: journal.temps[i + 1].t - x.t });
+        });
+        return sortie;
+      })(),
       issues: journal.temps.filter((t) => t.issue).length,
       buts: journal.temps.filter((t) => t.type === "issue_but").length,
       ecartMin: ecarts.length ? Math.min(...ecarts) : 0,
@@ -285,7 +395,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       etiqMed: etiqAction.length ? etiqAction.slice().sort((a, b) => a - b)[Math.floor(etiqAction.length / 2)] : 0,
       etiqBut,
     };
-  });
+  }); }
 
   verifier(`R2 : aucun régime « domination » (${releve.regimes.join(", ")})`,
     !releve.regimes.includes("domination"));
@@ -302,16 +412,22 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     releve.issues >= releve.misesEnPlace);
   verifier(`R9 : plancher de lisibilité tenu (temps le plus court ${Math.round(releve.ecartMin)} ms ≥ 800)`,
     releve.ecartMin >= 780);
-  // ~13 s par temps fort depuis l'arbitrage du rythme : le budget se lit
-  // par rendu, la durée totale suit le nombre de buts (décision 25).
-  const budgetHaut = 12000 + releve.misesEnPlace * 15000;
-  verifier(`R9 : ~13 s par temps fort tenues (${(releve.duree / 1000).toFixed(1)} s pour ${releve.misesEnPlace} rendus, plafond ${(budgetHaut / 1000).toFixed(0)} s)`,
-    releve.duree > 20000 && releve.duree < budgetHaut);
-  // Règle 3 de la spec : les temps DÉCISIFS (percée, frappe, issue) sont
-  // patients — 1,5 s au moins. C'est la patience de FM qui rend lisible.
-  const decisifsCourts = releve.decisifsMs.filter((v) => v < 1450).length;
-  verifier(`Règle 3 : les temps décisifs sont patients (${releve.decisifsMs.length} mesurés, le plus court ${releve.decisifsMs.length ? Math.round(Math.min(...releve.decisifsMs)) : "—"} ms ≥ 1450)`,
-    releve.decisifsMs.length >= 3 && decisifsCourts === 0);
+  /* Le PLAFOND DUR de ~50 s (arbitrage de Gabriel) : c'est le basculement
+     en format court qui le tient. Au-delà de 6 buts, la décision 25
+     (tous les buts rendus) impose un plancher qui le dépasse — on le dit
+     au lieu de le cacher. */
+  const plafondDur = releve.buts >= 6 ? 65000 : 54000;
+  verifier(`R9 : plafond dur de ~50 s tenu (${(releve.duree / 1000).toFixed(1)} s pour ${releve.misesEnPlace} rendus dont ${releve.buts} buts, limite ${(plafondDur / 1000).toFixed(0)} s)`,
+    releve.duree > 20000 && releve.duree < plafondDur);
+  /* Règle 3 : la patience. Le GRAND format tient ses temps décisifs à
+     1,5-2 s. Le FORMAT COURT (décision 31) les tient à 1-1,3 s — c'est
+     la construction qu'il raccourcit, jamais la chorégraphie du but. */
+  const decGrand = releve.decisifs.filter((d) => d.format === "grand").map((d) => d.duree);
+  const decCourt = releve.decisifs.filter((d) => d.format === "court").map((d) => d.duree);
+  verifier(`Règle 3 : les temps décisifs du GRAND format sont patients (${decGrand.length} mesurés, le plus court ${decGrand.length ? Math.round(Math.min(...decGrand)) : "—"} ms ≥ 1450)`,
+    decGrand.length >= 1 && decGrand.every((v) => v >= 1450));
+  verifier(`Décision 31 : les temps de construction du FORMAT COURT tiennent 1-1,3 s (${decCourt.length} mesurés${decCourt.length ? `, de ${Math.round(Math.min(...decCourt))} à ${Math.round(Math.max(...decCourt))} ms` : ""})`,
+    decCourt.every((v) => v >= 1000 && v <= 1400));
   verifier(`R4 : les 22 pions bougent en permanence (vitesse moyenne ${releve.vitesseMoyenne.toFixed(2)} %/s, ${Math.round(releve.partsImmobiles * 100)} % de relevés figés)`,
     releve.vitesseMoyenne > 0.8 && releve.partsImmobiles < 0.2);
   verifier(`R4 : le ballon ne se téléporte jamais (saut max ${releve.sautMaxBallon.toFixed(1)} % de terrain en 50 ms)`,
@@ -322,6 +438,20 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   const mepMin = releve.misesEnPlaceMs.length ? Math.min(...releve.misesEnPlaceMs) : 0;
   verifier(`R3 : la mise en place a le temps de se jouer (la plus courte ${Math.round(mepMin)} ms ≥ 1200)`,
     mepMin >= 1150);
+
+  /* ---- LES DEUX FORMATS DE TEMPS FORT (arbitrage de Gabriel) ----
+     Le grand format garde sa mise en place pleine (~3 s) et dure ~13 s ;
+     le format court la ramène à ~1,2 s et tient ~8 s, sans jamais
+     toucher à la chorégraphie de l'issue. On les mesure SÉPARÉMENT. ---- */
+  const grands = releve.tempsFortsMs.filter((x) => x.mep >= 2000);
+  const courts = releve.tempsFortsMs.filter((x) => x.mep < 2000);
+  const moy = (l) => l.length ? l.reduce((a, b) => a + b.duree, 0) / l.length : 0;
+  verifier(`Formats : le grand format tient ~13 s (${grands.length} mesuré(s), moyenne ${(moy(grands) / 1000).toFixed(1)} s)`,
+    grands.length === 0 || (moy(grands) > 10000 && moy(grands) < 16000));
+  verifier(`Formats : le format court tient ~8 s (${courts.length} mesuré(s), moyenne ${courts.length ? (moy(courts) / 1000).toFixed(1) : "—"} s)`,
+    courts.length === 0 || (moy(courts) > 6000 && moy(courts) < 10000));
+  verifier(`Formats : au moins un temps fort garde le grand format (${grands.length})`,
+    releve.tempsFortsMs.length === 0 || grands.length >= 1);
   const issueMin = releve.issuesMs.length ? Math.min(...releve.issuesMs) : 0;
   verifier(`R7 : l'issue reste à l'écran après sa révélation (la plus courte ${Math.round(issueMin)} ms ≥ 900)`,
     issueMin >= 900);
