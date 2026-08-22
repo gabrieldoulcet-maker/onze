@@ -98,11 +98,11 @@ const PROFIL_BASE_GARDIEN = { reflexes: 3, aerien: 2, pied: 1.8, placement: 2, m
 /* La touche d'École : petit plus thématique sur des stats PRÉCISES */
 const TOUCHES_ECOLES = {
   "Tiki-Taka": { passe: 2, technique: 2 },
-  "Catenaccio": { tacle: 3, placement: 2 },
+  "Catenaccio": { tacle: 2, placement: 2 },
   "Kick & Rush": { aerien: 4, endurance: 3, passe: 2 },
   "École de la Rue": { dribble: 6, technique: 4, passe: 3 },
-  "La Grinta": { mental: 8, tacle: 3 },
-  "Football Total": { vision: 6, vitesse: 4, passe: 2 },
+  "La Grinta": { mental: 7, tacle: 5 },
+  "Football Total": { vision: 6, vitesse: 4, passe: 3 },
   "L'Académie": { technique: 4, mental: 3 },
   "Les Internationaux": { vision: 1, mental: 2 },
   "Le Douzième Homme": { mental: 6, placement: 5, endurance: 4 },
@@ -309,16 +309,16 @@ const PALIERS_ARCHETYPES = {
    paient plus cher ici. */
 const BOOSTS_FAMILLES = {
   "Tiki-Taka": { passe: 1, technique: 1 },
-  "Catenaccio": { tacle: 3, placement: 2 },
-  "Kick & Rush": { aerien: 5, endurance: 3 },
+  "Catenaccio": { tacle: 2, placement: 2 },
+  "Kick & Rush": { aerien: 4, endurance: 3 },
   "École de la Rue": { dribble: 6, technique: 4, passe: 3 },
-  "La Grinta": { mental: 6, tacle: 3 },
-  "Football Total": { vision: 6, vitesse: 5, passe: 5 },
-  "L'Académie": { technique: 4, mental: 3 },
+  "La Grinta": { mental: 6, tacle: 5 },
+  "Football Total": { vision: 7, vitesse: 5, passe: 5 },
+  "L'Académie": { technique: 3, mental: 3 },
   "Les Internationaux": { vision: 1, mental: 2 },
   "Le Douzième Homme": { mental: 5, placement: 5 },
   "Les Pros": { placement: 1, technique: 1 },
-  "Les Revanchards": { mental: 4, placement: 2 },
+  "Les Revanchards": { mental: 4, placement: 3 },
   "Mur": { placement: 2, reflexes: 4 },
   "Moteur": { endurance: 3, vitesse: 2 },
   "Sentinelle": { placement: 2, tacle: 3 },
@@ -715,7 +715,7 @@ function resoudrePhase(eqA, eqB, ctx) {
     const kr = s(eq, "Kick & Rush");
     const etat = ctx.etat[eq.nom];
     const disponible = kr >= 2 ? true : (kr >= 1 && !etat.ballonLongUtilise);
-    if (!attaque && disponible && proba(0.12)) {
+    if (!attaque && disponible && proba(0.10)) {
       etat.ballonLongUtilise = true;
       etat.duelsAeriens = (etat.duelsAeriens || 0) + 1;
       attaque = eq;
@@ -761,7 +761,14 @@ function resoudrePhase(eqA, eqB, ctx) {
     // Placement+Vitesse des milieux adverses (l'interception)
     const lesMilieux = (eq) => {
       const milieux = parPoste(eq, "MIL");
-      return milieux.length ? { joueurs: milieux, facteur: 1 } : { joueurs: eq.joueurs.filter((j) => j.poste !== "GAR"), facteur: 0.55 };
+      if (milieux.length) {
+        // RENDEMENTS DÉCROISSANTS (décision 27) : au-delà de 4 milieux,
+        // les suivants comptent à moitié — empiler des MIL sature au
+        // lieu de régner (correctif structurel du rapport de méta S1).
+        const facteur = milieux.length <= 4 ? 1 : (4 + 0.5 * (milieux.length - 4)) / milieux.length;
+        return { joueurs: milieux, facteur };
+      }
+      return { joueurs: eq.joueurs.filter((j) => j.poste !== "GAR"), facteur: 0.55 };
     };
     const progression = (eq) => {
       const m = lesMilieux(eq);
@@ -784,25 +791,53 @@ function resoudrePhase(eqA, eqB, ctx) {
     const forceA = progression(eqA) - 0.9 * interception(eqB) + de(150);
     const forceB = progression(eqB) - 0.9 * interception(eqA) + de(150);
     attaque = forceA >= forceB ? eqA : eqB;
-    const milieux = parPoste(attaque, "MIL");
-    const autresChamp = attaque.joueurs.filter((j) => j.poste !== "GAR");
-    const candidatsPorteur = milieux.length && !proba(0.3) ? milieux : autresChamp;
-    const porteur = choisirParmi(attaque, ctx, candidatsPorteur.length ? candidatsPorteur : attaque.joueurs);
-    evenements.push({
-      type: "possession", acteurs: [porteur.nom],
-      texte: varie(
-        `${porteur.nom} gagne la bataille du milieu pour ${attaque.nom}.`,
-        `${porteur.nom} ratisse le ballon et met ${attaque.nom} dans le sens du jeu.`,
-        `${porteur.nom} dicte le tempo — possession pour ${attaque.nom}.`,
-        `${porteur.nom} s'arrache dans l'entrejeu et oriente pour ${attaque.nom}.`,
-        `${porteur.nom} récupère haut et lance l'attaque de ${attaque.nom}.`,
-        `Pressing gagnant : ${porteur.nom} arrache le ballon pour ${attaque.nom}.`,
-        `${porteur.nom} trouve l'intervalle — ${attaque.nom} s'installe dans le camp adverse.`
-      ),
-      synergie: s(attaque, "Tiki-Taka") && proba(0.25) ? "Tiki-Taka" : null, equipe: attaque.nom,
-    });
-    // mémorisé pour créditer la passe décisive si la phase finit au fond
-    ctx.dernierPorteur = { nom: porteur.nom, equipe: attaque.nom };
+    // LE CONTRE DU MILIEU PERDU (décision 27) : perdre l'entrejeu n'est
+    // pas perdre la phase — une récupération éclair portée par
+    // Vitesse+Tacle renverse la possession. Dose PETITE (~5-8 %) : elle
+    // punit l'excès de possession, elle n'invalide jamais le plan
+    // possession lui-même.
+    let contreDuMilieu = false;
+    const perdantMilieu = attaque === eqA ? eqB : eqA;
+    const champPerdant = perdantMilieu.joueurs.filter((j) => ligneDe(j) !== "GAR");
+    if (champPerdant.length) {
+      const punch = champPerdant.reduce((t, j) => t + ((j.stats.vitesse || 40) + (j.stats.tacle || 40)) / 2, 0) / champPerdant.length;
+      if (proba(Math.min(0.09, 0.10 * punch / 100))) {
+        attaque = perdantMilieu;
+        contreDuMilieu = true;
+        const recuperateur = choisirParmi(attaque, ctx, champPerdant);
+        evenements.push({
+          type: "contre", acteurs: [recuperateur.nom],
+          texte: varie(
+            `${recuperateur.nom} surgit dans les pieds adverses — ${attaque.nom} part en contre !`,
+            `Ballon grillé au milieu : ${recuperateur.nom} lance ${attaque.nom} dans l'espace !`,
+            `${recuperateur.nom} coupe la passe et renverse — contre éclair de ${attaque.nom} !`
+          ),
+          synergie: null, equipe: attaque.nom,
+        });
+        ctx.dernierPorteur = { nom: recuperateur.nom, equipe: attaque.nom };
+      }
+    }
+    if (!contreDuMilieu) {
+      const milieux = parPoste(attaque, "MIL");
+      const autresChamp = attaque.joueurs.filter((j) => j.poste !== "GAR");
+      const candidatsPorteur = milieux.length && !proba(0.3) ? milieux : autresChamp;
+      const porteur = choisirParmi(attaque, ctx, candidatsPorteur.length ? candidatsPorteur : attaque.joueurs);
+      evenements.push({
+        type: "possession", acteurs: [porteur.nom],
+        texte: varie(
+          `${porteur.nom} gagne la bataille du milieu pour ${attaque.nom}.`,
+          `${porteur.nom} ratisse le ballon et met ${attaque.nom} dans le sens du jeu.`,
+          `${porteur.nom} dicte le tempo — possession pour ${attaque.nom}.`,
+          `${porteur.nom} s'arrache dans l'entrejeu et oriente pour ${attaque.nom}.`,
+          `${porteur.nom} récupère haut et lance l'attaque de ${attaque.nom}.`,
+          `Pressing gagnant : ${porteur.nom} arrache le ballon pour ${attaque.nom}.`,
+          `${porteur.nom} trouve l'intervalle — ${attaque.nom} s'installe dans le camp adverse.`
+        ),
+        synergie: s(attaque, "Tiki-Taka") && proba(0.25) ? "Tiki-Taka" : null, equipe: attaque.nom,
+      });
+      // mémorisé pour créditer la passe décisive si la phase finit au fond
+      ctx.dernierPorteur = { nom: porteur.nom, equipe: attaque.nom };
+    }
   }
   const defense = attaque === eqA ? eqB : eqA;
 
@@ -905,9 +940,9 @@ function resoudrePhase(eqA, eqB, ctx) {
     if (!cate && equipeASpec(defense, "Contre-attaquant") && proba(0.08)) {
       evenements.push({ type: "contre", acteurs: [], texte: `Ballon récupéré — la contre-attaque part comme à l'entraînement !`, synergie: "Contre-attaquant", equipe: defense.nom });
       butMarque = tenterTir(defense, attaque, ctx, evenements, 5);
-    } else if (cate && proba(0.04 * cate)) {
+    } else if (cate && proba(0.03 * cate)) {
       evenements.push({ type: "contre", acteurs: [], texte: `Récupération et contre éclair de ${defense.nom} — tout le monde est pris de vitesse !`, synergie: "Catenaccio", equipe: defense.nom });
-      butMarque = tenterTir(defense, attaque, ctx, evenements, cate >= 2 ? 8 : 0);
+      butMarque = tenterTir(defense, attaque, ctx, evenements, cate >= 2 ? 6 : 0);
     }
   }
   return evenements;

@@ -8,7 +8,7 @@
 const ONZE_FAMILLES = {
   /* ---------- Les 11 Écoles ---------- */
   "La Grinta": { identite: "L'École des séries de défaites : plus fort quand le club est mené — la rage du vestiaire se charge.",
-    paliers: [[3, "Bonus de duel quand le club est mené"], [6, "La rage explose : gros bonus sous 50 de prestige, les buts en étant mené rendent du prestige"], [9, "La remontada permanente — chaque phase se joue comme une fin de finale"]] },
+    paliers: [[2, "Bonus de duel quand le club est mené"], [4, "La rage explose : gros bonus sous 50 de prestige, les buts en étant mené rendent du prestige"], [6, "La remontada permanente — chaque phase se joue comme une fin de finale"]] },
   "Catenaccio": { identite: "L'usure qui achève : défendre, user l'attaquant, punir en contre éclair.",
     paliers: [[2, "Bonus défensif (tacle et placement)"], [4, "Les duels défensifs usent l'attaquant, les contres gagnent en danger"], [6, "Un attaquant usé qui perd son duel sort de la phase — contre en supériorité"], [9, "Le bus stellaire : chaque récupération est un contre assassin"]] },
   "Kick & Rush": { identite: "La déferlante : ballons longs par-dessus tout le monde, duels aériens, remises.",
@@ -18,15 +18,15 @@ const ONZE_FAMILLES = {
   "Tiki-Taka": { identite: "Les zones de rondo : la possession comme une toile qui se resserre.",
     paliers: [[3, "Duels de possession bonifiés (passe et technique)"], [5, "Le tempo se conserve de phase en phase"], [7, "Le terrain entier : les égalités en possession sont toujours gagnées"]] },
   "Football Total": { identite: "L'École qui ignore les postes : la permutation permanente (décision n°21).",
-    paliers: [[3, "Malus hors-poste réduits (×0,6) pour toute l'équipe"], [5, "Quasi annulés (×0,3) + surnombre dans la zone du ballon"], [7, "Malus hors-poste ANNULÉS — la formation devient totalement libre"], [10, "Le Onze Total : chaque duel utilise la meilleure stat de l'équipe"]] },
+    paliers: [[2, "Malus hors-poste réduits (×0,6) pour toute l'équipe"], [4, "Quasi annulés (×0,3) + surnombre dans la zone du ballon"], [6, "Malus hors-poste ANNULÉS — la formation devient totalement libre"], [9, "Le Onze Total : chaque duel utilise la meilleure stat de l'équipe"]] },
   "L'Académie": { identite: "Le centre qui produit : les Espoirs poussent et les Académiciens progressent.",
     paliers: [[2, "Le centre envoie un Espoir gratuit sur le banc chaque manche"], [3, "L'Espoir arrive avec une étoile de plus, les Académiciens gagnent +stats"]] },
   "Les Internationaux": { identite: "La sélection au choix : toute l'équipe adopte un style de jeu.",
-    paliers: [[2, "Choisis une « sélection nationale » : un style pour toute l'équipe"], [3, "La sélection s'améliore, changeable au Mercato d'hiver"]] },
+    paliers: [[3, "Choisis une « sélection nationale » : un style pour toute l'équipe"], [4, "La sélection s'améliore, changeable au Mercato d'hiver"]] },
   "Le Douzième Homme": { identite: "Le public entre en jeu : le bloc se soude et le stade gronde.",
     paliers: [[3, "Les trois forment un bloc : leurs zones se défendent ensemble"], [4, "Le stade gronde : bonus quand le club défend son avantage"], [6, "Le public devient le douzième joueur : +1 titulaire sur le terrain"]] },
   "Les Pros": { identite: "Le staff sublimé : l'École qui parle au système d'objets.",
-    paliers: [[2, "Les cartes staff portées par les Pros gagnent un effet bonus"], [3, "Une carte staff gratuite à chaque palier de partie, spécialisations améliorées"]] },
+    paliers: [[2, "Les cartes staff portées par les Pros gagnent un effet bonus"], [4, "Une carte staff gratuite à chaque palier de partie, spécialisations améliorées"]] },
   "Les Revanchards": { identite: "La défaite qui paie : perdre petit, économiser, pivoter armé.",
     paliers: [[2, "Chaque défaite donne une relance de mercato gratuite"], [3, "Deux relances, et une victoire après défaite rapporte +2M"], [4, "Les défaites donnent aussi +1 XP — perdre devient un plan"]] },
 

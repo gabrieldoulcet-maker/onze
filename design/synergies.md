@@ -7,7 +7,7 @@ Chaque joueur porte : 1 École (ou un trait Unique, parfois les deux) + 1 arché
 
 ## Les 11 Écoles (origines multi-joueurs)
 
-### La Grinta — 6 joueurs · paliers 3 / 6 / 9 — l'École des séries de défaites
+### La Grinta — 6 joueurs · paliers 2 / 4 / 6 — l'École des séries de défaites
 Copie d'Anima (mécanique de loss-streak). **3** : bonus de duel quand le club est mené ou en série de défaites ; chaque défaite charge la rage du vestiaire. **6** : la rage accumulée explose — gros bonus tant que le prestige est sous 50, les buts en étant mené rendent +2 prestige. **9** (chimère, via le trio coût 5 + Passeports) : la remontada permanente — l'équipe joue chaque phase comme une dernière minute de finale.
 *Membres : Nico (1), Esteban (2), Emiliano (3) + les Uniques Joaquín, Santiago, Ezequiel (5).*
 
@@ -27,7 +27,7 @@ Copie de Space Groove (stacking, actif dès 1). **1** : le talent s'exprime seul
 Copie de Stargazer (hexes bonifiés). **3** : deux zones du terrain deviennent des « zones de rondo » : duels de possession bonifiés dedans. **5** : quatre zones, et le tempo se conserve de phase en phase. **7** : le terrain entier — les égalités de duel en possession sont toujours gagnées.
 *Membres : Andoni (1), Unai (1), Xabi (2), Rubén (3), Iñaki (4), Aitor (4) + l'Unique Álvaro (5).*
 
-### Football Total — 8 joueurs · paliers 3 / 5 / 7 / 10 — l'École qui ignore les postes
+### Football Total — 8 joueurs · paliers 2 / 4 / 6 / 9 — l'École qui ignore les postes
 Copie de Meeple (grosse École à palier chimère). **Identité principale (décision n°21) : le Football Total réduit puis annule les malus hors-poste de toute l'équipe.** **3** : malus hors-poste réduits (×0,6). **5** : quasi annulés (×0,3) + surnombre virtuel dans la zone du ballon. **7** : malus hors-poste ANNULÉS pour toute l'équipe — la formation devient totalement libre. **10** (chimère, via Ruud + Passeports) : le Onze Total — chaque duel utilise la meilleure stat de l'équipe. (Ruud, « Le Professeur », est personnellement immunisé aux malus par son Unique.)
 *Membres : Luuk (1), Pieter (2), Kees (2), Joost (3), Bram (3), Jasper (4), Sven (4), Timo (4) + l'Unique Ruud (5).*
 
@@ -35,15 +35,15 @@ Copie de Meeple (grosse École à palier chimère). **Identité principale (déc
 Copie de Primordian (spawn). **2** : le centre de formation envoie un Espoir gratuit (coût 1–2 aléatoire) sur ton banc chaque manche. **3** : l'Espoir arrive avec une étoile de plus, et les Académiciens alignés gagnent +stats.
 *Membres : Bakary (1), Théo (1), Adama (2).*
 
-### Les Internationaux — 5 joueurs · paliers 2 / 3 — la sélection au choix
+### Les Internationaux — 5 joueurs · paliers 3 / 4 — la sélection au choix
 Copie d'Arbiter (loi au choix). **2** : choisis une « sélection nationale » : toute l'équipe adopte son style (3 au choix parmi : pressing haut, bloc bas, jeu de transition…). **3** : la sélection s'améliore et tu peux en changer au Mercato d'hiver.
 *Membres : Dennis (2), Milan (3), Yannick (3), Marcus (4), Djibril (4).*
 
 ### Le Douzième Homme — 3 joueurs · paliers 3 / 4 / 6 — le public entre en jeu
 Copie de Mecha (+1 slot d'équipe au sommet). **3** : les trois forment un bloc : leurs zones se défendent ensemble. **4** : le stade gronde — bonus d'équipe quand le club défend son avantage. **6** (chimère, via Passeports) : le public devient littéralement le douzième joueur : **+1 titulaire sur le terrain**.
-*Membres : Sékou (1), Ratko (2), Facundo (4).*
+*Membres : Sékou (1, DÉF), Ratko (2, MIL — reconverti milieu récupérateur, équilibrage S1), Facundo (4, DÉF).*
 
-### Les Pros — 6 joueurs · paliers 2 / 3 — le staff sublimé
+### Les Pros — 6 joueurs · paliers 2 / 4 — le staff sublimé
 Copie de Psionic (objets bonifiés). **2** : les cartes Staff portées par les Pros gagnent un effet bonus. **3** : une carte Staff de base gratuite à chaque palier de partie ; leurs spécialisations sont améliorées. (L'École qui parle au système d'objets — design/staff.md.)
 *Membres : Harry (1), Ciro (2), Abdou (3), Joris (3), Lorenzo (4), Gorka (2).*
 

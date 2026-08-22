@@ -4,6 +4,10 @@
 TFT « mesure → patch → re-mesure », 8 itérations de retouches de VALEURS
 (jamais les mécaniques), trois instruments de mesure créés pour l'occasion.*
 
+*Mis à jour le 22 août après l'arbitrage de Gabriel : les recommandations 1
+et 2 sont appliquées (décision 27) ainsi que le correctif démographique
+minimal du Douzième Homme — voir la section 8 pour l'avant/après.*
+
 ---
 
 ## 1. Les trois instruments (et ce que chacun mesure vraiment)
@@ -35,7 +39,7 @@ Jugement croisé des trois instruments (le mode `ecoles` en chiffres) :
 | **B — situationnelle** | Les Revanchards | 35 % | Correcte en appoint, faible en mono (5 joueurs) |
 | **B** | Football Total | 32 % | Buffée quatre fois (boosts ET seuils) ; son identité vision/vitesse paie moins que la passe |
 | **C — par design** | La Grinta | 29 % | École **late** par démographie (coût moyen 3,5, le plus cher) : injouable tôt, proc de remontada +10×s pour le rush final |
-| **C** | Le Douzième Homme | 6 % | École d'**appoint** par design : 3 joueurs, tous défenseurs — jamais une compo principale |
+| **C** | Le Douzième Homme | 6 % | École d'**appoint** par design : 3 joueurs — jamais une compo principale (depuis la décision 27, Ratko est MIL : 10 % → ~30 % en mono) |
 
 **Verdict contre les cibles.** Le centre du tableau s'est resserré (6 Écoles
 entre 35 et 60 %, contre un grand écart au départ), et il y a bien ≥4 compos
@@ -136,3 +140,50 @@ majorant, pas une prédiction du jeu réel contre des humains.
 - Les **courbes économiques des bots** (éco, late, fast8) restent des
   approximations d'un joueur moyen ; la dépense panique à prestige bas a été
   ajoutée, mais un humain jouerait mieux ces lignes.
+
+---
+
+## 8. Décision 27 appliquée — l'avant/après de la deuxième boucle (22 août)
+
+Gabriel a arbitré : recommandations 1 et 2 appliquées ensemble, plus le
+correctif démographique minimal du Douzième Homme. Détail :
+
+### Ce qui a changé
+| Changement | Valeur |
+|---|---|
+| **Rendements décroissants du milieu** | Au-delà de 4 MIL, les suivants comptent à 50 % dans le duel du milieu (progression et interception) |
+| **Contre du milieu perdu** | ~5-8 % de chance (0,10 × moyenne Vitesse+Tacle des joueurs de champ, plafond 9 %) de renverser la possession — mesuré : 5,7 % des phases |
+| **Ratko (Douzième Homme)** | DÉF → MIL (le milieu récupérateur de l'École d'appoint) |
+| Valeurs d'accompagnement | Catenaccio : touche/palier tacle 3→2, contre éclair 4 %→3 %×s, bonus tir 8→6 · Kick & Rush : ballon long 12 %→10 %, palier aérien 5→4 · Académie : palier technique 4→3 · Grinta : touche tacle 3→5, palier tacle 3→5, mental 8→7 · Total : touche vision 6→7, passe 2→3 · Revanchards : palier placement 2→3 |
+
+### L'effet mesuré (mode écoles, top 4 mono, avant → après)
+| École | Avant | Après | |
+|---|---|---|---|
+| Catenaccio | 78 % | **71 %** | descend (contre + nerfs), reste n°1 par démographie |
+| Les Pros | 71 % | **70 %** | inchangé — 100 % démographique (boosts déjà quasi nuls) |
+| Tiki-Taka | 59-69 % | **63 %** | le plafond du milieu a coûté ~6-10 points au pic |
+| Kick & Rush | 61-66 % | **56 %** | rentre presque dans la bande |
+| École de la Rue | 56 % | **55 %** | dans la bande |
+| L'Académie | 57-61 % | **46 %** | ✓ dans la bande |
+| Les Internationaux | 47 % | **45 %** | ✓ |
+| Les Revanchards | 38 % | **43 %** | ✓ remonte dans la bande |
+| Football Total | 36 % | **36 %** | proche de la bande, identité vision freinée par le plafond du milieu |
+| Le Douzième Homme | 10 % | **30 %** | ×3 grâce à Ratko MIL — école d'appoint assumée |
+| La Grinta | 30 % | **30 %** | école late par démographie (coût moyen 3,5), assumée |
+
+Round-robin des stratégies : splash-tiki-inter 87 % → **76-79 %** (ses
+victoires de lobby passent de 53 % à ~25 %) ; eco-revanchards 16 → **24 %** ;
+le quatuor de tempo (aggro, reroll, chasseur) reste à 75-89 % — sa dominance
+vient de l'économie des bots naïfs (séries nourries par les courbes
+suicidaires d'en face), pas du moteur : voir les limites, section 7.
+
+### Bilan contre les cibles
+Le centre est dense (6 Écoles entre 43 et 56 %), le contre punit l'excès de
+possession sans invalider le plan possession (5,7 % des phases), et les
+garde-fous n'ont pas bougé (buts/match 2,71-2,81, top 4 humain 49,2 %,
+fusions 52 %, fin de partie M18). Restent hors bande, pour des raisons
+désormais purement démographiques : Catenaccio/Pros/Tiki en haut (Écoles
+nombreuses et bon marché = fusions), Grinta/Douzième/Total en bas (chères,
+petites, ou identité freinée). **Aucune valeur ne comblera ces écarts sans
+dénaturer les identités : c'est le chantier « démographie saison 2 »
+(recommandation 3), seul levier restant.**

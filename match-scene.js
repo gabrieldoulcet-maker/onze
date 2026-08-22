@@ -84,7 +84,7 @@ const ONZE_SCENE = (() => {
     const evHorsJeu = evts.find((e) => e.type === "hors_jeu");
     const evRebonds = evts.filter((e) => e.type === "rebond");
     const equipeAttaque = evFinal ? (evFinal.but ? evFinal.equipe : (eqA.nom === evFinal.equipe ? eqB.nom : eqA.nom))
-      : evPercee ? evPercee.equipe : evPossession ? evPossession.equipe : eqA.nom;
+      : evPercee ? evPercee.equipe : evContre ? evContre.equipe : evPossession ? evPossession.equipe : eqA.nom;
     const equipe = eqA.nom === equipeAttaque ? eqA : eqB;
     const style = styleDe(equipe).style;
 
