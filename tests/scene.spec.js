@@ -216,7 +216,11 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     ONZE_SCENE.creer = function (...args) {
       const sc = creerOriginal.apply(this, args);
       const jt = sc.jouerTemps, ct = sc.cut, mp = sc.miseEnPlace;
-      sc.jouerTemps = (t, d, cb) => { journal.temps.push({ t: performance.now(), type: t.type, issue: !!t.issue }); return jt(t, d, cb); };
+      sc.jouerTemps = (t, d, cb) => {
+        journal.temps.push({ t: performance.now(), type: t.type, issue: !!t.issue,
+          decisif: !!t.issue || !!t.decisif || t.type === "percee" });
+        return jt(t, d, cb);
+      };
       sc.cut = (...a) => { journal.cuts++; return ct(...a); };
       sc.miseEnPlace = (...a) => { journal.misesEnPlace++; journal.temps.push({ t: performance.now(), type: "_miseEnPlace" }); return mp(...a); };
       return sc;
@@ -267,6 +271,10 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       // la durée d'affichage d'une issue avant la suite
       issuesMs: journal.temps.map((x, i) => x.issue && journal.temps[i + 1]
         ? journal.temps[i + 1].t - x.t : null).filter((v) => v !== null),
+      // la durée réelle des temps DÉCISIFS non terminaux (percée, frappe) :
+      // l'issue est exclue, sa suite est un cut et fausserait la mesure
+      decisifsMs: journal.temps.map((x, i) => x.decisif && !x.issue && journal.temps[i + 1]
+        ? journal.temps[i + 1].t - x.t : null).filter((v) => v !== null),
       issues: journal.temps.filter((t) => t.issue).length,
       ecartMin: ecarts.length ? Math.min(...ecarts) : 0,
       vitesseMoyenne: vitesses.length ? vitesses.reduce((a, b) => a + b, 0) / vitesses.length : 0,
@@ -282,14 +290,19 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     !releve.regimes.includes("domination"));
   verifier(`R2 : le match est fait de temps forts coupés au carton (${releve.misesEnPlace} temps forts, ${releve.cuts} cuts)`,
     releve.misesEnPlace >= 1 && releve.cuts >= releve.misesEnPlace);
-  verifier(`R9 : 2 à 5 temps forts rendus sur un match plein (${releve.misesEnPlace})`,
-    releve.misesEnPlace >= 2 && releve.misesEnPlace <= 5);
+  verifier(`R9 : 2 à 4 temps forts rendus sur un match plein (${releve.misesEnPlace})`,
+    releve.misesEnPlace >= 2 && releve.misesEnPlace <= 4);
   verifier(`R9 : chaque temps fort porte au moins une issue (${releve.issues} issues pour ${releve.misesEnPlace} temps forts)`,
     releve.issues >= releve.misesEnPlace);
-  verifier(`R9 : plancher de lisibilité tenu (temps le plus court ${Math.round(releve.ecartMin)} ms ≥ 640)`,
-    releve.ecartMin >= 620);
+  verifier(`R9 : plancher de lisibilité tenu (temps le plus court ${Math.round(releve.ecartMin)} ms ≥ 800)`,
+    releve.ecartMin >= 780);
   verifier(`R9 : le match tient dans son budget (${(releve.duree / 1000).toFixed(1)} s pour ~40 s visées)`,
-    releve.duree > 15000 && releve.duree < 60000);
+    releve.duree > 20000 && releve.duree < 75000);
+  // Règle 3 de la spec : les temps DÉCISIFS (percée, frappe, issue) sont
+  // patients — 1,5 s au moins. C'est la patience de FM qui rend lisible.
+  const decisifsCourts = releve.decisifsMs.filter((v) => v < 1450).length;
+  verifier(`Règle 3 : les temps décisifs sont patients (${releve.decisifsMs.length} mesurés, le plus court ${releve.decisifsMs.length ? Math.round(Math.min(...releve.decisifsMs)) : "—"} ms ≥ 1450)`,
+    releve.decisifsMs.length >= 3 && decisifsCourts === 0);
   verifier(`R4 : les 22 pions bougent en permanence (vitesse moyenne ${releve.vitesseMoyenne.toFixed(2)} %/s, ${Math.round(releve.partsImmobiles * 100)} % de relevés figés)`,
     releve.vitesseMoyenne > 0.8 && releve.partsImmobiles < 0.2);
   verifier(`R4 : le ballon ne se téléporte jamais (saut max ${releve.sautMaxBallon.toFixed(1)} % de terrain en 50 ms)`,

@@ -111,16 +111,27 @@ const ONZE_UI = (() => {
           match plein : 3-5). Si ça ne rentre pas, on réduit le
           NOMBRE de temps forts, JAMAIS leur lisibilité.
      ============================================================ */
-  const TEMPS_MS = 800;           // plancher de lisibilité — l'arbitrage
-                                  // automatique ne descend jamais dessous
-  const TEMPS_DECISIF_MS = 1000;  // l'armement de la frappe s'étire
-  const TEMPS_ISSUE_MS = 1300;    // la frappe voyage, PUIS l'issue tombe
-  const CUT_MS = 900;             // le carton minute + score
-  const RESPIRATION_MS = 700;     // le souffle après une issue
-  const CELEBRATION_MS = 1100;    // le constat d'un but (ou d'un presque-but)
-                                  // reste à l'écran : c'est la récompense
-  const dureeMiseEnPlace = (nbPhases) => nbPhases <= 4 ? 1500 : nbPhases <= 6 ? 2200 : 3000;
-  const dureeTemps = (t) => t.issue ? TEMPS_ISSUE_MS : t.decisif ? TEMPS_DECISIF_MS : TEMPS_MS;
+  /* LE RYTHME (arbitrage de Gabriel, règle 3 de la spec).
+     0,8 s est un PLANCHER, pas une cible. FM est patient, et c'est sa
+     patience qui rend le match lisible :
+     - les temps DÉCISIFS (percée, frappe, issue) visent 1,5-2 s ;
+     - les relais de transition tiennent 0,8-1,3 s ;
+     - et si le budget ne rentre pas, on retire un TEMPS FORT, jamais
+       des secondes de jeu. La durée d'un temps n'est plus une variable
+       d'ajustement — seul leur NOMBRE l'est. */
+  const TEMPS_TRANSITION_MS = 1000;  // récupération, relais, conduite, geste…
+  const TEMPS_DECISIF_MS = 1600;     // la percée et l'armement de la frappe
+  const TEMPS_ISSUE_MS = 1800;       // la frappe voyage, PUIS l'issue tombe
+  const PLANCHER_MS = 800;           // on ne descend JAMAIS dessous
+  const CUT_MS = 900;                // le carton minute + score
+  const RESPIRATION_MS = 700;        // le souffle après une issue
+  const CELEBRATION_MS = 1100;       // le constat d'un but (ou d'un presque-but)
+                                     // reste à l'écran : c'est la récompense
+  const dureeMiseEnPlace = (nbPhases) => nbPhases <= 4 ? 2000 : nbPhases <= 6 ? 2600 : 3000;
+  /* Sont DÉCISIFS : la percée, la frappe et l'issue — les trois temps où
+     se joue la promesse. Tout le reste est de la construction. */
+  const estDecisif = (t) => t.issue || t.decisif || t.type === "percee";
+  const dureeTemps = (t) => t.issue ? TEMPS_ISSUE_MS : estDecisif(t) ? TEMPS_DECISIF_MS : TEMPS_TRANSITION_MS;
   /* Un but et un presque-but gagnent un temps d'arrêt sur image : sans
      lui, le constat file en ~0,6 s et la récompense passe inaperçue. */
   const dureeCelebration = (t) => (t.type === "issue_but" || t.pres) ? CELEBRATION_MS : 0;
@@ -195,11 +206,13 @@ const ONZE_UI = (() => {
       const reg = ONZE_SCENE.reglages();
       const budgetTotal = delaiPhase * resultat.phases.length;
       const nbPhases = resultat.phases.length;
-      let miseEnPlaceMs = dureeMiseEnPlace(nbPhases);
+      const miseEnPlaceMs = dureeMiseEnPlace(nbPhases);
       const resume = reg.filtre === "resume";
       // le plafond de format (R9) — en ×2, seuls les buts sont rendus
+      // les budgets de la spec : amical 1 rendu, manches 4-9 : 2-3,
+      // match plein : 3-4. En ×2, seuls les buts sont rendus.
       const maxRendus = resume ? 99 : vitesse === 2 ? 0
-        : nbPhases <= 4 ? 1 : nbPhases <= 6 ? 3 : 5;
+        : nbPhases <= 4 ? 1 : nbPhases <= 6 ? 3 : 4;
       const actions = new Map();
       for (const phase of resultat.phases) {
         if (estChaude(phase)) actions.set(phase, ONZE_SCENE.construireAction(phase, equipeA, equipeB));
@@ -215,16 +228,13 @@ const ONZE_UI = (() => {
           rendues.add(phase); coutTotal += cout;
         }
       }
-      /* L'ARBITRAGE DU BUDGET (R9). Tous les buts sont rendus, donc un
-         match à 5 buts déborde forcément. La variable d'ajustement est
-         alors la MISE EN PLACE — le temps où il ne se passe rien —
-         jamais le jeu lui-même : les temps d'action gardent leur
-         plancher de lisibilité, quoi qu'il arrive. */
-      if (!resume && coutTotal > budgetTotal && rendues.size) {
-        const trop = coutTotal - budgetTotal;
-        miseEnPlaceMs = Math.max(1200, miseEnPlaceMs - trop / rendues.size);
-        coutTotal = [...rendues].reduce((t, p) => t + coutTempsFort(actions.get(p), miseEnPlaceMs), 0);
-      }
+      /* L'ARBITRAGE DU BUDGET (arbitrage de Gabriel). La seule variable
+         d'ajustement est le NOMBRE de temps forts — jamais leurs
+         secondes. La sélection ci-dessus s'en charge : une occasion qui
+         ne rentre pas n'est pas rendue, point.
+         Le seul plancher irréductible est la décision 25 : TOUS les buts
+         sont rendus. Un match à 5 buts dure donc plus longtemps qu'un
+         match à 2 — c'est voulu, un festival mérite son temps d'écran. */
       // le temps mort restant se répartit sur les phases non rendues
       const nbMortes = nbPhases - rendues.size;
       const dureeMorte = Math.max(500, Math.min(1600,
@@ -293,7 +303,7 @@ const ONZE_UI = (() => {
         // 3. les temps du temps fort
         action.forEach((t) => {
           const duree = dureeTemps(t);
-          pousser(duree, false, 640, () => {
+          pousser(duree, false, PLANCHER_MS, () => {
             if (t.issue) {
               // l'issue : le journal et le score n'arrivent qu'à la
               // RÉVÉLATION — sinon le tableau spoile la frappe (R7)
@@ -359,9 +369,9 @@ const ONZE_UI = (() => {
       const etape = etapes.shift();
       if (!etape) return;
       const diviseur = options.scene ? (etape.mort ? facteurMort() : facteurFort()) : vitesse;
-      // Le plancher de lisibilité (R9) : un temps de temps fort ne se
-      // brouille jamais. L'arbitrage automatique reste à 0,8 s ; seul
-      // le réglage explicite « plus vite » peut descendre à 0,64 s.
+      // Le plancher de lisibilité : un temps de temps fort ne se brouille
+      // JAMAIS — même le réglage « plus vite » et le ×2 s'arrêtent à
+      // 0,8 s. C'est la règle 3 de la spec, prise au mot.
       const delai = Math.max(etape.plancher || 0, etape.delai / diviseur);
       setTimeout(() => { etape.action(); suivante(); }, delai);
     })();
