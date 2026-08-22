@@ -276,6 +276,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       decisifsMs: journal.temps.map((x, i) => x.decisif && !x.issue && journal.temps[i + 1]
         ? journal.temps[i + 1].t - x.t : null).filter((v) => v !== null),
       issues: journal.temps.filter((t) => t.issue).length,
+      buts: journal.temps.filter((t) => t.type === "issue_but").length,
       ecartMin: ecarts.length ? Math.min(...ecarts) : 0,
       vitesseMoyenne: vitesses.length ? vitesses.reduce((a, b) => a + b, 0) / vitesses.length : 0,
       partsImmobiles: vitesses.filter((v) => v < 0.15).length / Math.max(vitesses.length, 1),
@@ -290,14 +291,22 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     !releve.regimes.includes("domination"));
   verifier(`R2 : le match est fait de temps forts coupés au carton (${releve.misesEnPlace} temps forts, ${releve.cuts} cuts)`,
     releve.misesEnPlace >= 1 && releve.cuts >= releve.misesEnPlace);
-  verifier(`R9 : 2 à 4 temps forts rendus sur un match plein (${releve.misesEnPlace})`,
-    releve.misesEnPlace >= 2 && releve.misesEnPlace <= 4);
+  /* Le plafond de format est de 4 rendus sur un match plein, MAIS la
+     décision 25 impose de rendre tous les buts : un match à 5 buts fait
+     donc 5 temps forts. L'invariant vrai est celui-ci — le nombre de
+     rendus ne dépasse jamais le plus grand des deux (plafond, buts). */
+  const plafond = Math.max(4, releve.buts);
+  verifier(`R9 : 2 rendus au moins, jamais plus que le plafond ni que les buts (${releve.misesEnPlace} rendus, ${releve.buts} buts, plafond ${plafond})`,
+    releve.misesEnPlace >= 2 && releve.misesEnPlace <= plafond);
   verifier(`R9 : chaque temps fort porte au moins une issue (${releve.issues} issues pour ${releve.misesEnPlace} temps forts)`,
     releve.issues >= releve.misesEnPlace);
   verifier(`R9 : plancher de lisibilité tenu (temps le plus court ${Math.round(releve.ecartMin)} ms ≥ 800)`,
     releve.ecartMin >= 780);
-  verifier(`R9 : le match tient dans son budget (${(releve.duree / 1000).toFixed(1)} s pour ~40 s visées)`,
-    releve.duree > 20000 && releve.duree < 75000);
+  // ~13 s par temps fort depuis l'arbitrage du rythme : le budget se lit
+  // par rendu, la durée totale suit le nombre de buts (décision 25).
+  const budgetHaut = 12000 + releve.misesEnPlace * 15000;
+  verifier(`R9 : ~13 s par temps fort tenues (${(releve.duree / 1000).toFixed(1)} s pour ${releve.misesEnPlace} rendus, plafond ${(budgetHaut / 1000).toFixed(0)} s)`,
+    releve.duree > 20000 && releve.duree < budgetHaut);
   // Règle 3 de la spec : les temps DÉCISIFS (percée, frappe, issue) sont
   // patients — 1,5 s au moins. C'est la patience de FM qui rend lisible.
   const decisifsCourts = releve.decisifsMs.filter((v) => v < 1450).length;
