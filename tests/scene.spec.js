@@ -65,9 +65,23 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       { type: "arret", equipe: "Tiki", acteurs: ["x", "g"] },
     ] };
     const domArret = scene.dominationDe(phaseArret);
+
+    // 4. la répulsion des pions : une mêlée de 6 disques superposés se
+    // résout en quelques frames — plus aucun recouvrement au-delà de ~20 %
+    const rayon = 16;
+    const melee = Array.from({ length: 6 }, (_, i) => ({ x: 50, y: 50, echelle: 1, phase: i * 0.7 }));
+    for (let f = 0; f < 40; f++) ONZE_SCENE.separerDisques(melee, 800, 360, rayon);
+    let distMin = Infinity;
+    for (let i = 0; i < melee.length; i++) for (let j = i + 1; j < melee.length; j++) {
+      const d = Math.hypot((melee[j].x - melee[i].x) * 8, (melee[j].y - melee[i].y) * 3.6);
+      distMin = Math.min(distMin, d);
+    }
+    const repulsion = { distMin, seuil: 0.75 * 2 * rayon };
+
+    // 5. pendant une vraie scène animée : jamais deux pions collés
     scene.detruire();
     bac.remove();
-    return { styles, blocBas, domA, domB, domArret };
+    return { styles, blocBas, domA, domB, domArret, repulsion };
   });
 
   verifier("style détecté : équipe Catenaccio → catenaccio", r.styles.cate === "catenaccio");
@@ -76,6 +90,36 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   verifier(`jauge : phase dominée par moi → positive (${r.domA.toFixed(2)})`, r.domA > 0.5);
   verifier(`jauge : phase dominée par l'adversaire → négative (${r.domB.toFixed(2)})`, r.domB < 0);
   verifier(`jauge : un arrêt adverse compte pour MON occasion (${r.domArret.toFixed(2)})`, r.domArret > 0);
+  verifier(`répulsion : une mêlée de 6 pions se désserre (dist min ${r.repulsion.distMin.toFixed(1)} px ≥ ${r.repulsion.seuil.toFixed(1)})`,
+    r.repulsion.distMin >= r.repulsion.seuil);
+
+  // ---- un match animé réel : échantillonner les positions, jamais collés ----
+  const live = await page.evaluate(async () => {
+    arreterChrono();
+    partie.manche = 10;
+    preparerManche();
+    jouerManche();
+    const releves = [];
+    for (let t = 0; t < 30; t++) {
+      await new Promise((r2) => setTimeout(r2, 150));
+      const scene = typeof sceneMatch !== "undefined" ? sceneMatch : null;
+      if (!scene) continue;
+      const d = scene.diagnostic();
+      let mini = Infinity;
+      const boite = document.querySelector(".scene-match canvas");
+      const L = boite ? boite.clientWidth : 800, H = boite ? boite.clientHeight : 360;
+      for (let i = 0; i < d.positions.length; i++) for (let j = i + 1; j < d.positions.length; j++) {
+        const a = d.positions[i], b = d.positions[j];
+        mini = Math.min(mini, Math.hypot((b.x - a.x) * L / 100, (b.y - a.y) * H / 100));
+      }
+      if (mini < Infinity) releves.push({ mini, rayon: Math.max(H * 0.045, 8) });
+    }
+    return releves;
+  });
+  const pire = live.length ? live.reduce((a, b) => (a.mini < b.mini ? a : b)) : null;
+  verifier(`match animé : jamais deux pions superposés (${live.length} relevés, pire ${pire ? pire.mini.toFixed(1) : "—"} px pour un rayon de ${pire ? pire.rayon.toFixed(1) : "—"})`,
+    !!pire && pire.mini >= 0.6 * 2 * pire.rayon);
+  await page.waitForFunction(() => !!document.getElementById("btn-continuer"), null, { timeout: 90000 });
 
   verifier("zéro erreur JS", true);
   await browser.close();

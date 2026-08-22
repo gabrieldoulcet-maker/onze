@@ -771,6 +771,9 @@ const ONZE_SCENE = (() => {
         if (d.aura > 0) d.aura -= dtBrut * 1000;
         if (d.flash > 0) d.flash -= dtBrut * 1000;
       }
+      // Répulsion minimale entre pions (fonction pure, voir plus bas) :
+      // dans les mêlées, aucun disque ne recouvre un autre à plus de ~20 %.
+      separerDisques(listeDisques, largeur, hauteur, Math.max(hauteur * 0.045, 8));
       if (!ballon.suspendu) {
         ballon.x = lerp(ballon.x, ballon.cx, Math.min(1, dt * ballon.vitesse));
         ballon.y = lerp(ballon.y, ballon.cy, Math.min(1, dt * ballon.vitesse));
@@ -833,7 +836,35 @@ const ONZE_SCENE = (() => {
     };
   }
 
-  return { creer, couleurFamille, styleDe, construireAction };
+  /* ============================================================
+     RÉPULSION MINIMALE entre pions : chaque paire trop proche
+     (recouvrement > ~20 %, soit une distance < 1,6 rayon) est écartée
+     symétriquement d'un demi-déficit — micro-décalage par frame, la
+     poursuite des cibles reprend le dessus dès que ça respire.
+     Pure et testable : appelée à chaque frame par la boucle de scène.
+     ============================================================ */
+  function separerDisques(disques, largeur, hauteur, rayonPx) {
+    for (let i = 0; i < disques.length; i++) {
+      for (let j = i + 1; j < disques.length; j++) {
+        const a = disques[i], b = disques[j];
+        const minDist = 0.8 * (rayonPx * (a.echelle || 1) + rayonPx * (b.echelle || 1));
+        let dxPx = (b.x - a.x) * largeur / 100, dyPx = (b.y - a.y) * hauteur / 100;
+        const dist = Math.hypot(dxPx, dyPx);
+        if (dist >= minDist) continue;
+        if (dist < 0.01) { dxPx = Math.cos((a.phase || 0) + i); dyPx = Math.sin((a.phase || 0) + i); } // pile superposés : axe déterministe
+        const norme = Math.hypot(dxPx, dyPx);
+        const pousse = (minDist - dist) / 2;
+        const uxPct = (dxPx / norme) * pousse * 100 / largeur;
+        const uyPct = (dyPx / norme) * pousse * 100 / hauteur;
+        a.x -= uxPct; a.y -= uyPct;
+        b.x += uxPct; b.y += uyPct;
+      }
+    }
+    // personne ne sort du terrain en se faisant pousser
+    for (const d of disques) { d.x = Math.max(1, Math.min(99, d.x)); d.y = Math.max(2, Math.min(98, d.y)); }
+  }
+
+  return { creer, couleurFamille, styleDe, construireAction, separerDisques };
 })();
 
 if (typeof module !== "undefined") module.exports = ONZE_SCENE;

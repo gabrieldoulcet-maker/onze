@@ -39,6 +39,25 @@ const TAILLES = [
     total += rognes;
     await page.close();
   }
+  // ---- Portrait : plus de rendu tourné — l'écran doux « Tourne ton
+  // téléphone » s'affiche (et disparaît en paysage). Leçon du playtest :
+  // la rotation logicielle était pénible avec la barre Safari. ----
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto("http://localhost:8123/partie.html");
+    await page.waitForSelector(".carte-boutique");
+    const r = await page.evaluate(() => ({
+      ecranDoux: getComputedStyle(document.getElementById("tourne-ecran")).display !== "none",
+      renduTourne: getComputedStyle(document.getElementById("app")).transform !== "none",
+      promo: getComputedStyle(document.getElementById("promo-pwa")).display !== "none",
+    }));
+    await page.setViewportSize({ width: 844, height: 390 });
+    const cache = await page.evaluate(() => getComputedStyle(document.getElementById("tourne-ecran")).display === "none");
+    const ok = r.ecranDoux && !r.renduTourne && r.promo && cache;
+    console.log(`${ok ? "✅" : "❌"} portrait : écran doux 🔄 (visible ${r.ecranDoux}, rendu tourné ${r.renduTourne}, promo PWA ${r.promo}, caché en paysage ${cache})`);
+    if (!ok) total++;
+    await page.close();
+  }
   await browser.close();
   process.exit(total ? 1 : 0);
 })();

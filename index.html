@@ -110,7 +110,7 @@
         const invite = document.createElement("div");
         invite.style.cssText = "margin-top:10px;max-width:400px;background:#243A28;border:1px solid #4FC57C;" +
           "border-radius:12px;padding:10px 14px;font-size:0.8rem;color:#C9D6C9;cursor:pointer;text-align:center";
-        invite.innerHTML = `📲 <strong>Installe ONZE !</strong><br><small style="color:#96A699">« Ajouter à l'écran d'accueil » dans le menu du navigateur = plein écran et icône, comme une vraie app. Touche pour fermer.</small>`;
+        invite.innerHTML = `📲 <strong>Installe ONZE !</strong><br><small style="color:#96A699">« Ajouter à l'écran d'accueil » dans le menu du navigateur : plein écran sans barre, icône d'app — et l'orientation paysage se verrouille sur Android. Touche pour fermer.</small>`;
         invite.addEventListener("click", () => invite.remove());
         document.body.appendChild(invite);
       } catch (e) {}

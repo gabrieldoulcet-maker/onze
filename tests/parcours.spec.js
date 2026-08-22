@@ -18,6 +18,27 @@ const verifier = (nom, ok) => {
   if (!ok) echecs++;
 };
 
+/* ---- Anti-placeholder : aucun texte « chantier » ne doit atteindre le
+   joueur (leçon du playtest : « le système complet arrive bientôt » a
+   survécu deux sprints au système staff complet). Vérifié statiquement
+   sur tous les fichiers servis au navigateur. ---- */
+{
+  const fs = require("fs"), path = require("path");
+  const racine = path.join(__dirname, "..");
+  const servis = fs.readdirSync(racine).filter((f) => /\.(html|js|css)$/.test(f));
+  const INTERDITS = /arrive bient[oô]t|coming soon|en construction|prochainement|lorem ipsum|syst[eè]me complet|version future|sera ajout[eé]/i;
+  const fautifs = [];
+  for (const f of servis) {
+    const contenu = fs.readFileSync(path.join(racine, f), "utf8");
+    // on ignore les commentaires : seuls les textes vus du joueur comptent
+    const sansCommentaires = contenu.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1").replace(/<!--[\s\S]*?-->/g, "");
+    const m = sansCommentaires.match(INTERDITS);
+    if (m) fautifs.push(`${f} → « ${m[0]} »`);
+  }
+  verifier("aucun texte placeholder/« bientôt » servi au joueur", fautifs.length === 0);
+  for (const f of fautifs) console.log("   ⚠️ " + f);
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: EXECUTABLE });
   const page = await (await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true })).newPage();
