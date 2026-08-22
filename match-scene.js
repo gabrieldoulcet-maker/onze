@@ -620,13 +620,17 @@ const ONZE_SCENE = (() => {
         ballon.vol = null; ballon.porteur = null;
         ballon.x = zone.x; ballon.y = zone.y;
       }
-      // R5 : la promesse QUANTIFIE le danger — comptage réel des pions
-      // qui seront dans le dernier tiers au moment de l'action
-      const tiers = camp === "moi" ? 66 : 34;
-      const dansLeTiers = (c) => listePions.filter((p) => p.camp === c && !p.gardien &&
-        (camp === "moi" ? (p.cx !== null ? p.cx : p.x) > tiers : (p.cx !== null ? p.cx : p.x) < tiers)).length;
-      const att = Math.max(1, dansLeTiers(camp));
-      const def = Math.max(1, dansLeTiers(adverse(camp)));
+      // R5 : la promesse QUANTIFIE le danger — comptage RÉEL des pions
+      // engagés autour de la zone où naît l'action (rayon de 30 % de
+      // terrain, gardiens exclus). Le chiffre vient des positions qu'on
+      // vient de poser : il ne peut pas mentir.
+      const engages = (c) => listePions.filter((p) => {
+        if (p.camp !== c || p.gardien) return false;
+        const x = p.cx !== null ? p.cx : p.x, y = p.cy !== null ? p.cy : p.y;
+        return Math.hypot(x - zone.x, (y - zone.y) * 0.55) < 30;
+      }).length;
+      const att = Math.max(1, engages(camp));
+      const def = Math.max(1, engages(adverse(camp)));
       const nomEquipe = sequence.equipe || (camp === "moi" ? eqA.nom : eqB.nom);
       const LIBELLES = {
         placee: `${nomEquipe} installe le jeu…`,
@@ -635,8 +639,8 @@ const ONZE_SCENE = (() => {
         aerien: `${nomEquipe} cherche la tête dans la surface…`,
         long: `${nomEquipe} tente le ballon dans la profondeur…`,
       };
-      const rapport = att <= def
-        ? `Ils sont <b>${att}</b> face à <b>${def}</b>.`
+      const rapport = att === 1 && def === 1 ? `Un contre un.`
+        : att <= def ? `Ils sont <b>${att}</b> face à <b>${def}</b>.`
         : `<b>${att}</b> contre <b>${def}</b> — le surnombre est pour ${nomEquipe} !`;
       commentaire(`${LIBELLES[situation] || LIBELLES.placee} ${rapport}`);
       return { attaquants: att, defenseurs: def, situation };
@@ -951,7 +955,8 @@ const ONZE_SCENE = (() => {
       setTimeout(() => {
         if (detruit || finDeMatch) return;
         replay = { etats: tampon.slice(-90), indice: 0 };
-        const bandeauReplay = ephemere("bandeau-replay", 50, 8, "⏪ Le but", 2400);
+        // sous le tableau de score, sinon il passe dessous et on ne le voit pas
+        const bandeauReplay = ephemere("bandeau-replay", 50, 26, "⏪ Le but", 2400);
         bandeauReplay.style.transform = "translate(-50%,0)";
       }, 700);
     }

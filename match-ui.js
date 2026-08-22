@@ -115,8 +115,13 @@ const ONZE_UI = (() => {
   const TEMPS_ISSUE_MS = 1300;    // la frappe voyage, PUIS l'issue tombe
   const CUT_MS = 900;             // le carton minute + score
   const RESPIRATION_MS = 700;     // le souffle après une issue
+  const CELEBRATION_MS = 1100;    // le constat d'un but (ou d'un presque-but)
+                                  // reste à l'écran : c'est la récompense
   const dureeMiseEnPlace = (nbPhases) => nbPhases <= 4 ? 1500 : nbPhases <= 6 ? 2200 : 3000;
   const dureeTemps = (t) => t.issue ? TEMPS_ISSUE_MS : t.decisif ? TEMPS_DECISIF_MS : TEMPS_MS;
+  /* Un but et un presque-but gagnent un temps d'arrêt sur image : sans
+     lui, le constat file en ~0,6 s et la récompense passe inaperçue. */
+  const dureeCelebration = (t) => (t.type === "issue_but" || t.pres) ? CELEBRATION_MS : 0;
 
   const estChaude = (phase) => phase.evenements.some((ev) =>
     ev.but || ev.type === "arret" || ev.type === "blocage" || ev.type === "rebond");
@@ -124,7 +129,8 @@ const ONZE_UI = (() => {
   const prioriteDe = (phase) => Math.max(...phase.evenements.map((ev) =>
     ev.but ? 100 : ev.type === "arret" ? (ev.pres ? 60 : 40) : ev.type === "blocage" ? 30 : ev.type === "rebond" ? 20 : 0));
   const coutTempsFort = (action, miseEnPlaceMs) =>
-    CUT_MS + miseEnPlaceMs + RESPIRATION_MS + action.reduce((t, tp) => t + dureeTemps(tp), 0);
+    CUT_MS + miseEnPlaceMs + RESPIRATION_MS +
+    action.reduce((t, tp) => t + dureeTemps(tp) + dureeCelebration(tp), 0);
 
   /* Le texte de repli quand un temps n'a ni promesse ni événement */
   const texteDuTemps = (t) => {
@@ -232,19 +238,27 @@ const ONZE_UI = (() => {
         options.scene.majPossession(comptePossession);
       };
 
+      /* La file d'étapes attend AVANT d'agir : le délai d'une étape est
+         donc la durée de la PRÉCÉDENTE. `pousser` tient ce décalage —
+         sans lui, une mise en place annoncée à 3 s ne durait que le
+         temps du premier temps de jeu, et l'issue se faisait couper
+         par la respiration avant même d'être révélée. */
+      let attente = { duree: 300, mort: true, plancher: 0 };
+      const pousser = (duree, mort, plancher, action) => {
+        etapes.push({ delai: attente.duree, mort: attente.mort, plancher: attente.plancher, action });
+        attente = { duree, mort, plancher };
+      };
+
       resultat.phases.forEach((phase) => {
         if (!rendues.has(phase)) {
           /* --- TEMPS MORT : rien à l'écran (R2). Le journal encaisse. --- */
-          etapes.push({
-            delai: dureeMorte, mort: true,
-            action: () => {
-              blocCourant = blocPhase(elements.recit, phase.minute, phase.numero);
-              options.scene.reglerMinute(phase.minute, dureeMorte);
-              options.scene.majJaugeCible(phase);
-              phase.evenements.forEach((ev) => { jouerEvenement(ev); options.scene.accent(ev); });
-              compter(phase);
-              if (scoresLobby.length) options.scene.notifierLobby(scoresLobby.shift());
-            },
+          pousser(dureeMorte, true, 0, () => {
+            blocCourant = blocPhase(elements.recit, phase.minute, phase.numero);
+            options.scene.reglerMinute(phase.minute, dureeMorte / facteurMort());
+            options.scene.majJaugeCible(phase);
+            phase.evenements.forEach((ev) => { jouerEvenement(ev); options.scene.accent(ev); });
+            compter(phase);
+            if (scoresLobby.length) options.scene.notifierLobby(scoresLobby.shift());
           });
           return;
         }
@@ -252,56 +266,55 @@ const ONZE_UI = (() => {
         /* --- TEMPS FORT --- */
         const action = actions.get(phase);
         const couverts = new Set(action.map((t) => t.ev).filter(Boolean));
+        const dureeJouee = action.reduce((t, tp) => t + dureeTemps(tp) + dureeCelebration(tp), 0) + RESPIRATION_MS;
         // 1. le CUT sec : carton minute + score
-        etapes.push({
-          delai: CUT_MS, mort: true,
-          action: () => {
-            blocCourant = blocPhase(elements.recit, phase.minute, phase.numero);
-            options.scene.cut({ minute: phase.minute, scoreA: scores.a, scoreB: scores.b,
-              nomA: equipeA.nom, nomB: equipeB.nom }, CUT_MS);
-            options.scene.majJaugeCible(phase);
-            compter(phase);
-          },
+        pousser(CUT_MS, true, 0, () => {
+          blocCourant = blocPhase(elements.recit, phase.minute, phase.numero);
+          // la carte se retire à la vitesse réelle du temps mort (×2, réglage)
+          options.scene.cut({ minute: phase.minute, scoreA: scores.a, scoreB: scores.b,
+            nomA: equipeA.nom, nomB: equipeB.nom }, CUT_MS / facteurMort());
+          options.scene.majJaugeCible(phase);
+          compter(phase);
+          // le lobby vit pendant ton match : les autres scores tombent
+          // pendant les coupures (s'il ne reste aucun temps mort pour eux)
+          if (scoresLobby.length) options.scene.notifierLobby(scoresLobby.shift());
         });
-        // 2. la MISE EN PLACE : les 22 pions glissent, la promesse tombe
-        //    et l'horloge se remet à courir pendant tout le temps fort
-        //    (R8) — 3 minutes de jeu, jamais plus : au-delà, la scène
-        //    dépasserait la minute de la phase suivante et MENTIRAIT.
-        const dureeJouee = action.reduce((t, tp) => t + dureeTemps(tp), 0) + RESPIRATION_MS;
-        etapes.push({
-          delai: miseEnPlaceMs,
-          action: () => {
-            options.scene.miseEnPlace(action, miseEnPlaceMs);
-            options.scene.reglerMinute(phase.minute + 3, miseEnPlaceMs + dureeJouee);
-          },
+        // 2. la MISE EN PLACE : les 22 pions glissent, la promesse tombe,
+        //    et l'horloge se remet à courir pour tout le temps fort (R8) —
+        //    3 minutes de jeu, jamais plus : au-delà, la scène dépasserait
+        //    la minute de la phase suivante et MENTIRAIT.
+        pousser(miseEnPlaceMs, false, 0, () => {
+          const f = facteurFort();
+          options.scene.miseEnPlace(action, miseEnPlaceMs / f);
+          options.scene.reglerMinute(phase.minute + 3, (miseEnPlaceMs + dureeJouee) / f);
         });
         // 3. les temps du temps fort
         action.forEach((t) => {
-          etapes.push({
-            delai: dureeTemps(t), plancher: 640,
-            action: () => {
-              const duree = dureeTemps(t);
-              if (t.issue) {
-                // l'issue : le journal et le score n'arrivent qu'à la
-                // RÉVÉLATION — sinon le tableau spoile la frappe (R7)
-                options.scene.jouerTemps(t, duree, () => { if (t.ev) jouerEvenement(t.ev); });
-              } else {
-                options.scene.jouerTemps(t, duree);
-                options.scene.commentaire(texteDuTemps(t));
-                if (t.ev) jouerEvenement(t.ev);
-              }
-            },
+          const duree = dureeTemps(t);
+          pousser(duree, false, 640, () => {
+            if (t.issue) {
+              // l'issue : le journal et le score n'arrivent qu'à la
+              // RÉVÉLATION — sinon le tableau spoile la frappe (R7)
+              options.scene.jouerTemps(t, duree, () => { if (t.ev) jouerEvenement(t.ev); });
+            } else {
+              options.scene.jouerTemps(t, duree);
+              options.scene.commentaire(texteDuTemps(t));
+              if (t.ev) jouerEvenement(t.ev);
+            }
           });
+          // l'arrêt sur image du but / presque-but : rien ne se passe,
+          // le constat et la célébration ont le terrain pour eux
+          const fete = dureeCelebration(t);
+          if (fete) pousser(fete, false, 0, () => {});
         });
         // 4. le solde (les événements hors chorégraphie) et la respiration
-        etapes.push({
-          delai: RESPIRATION_MS,
-          action: () => {
-            phase.evenements.forEach((ev) => { if (!couverts.has(ev)) jouerEvenement(ev); });
-            options.scene.repos();
-          },
+        pousser(RESPIRATION_MS, false, 0, () => {
+          phase.evenements.forEach((ev) => { if (!couverts.has(ev)) jouerEvenement(ev); });
+          options.scene.repos();
         });
       });
+      // le dernier pas déclaré doit vivre sa durée avant le coup de sifflet
+      etapes.push({ delai: attente.duree, mort: attente.mort, action: () => {} });
     } else resultat.phases.forEach((phase) => {
       // ---- Sans scène (match.html, draft.html) : le tempo historique ----
       etapes.push({

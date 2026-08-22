@@ -218,7 +218,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       const jt = sc.jouerTemps, ct = sc.cut, mp = sc.miseEnPlace;
       sc.jouerTemps = (t, d, cb) => { journal.temps.push({ t: performance.now(), type: t.type, issue: !!t.issue }); return jt(t, d, cb); };
       sc.cut = (...a) => { journal.cuts++; return ct(...a); };
-      sc.miseEnPlace = (...a) => { journal.misesEnPlace++; return mp(...a); };
+      sc.miseEnPlace = (...a) => { journal.misesEnPlace++; journal.temps.push({ t: performance.now(), type: "_miseEnPlace" }); return mp(...a); };
       return sc;
     };
     preparerManche();
@@ -252,12 +252,21 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     ONZE_SCENE.creer = creerOriginal;
     const duree = performance.now() - debut;
     // les écarts entre deux temps joués (le plancher de lisibilité)
-    const ecarts = journal.temps.slice(1).map((x, i) => x.t - journal.temps[i].t)
+    const jeu = journal.temps.filter((t) => t.type !== "_miseEnPlace");
+    const ecarts = jeu.slice(1).map((x, i) => x.t - jeu[i].t)
       .filter((e) => e < 2500); // on ignore les sauts de cut / mise en place
     return {
       duree, regimes: [...new Set(regimes)], nbRegimes: regimes.length,
       cuts: journal.cuts, misesEnPlace: journal.misesEnPlace,
-      nbTemps: journal.temps.length,
+      nbTemps: journal.temps.filter((t) => t.type !== "_miseEnPlace").length,
+      // la durée RÉELLE d'une mise en place à l'écran : de son départ au
+      // premier temps de jeu qui la suit (R3 : ~3 s, comprimée si le
+      // budget serre, jamais escamotée)
+      misesEnPlaceMs: journal.temps.map((x, i) => x.type === "_miseEnPlace" && journal.temps[i + 1]
+        ? journal.temps[i + 1].t - x.t : null).filter((v) => v !== null),
+      // la durée d'affichage d'une issue avant la suite
+      issuesMs: journal.temps.map((x, i) => x.issue && journal.temps[i + 1]
+        ? journal.temps[i + 1].t - x.t : null).filter((v) => v !== null),
       issues: journal.temps.filter((t) => t.issue).length,
       ecartMin: ecarts.length ? Math.min(...ecarts) : 0,
       vitesseMoyenne: vitesses.length ? vitesses.reduce((a, b) => a + b, 0) / vitesses.length : 0,
@@ -288,6 +297,12 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   verifier(`R6 : les étiquettes suivent l'action, pas tout le monde (médiane ${releve.etiqMed}, max ${releve.etiqMax})`,
     releve.etiqMed >= 1 && releve.etiqMed <= 4);
   verifier(`R6 : tous les noms s'affichent au but (${releve.etiqBut} relevés)`, releve.etiqBut >= 1);
+  const mepMin = releve.misesEnPlaceMs.length ? Math.min(...releve.misesEnPlaceMs) : 0;
+  verifier(`R3 : la mise en place a le temps de se jouer (la plus courte ${Math.round(mepMin)} ms ≥ 1200)`,
+    mepMin >= 1150);
+  const issueMin = releve.issuesMs.length ? Math.min(...releve.issuesMs) : 0;
+  verifier(`R7 : l'issue reste à l'écran après sa révélation (la plus courte ${Math.round(issueMin)} ms ≥ 900)`,
+    issueMin >= 900);
 
   await browser.close();
   console.log(echecs ? `\n${echecs} échec(s)` : "\nFidélité de la scène ✅");
