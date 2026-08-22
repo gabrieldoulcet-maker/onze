@@ -1101,12 +1101,87 @@ function statsDuMatch(resultat, eqA, eqB) {
   return { parEquipe, hommeDuMatch };
 }
 
+/* ============================================================
+   LES TIRS AU BUT (décision n°28) — le DUEL FINAL (2 coachs en
+   vie) ne se règle plus sur un nul : séance de 5 tireurs par
+   équipe (les meilleurs Tir+Mental, le Capitaine ouvre s'il y
+   en a un), chaque frappe = duel Tir+Mental du tireur contre
+   Réflexes+Mental du gardien, mort subite après 5. El Santo
+   arrête d'office le premier tir adverse de la séance. Les nuls
+   restent inchangés partout ailleurs (à 3+ survivants, ils
+   gèlent les séries — le 0-0 verrouillé reste une stratégie).
+   ============================================================ */
+function tirsAuBut(eqA, eqB) {
+  const ordreDe = (eq) => {
+    const champ = eq.joueurs.filter((j) => ligneDe(j) !== "GAR");
+    const candidats = champ.length ? champ : eq.joueurs; // cas extrême : que des gardiens
+    const tri = [...candidats].sort((a, b) => duo(b, "tir", "mental") - duo(a, "tir", "mental"));
+    const capitaine = tri.find((j) => j.archetype === "Capitaine");
+    return capitaine ? [capitaine, ...tri.filter((j) => j !== capitaine)] : tri;
+  };
+  const ordres = { A: ordreDe(eqA), B: ordreDe(eqB) };
+  const gardiens = { A: parPoste(eqA, "GAR")[0] || null, B: parPoste(eqB, "GAR")[0] || null };
+  const santoRestant = { A: !!aUnique(eqA, "El Santo"), B: !!aUnique(eqB, "El Santo") };
+  const score = { A: 0, B: 0 };
+  const tirs = [];
+  const frappe = (camp, numero) => {
+    const defCamp = camp === "A" ? "B" : "A";
+    const t = ordres[camp][numero % ordres[camp].length];
+    const g = gardiens[defCamp];
+    let marque, texte, santo = false;
+    if (g && santoRestant[defCamp] && g.unique === "El Santo") {
+      santoRestant[defCamp] = false;
+      santo = true;
+      marque = false;
+      texte = `${t.nom} s'élance… mais El Santo ne bouge pas d'un pouce et gobe le ballon — le premier tir de la séance est pour lui, d'office !`;
+    } else if (!g) {
+      marque = Math.random() < 0.92;
+      texte = marque ? `${t.nom} pousse le ballon dans la cage vide.` : `${t.nom}… SUR LE POTEAU ! Et la cage était vide !`;
+    } else {
+      const att = duo(t, "tir", "mental");
+      const def = duo(g, "reflexes", "mental");
+      const p = Math.max(0.25, Math.min(0.92, 0.72 + (att - def) / 250));
+      marque = Math.random() < p;
+      texte = marque
+        ? `${t.nom} s'élance… BUT ! ${g.nom} avait choisi l'autre côté.`
+        : (Math.random() < 0.7
+          ? `${t.nom} s'élance… ARRÊT DE ${g.nom.toUpperCase()} !`
+          : `${t.nom} s'élance… au-dessus ! La pression du duel final.`);
+    }
+    if (marque) score[camp]++;
+    tirs.push({ camp, tireur: t.nom, gardien: g ? g.nom : null, marque, santo, texte, score: { A: score.A, B: score.B } });
+  };
+  // 5 tireurs chacun, en alternance — la séance s'arrête dès qu'elle est pliée
+  const pliee = (tiresA, tiresB) =>
+    score.A > score.B + (5 - tiresB) || score.B > score.A + (5 - tiresA);
+  for (let i = 0; i < 5; i++) {
+    frappe("A", i);
+    if (pliee(i + 1, i)) break;
+    frappe("B", i);
+    if (pliee(i + 1, i + 1)) break;
+  }
+  // mort subite : une paire de tirs par tour jusqu'à la décision
+  let tour = 5;
+  while (score.A === score.B) {
+    frappe("A", tour);
+    frappe("B", tour);
+    tour++;
+    if (tour > 40 && score.A === score.B) { // filet théorique, jamais atteint en pratique
+      const force = (o) => o.reduce((t, j) => t + duo(j, "tir", "mental"), 0) / o.length;
+      score[force(ordres.A) >= force(ordres.B) ? "A" : "B"]++;
+      tirs.push({ camp: force(ordres.A) >= force(ordres.B) ? "A" : "B", tireur: ordres.A[0].nom, gardien: null,
+        marque: true, santo: false, texte: "La nuit tombe sur le stade — l'arbitre tranche pour les plus adroits.", score: { A: score.A, B: score.B } });
+    }
+  }
+  return { scoreA: score.A, scoreB: score.B, vainqueur: score.A > score.B ? "A" : "B", tirs };
+}
+
 /* ---- Export navigateur + node ---- */
 const ONZE = {
   creerEquipe, equipeDepuisFiches, simulerMatch, calculerSynergies,
   genererStats, noteGlobale, statsSignatures, adnClub, NOMS_STATS,
   fusionnerEffectif, degatsPrestige, NB_PHASES, PALIERS_ECOLES, PALIERS_ARCHETYPES,
-  COMPOSANTS_STAFF, SPECIALISATIONS, EMBLEMES, assignerCarte, statsDuMatch,
+  COMPOSANTS_STAFF, SPECIALISATIONS, EMBLEMES, assignerCarte, statsDuMatch, tirsAuBut,
 };
 if (typeof module !== "undefined") module.exports = ONZE;
 if (typeof window !== "undefined") window.ONZE = ONZE;

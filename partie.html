@@ -399,6 +399,18 @@
     }
     .badge-eclat { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); font-size: 0.6rem;
       color: var(--or-trophee); font-weight: 800; text-shadow: 0 0 6px rgba(242, 193, 78, 0.9); letter-spacing: 1px; z-index: 1; }
+    /* La séance de tirs au but (décision 28) : tir par tir, suspense */
+    .seance-tirs .tab-score { font-family: var(--police-display); font-weight: 400; font-size: 1.7rem;
+      transform: var(--pente); margin: 8px 0 4px; color: var(--craie); }
+    .tab-rangee { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+    .tab-rangee .tab-nom { flex: 0 0 34%; text-align: right; font-size: 0.66rem; color: var(--craie-sourde); font-weight: 700; }
+    .tab-billes { display: flex; gap: 5px; min-height: 17px; }
+    .tab-billes .bille { width: 17px; height: 17px; border-radius: 50%; font-size: 0.6rem;
+      line-height: 17px; text-align: center; font-weight: 800; animation: apparait 0.25s ease; }
+    .bille.but { background: var(--gazon-electrique); color: var(--nuit-profonde); }
+    .bille.rate { background: var(--vendre-fond); color: var(--alerte-claire); }
+    .tab-recit { min-height: 36px; font-size: 0.8rem; color: var(--craie-claire); margin-top: 8px; }
+
     /* Le compteur de titulaires : toujours visible, alerte si état illégal */
     .compteur-titulaires {
       position: absolute; left: 6px; bottom: 4px; z-index: 5;
@@ -1453,11 +1465,64 @@
       }
     }
 
+    /* Décision 28 : la SÉANCE de tirs au but du duel final — un moment
+       dramatique à part entière, tir par tir, AVANT le bilan. */
+    function jouerSeanceTirs(seance, apres) {
+      const volet = document.createElement("div");
+      volet.className = "volet";
+      volet.innerHTML = `<div class="panneau seance-tirs" style="max-width:430px;text-align:center">
+        <strong>TIRS AU BUT</strong>
+        <div class="sous-titre">Égalité dans le duel final — la séance décide du titre.</div>
+        <div class="tab-score" id="tab-score">0 – 0</div>
+        <div class="tab-rangee"><span class="tab-nom">Mon Club</span><div class="tab-billes" id="tab-billes-a"></div></div>
+        <div class="tab-rangee"><span class="tab-nom">${(partie.appariement && partie.appariement.monAdversaire && partie.appariement.monAdversaire.nom) || "L'adversaire"}</span><div class="tab-billes" id="tab-billes-b"></div></div>
+        <div class="tab-recit" id="tab-recit">Le stade retient son souffle…</div>
+      </div>`;
+      el("app").appendChild(volet);
+      const delai = 1250;
+      seance.tirs.forEach((tir, i) => {
+        setTimeout(() => {
+          // le suspense : le tireur s'avance, l'issue tombe une demi-seconde après
+          el("tab-recit").innerHTML = `<strong>${tir.tireur}</strong> s'avance…`;
+          setTimeout(() => {
+            el("tab-recit").textContent = tir.texte;
+            const bille = document.createElement("span");
+            bille.className = "bille " + (tir.marque ? "but" : "rate");
+            bille.textContent = tir.marque ? "●" : "✕";
+            el(tir.camp === "A" ? "tab-billes-a" : "tab-billes-b").appendChild(bille);
+            el("tab-score").textContent = `${tir.score.A} – ${tir.score.B}`;
+            ONZE_JUICE.jouer(tir.santo ? "icone" : tir.marque ? "palier" : "arret");
+          }, 550);
+        }, 600 + i * delai);
+      });
+      setTimeout(() => {
+        const gagne = seance.vainqueur === "A";
+        el("tab-recit").innerHTML = gagne
+          ? `<strong style="color:var(--gazon-electrique)">TU REMPORTES LA SÉANCE ${seance.scoreA} – ${seance.scoreB} !</strong>`
+          : `<strong style="color:var(--alerte-claire)">La séance t'échappe ${seance.scoreA} – ${seance.scoreB}…</strong>`;
+        ONZE_JUICE.jouer(gagne ? "fusion3" : "defaite");
+        // la séance rejoint le journal du match (consultable après coup)
+        el("recit").innerHTML += `<div><strong>— Tirs au but : ${seance.scoreA} – ${seance.scoreB} —</strong></div>` +
+          seance.tirs.map((t) => `<div>${t.texte}</div>`).join("");
+        setTimeout(() => { volet.remove(); apres(); }, 2100);
+      }, 600 + seance.tirs.length * delai + 750);
+    }
+
     function finDeManche(resultat, monAdversaire, resultatsIA) {
       const je = moi();
       const coupe = partie.appariement && partie.appariement.coupe;
       const amical = partie.manche <= DERNIERE_MANCHE_AMICALE || coupe;
-      const victoire = resultat.scoreA > resultat.scoreB;
+      // Décision 28 : à DEUX coachs en vie, un nul se décide aux tirs au but
+      // (partout ailleurs, les nuls gèlent les séries — décision 23 intacte)
+      const vivants = partie.coachs.filter((c) => c.vivant).length;
+      if (!amical && monAdversaire && vivants === 2 &&
+          resultat.scoreA === resultat.scoreB && !resultat.tirsAuBut) {
+        resultat.tirsAuBut = ONZE.tirsAuBut(dernierMatch.eqA, dernierMatch.eqB);
+        jouerSeanceTirs(resultat.tirsAuBut, () => finDeManche(resultat, monAdversaire, resultatsIA));
+        return;
+      }
+      const seance = resultat.tirsAuBut || null;
+      const victoire = resultat.scoreA > resultat.scoreB || !!(seance && seance.vainqueur === "A");
       const serieAvantMatch = je.serie;
 
       // ---- compteurs de quêtes (design/icones.md) ----
@@ -1492,7 +1557,11 @@
         else if (resultat.scoreB > resultat.scoreA) je.serie = je.serie < 0 ? je.serie - 1 : -1;
         // décision 23 : un nul gèle la série, même en amical
       } else {
-        if (victoire) appliquerResultat(je, monAdversaire, resultat.ecart);
+        if (seance) {
+          // décision 28 : le perdant de la séance encaisse une défaite d'un but
+          if (seance.vainqueur === "A") appliquerResultat(je, monAdversaire, 1);
+          else appliquerResultat(monAdversaire, je, 1);
+        } else if (victoire) appliquerResultat(je, monAdversaire, resultat.ecart);
         else if (resultat.scoreB > resultat.scoreA) appliquerResultat(monAdversaire, je, resultat.ecart);
         else appliquerResultat(je, monAdversaire, 0);
         for (const r of resultatsIA) {
@@ -1540,7 +1609,7 @@
       // de fin de manche apparaît par-dessus.
       const montrerBilan = () => {
         let html = `<div class="panneau">`;
-        html += `<strong>Manche ${partie.manche} — ${resultat.scoreA} – ${resultat.scoreB}</strong>`;
+        html += `<strong>Manche ${partie.manche} — ${resultat.scoreA} – ${resultat.scoreB}${seance ? ` (${seance.scoreA} – ${seance.scoreB} aux tirs au but)` : ""}</strong>`;
         if (!amical) {
           html += `<div class="classement" style="margin-top:6px">`;
           for (const r of resultatsIA)
@@ -1586,8 +1655,9 @@
       if (monAdversaire) partie.dernierAdversaire = monAdversaire.nom;
       const resume = amical
         ? `M${partie.manche} · ${resultat.scoreA}-${resultat.scoreB} ${partie.appariement.nomAdversaire} · +${revenu}M`
-        : `M${partie.manche} · ${resultat.scoreA}-${resultat.scoreB} vs ${monAdversaire.nom} ` +
-          (victoire ? "✅" : resultat.scoreA === resultat.scoreB ? "🤝" : `❌ -${ONZE.degatsPrestige(resultat.ecart, partie.manche)}💚`) +
+        : `M${partie.manche} · ${resultat.scoreA}-${resultat.scoreB}${seance ? ` (${seance.scoreA}-${seance.scoreB} t.a.b.)` : ""} vs ${monAdversaire.nom} ` +
+          (victoire ? "✅" : seance ? `❌ -${ONZE.degatsPrestige(1, partie.manche)}💚` :
+            resultat.scoreA === resultat.scoreB ? "🤝" : `❌ -${ONZE.degatsPrestige(resultat.ecart, partie.manche)}💚`) +
           ` · +${revenu}M`;
       partie.historique.unshift(resume);
       partie.manche++;

@@ -237,6 +237,34 @@ const verifier = (nom, ok) => {
   const bilan = await page.evaluate(() => ({ manche: partie.manche, or: partie.or, historique: partie.historique.length }));
   verifier(`5 manches jouées sans erreur (on est à la manche ${bilan.manche})`, bilan.manche >= 5 && bilan.historique >= 4);
 
+  // ---- Décision 28 : la séance de tirs au but (mise en scène, tir par tir) ----
+  const tabMiParcours = { billes: 0, titre: false };
+  const seanceFinale = await page.evaluate(() => new Promise((resoudre) => {
+    arreterChrono();
+    const seance = { scoreA: 2, scoreB: 1, vainqueur: "A", tirs: [
+      { camp: "A", tireur: "Testeur", gardien: "Gant", marque: true, santo: false, texte: "Testeur s'élance… BUT !", score: { A: 1, B: 0 } },
+      { camp: "B", tireur: "Rival", gardien: "Gus", marque: false, santo: true, texte: "El Santo s'interpose — d'office !", score: { A: 1, B: 0 } },
+      { camp: "A", tireur: "Momo", gardien: "Gant", marque: true, santo: false, texte: "Momo s'élance… BUT !", score: { A: 2, B: 0 } },
+      { camp: "B", tireur: "Billy", gardien: "Gus", marque: true, santo: false, texte: "Billy transforme.", score: { A: 2, B: 1 } },
+    ] };
+    jouerSeanceTirs(seance, () => resoudre({
+      fini: !document.querySelector(".seance-tirs"),
+      journal: document.getElementById("recit").textContent.includes("Tirs au but"),
+    }));
+    setTimeout(() => {
+      window.__tabEchantillon = {
+        billes: document.querySelectorAll(".seance-tirs .bille").length,
+        titre: document.body.textContent.includes("TIRS AU BUT"),
+      };
+    }, 3600);
+  }));
+  Object.assign(tabMiParcours, await page.evaluate(() => window.__tabEchantillon || {}));
+  verifier("tirs au but : séance jouée tir par tir (billes + titre) puis journal du match",
+    tabMiParcours.billes >= 2 && tabMiParcours.titre && seanceFinale.fini && seanceFinale.journal);
+  // hygiène : le journal vérifié, on le vide (c'est un calque sur le terrain
+  // — les tests de drag qui suivent visent des jetons dessous)
+  await page.evaluate(() => { document.getElementById("recit").innerHTML = ""; });
+
   // ---- L'homme du match est annoncé, le recap est encore là après coup ----
   await page.tap("#btn-recap");
   await page.waitForSelector(".voile-fiche .onglet-recap");
