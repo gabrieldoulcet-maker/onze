@@ -592,11 +592,17 @@ button.principal:disabled { background: #0C130D; color: #4A5A4C; box-shadow: non
   font-size: 0.68rem; font-weight: 800; color: var(--or-trophee);
 }
 
-/* ⚙️ L'écran « Paramètres matchs » (R10) */
-.panneau-params { max-width: 460px; }
+/* ⚙️ L'écran « Paramètres matchs » (R10) — il doit tenir en PAYSAGE
+   sur un petit téléphone : hauteur bornée et défilement interne, sinon
+   le bouton Confirmer sort de l'écran. */
+.panneau-params {
+  max-width: 460px; max-height: 88vh; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.panneau-params > strong { display: block; padding-bottom: 4px; }
 .panneau-params .ligne-param {
-  display: flex; align-items: center; gap: 8px; margin-top: 8px;
-  padding-top: 8px; border-top: 1px solid var(--ligne);
+  display: flex; align-items: center; gap: 8px; margin-top: 6px;
+  padding-top: 6px; border-top: 1px solid var(--ligne);
 }
 .panneau-params .param-nom {
   flex: 0 0 33%; font-size: 0.72rem; font-weight: 700; color: var(--craie-sourde);

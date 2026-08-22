@@ -187,7 +187,7 @@ const ONZE_UI = (() => {
       const reg = ONZE_SCENE.reglages();
       const budgetTotal = delaiPhase * resultat.phases.length;
       const nbPhases = resultat.phases.length;
-      const miseEnPlaceMs = dureeMiseEnPlace(nbPhases);
+      let miseEnPlaceMs = dureeMiseEnPlace(nbPhases);
       const resume = reg.filtre === "resume";
       // le plafond de format (R9) — en ×2, seuls les buts sont rendus
       const maxRendus = resume ? 99 : vitesse === 2 ? 0
@@ -206,6 +206,16 @@ const ONZE_UI = (() => {
         if (rendues.size < maxRendus && (resume || coutTotal + cout <= budgetTotal)) {
           rendues.add(phase); coutTotal += cout;
         }
+      }
+      /* L'ARBITRAGE DU BUDGET (R9). Tous les buts sont rendus, donc un
+         match à 5 buts déborde forcément. La variable d'ajustement est
+         alors la MISE EN PLACE — le temps où il ne se passe rien —
+         jamais le jeu lui-même : les temps d'action gardent leur
+         plancher de lisibilité, quoi qu'il arrive. */
+      if (!resume && coutTotal > budgetTotal && rendues.size) {
+        const trop = coutTotal - budgetTotal;
+        miseEnPlaceMs = Math.max(1200, miseEnPlaceMs - trop / rendues.size);
+        coutTotal = [...rendues].reduce((t, p) => t + coutTempsFort(actions.get(p), miseEnPlaceMs), 0);
       }
       // le temps mort restant se répartit sur les phases non rendues
       const nbMortes = nbPhases - rendues.size;

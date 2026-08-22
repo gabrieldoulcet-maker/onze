@@ -125,10 +125,10 @@ const verifier = (nom, ok) => {
       // la scène canvas : disques des 2 camps, ballon focal, jauge, bandeau, 📜
       await page.waitForSelector(".scene-match canvas");
       const diag1 = await page.evaluate(() => sceneMatch.diagnostic());
-      verifier("scène canvas : disques des deux camps + régimes actifs",
+      verifier("scène canvas : pions des deux camps + régime de la grammaire FM",
         diag1.nbDisques >= 2 &&
         diag1.positions.some((p) => p.camp === "moi") && diag1.positions.some((p) => p.camp === "eux") &&
-        ["domination", "tension", "rendu", "ralenti"].includes(diag1.regime));
+        ["repos", "cut", "miseEnPlace", "action", "ralenti", "replay"].includes(diag1.regime));
       await page.waitForTimeout(2500);
       const diag2 = await page.evaluate(() => sceneMatch.diagnostic());
       verifier("scène canvas : le ballon se déplace (point focal)",
@@ -136,9 +136,16 @@ const verifier = (nom, ok) => {
         diag2.regime !== diag1.regime);
       verifier("jauge de domination pilotée", await page.evaluate(() =>
         document.getElementById("jauge-dom").style.width !== ""));
-      verifier("bandeau compact du récit alimenté, journal replié", await page.evaluate(() =>
-        document.getElementById("bandeau-recit").textContent.length > 0 &&
-        document.getElementById("recit").classList.contains("replie")));
+      // R5 : avec une scène, c'est ELLE qui commente (une ligne en bas,
+      // remplacée par la barre de possession au repos) — le bandeau
+      // historique ne sert plus qu'au mode « Commentaires seuls ».
+      verifier("commentaire de scène alimenté, journal replié", await page.evaluate(() => {
+        const bande = document.querySelector(".scene-match .bande-commentaire");
+        const barre = document.querySelector(".scene-match .barre-possession");
+        return !!bande && !!barre &&
+          (bande.textContent.trim().length > 0 || barre.classList.contains("visible")) &&
+          document.getElementById("recit").classList.contains("replie");
+      }));
       await page.click("#btn-journal");
       verifier("📜 déplie le journal complet", await page.evaluate(() =>
         !document.getElementById("recit").classList.contains("replie")));

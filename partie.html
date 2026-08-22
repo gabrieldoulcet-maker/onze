@@ -1816,7 +1816,7 @@
           ${bascule("replay", "Revoir les buts")}
           ${bascule("etiquettes", "Noms des joueurs")}
           ${bascule("trainee", "Traînée du ballon")}</div></div>
-        <button class="fermer-volet">Confirmer</button>
+        <button class="fermer-volet" style="position:sticky;bottom:0">Confirmer</button>
       </div>`;
       volet.addEventListener("click", (e) => {
         const opt = e.target.closest("[data-cle]");

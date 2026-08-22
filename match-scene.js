@@ -409,8 +409,9 @@ const ONZE_SCENE = (() => {
     /* ============================================================
        4.2 LA PHYSIQUE DU BALLON
        ============================================================ */
+    /* Le ballon part TOUJOURS d'où il est (jamais du passeur théorique :
+       ce serait une téléportation) et vise le receveur, devant sa course. */
     function passer(deNom, versNom, opts = {}) {
-      const de = pionDe(deNom) || { x: ballon.x, y: ballon.y, vx: 0, vy: 0 };
       const vers = pionDe(versNom);
       // R4 : la passe est donnée DEVANT la course du receveur
       const avance = opts.devantLaCourse === false ? 0 : 0.28;
@@ -436,6 +437,17 @@ const ONZE_SCENE = (() => {
       };
       return passer(deNom, null, { ...cible, vitesse: opts.vitesse || 105, hauteur: opts.hauteur || 2.5, apres: opts.apres });
     }
+    /* Donner le ballon à un joueur : s'il est loin, le ballon y VOYAGE
+       (R4 — aucune téléportation, jamais, même sur un changement de
+       porteur). S'il est déjà dans ses pieds, on l'accroche. */
+    function donnerLeBallon(nom, vitesse) {
+      const p = pionDe(nom);
+      if (!p) return 0;
+      const dist = Math.hypot(p.x - ballon.x, p.y - ballon.y);
+      if (dist < 3.5 && !ballon.vol) { ballon.vol = null; ballon.porteur = p.nom; return 0; }
+      return passer(null, nom, { vitesse: vitesse || 64, devantLaCourse: false });
+    }
+
     function majBallon(dt) {
       if (ballon.vol) {
         const v = ballon.vol;
@@ -459,8 +471,13 @@ const ONZE_SCENE = (() => {
         const ux = v > 0.5 ? p.vx / v : sensDe(p.camp);
         const uy = v > 0.5 ? p.vy / v : 0;
         const devant = 1.6 + Math.min(v / 14, 1) * 2.2;
-        ballon.x = lerp(ballon.x, p.x + ux * devant, Math.min(1, dt * 14));
-        ballon.y = lerp(ballon.y, p.y + uy * devant, Math.min(1, dt * 14));
+        const cibleX = p.x + ux * devant, cibleY = p.y + uy * devant;
+        const dx = cibleX - ballon.x, dy = cibleY - ballon.y;
+        const d = Math.hypot(dx, dy);
+        // le ballon roule vers le pied, à vitesse de course + marge
+        const vBallon = Math.max(v * 1.6, 26);
+        const pas = Math.min(d, vBallon * dt);
+        if (d > 0.001) { ballon.x += (dx / d) * pas; ballon.y += (dy / d) * pas; }
         ballon.z = 0;
       } else {
         // ballon libre : il roule et s'arrête
@@ -594,6 +611,8 @@ const ONZE_SCENE = (() => {
       if (porteur) {
         porteur.cx = borne(zone.x, 5, 95); porteur.cy = borne(zone.y, 6, 94);
         // le ballon est à SES pieds tout de suite : il l'emmène en glissant
+        // la mise en place suit un CUT : c'est le seul endroit où le
+        // ballon peut se reposer d'un coup — la coupe le justifie.
         ballon.vol = null; ballon.porteur = porteur.nom;
         ballon.x = porteur.x; ballon.y = porteur.y; ballon.z = 0;
         if (reg.etiquettes) porteur.etiquette = true;
@@ -668,7 +687,7 @@ const ONZE_SCENE = (() => {
           possession = camp;
           if (p) {
             p.flash = 420;
-            ballon.vol = null; ballon.porteur = p.nom;
+            donnerLeBallon(p.nom, 70);
             p.cx = borne(p.x + sens * 5, 5, 95); p.cy = p.y;
             etiqueter([p.nom]);
             coursesAppel(camp, [p.nom]);
@@ -679,7 +698,7 @@ const ONZE_SCENE = (() => {
         case "contre": {
           possession = camp;
           const p = pionDe(t.acteur);
-          if (p) { ballon.vol = null; ballon.porteur = p.nom; p.flash = 400; etiqueter([p.nom]); }
+          if (p) { donnerLeBallon(p.nom, 80); p.flash = 400; etiqueter([p.nom]); }
           // tout le bloc part vers l'avant : c'est CE mouvement qui dit « contre »
           for (const q of listePions) {
             if (q.camp !== camp || q.gardien) continue;
@@ -732,7 +751,7 @@ const ONZE_SCENE = (() => {
           possession = camp;
           const p = pionDe(t.acteur);
           if (p) {
-            ballon.vol = null; ballon.porteur = p.nom;
+            donnerLeBallon(p.nom, 66);
             // la Rue : conduite en crochets, le pion serpente vers le but
             p.cx = borne(p.x + sens * 13, 5, 95);
             p.cy = borne(p.y + (Math.sin(performance.now() * 0.002 + p.phase) * 11), 6, 94);
@@ -747,7 +766,7 @@ const ONZE_SCENE = (() => {
           possession = camp;
           const p = pionDe(t.acteur);
           if (p) {
-            ballon.vol = null; ballon.porteur = p.nom;
+            donnerLeBallon(p.nom, 66);
             p.cx = borne(p.x + sens * 7, 5, 95);
             p.cy = borne(p.y + 6 * (Math.random() < 0.5 ? 1 : -1), 6, 94);
             ephemere("eclat-geste", p.x, p.y, "✨", ms);
@@ -771,12 +790,12 @@ const ONZE_SCENE = (() => {
               // le sprint dans le couloir : il prend la profondeur, plein axe
               const couloir = p.y < 50 ? Math.max(10, p.y - 8) : Math.min(90, p.y + 8);
               p.cx = dansLeJeu(p.x + sens * 22); p.cy = couloir;
-              ballon.porteur = p.nom;
+              donnerLeBallon(p.nom, 76);
             } else if (t.sousType === "dribble") {
               // le crochet sec : un décalage latéral franc devant le défenseur
               p.cx = dansLeJeu(p.x + sens * 12);
               p.cy = borne(p.y + (battu && battu.y > p.y ? -9 : 9), 8, 92);
-              ballon.porteur = p.nom;
+              donnerLeBallon(p.nom, 70);
               ephemere("eclat-geste", p.x, p.y, "⚡", ms * 0.8);
             } else if (t.sousType === "aerien") {
               // le duel aérien : cloche vers lui, il saute (l'échelle grandit)
@@ -809,7 +828,7 @@ const ONZE_SCENE = (() => {
           possession = camp;
           if (p) {
             p.flash = 480; p.plonge = 320;
-            ballon.vol = null; ballon.porteur = p.nom;
+            donnerLeBallon(p.nom, 72);
             etiqueter([t.acteur]);
           }
           chipEtSynergie(t.ev, p || ballon, ms);
@@ -832,7 +851,7 @@ const ONZE_SCENE = (() => {
             p.cx = borne(ballon.x, 5, 95); p.cy = borne(ballon.y, 6, 94);
             p.role = "rebond";
             etiqueter([t.acteur]);
-            setTimeout(() => { if (!detruit) ballon.porteur = p.nom; }, ms * 0.5);
+            setTimeout(() => { if (!detruit) donnerLeBallon(p.nom, 60); }, ms * 0.5);
           }
           chipEtSynergie(t.ev, p || ballon, ms);
           break;
@@ -847,7 +866,7 @@ const ONZE_SCENE = (() => {
           const gk = gardienDe(adverse(camp));
           etiqueter([t.tireur, t.passeur, gk && gk.nom]);
           if (tireur) {
-            ballon.vol = null; ballon.porteur = tireur.nom;
+            donnerLeBallon(tireur.nom, 74);
             // il se replace dans un angle jouable : ni sur la ligne de but,
             // ni dans le couloir — entre 12 et 26 % du fond, axe resserré
             const but = BUTS[adverse(camp)];
@@ -1204,6 +1223,8 @@ const ONZE_SCENE = (() => {
       },
       diagnostic: () => ({
         styles, regime, possession, situation: situationCourante,
+        // R1 : le cadre du terrain — il ne doit JAMAIS bouger (caméra fixe)
+        cadre: geo ? { x: geo.x, y: geo.y, w: geo.w, h: geo.h } : null,
         jauge: { affichee: jauge.affichee, cible: jauge.cible },
         possessionPct: { moi: possessionPct.moi, eux: possessionPct.eux },
         nbDisques: listePions.length,
