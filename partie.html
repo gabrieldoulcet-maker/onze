@@ -524,6 +524,7 @@
   <script src="icones.js"></script>
   <script src="synergies-data.js"></script>
   <script src="ecussons.js"></script>
+  <script src="ia-coach.js"></script>
   <script src="match-ui.js"></script>
   <script src="match-scene.js"></script>
   <script src="juice.js"></script>
@@ -727,8 +728,13 @@
     function nouvellePartie() {
       const coachs = [{ nom: "Mon Club", ia: false, prestige: PRESTIGE_DEPART, serie: 0, vivant: true }];
       for (const c of COACHS_IA) coachs.push({ ...c, ia: true, prestige: PRESTIGE_DEPART, serie: 0, vivant: true });
+      // La difficulté (accueil, défaut Pro) joue sur l'INTELLIGENCE des
+      // IA — jamais sur leurs stats (sprint post-playtest, point 1).
+      let difficulte = "pro";
+      try { difficulte = localStorage.getItem("onze-difficulte") || "pro"; } catch (e) {}
+      for (const c of coachs) if (c.ia) ONZE_IA.initCoach(c);
       partie = {
-        manche: 1, coachs,
+        manche: 1, coachs, difficulte,
         or: OR_DEPART, niveau: 3, xp: 0, staff: [],
         terrain: STARTERS.map((j) => ({ ...j, etoiles: 1 })), banc: [], boutique: [], pool: [],
         butin: planifierButin(),
@@ -1100,42 +1106,10 @@
         : { nom: ["Gégé", "Bernard", "Paulo", "Kiki", "Dédé"][i], cout: 0, poste, ecole: "", archetype: "", unique: null });
       return ONZE.equipeDepuisFiches(gabarit.nom, gabarit.nom, fiches); // nom seul dans le récit
     }
-    /* Courbe calibrée (simulations/parties.js) : ~50 % de top 4 */
-    /* Règle TFT fondamentale : les 7 IA piochent dans le MÊME pool de
-       copies que le joueur. Chaque copie prise manque en boutique (une
-       École contestée se raréfie) ; les copies reviennent au pool quand
-       l'équipe est recomposée ou que le club est éliminé. */
-    function genererEquipeIA(coach) {
-      if (coach.copiesPrises) for (const fiche of coach.copiesPrises) partie.pool.push(fiche);
-      coach.copiesPrises = [];
-      const niveau = ONZE_ECO.niveauIA(partie.manche);
-      const taille = TITULAIRES_PAR_NIVEAU[niveau];
-      let budget = ONZE_ECO.budgetIA(partie.manche);
-      const compo = [];
-      const besoins = ["GAR"];
-      for (let i = 0; i < taille - 1; i++) besoins.push(["DÉF", "MIL", "ATT"][i % 3]);
-      for (const poste of besoins) {
-        const slotsRestants = besoins.length - compo.length;
-        const coutMax = Math.max(1, Math.min(5, Math.floor(budget - (slotsRestants - 1))));
-        const nomsPris = new Set(compo.map((j) => j.nom));
-        let candidats = partie.pool.filter((j) => j.poste === poste && j.cout <= coutMax && !nomsPris.has(j.nom));
-        const fideles = candidats.filter((j) => j.ecole === coach.ecole);
-        if (fideles.length && Math.random() < 0.75) candidats = fideles;
-        // une entrée par NOM : sans ça, « les 3 meilleurs candidats »
-        // seraient 3 copies du même joueur cher (IA sur-optimisées)
-        const parNom = new Map();
-        for (const j of candidats) if (!parNom.has(j.nom)) parNom.set(j.nom, j);
-        candidats = [...parNom.values()];
-        candidats.sort((a, b) => b.cout - a.cout);
-        const choix = candidats[Math.floor(Math.random() * Math.min(3, candidats.length))] || candidats[0];
-        if (choix) {
-          compo.push(choix); budget -= choix.cout;
-          partie.pool.splice(partie.pool.indexOf(choix), 1);
-          coach.copiesPrises.push(choix);
-        }
-      }
-      return ONZE.equipeDepuisFiches(coach.nom, coach.nom, compo);
-    }
+    /* Les IA jouent les stratégies du banc méta : voir ia-coach.js
+       (l'ancien générateur « à budget » a été retiré au sprint
+       post-playtest — les IA jouent désormais la même économie que le
+       joueur, à la même table, sur le même pool). */
 
     /* ================= Le déroulé des manches ================= */
     function preparerManche() {
@@ -1152,12 +1126,20 @@
           if (fusions.length) celebrerFusions(fusions);
         }
       }
+    /* Les 7 IA jouent les stratégies du banc méta (ia-coach.js) : une
+       manche de mercato INCRÉMENTALE (jamais rejouée au reload — c'est
+       l'idempotence par manche qui protège), puis l'alignement. Règle
+       TFT fondamentale intacte : mêmes 1344 copies pour tout le monde,
+       registre coach.copiesPrises, retour au pool à l'élimination. */
+      const ctxIA = { ECO: ONZE_ECO, M: ONZE, difficulte: partie.difficulte || "pro" };
       for (const c of partie.coachs) if (c.ia) {
-        if (c.vivant) { c.equipe = genererEquipeIA(c); }
-        else if (c.copiesPrises && c.copiesPrises.length) {
+        if (c.vivant) {
+          if (!c.etatIA) ONZE_IA.initCoach(c); // vieille partie migrée à la volée
+          if (!dejaPreparee) ONZE_IA.jouerManche(c, partie.pool, partie.manche, ctxIA);
+          c.equipe = ONZE_IA.equipeDe(c, ctxIA);
+        } else if (c.copiesPrises && c.copiesPrises.length) {
           // club éliminé : ses copies retournent au pool (règle TFT)
-          for (const fiche of c.copiesPrises) partie.pool.push(fiche);
-          c.copiesPrises = [];
+          ONZE_IA.liberer(c, partie.pool);
         }
       }
       if (amical) {
@@ -1192,7 +1174,7 @@
         const seul = autres[0];
         const sources = partie.coachs.filter((c) => c.vivant && c !== seul);
         const source = sources[Math.floor(Math.random() * sources.length)];
-        const equipeSource = source.ia ? (source.equipe || genererEquipeIA(source)) : equipeDuClub();
+        const equipeSource = source.ia ? (source.equipe || ONZE_IA.equipeDe(source, { ECO: ONZE_ECO, M: ONZE, difficulte: partie.difficulte })) : equipeDuClub();
         const fantome = {
           nom: "Équipe B — " + source.nom, ia: true, fantome: true, vivant: true,
           prestige: source.prestige, serie: 0,
@@ -1984,7 +1966,7 @@
       const rendre = () => {
         const c = clubs[indice];
         const adverse = !!c.ia;
-        const equipe = adverse ? (c.equipe = c.equipe || genererEquipeIA(c)) : equipeDuClub();
+        const equipe = adverse ? (c.equipe = c.equipe || ONZE_IA.equipeDe(c, { ECO: ONZE_ECO, M: ONZE, difficulte: partie.difficulte })) : equipeDuClub();
         voile.setAttribute("data-equipe-adverse", adverse ? "1" : "");
         voile.equipeScoutee = adverse ? equipe : null;
         const axes = ONZE.adnClub(equipe);
@@ -2720,7 +2702,7 @@
     const CLE_SAUVEGARDE = "onze-partie-v1";
     // Incrémenter quand le schéma de partie change : une sauvegarde d'une
     // autre version est écartée au chargement (plus jamais de partie coincée)
-    const VERSION_SAUVEGARDE = 2;
+    const VERSION_SAUVEGARDE = 3; // v3 : les IA portent un état économique complet (etatIA)
     function sauvegarder() {
       if (!partie || partie.matchEnCours) return;
       try {

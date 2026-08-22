@@ -73,6 +73,7 @@
   <div class="menu">
     <a class="bouton-jouer" href="partie.html">🏆 Jouer</a>
     <div class="reglages">
+      <button id="btn-difficulte" style="color:var(--or-trophee);border-color:var(--or-trophee)"></button>
       <button id="btn-sons"></button>
       <button id="btn-detente"></button>
       <button id="btn-reset" style="color:var(--alerte-claire);border-color:var(--vendre-fond)">🧹 Réinitialiser</button>
@@ -82,15 +83,26 @@
   </div>
   <script>
     /* Les réglages écrivent les mêmes clés que le jeu */
+    const DIFFICULTES = { amateur: "🎓 Amateur", pro: "🏟️ Pro", legende: "👑 Légende" };
     const majBoutons = () => {
-      let sons = true, detente = false;
+      let sons = true, detente = false, difficulte = "pro";
       try {
         sons = localStorage.getItem("onze-sons") !== "off";
         detente = localStorage.getItem("onze-mode-detente") === "1";
+        difficulte = localStorage.getItem("onze-difficulte") || "pro";
       } catch (e) {}
       document.getElementById("btn-sons").textContent = sons ? "🔊 Sons : oui" : "🔇 Sons : non";
       document.getElementById("btn-detente").textContent = detente ? "🧘 Sans chrono" : "⏱ Chrono : oui";
+      document.getElementById("btn-difficulte").textContent = DIFFICULTES[difficulte] || DIFFICULTES.pro;
     };
+    document.getElementById("btn-difficulte").addEventListener("click", () => {
+      const ordre = ["amateur", "pro", "legende"];
+      let d = "pro";
+      try { d = localStorage.getItem("onze-difficulte") || "pro"; } catch (e) {}
+      const suivante = ordre[(ordre.indexOf(d) + 1) % ordre.length];
+      try { localStorage.setItem("onze-difficulte", suivante); } catch (e) {}
+      majBoutons();
+    });
     document.getElementById("btn-sons").addEventListener("click", () => {
       try { localStorage.setItem("onze-sons", localStorage.getItem("onze-sons") === "off" ? "on" : "off"); } catch (e) {}
       majBoutons();

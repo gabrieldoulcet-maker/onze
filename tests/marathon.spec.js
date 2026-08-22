@@ -57,7 +57,7 @@ async function unePartie(browser, numero) {
       for (const v of volets) {
         if (v.textContent.includes("Philosophie")) return "philosophie";
         if (v.textContent.includes("Mercato d'hiver")) return "hiver";
-        if (v.textContent.includes("CHAMPION") || v.textContent.includes("Éliminé")) return "fin";
+        if (/CHAMPION|ÉLIMIN/i.test(v.textContent)) return "fin";
       }
       return volets.length ? "autre" : null;
     });
@@ -174,7 +174,7 @@ async function unePartie(browser, numero) {
       return "lancé";
     }).catch(() => "erreur-lancement");
     await page.waitForFunction(() => !!document.getElementById("btn-continuer") ||
-      [...document.querySelectorAll(".volet")].some((v) => v.textContent.includes("CHAMPION") || v.textContent.includes("Éliminé")),
+      [...document.querySelectorAll(".volet")].some((v) => /CHAMPION|ÉLIMIN/i.test(v.textContent)),
       null, { timeout: 45000 }).catch(() => verifier(`P${numero} M${inv.manche} : le match se termine`, false, "timeout"));
     manchesJouees++;
     await page.evaluate(() => {
@@ -194,7 +194,7 @@ async function unePartie(browser, numero) {
     vivant: partie.coachs.find((c) => !c.ia).vivant,
     vivants: partie.coachs.filter((c) => c.vivant).length,
     finAffichee: [...document.querySelectorAll(".volet")].some((v) =>
-      v.textContent.includes("CHAMPION") || v.textContent.includes("Éliminé")),
+      /CHAMPION|ÉLIMIN/i.test(v.textContent)),
   }));
   const partieFinie = bilanFinal.vivants <= 1 || !bilanFinal.vivant;
   if (partieFinie) verifier(`P${numero} : la partie se TERMINE proprement (fin affichée)`, bilanFinal.finAffichee, JSON.stringify(bilanFinal));
