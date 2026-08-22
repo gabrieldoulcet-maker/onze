@@ -10,7 +10,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ONZE">
-  <meta name="theme-color" content="#101711">
+  <meta name="theme-color" content="#0A160D">
   <link rel="apple-touch-icon" href="icons/icone-180.png">
   <link rel="stylesheet" href="onze.css">
   <style>
@@ -34,12 +34,12 @@
        navigateur le permet). ---- */
     #app {
       position: relative; width: 100%; height: 100%;
-      display: flex; flex-direction: column; background: #101711;
+      display: flex; flex-direction: column; background: var(--fond-stade);
       padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);
     }
     #tourne-ecran {
       display: none; position: fixed; inset: 0; z-index: 400;
-      background: #0B100C; color: #E7EEE7;
+      background: var(--nuit-profonde); color: var(--craie);
       flex-direction: column; align-items: center; justify-content: center;
       gap: 14px; padding: 24px; text-align: center;
     }
@@ -58,11 +58,11 @@
       0%, 55%, 100% { transform: rotate(0deg); }
       25%, 40% { transform: rotate(90deg); }
     }
-    #tourne-ecran h2 { margin: 0; font-size: 1.25rem; color: #E8C547; }
-    #tourne-ecran p { margin: 0; font-size: 0.85rem; color: #96A699; max-width: 300px; line-height: 1.45; }
+    #tourne-ecran h2 { margin: 0; font-size: 1.25rem; color: var(--or-trophee); }
+    #tourne-ecran p { margin: 0; font-size: 0.85rem; color: var(--craie-sourde); max-width: 300px; line-height: 1.45; }
     #tourne-ecran .promo-pwa {
-      margin-top: 10px; padding: 10px 14px; border: 1px solid #24331F; border-radius: 12px;
-      background: #101711; font-size: 0.8rem; color: #B8C4BA; max-width: 320px; line-height: 1.5;
+      margin-top: 10px; padding: 10px 14px; border: 1px solid var(--ligne); border-radius: 12px;
+      background: var(--fond-stade); font-size: 0.8rem; color: var(--craie-claire); max-width: 320px; line-height: 1.5;
     }
     /* Les panneaux se posent DANS #app pour tourner avec lui */
     .volet, .voile-fiche, .fusion-banniere, .message-flottant { position: absolute; }
@@ -70,31 +70,31 @@
     /* ---- Barre du haut : manche + annonce + vitesses ---- */
     .haut {
       flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
-      gap: 8px; padding: 4px 10px; background: #0B100C; border-bottom: 1px solid #24331F;
-      font-size: 0.72rem; color: #96A699;
+      gap: 8px; padding: 4px 10px; background: var(--nuit-profonde); border-bottom: 1px solid var(--ligne);
+      font-size: 0.72rem; color: var(--craie-sourde);
     }
     .haut .manche-info { cursor: pointer; white-space: nowrap; }
     /* La ligne de progression des manches (la barre de stage de TFT) :
        « qu'est-ce qui arrive, et dans combien de manches ? » d'un regard. */
     .progression { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; overflow: hidden; }
     .rangee-pastilles { display: flex; justify-content: center; align-items: center; gap: 3px; }
-    .chrono-barre { width: 90%; max-width: 300px; height: 4px; background: #182219; border-radius: 2px; overflow: hidden; }
-    .chrono-barre > div { height: 100%; width: 100%; background: #4FC57C; border-radius: 2px; transition: width 0.2s linear; }
-    .chrono-barre.urgent > div { background: #E8654F; animation: pulseUrgent 0.5s ease infinite; }
+    .chrono-barre { width: 90%; max-width: 300px; height: 4px; background: var(--surface-1); border-radius: 2px; overflow: hidden; }
+    .chrono-barre > div { height: 100%; width: 100%; background: var(--gazon-electrique); border-radius: 2px; transition: width 0.2s linear; }
+    .chrono-barre.urgent > div { background: var(--alerte); animation: pulseUrgent 0.5s ease infinite; }
     @keyframes pulseUrgent { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
     .pastille-manche {
       position: relative; cursor: pointer; text-align: center;
       font-size: 0.72rem; line-height: 1.1; padding: 1px 2px; border-radius: 6px;
       opacity: 0.85; min-width: 20px;
     }
-    .pastille-manche small { display: block; font-size: 0.5rem; color: #96A699; }
+    .pastille-manche small { display: block; font-size: 0.5rem; color: var(--craie-sourde); }
     .pastille-manche.passee { opacity: 0.25; }
     .pastille-manche.courante {
-      background: #182219; border: 1px solid #4FC57C; opacity: 1;
-      box-shadow: 0 0 8px rgba(79, 197, 124, 0.5); font-size: 0.82rem;
+      background: var(--surface-1); border: 1px solid var(--gazon-electrique); opacity: 1;
+      box-shadow: 0 0 8px rgba(61, 226, 107, 0.5); font-size: 0.82rem;
     }
     .haut button {
-      background: #182219; color: #A9DDB6; border: 1px solid #24331F;
+      background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
       border-radius: 7px; padding: 3px 8px; font-size: 0.68rem; font-weight: 700; cursor: pointer;
     }
 
@@ -108,22 +108,22 @@
     .col-synergies .mini-adn { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
     /* La bascule du panneau gauche (façon hexagone TFT) : synergies+ADN
        ⇄ staff+quêtes — les panneaux se REMPLACENT au lieu de s'empiler */
-    #btn-bascule-gauche { background: #182219; color: #A9DDB6; border: 1px solid #24331F;
+    #btn-bascule-gauche { background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
       border-radius: 6px; font-size: 0.6rem; padding: 2px; cursor: pointer; margin-top: 2px; }
     #page-staff { margin-top: 4px; }
-    .mini-adn .axe-mini { font-size: 0.54rem; color: #96A699; }
-    .mini-adn .barre-mini { height: 4px; background: #182219; border-radius: 2px; overflow: hidden; margin-top: 1px; }
+    .mini-adn .axe-mini { font-size: 0.54rem; color: var(--craie-sourde); }
+    .mini-adn .barre-mini { height: 4px; background: var(--surface-1); border-radius: 2px; overflow: hidden; margin-top: 1px; }
     .mini-adn .barre-mini > div { height: 100%; background: #5F7A64; }
-    .mini-adn .barre-mini > div.forte { background: #4FC57C; }
-    .mini-adn .barre-mini > div.faible { background: #E88C7D; }
+    .mini-adn .barre-mini > div.forte { background: var(--gazon-electrique); }
+    .mini-adn .barre-mini > div.faible { background: var(--alerte-claire); }
 
     .plateau { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; padding: 4px 2px; }
     .terrain {
       flex: 1; position: relative; min-height: 0;
       background:
         radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05) 0 8%, transparent 8.5%),
-        repeating-linear-gradient(90deg, #1C5A2C 0 12.5%, #1F6330 12.5% 25%),
-        #1C5A2C;
+        repeating-linear-gradient(90deg, var(--gazon-sombre) 0 12.5%, #1F6330 12.5% 25%),
+        var(--gazon-sombre);
       border: 2px solid rgba(255,255,255,0.35); border-radius: 10px;
       display: flex; justify-content: space-between; padding: 4px 8px; overflow: hidden;
     }
@@ -137,16 +137,16 @@
     }
     .jeton {
       width: 60px; border-radius: 8px; padding: 2px;
-      background: #182219E6; border: 1px solid #35502F;
+      background: #0E1F12E6; border: 1px solid var(--ligne-forte);
       text-align: center; cursor: pointer; font-size: 0.56rem; color: #C9D6C9; line-height: 1.2;
     }
-    .jeton .note-jeton { font-weight: 800; font-size: 0.72rem; color: #E7EEE7; }
+    .jeton .note-jeton { font-weight: 800; font-size: 0.72rem; color: var(--craie); }
     .jeton .etoiles { font-size: 0.56rem; }
-    .jeton.vide { border-style: dashed; color: #ffffff66; background: #0b100c55; min-height: 30px;
+    .jeton.vide { border-style: dashed; color: #ffffff66; background: #060D0855; min-height: 30px;
       display: flex; align-items: center; justify-content: center; }
-    .jeton.cout-1 { border-left: 3px solid #8B9E8E; } .jeton.cout-2 { border-left: 3px solid #4FC57C; }
-    .jeton.cout-3 { border-left: 3px solid #4F9EC5; } .jeton.cout-4 { border-left: 3px solid #A66BD4; }
-    .jeton.cout-5 { border-left: 3px solid #E8C547; } .jeton.cout-0 { border-left: 3px solid #5A6A5C; }
+    .jeton.cout-1 { border-left: 3px solid var(--cout-1); } .jeton.cout-2 { border-left: 3px solid var(--gazon-electrique); }
+    .jeton.cout-3 { border-left: 3px solid var(--poste-d); } .jeton.cout-4 { border-left: 3px solid var(--cout-4); }
+    .jeton.cout-5 { border-left: 3px solid var(--or-trophee); } .jeton.cout-0 { border-left: 3px solid #5F7A64; }
     .rangee-banc {
       flex: 0 0 auto; display: flex; gap: 4px; overflow-x: auto; overflow-y: hidden;
       padding: 3px 2px 0; min-height: 34px;
@@ -158,13 +158,13 @@
       padding: 6px 8px 6px 4px; gap: 2px; overflow-y: auto;
     }
     .col-classement .coach-ligne {
-      background: #182219; border: 1px solid #24331F; border-radius: 7px;
+      background: var(--surface-1); border: 1px solid var(--ligne); border-radius: 7px;
       padding: 3px 6px; font-size: 0.6rem; cursor: pointer; color: #C9D6C9;
     }
-    .col-classement .coach-ligne.moi { color: #4FC57C; font-weight: 700; border-color: #35502F; }
-    .col-classement .coach-ligne.mort { color: #5A6A5C; text-decoration: line-through; }
-    .col-classement .barre-prestige { height: 4px; background: #0B100C; border-radius: 2px; overflow: hidden; margin-top: 2px; }
-    .col-classement .barre-prestige > div { height: 100%; background: #4FC57C; }
+    .col-classement .coach-ligne.moi { color: var(--gazon-electrique); font-weight: 700; border-color: var(--ligne-forte); }
+    .col-classement .coach-ligne.mort { color: #5F7A64; text-decoration: line-through; }
+    .col-classement .barre-prestige { height: 4px; background: var(--nuit-profonde); border-radius: 2px; overflow: hidden; margin-top: 2px; }
+    .col-classement .barre-prestige > div { height: 100%; background: var(--gazon-electrique); }
     .col-classement .principal {
       margin: auto 0 0; padding: 10px 4px; font-size: 0.78rem; width: 100%;
     }
@@ -172,18 +172,18 @@
     /* ---- Pendant le match : tableau + journal sur le terrain ---- */
     .tableau-match {
       position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
-      background: #0B100CE8; border: 1px solid #24331F; border-radius: 9px;
+      background: #060D08E8; border: 1px solid var(--ligne); border-radius: 9px;
       padding: 3px 12px; z-index: 5; text-align: center; font-size: 0.64rem;
-      color: #96A699; white-space: nowrap;
+      color: var(--craie-sourde); white-space: nowrap;
     }
-    .tableau-match .score-match { font-size: 0.95rem; font-weight: 800; color: #E7EEE7; }
+    .tableau-match .score-match { font-size: 0.95rem; font-weight: 800; color: var(--craie); }
     .journal {
       position: absolute; left: 6px; right: 6px; bottom: 4px; max-height: 52%;
       overflow-y: auto; z-index: 5; display: flex; flex-direction: column; gap: 3px;
       -webkit-mask-image: linear-gradient(to bottom, transparent, black 15%);
               mask-image: linear-gradient(to bottom, transparent, black 15%);
     }
-    .journal .phase { padding: 4px 8px; font-size: 0.68rem; line-height: 1.3; background: #182219F0; }
+    .journal .phase { padding: 4px 8px; font-size: 0.68rem; line-height: 1.3; background: #0E1F12F0; }
     .journal .titre-phase { font-size: 0.56rem; margin-bottom: 0; }
     .journal .cri { font-size: 0.74rem; }
     .journal:empty { display: none; }
@@ -193,8 +193,8 @@
     .journal { z-index: 8; }
     .tableau-match { z-index: 9; }
     .tableau-match .btn-journal {
-      background: none; border: 1px solid #24331F; border-radius: 6px;
-      color: #96A699; font-size: 0.7rem; cursor: pointer; padding: 0 5px; margin-left: 6px;
+      background: none; border: 1px solid var(--ligne); border-radius: 6px;
+      color: var(--craie-sourde); font-size: 0.7rem; cursor: pointer; padding: 0 5px; margin-left: 6px;
     }
 
     /* ---- La barre boutique du bas (copie TFT) ---- */
@@ -202,45 +202,45 @@
        comprime quand la hauteur manque (jamais les boutons d'achat). */
     .boutique-barre {
       flex: 0 0 auto; display: flex; gap: 6px; align-items: stretch;
-      background: #0B100C; border-top: 1px solid #24331F;
+      background: var(--nuit-profonde); border-top: 1px solid var(--ligne);
       padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
     }
     .bloc-eco {
       flex: 0 0 96px; display: flex; flex-direction: column; gap: 3px;
     }
-    .bloc-eco .or-affiche { text-align: center; color: #E8C547; font-weight: 800; font-size: 0.9rem; }
+    .bloc-eco .or-affiche { text-align: center; color: var(--or-trophee); font-weight: 800; font-size: 0.9rem; }
     .bloc-eco button {
-      flex: 1; background: #182219; color: #A9DDB6; border: 1px solid #24331F;
+      flex: 1; background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
       border-radius: 7px; font-size: 0.6rem; font-weight: 700; cursor: pointer; padding: 3px;
       line-height: 1.25;
     }
-    .bloc-eco button:disabled { color: #5A6A5C; }
+    .bloc-eco button:disabled { color: #5F7A64; }
     .rangee-boutique { flex: 1; display: flex; gap: 5px; overflow-x: auto; }
     .carte-boutique {
-      flex: 1 0 96px; min-height: 0; background: #182219; border: 1px solid #24331F; border-radius: 9px;
+      flex: 1 0 96px; min-height: 0; background: var(--surface-1); border: 1px solid var(--ligne); border-radius: 9px;
       padding: 3px 5px; font-size: 0.56rem; color: #C9D6C9; cursor: pointer; line-height: 1.2;
       display: flex; flex-direction: column; gap: 1px; overflow: hidden;
     }
-    .carte-boutique .haut-carte { display: flex; justify-content: space-between; font-weight: 800; font-size: 0.64rem; color: #E7EEE7; }
-    .carte-boutique .prix { color: #E8C547; }
+    .carte-boutique .haut-carte { display: flex; justify-content: space-between; font-weight: 800; font-size: 0.64rem; color: var(--craie); }
+    .carte-boutique .prix { color: var(--or-trophee); }
     .carte-boutique .signatures { color: #9CC4EF; font-weight: 700; }
-    .carte-boutique .traits-carte { color: #7E9483; font-size: 0.52rem; }
+    .carte-boutique .traits-carte { color: var(--craie-sourde); font-size: 0.52rem; }
     .carte-boutique button {
-      margin-top: auto; background: #4FC57C; color: #0B100C; border: none;
+      margin-top: auto; background: var(--gazon-electrique); color: var(--nuit-profonde); border: none;
       border-radius: 6px; padding: 3px; font-weight: 800; font-size: 0.62rem; cursor: pointer;
     }
-    .carte-boutique button:disabled { background: #2A3A2C; color: #6C7A6E; }
+    .carte-boutique button:disabled { background: #0C130D; color: #4A5A4C; }
     .carte-boutique.vendue { opacity: 0.35; justify-content: center; text-align: center; }
-    .carte-boutique.cout-1 { border-top: 3px solid #8B9E8E; } .carte-boutique.cout-2 { border-top: 3px solid #4FC57C; }
-    .carte-boutique.cout-3 { border-top: 3px solid #4F9EC5; } .carte-boutique.cout-4 { border-top: 3px solid #A66BD4; }
-    .carte-boutique.cout-5 { border-top: 3px solid #E8C547; }
-    .btn-verrou-carte { flex: 0 0 30px; background: #182219; color: #A9DDB6; border: 1px solid #24331F;
+    .carte-boutique.cout-1 { border-top: 3px solid var(--cout-1); } .carte-boutique.cout-2 { border-top: 3px solid var(--gazon-electrique); }
+    .carte-boutique.cout-3 { border-top: 3px solid var(--poste-d); } .carte-boutique.cout-4 { border-top: 3px solid var(--cout-4); }
+    .carte-boutique.cout-5 { border-top: 3px solid var(--or-trophee); }
+    .btn-verrou-carte { flex: 0 0 30px; background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
       border-radius: 7px; font-size: 0.85rem; cursor: pointer; }
 
     /* ---- Boutique escamotable (toggle sur le sac d'or, façon TFT) ----
        Repliée : les cartes et l'XP disparaissent, il RESTE or + refresh
        + verrou — et le terrain récupère toute la hauteur. */
-    .btn-sac { flex: 0 0 30px; background: #182219; color: #E8C547; border: 1px solid #24331F;
+    .btn-sac { flex: 0 0 30px; background: var(--surface-1); color: var(--or-trophee); border: 1px solid var(--ligne);
       border-radius: 7px; font-size: 0.85rem; cursor: pointer; }
     .boutique-barre.repliee .rangee-boutique, .boutique-barre.repliee #btn-xp { display: none; }
     .boutique-barre.repliee .bloc-eco { flex: 1; flex-direction: row; align-items: center; justify-content: flex-start; gap: 8px; }
@@ -256,50 +256,50 @@
     }
     .fantome .etiquette-malus {
       position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
-      background: #E8654F; color: #fff; font-size: 0.6rem; font-weight: 800;
+      background: var(--alerte); color: #fff; font-size: 0.6rem; font-weight: 800;
       border-radius: 6px; padding: 1px 5px; white-space: nowrap;
     }
     .jeton.source-drag { opacity: 0.35; }
-    .ligne-terrain.cible, .rangee-banc.cible { background: rgba(79, 197, 124, 0.18); border-radius: 8px; }
-    .jeton.cible { outline: 2px dashed #4FC57C; }
+    .ligne-terrain.cible, .rangee-banc.cible { background: rgba(61, 226, 107, 0.18); border-radius: 8px; }
+    .jeton.cible { outline: 2px dashed var(--gazon-electrique); }
     .zone-vente {
       position: absolute; inset: 0; z-index: 110; display: none;
       align-items: center; justify-content: center;
-      background: #3A2A24EE; color: #D4A66B; font-weight: 800; font-size: 0.95rem;
-      border-radius: 10px; border: 2px dashed #D4A66B;
+      background: #3A1712EE; color: var(--alerte-claire); font-weight: 800; font-size: 0.95rem;
+      border-radius: 10px; border: 2px dashed var(--alerte-claire);
     }
     .zone-vente.active { display: flex; }
-    .zone-vente.cible { background: #4a2f24; color: #FFD9A0; }
+    .zone-vente.cible { background: var(--vendre-fond); color: var(--alerte-claire); }
 
     /* ---- Le scouting fluide : liseré jaune « tu visites », retour fixe ---- */
-    .col-classement .coach-ligne.visite { border-color: #E8C547; color: #E8C547; }
-    .fiche-joueur.visite { border: 2px solid #E8C547; }
+    .col-classement .coach-ligne.visite { border-color: var(--or-trophee); color: var(--or-trophee); }
+    .fiche-joueur.visite { border: 2px solid var(--or-trophee); }
     .nav-vestiaire { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-    .fleche-vestiaire { flex: 0 0 34px; background: #182219; color: #A9DDB6; border: 1px solid #24331F;
+    .fleche-vestiaire { flex: 0 0 34px; background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
       border-radius: 7px; font-size: 0.9rem; padding: 6px 0; cursor: pointer; }
-    .tag-visite { font-size: 0.6rem; color: #E8C547; font-weight: 700; vertical-align: middle; }
+    .tag-visite { font-size: 0.6rem; color: var(--or-trophee); font-weight: 700; vertical-align: middle; }
     .fiche-joueur .retour-fixe { position: sticky; bottom: 0; background: #24425E; color: #9CC4EF; }
     .bandeau-scouting { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; margin: 6px 0; }
-    .bandeau-scouting button { background: #182219; color: #A9DDB6; border: 1px solid #24331F;
+    .bandeau-scouting button { background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
       border-radius: 6px; font-size: 0.62rem; padding: 3px 7px; cursor: pointer; }
 
     /* Le Calepin : les joueurs planifiés brillent en boutique ;
        l'éclat de fusion : ★★ si 2 copies possédées (or si 3★ en vue) */
     .carte-boutique.planifie { border-color: #9CC4EF; box-shadow: 0 0 10px rgba(156, 196, 239, 0.5); }
-    .carte-boutique.eclat { border-color: #4FC57C; box-shadow: 0 0 12px rgba(79, 197, 124, 0.65); animation: eclatPulse 1.4s ease infinite; }
-    .carte-boutique.eclat-or { border-color: #E8C547; box-shadow: 0 0 14px rgba(232, 197, 71, 0.8); animation: eclatPulse 1.1s ease infinite; }
+    .carte-boutique.eclat { border-color: var(--gazon-electrique); box-shadow: 0 0 12px rgba(61, 226, 107, 0.65); animation: eclatPulse 1.4s ease infinite; }
+    .carte-boutique.eclat-or { border-color: var(--or-trophee); box-shadow: 0 0 14px rgba(242, 193, 78, 0.8); animation: eclatPulse 1.1s ease infinite; }
     @keyframes eclatPulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.25); } }
-    .badge-eclat { position: absolute; top: 2px; right: 4px; font-size: 0.6rem; color: #E8C547; font-weight: 800; }
+    .badge-eclat { position: absolute; top: 2px; right: 4px; font-size: 0.6rem; color: var(--or-trophee); font-weight: 800; }
     .galerie { display: flex; flex-wrap: wrap; gap: 4px; }
     .galerie .carte-galerie {
-      flex: 0 0 31%; background: #182219; border: 1px solid #24331F; border-radius: 8px;
+      flex: 0 0 31%; background: var(--surface-1); border: 1px solid var(--ligne); border-radius: 8px;
       padding: 4px; font-size: 0.62rem; cursor: pointer; color: #C9D6C9;
     }
     .galerie .carte-galerie.epingle { border-color: #9CC4EF; box-shadow: 0 0 8px rgba(156, 196, 239, 0.5); }
 
     .message-flottant {
       position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%);
-      color: #E88C7D; font-size: 0.75rem; z-index: 90; background: #0B100CDD;
+      color: var(--alerte-claire); font-size: 0.75rem; z-index: 90; background: #060D08DD;
       border-radius: 8px; padding: 0 8px; pointer-events: none; text-align: center;
     }
 
@@ -310,13 +310,13 @@
       padding: 14px; overflow-y: auto;
     }
     .volet .panneau {
-      background: #131b14; border: 1px solid #35502F; border-radius: 14px;
+      background: #131b14; border: 1px solid var(--ligne-forte); border-radius: 14px;
       width: 100%; max-width: 420px; max-height: 92vh; overflow-y: auto;
       padding: 14px; animation: apparait 0.25s ease; font-size: 0.8rem;
     }
     .volet .panneau .classement { border: none; padding: 0; margin: 0 0 8px; background: none; }
     .volet .fermer-volet {
-      width: 100%; margin-top: 10px; background: #24331F; color: #A9DDB6;
+      width: 100%; margin-top: 10px; background: var(--ligne); color: var(--craie-claire);
       border: none; border-radius: 10px; padding: 9px; font-weight: 700; cursor: pointer;
     }
     .orbes { margin: 8px 0 2px; }
@@ -367,7 +367,7 @@
   <!-- ===== Centre : synergies | plateau + banc | classement ===== -->
   <div class="centre">
     <div class="col-synergies">
-      <button id="btn-legende" style="background:#182219;color:#96A699;border:1px solid #24331F;border-radius:6px;font-size:0.6rem;padding:2px;cursor:pointer">？ Légende</button>
+      <button id="btn-legende" style="background:var(--surface-1);color:var(--craie-sourde);border:1px solid var(--ligne);border-radius:6px;font-size:0.6rem;padding:2px;cursor:pointer">？ Légende</button>
       <button id="btn-bascule-gauche">🧰 Staff · 🎯</button>
       <div id="page-synergies">
         <div id="synergies-club"></div>
@@ -594,7 +594,7 @@
     ];
     const RARETES_PHILO = {
       argent: { nom: "Argent", emoji: "🥈", couleur: "#C0C8CC" },
-      or: { nom: "Or", emoji: "🥇", couleur: "#E8C547" },
+      or: { nom: "Or", emoji: "🥇", couleur: "var(--or-trophee)" },
       prismatique: { nom: "Prismatique", emoji: "💎", couleur: "#9CC4EF" },
     };
     const ODDS_RARETE_PHILO = { 4: [60, 35, 5], 7: [25, 55, 20], 10: [10, 50, 40] }; // argent / or / prismatique
@@ -1317,7 +1317,7 @@
         (bonusVictoire ? ` +1 victoire` : "") + `)</span></div>`;
       if (partie.orbesEnAttente.length) {
         html += `<div style="text-align:center;margin-top:8px"><strong>🎁 ${coupe ? "Le butin de la coupe !" : "Le butin de l'amical !"}</strong><br>` +
-          `<small style="color:#96A699">Touche chaque orbe pour l'ouvrir.</small></div><div class="orbes">` +
+          `<small style="color:var(--craie-sourde)">Touche chaque orbe pour l'ouvrir.</small></div><div class="orbes">` +
           partie.orbesEnAttente.map((o, i) => `<button class="orbe ${o.rarete}" onclick="ouvrirOrbe(this, ${i})">🎁</button>`).join("") +
           `</div>`;
       }
@@ -1400,14 +1400,14 @@
         volet.className = "volet";
         volet.innerHTML = `<div class="panneau" style="text-align:center;max-width:480px">
           <div style="font-size:1.35rem;font-weight:900;margin-bottom:2px">${je.vivant ? "🏆 CHAMPION !" : "💔 Éliminé"}</div>
-          <div style="color:#96A699;font-size:0.78rem;margin-bottom:8px">${place}ᵉ sur 8 · manche ${partie.manche}</div>
+          <div style="color:var(--craie-sourde);font-size:0.78rem;margin-bottom:8px">${place}ᵉ sur 8 · manche ${partie.manche}</div>
           <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-bottom:8px">
             ${partie.terrain.map((j) => `<span class="jeton cout-${j.cout}" style="width:56px;cursor:default">
               ${pastilleHTML(j)}${(j.etoiles || 1) >= 2 ? `<span class="etoiles">${"★".repeat(j.etoiles)}</span>` : ""}<br>${j.nom.replace(/ ★+$/, "")}</span>`).join("")}
           </div>
           ${heros ? `<div class="coach" style="margin-bottom:4px"><span>🌟 L'homme de ta partie : <strong>${heros.nom}</strong> — ${heros.buts} but${heros.buts > 1 ? "s" : ""}, ${heros.passes} passe${heros.passes > 1 ? "s" : ""} décisive${heros.passes > 1 ? "s" : ""}${heros.arrets ? ", " + heros.arrets + " arrêts" : ""}</span></div>` : ""}
           ${icones.length ? `<div class="coach" style="margin-bottom:4px"><span>🎯 Icônes débloquées : <strong>${icones.join(" · ")}</strong></span></div>` : ""}
-          <details style="margin:4px 0"><summary style="cursor:pointer;color:#96A699;font-size:0.76rem">🏁 Le classement final</summary>
+          <details style="margin:4px 0"><summary style="cursor:pointer;color:var(--craie-sourde);font-size:0.76rem">🏁 Le classement final</summary>
             <div class="classement" style="margin-top:4px">${ligneClassement()}</div></details>
           <button class="fermer-volet" style="font-size:1rem" onclick="recommencerPartie()">🔁 Rejouer</button>
           <button class="fermer-volet" onclick="location.href='index.html'">🏠 Accueil</button>
@@ -1451,15 +1451,15 @@
       volet.className = "volet";
       volet.innerHTML = `<div class="panneau" style="text-align:center">
         <strong>❄️ Le Mercato d'hiver</strong><br>
-        <small style="color:#96A699">Un joueur offert — les clubs en difficulté ont été servis avant toi${rang > 0 ? " (" + rang + " déjà passés)" : ""}.</small>
+        <small style="color:var(--craie-sourde)">Un joueur offert — les clubs en difficulté ont été servis avant toi${rang > 0 ? " (" + rang + " déjà passés)" : ""}.</small>
         <div class="bandeau-scouting">${partie.coachs.map((c, i) => c.ia && c.vivant
           ? `<button onclick="scouterIndice(${i})">🔎 ${c.nom.split(" ")[0]}</button>` : "").join("")}</div>
         ${etal.map((choix, i) => {
           const stats = ONZE.genererStats(choix.fiche);
           return `<button class="fermer-volet" style="text-align:left" data-hiver="${i}">
-            <strong>${ONZE.noteGlobale(stats)} ${choix.fiche.poste} · ${choix.fiche.nom}</strong> <span style="color:#E8C547">${choix.fiche.cout}M</span>
+            <strong>${ONZE.noteGlobale(stats)} ${choix.fiche.poste} · ${choix.fiche.nom}</strong> <span style="color:var(--or-trophee)">${choix.fiche.cout}M</span>
             ${choix.carte ? ` + 🧰 ${choix.carte}` : ""}<br>
-            <small style="color:#96A699">${choix.fiche.ecole || "Sans École"} · ${choix.fiche.archetype}</small></button>`;
+            <small style="color:var(--craie-sourde)">${choix.fiche.ecole || "Sans École"} · ${choix.fiche.archetype}</small></button>`;
         }).join("")}
       </div>`;
       const choisirHiver = (indiceChoix) => {
@@ -1513,9 +1513,9 @@
         volet.innerHTML = `<div class="panneau" style="text-align:center">
           <strong>🧭 Choisis la Philosophie de ton club</strong><br>
           <span style="color:${fiche.couleur};font-weight:800">${fiche.emoji} Écran ${fiche.nom}</span><br>
-          <small style="color:#96A699">Un seul choix — définitif jusqu'à la fin de la partie.</small>
+          <small style="color:var(--craie-sourde)">Un seul choix — définitif jusqu'à la fin de la partie.</small>
           ${choix.map((p, i) => `<button class="fermer-volet" style="text-align:left;border-color:${fiche.couleur}55" data-philo="${i}">
-            ${p.emoji} <strong>${p.nom}</strong><br><small style="color:#96A699">${p.desc}</small></button>`).join("")}
+            ${p.emoji} <strong>${p.nom}</strong><br><small style="color:var(--craie-sourde)">${p.desc}</small></button>`).join("")}
           <button class="fermer-volet" data-relance ${relanceDispo ? "" : "disabled"}
             style="width:auto;padding:6px 12px;color:#9CC4EF">🎲 Relancer les 3 (${relanceDispo ? 1 : 0})</button>
         </div>`;
@@ -1586,9 +1586,9 @@
       const volet = document.createElement("div");
       volet.className = "volet";
       volet.innerHTML = `<div class="panneau">
-        <strong>${ONZE_UI.glyphe(nom)} ${nom}</strong> <small style="color:#96A699">· ${compte} aligné${compte > 1 ? "s" : ""}${estAdverse ? " (adversaire)" : ""}</small>
+        <strong>${ONZE_UI.glyphe(nom)} ${nom}</strong> <small style="color:var(--craie-sourde)">· ${compte} aligné${compte > 1 ? "s" : ""}${estAdverse ? " (adversaire)" : ""}</small>
         <div style="font-style:italic;color:#C9D6C9;font-size:0.78rem;margin:6px 0">${fiche.identite}</div>
-        ${fiche.paliers.map(([seuil, effet]) => `<div class="coach" style="display:block;margin-top:3px;${seuil === palierActif ? "border-left:3px solid #4FC57C;padding-left:6px" : compte >= seuil ? "" : "opacity:0.45"}">
+        ${fiche.paliers.map(([seuil, effet]) => `<div class="coach" style="display:block;margin-top:3px;${seuil === palierActif ? "border-left:3px solid var(--gazon-electrique);padding-left:6px" : compte >= seuil ? "" : "opacity:0.45"}">
           <strong>${seuil}</strong> — ${effet}${seuil === palierActif ? " ✅" : ""}</div>`).join("")}
         ${contributeurs.length ? `<div class="coach" style="display:block;margin-top:6px"><small>👥 ${contributeurs.join(" · ")}</small></div>` : ""}
         ${teaser ? `<div class="coach" style="display:block;margin-top:6px;color:#9CC4EF"><small>${teaser}</small></div>` : ""}
@@ -1621,7 +1621,7 @@
         const disponibles = [...tousLesJoueurs].sort((a, b) => a.cout - b.cout || a.nom.localeCompare(b.nom));
         volet.innerHTML = `<div class="panneau" style="max-width:560px">
           <strong>📝 Le Calepin du recruteur</strong>
-          <small style="color:#96A699">· ${partie.calepin.length}/11 épinglés — ils brilleront en boutique</small>
+          <small style="color:var(--craie-sourde)">· ${partie.calepin.length}/11 épinglés — ils brilleront en boutique</small>
           <div style="margin:6px 0">
             <button class="fermer-volet" style="width:auto;margin:0;padding:6px 10px" data-action="photo">📸 Photographier mon équipe</button>
             <button class="fermer-volet" style="width:auto;margin:0;padding:6px 10px" data-action="vider">🗑 Vider</button>
@@ -1631,7 +1631,7 @@
             const epingle = partie.calepin.includes(j.nom);
             return `<div class="carte-galerie${epingle ? " epingle" : ""}" data-nom="${j.nom.replace(/"/g, "&quot;")}">
               <span class="pastille p-${j.poste}">${ONZE_UI.GLYPHES.postes[j.poste]}</span>
-              <strong>${j.nom}</strong> <span style="color:#E8C547">${j.cout}M</span><br>
+              <strong>${j.nom}</strong> <span style="color:var(--or-trophee)">${j.cout}M</span><br>
               <span class="glyphes-famille">${ONZE_UI.glyphe(j.ecole)}${ONZE_UI.glyphe(j.archetype)}</span></div>`;
           }).join("")}</div>
           <button class="fermer-volet" data-action="fermer">Fermer</button>
@@ -1663,12 +1663,12 @@
       volet.innerHTML = `<div class="panneau">
         <strong>？ La légende</strong>
         <div class="coach" style="margin-top:6px"><span>${lignePoste("GAR", "Gardien")} · ${lignePoste("DÉF", "Défenseur")} · ${lignePoste("MIL", "Milieu")} · ${lignePoste("ATT", "Attaquant")}<br>
-        <small style="color:#96A699">Pastille = poste joué. Liseré orange = hors-poste (malus). 😱 = joueur de champ dans les buts.</small></span></div>
+        <small style="color:var(--craie-sourde)">Pastille = poste joué. Liseré orange = hors-poste (malus). 😱 = joueur de champ dans les buts.</small></span></div>
         <div style="margin-top:6px"><strong style="font-size:0.75rem">Les 11 Écoles</strong><br>
         ${Object.entries(ONZE_UI.GLYPHES.ecoles).map(([nom, g]) => `<span class="badge" data-famille="${nom}" style="cursor:pointer">${g} ${nom}</span>`).join(" ")}</div>
         <div style="margin-top:6px"><strong style="font-size:0.75rem">Les 12 archétypes</strong><br>
         ${Object.entries(ONZE_UI.GLYPHES.archetypes).map(([nom, g]) => `<span class="badge" data-famille="${nom}" style="cursor:pointer">${g} ${nom}</span>`).join(" ")}</div>
-        <div class="coach" style="margin-top:6px"><span><small style="color:#96A699">🧪 spécialisation · 🧰 carte staff · 🛂 emblème · ⭐ Unique · 🏆 Icône</small></span></div>
+        <div class="coach" style="margin-top:6px"><span><small style="color:var(--craie-sourde)">🧪 spécialisation · 🧰 carte staff · 🛂 emblème · ⭐ Unique · 🏆 Icône</small></span></div>
         <button class="fermer-volet">Fermer</button>
       </div>`;
       volet.addEventListener("click", (e) => { if (e.target === volet || e.target.classList.contains("fermer-volet")) volet.remove(); });
@@ -1734,7 +1734,7 @@
       volet.className = "volet";
       volet.innerHTML = `<div class="panneau" style="text-align:center;max-width:340px">
         <strong>👋 Première fois sur ONZE ?</strong><br>
-        <small style="color:#96A699">Un auto-battler de football : tu construis l'équipe, le match se joue tout seul.</small>
+        <small style="color:var(--craie-sourde)">Un auto-battler de football : tu construis l'équipe, le match se joue tout seul.</small>
         <button class="fermer-volet" data-tuto="oui">🎓 Guide-moi (recommandé)</button>
         <button class="fermer-volet" data-tuto="non">Je connais — jouer directement</button>
       </div>`;
@@ -1830,15 +1830,15 @@
       volet.innerHTML = `<div class="panneau">
         <strong>🏆 Le tournoi</strong>
         <div class="classement" style="margin-top:6px">${ligneClassement()}</div>
-        <div class="coach" style="margin-top:4px;color:#96A699"><span id="annonce-volet"></span></div>
+        <div class="coach" style="margin-top:4px;color:var(--craie-sourde)"><span id="annonce-volet"></span></div>
         ${partie.philosophies.length ? `<div class="coach" style="margin-top:4px"><span>🧭 ${partie.philosophies.join(" · ")}</span></div>` : ""}
         <button class="fermer-volet" onclick="basculerDetente(); this.closest('.volet').remove()">${modeDetente ? "⏱ Réactiver le chrono (référence)" : "🧘 Mode détente (sans chrono)"}</button>
         <button class="fermer-volet" onclick="this.textContent = ONZE_JUICE.basculer() ? '🔊 Sons : activés' : '🔇 Sons : coupés'">${ONZE_JUICE.estActif() ? "🔊 Sons : activés" : "🔇 Sons : coupés"}</button>
         <button class="fermer-volet" onclick="this.textContent = basculerReplay() ? '🔁 Replay de but : activé' : '🔁 Replay de but : coupé'">${(() => { try { return localStorage.getItem("onze-replay") !== "off"; } catch (e) { return true; } })() ? "🔁 Replay de but : activé" : "🔁 Replay de but : coupé"}</button>
         <button class="fermer-volet" onclick="this.textContent = basculerCommentaire() ? '💬 Commentaire seul : activé' : '🎥 Scène animée : activée'">${modeCommentaire ? "💬 Commentaire seul : activé" : "🎥 Scène animée : activée"}</button>
         <button class="fermer-volet" onclick="if (confirm('Relancer le tutoriel ? La partie en cours sera abandonnée.')) relancerTutoriel()">🎓 Relancer le tutoriel</button>
-        <button class="fermer-volet" style="background:#3A2A24;color:#D4A66B" onclick="if (confirm('Abandonner cette partie ?')) recommencerPartie()">🔁 Nouvelle partie</button>
-        <details style="margin-top:8px"><summary style="cursor:pointer;color:#96A699;font-size:0.8rem">📜 Historique des manches</summary>
+        <button class="fermer-volet" style="background:var(--vendre-fond);color:var(--alerte-claire)" onclick="if (confirm('Abandonner cette partie ?')) recommencerPartie()">🔁 Nouvelle partie</button>
+        <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--craie-sourde);font-size:0.8rem">📜 Historique des manches</summary>
         <div style="font-size:0.76rem;margin-top:4px">${partie.historique.map((h) => `<div class="coach"><span>${h}</span></div>`).join("") || "La saison commence."}</div></details>
         <button class="fermer-volet">Fermer</button>
       </div>`;
@@ -1959,7 +1959,7 @@
         <h3>🧰 ${carte}</h3>
         <div class="sous-titre">${carte === "Passeport" ? "Combiné, il donne un emblème d'École." :
           "Seule : petit bonus. Deux cartes sur le même joueur = spécialisation DÉFINITIVE."}</div>
-        <details style="margin-bottom:6px"><summary style="cursor:pointer;color:#96A699;font-size:0.72rem">🌳 Ses ${combos.length} combinaisons</summary>
+        <details style="margin-bottom:6px"><summary style="cursor:pointer;color:var(--craie-sourde);font-size:0.72rem">🌳 Ses ${combos.length} combinaisons</summary>
           <div style="font-size:0.68rem;color:#C9D6C9">${combos.map((c) => `<div>${c}</div>`).join("")}</div></details>
         ${tous.map(({ j, ref }) => {
           const enAttente = (j.staffCartes || [])[0];
@@ -1967,8 +1967,8 @@
           const slots = (j.staffCartes || []).length + (j.specialisations || []).length;
           return `<button class="fermer" style="text-align:left" data-ref="${ref}">
             ${j.poste} ${j.nom}${(j.etoiles || 1) >= 2 ? " " + "★".repeat(j.etoiles) : ""}${slots >= 3 ? " · PLEIN" : ""}
-            ${resultat ? `<br><small style="color:#E8C547">⚗️ ${enAttente} + ${carte} → ${resultat}</small>`
-              : enAttente ? `<br><small style="color:#96A699">porte ${enAttente}</small>` : ""}</button>`;
+            ${resultat ? `<br><small style="color:var(--or-trophee)">⚗️ ${enAttente} + ${carte} → ${resultat}</small>`
+              : enAttente ? `<br><small style="color:var(--craie-sourde)">porte ${enAttente}</small>` : ""}</button>`;
         }).join("")}
         <button class="fermer" data-ref="labo">🧪 Le Labo (les 36 spécialisations)</button>
         <button class="fermer" data-ref="annuler">Annuler</button>
@@ -1991,8 +1991,8 @@
           confirmation.innerHTML = `<div class="fiche-joueur" style="max-width:300px;text-align:center">
             <h3>⚗️ Fusionner ?</h3>
             <div class="sous-titre">${enAttente} + ${carte} sur ${fiche.nom}<br>→ <strong>${fusion}</strong></div>
-            <div style="color:#E88C7D;font-size:0.72rem;margin-bottom:6px">C'est définitif.</div>
-            <button class="fermer" data-choix="oui" style="background:#4FC57C;color:#0B100C">Fusionner</button>
+            <div style="color:var(--alerte-claire);font-size:0.72rem;margin-bottom:6px">C'est définitif.</div>
+            <button class="fermer" data-choix="oui" style="background:var(--gazon-electrique);color:var(--nuit-profonde)">Fusionner</button>
             <button class="fermer" data-choix="non">Annuler</button>
           </div>`;
           confirmation.addEventListener("click", (e2) => {
@@ -2037,7 +2037,7 @@
       voile.innerHTML = `<div class="fiche-joueur" style="max-width:360px">
         <h3>🏺 ${nom}</h3>
         <div class="sous-titre">${relique.desc}</div>
-        <div class="sous-titre" style="color:#E8C547">Choisis son porteur — c'est DÉFINITIF.</div>
+        <div class="sous-titre" style="color:var(--or-trophee)">Choisis son porteur — c'est DÉFINITIF.</div>
         ${candidats.map((j, i) => `<button class="fermer" style="text-align:left;margin-top:4px" data-porteur="${i}">
           <span class="pastille p-${j.poste}">${ONZE_UI.GLYPHES.postes[j.poste]}</span> ${j.nom}</button>`).join("")}
         <button class="fermer" data-annuler>Annuler</button>
@@ -2076,7 +2076,7 @@
         <div class="sous-titre">${CONSOMMABLES[nom].desc}</div>
         ${candidats.map((j, i) => `<button class="fermer" style="text-align:left;margin-top:4px" data-cible="${i}">
           <span class="pastille p-${j.poste}">${ONZE_UI.GLYPHES.postes[j.poste]}</span> ${j.nom}
-          <small style="color:#96A699">${(j.specialisations || []).map((s) => "🧪" + s).join(" ")}${(j.staffCartes || []).map((c) => " 🧰" + c).join(" ")}</small></button>`).join("")}
+          <small style="color:var(--craie-sourde)">${(j.specialisations || []).map((s) => "🧪" + s).join(" ")}${(j.staffCartes || []).map((c) => " 🧰" + c).join(" ")}</small></button>`).join("")}
         <button class="fermer" data-annuler>Annuler</button>
       </div>`;
       voile.addEventListener("click", (e) => {
@@ -2131,8 +2131,8 @@
       volet.innerHTML = `<div class="panneau">
         <strong>🧪 Le Labo — les 36 spécialisations</strong>
         <div style="font-size:0.68rem;margin-top:6px">${Object.entries(ONZE.SPECIALISATIONS).map(([combo, spec]) =>
-          `<div class="coach" style="display:block;margin-top:2px${possedees.has(spec.nom) ? ";border-left:3px solid #4FC57C;padding-left:5px" : ""}">
-            <strong>${spec.nom}</strong> <small style="color:#96A699">(${combo})</small>${spec.effet ? `<br><small style="color:#9CC4EF">${spec.effet}</small>` : ""}</div>`).join("")}</div>
+          `<div class="coach" style="display:block;margin-top:2px${possedees.has(spec.nom) ? ";border-left:3px solid var(--gazon-electrique);padding-left:5px" : ""}">
+            <strong>${spec.nom}</strong> <small style="color:var(--craie-sourde)">(${combo})</small>${spec.effet ? `<br><small style="color:#9CC4EF">${spec.effet}</small>` : ""}</div>`).join("")}</div>
         <div style="margin-top:8px;font-size:0.68rem"><strong>🛂 Les emblèmes (Passeport +)</strong><br>
           ${Object.entries(ONZE.EMBLEMES).map(([c, e]) => `${c} → ${e}`).join(" · ")}<br>
           Passeport ×2 → 🌍 Citoyen du monde</div>
@@ -2220,9 +2220,9 @@
         <button class="fermer" data-action="fiche">📋 Voir la fiche</button>
         ${nomListe === "terrain" ? `<div style="display:flex;gap:4px;margin:4px 0">` +
           ["GAR", "DÉF", "MIL", "ATT"].map((ligne) =>
-            `<button class="fermer" style="flex:1;margin:0${ligneDe(fiche) === ligne ? ";background:#4FC57C;color:#0B100C" : ""}" data-ligne="${ligne}">${ligne}</button>`).join("") + `</div>` : ""}
+            `<button class="fermer" style="flex:1;margin:0${ligneDe(fiche) === ligne ? ";background:var(--gazon-electrique);color:var(--nuit-profonde)" : ""}" data-ligne="${ligne}">${ligne}</button>`).join("") + `</div>` : ""}
         <button class="fermer" data-action="bouger">${nomListe === "terrain" ? "🪑 Envoyer au banc" : "⬆️ Titulariser"}</button>
-        <button class="fermer" style="background:#3A2A24;color:#D4A66B" data-action="vendre">💰 Vendre (${valeurVente}M)</button>
+        <button class="fermer" style="background:var(--vendre-fond);color:var(--alerte-claire)" data-action="vendre">💰 Vendre (${valeurVente}M)</button>
         <button class="fermer" data-action="rien">Annuler</button>
       </div>`;
       voile.addEventListener("click", (e) => {
@@ -2406,7 +2406,7 @@
         if (!fiche) return `<div class="carte-boutique vendue">—</div>`;
         if (fiche.estIcone) {
           const icone = ONZE_ICONES.parId(fiche.id);
-          return `<div class="carte-boutique" style="border:1px solid #E8C547;box-shadow:0 0 12px rgba(232,197,71,0.35)">
+          return `<div class="carte-boutique" style="border:1px solid var(--or-trophee);box-shadow:0 0 12px rgba(242, 193, 78,0.35)">
             <span class="haut-carte"><span>🏆 ICÔNE</span><span class="prix">${icone.cout}M</span></span>
             <span><strong>${icone.nom}</strong></span>
             <span class="traits-carte">${icone.ecole || "Sans École"}${icone.archetype ? " · " + icone.archetype : ""}</span>
@@ -2420,7 +2420,7 @@
         const eclatOr = copies === 2 && aDeuxEtoiles(fiche.nom);
         const eclat = copies >= 2 ? (eclatOr ? "eclat-or" : "eclat") : "";
         const planifie = partie.calepin.includes(fiche.nom) ? "planifie" : "";
-        const badgeEclat = copies >= 2 ? `<span class="badge-eclat">${eclatOr ? "★★★" : "★★"}</span>` : (copies === 1 ? `<span class="badge-eclat" style="color:#96A699">•2/3</span>` : "");
+        const badgeEclat = copies >= 2 ? `<span class="badge-eclat">${eclatOr ? "★★★" : "★★"}</span>` : (copies === 1 ? `<span class="badge-eclat" style="color:var(--craie-sourde)">•2/3</span>` : "");
         return `<div class="carte-boutique cout-${fiche.cout} ${eclat} ${planifie}" style="position:relative" onclick="ONZE_UI.ouvrirFiche(tousLesJoueurs.find((j) => j.nom === '${fiche.nom.replace(/'/g, "\\'")}'))">${badgeEclat}
           <span class="haut"><span>${note} ${pastilleHTML(fiche)}</span><span class="prix">${fiche.cout}M</span></span>
           <span><strong>${fiche.nom}</strong></span>
@@ -2437,7 +2437,7 @@
       // Synergies + mini ADN
       const apercu = equipeDuClub();
       el("synergies-club").innerHTML = ONZE_UI.badges(apercu) ||
-        `<span style="color:#5A6A5C;font-size:0.68rem">Réunis des joueurs d'une même École ou d'un même archétype.</span>`;
+        `<span style="color:#5F7A64;font-size:0.68rem">Réunis des joueurs d'une même École ou d'un même archétype.</span>`;
       // Le son de palier : une famille vient de s'allumer ou de monter
       const clesSynergies = new Set(apercu.synergies.map((sy) => sy.nom + "|" + sy.s));
       if (synergiesConnues) {
@@ -2454,7 +2454,7 @@
 
       // L'inventaire staff (colonne gauche) — tap = assigner
       el("inventaire-staff").innerHTML = partie.staff.length
-        ? `<span style="color:#96A699;font-size:0.58rem;text-transform:uppercase;letter-spacing:1px">🧰 Staff à assigner</span>` +
+        ? `<span style="color:var(--craie-sourde);font-size:0.58rem;text-transform:uppercase;letter-spacing:1px">🧰 Staff à assigner</span>` +
           partie.staff.map((carte, i) => {
             const icone = RELIQUES[carte] ? "🏺" : CONSOMMABLES[carte] ? "🧪" : carte === "Passeport" ? "🛂" : "🧰";
             const rare = RELIQUES[carte] || carte === "Passeport";
@@ -2573,14 +2573,14 @@
       const volet = document.createElement("div");
       volet.className = "volet";
       volet.innerHTML = `<div class="panneau">
-        <strong>🎯 Les quêtes d'Icônes</strong> <small style="color:#96A699">· 🔥 Ferveur : ${partie.compteurs.ferveur}</small>
+        <strong>🎯 Les quêtes d'Icônes</strong> <small style="color:var(--craie-sourde)">· 🔥 Ferveur : ${partie.compteurs.ferveur}</small>
         ${partie.quetesVisibles.map((id) => {
           const icone = ONZE_ICONES.parId(id);
           let progres = ""; try { progres = icone.progression(partie, apercu); } catch (e) {}
           return `<div class="coach" style="display:block;margin-top:6px">
-            <strong>${icone.nom}</strong> <span style="color:#E8C547">(${icone.poste === "DUO" ? "duo " : ""}${icone.cout}M)</span><br>
+            <strong>${icone.nom}</strong> <span style="color:var(--or-trophee)">(${icone.poste === "DUO" ? "duo " : ""}${icone.cout}M)</span><br>
             <small>${icone.condition} — <span style="color:#9CC4EF">${progres}</span></small><br>
-            <small style="color:#96A699;font-style:italic">${icone.identite}</small></div>`;
+            <small style="color:var(--craie-sourde);font-style:italic">${icone.identite}</small></div>`;
         }).join("")}
         ${partie.icônesDebloquees.length ? `<div class="coach" style="margin-top:8px"><span>🏆 Débloquées : ${partie.icônesDebloquees.map((id) => ONZE_ICONES.parId(id).nom).join(", ")}</span></div>` : ""}
         <button class="fermer-volet">Fermer</button>

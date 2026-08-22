@@ -148,7 +148,7 @@ const ONZE_UI = (() => {
       ajouterEvenement(elements, blocCourant, ev, scores);
       if (elements.bandeau) {
         const chip = ev.synergie
-          ? ` <span class="tag-synergie" style="color:${typeof ONZE_SCENE !== "undefined" ? ONZE_SCENE.couleurFamille(ev.synergie) : "#E8C547"}">✦ ${ev.synergie}</span>` : "";
+          ? ` <span class="tag-synergie" style="color:${typeof ONZE_SCENE !== "undefined" ? ONZE_SCENE.couleurFamille(ev.synergie) : "var(--or-trophee)"}">✦ ${ev.synergie}</span>` : "";
         elements.bandeau.innerHTML = (ev.but ? `⚽ ${ev.cri} <strong>${scores.a} – ${scores.b}</strong>` : ev.texte) + chip;
       }
       if (typeof ONZE_JUICE !== "undefined") {
@@ -288,9 +288,9 @@ const ONZE_UI = (() => {
         else if (resultat.scoreB > resultat.scoreA) verdict = `🏆 Victoire de ${equipeB.nom} !`;
         else verdict = "🤝 Match nul !";
         const prestige = resultat.ecart > 0 && !options.sansPrestige
-          ? `<br><small style="color:#96A699">Dégâts de prestige : ${ONZE.degatsPrestige(resultat.ecart, options.manche)} (base de période + ${resultat.ecart} d'écart)</small>` : "";
+          ? `<br><small style="color:var(--craie-sourde)">Dégâts de prestige : ${ONZE.degatsPrestige(resultat.ecart, options.manche)} (base de période + ${resultat.ecart} d'écart)</small>` : "";
         const hdm = ONZE.statsDuMatch ? ONZE.statsDuMatch(resultat, equipeA, equipeB).hommeDuMatch : null;
-        const ligneHdm = hdm ? `<br><small style="color:#E8C547">🌟 Homme du match : ${hdm.nom} (${hdm.equipe}) — le ⚔️ en haut détaille chaque joueur</small>` : "";
+        const ligneHdm = hdm ? `<br><small style="color:var(--or-trophee)">🌟 Homme du match : ${hdm.nom} (${hdm.equipe}) — le ⚔️ en haut détaille chaque joueur</small>` : "";
         bloc.innerHTML = `Score final : <strong>${resultat.scoreA} – ${resultat.scoreB}</strong><br>${verdict}${ligneHdm}${prestige}`;
         elements.recit.appendChild(bloc);
         bloc.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -324,7 +324,7 @@ const ONZE_UI = (() => {
     const stats = ONZE.statsDuMatch(source, equipeA, equipeB);
     const note10 = (l) => Math.min(10, Math.max(5,
       6 + l.buts * 1.5 + l.passes * 0.8 + l.duels * 0.35 + l.arrets * 0.8)).toFixed(1);
-    const couleurNote = (n) => n >= 7.5 ? "#4FC57C" : n >= 6.5 ? "#E8C547" : "#96A699";
+    const couleurNote = (n) => n >= 7.5 ? "var(--gazon-electrique)" : n >= 6.5 ? "var(--or-trophee)" : "var(--craie-sourde)";
     const voile = document.createElement("div");
     voile.className = "voile-fiche";
     let campActif = equipeA.nom;
@@ -333,22 +333,22 @@ const ONZE_UI = (() => {
       const maxScore = Math.max(...lignes.map((l) => l.score), 1);
       const hdm = stats.hommeDuMatch;
       voile.innerHTML = `<div class="fiche-joueur" style="max-width:460px">
-        <h3>⚔️ Le recap du match${opts.enCours ? " <small style='color:#96A699'>(en direct)</small>" : ""}</h3>
+        <h3>⚔️ Le recap du match${opts.enCours ? " <small style='color:var(--craie-sourde)'>(en direct)</small>" : ""}</h3>
         <div class="sous-titre">${hdm ? `🌟 Homme du match${opts.enCours ? " provisoire" : ""} : <strong>${hdm.nom}</strong> (${hdm.equipe})` : "Personne ne s'est encore illustré…"}</div>
         <div style="margin:6px 0">
           ${[equipeA, equipeB].map((eq) =>
-            `<button class="onglet-recap" data-camp="${eq.nom.replace(/"/g, "&quot;")}" style="width:auto;margin:0 4px 0 0;padding:5px 10px;font-size:0.7rem;${eq.nom === campActif ? "background:#2E4E39;border-color:#4FC57C" : ""}">${eq.nom}</button>`).join("")}
+            `<button class="onglet-recap" data-camp="${eq.nom.replace(/"/g, "&quot;")}" style="width:auto;margin:0 4px 0 0;padding:5px 10px;font-size:0.7rem;${eq.nom === campActif ? "background:var(--ligne-forte);border-color:var(--gazon-electrique)" : ""}">${eq.nom}</button>`).join("")}
         </div>
         ${lignes.map((l) => `<div class="ligne-stat">
           <span class="note-recap" style="color:${couleurNote(Number(note10(l)))}">${note10(l)}</span>
           <span class="nom-stat">${hdm && l.nom === hdm.nom && campActif === hdm.equipe ? "🌟 " : ""}${l.nom}</span>
           <span class="barre-stat"><div style="width:${Math.round(100 * l.score / maxScore)}%"></div></span>
-          <span style="font-size:0.64rem;color:#C8D6C9;white-space:nowrap">${[
+          <span style="font-size:0.64rem;color:var(--craie-claire);white-space:nowrap">${[
             l.buts ? `⚽×${l.buts}` : "", l.passes ? `🎯×${l.passes}` : "",
             l.duels ? `⚔️×${l.duels}` : "", l.arrets ? `🧤×${l.arrets}` : "",
           ].filter(Boolean).join(" ") || "—"}</span>
         </div>`).join("")}
-        <div style="color:#96A699;font-size:0.66rem;margin-top:8px">⚽ buts · 🎯 passes décisives · ⚔️ duels gagnés · 🧤 arrêts</div>
+        <div style="color:var(--craie-sourde);font-size:0.66rem;margin-top:8px">⚽ buts · 🎯 passes décisives · ⚔️ duels gagnés · 🧤 arrêts</div>
         <button class="fermer">Fermer</button>
       </div>`;
     };
@@ -379,15 +379,15 @@ const ONZE_UI = (() => {
       return `<div class="ligne-stat"><span class="nom-stat">${ONZE.NOMS_STATS[stat]}</span>` +
         `<span class="valeur-stat ${classe}">${valeur}</span>` +
         `<span class="barre-stat"><div style="width:${valeur}%"></div></span>` +
-        `<span style="font-size:0.66rem;color:#96A699">${detail}</span></div>`;
+        `<span style="font-size:0.66rem;color:var(--craie-sourde)">${detail}</span></div>`;
     }).join("");
     voile.innerHTML = `<div class="fiche-joueur">
-      <h3>${fiche.nom}${etoiles} <span style="float:right;color:#E8C547">${note}</span></h3>
+      <h3>${fiche.nom}${etoiles} <span style="float:right;color:var(--or-trophee)">${note}</span></h3>
       <div class="sous-titre">${fiche.poste} · ${fiche.cout}M${fiche.unique ? " · ⭐ " + fiche.unique : ""}${fiche.ecole ? " · " + fiche.ecole : ""}${fiche.archetype ? " · " + fiche.archetype : ""}</div>
       ${fiche.description ? `<div class="description">${fiche.description}</div>` : ""}
       ${fiche.ecoleBonus ? `<div class="sous-titre">🛂 Emblème : compte aussi comme <strong>${fiche.ecoleBonus}</strong></div>` : ""}
       ${fiche.citoyenDuMonde ? `<div class="sous-titre">🌍 Citoyen du monde : +1 dans toutes tes Écoles actives</div>` : ""}
-      ${fiche.relique ? `<div class="sous-titre" style="color:#E8C547">🏺 <strong>${fiche.relique}</strong> — Relique (définitive)</div>` : ""}
+      ${fiche.relique ? `<div class="sous-titre" style="color:var(--or-trophee)">🏺 <strong>${fiche.relique}</strong> — Relique (définitive)</div>` : ""}
       ${(fiche.specialisations || []).map((nom) => {
         const spec = Object.values(ONZE.SPECIALISATIONS).find((x) => x.nom === nom);
         const iconique = (fiche.specsIconiques || []).includes(nom);
@@ -395,7 +395,7 @@ const ONZE_UI = (() => {
       }).join("")}
       ${(fiche.staffCartes || []).map((c) => `<div class="sous-titre">🧰 ${c} <small>(en attente d'une 2ᵉ carte)</small></div>`).join("")}
       ${lignes}
-      <div style="color:#96A699;font-size:0.68rem;margin-top:8px">Valeur <span style="color:#4FC57C">verte</span> = boostée par tes synergies. Chaque duel du match lit 2 de ces stats.</div>
+      <div style="color:var(--craie-sourde);font-size:0.68rem;margin-top:8px">Valeur <span style="color:var(--gazon-electrique)">verte</span> = boostée par tes synergies. Chaque duel du match lit 2 de ces stats.</div>
       <button class="fermer">Fermer</button>
     </div>`;
     voile.addEventListener("click", (e) => { if (e.target === voile || e.target.classList.contains("fermer")) voile.remove(); });

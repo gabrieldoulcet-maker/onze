@@ -29,15 +29,15 @@
 
 const ONZE_SCENE = (() => {
   const COULEURS_FAMILLES = {
-    "Tiki-Taka": "#4F9EC5", "Catenaccio": "#8B9E8E", "Kick & Rush": "#E8654F",
-    "École de la Rue": "#E8C547", "La Grinta": "#C54F5E", "Football Total": "#9CC4EF",
-    "L'Académie": "#4FC57C", "Les Internationaux": "#A66BD4", "Le Douzième Homme": "#F0A055",
+    "Tiki-Taka": "#3E9BE0", "Catenaccio": "#98A79D", "Kick & Rush": "#E8503F",
+    "École de la Rue": "#F2C14E", "La Grinta": "#C54F5E", "Football Total": "#9CC4EF",
+    "L'Académie": "#3DE26B", "Les Internationaux": "#A85CE8", "Le Douzième Homme": "#F0A055",
     "Les Pros": "#C0C8CC", "Les Revanchards": "#B5654F",
-    "Mur": "#8B9E8E", "Moteur": "#4FC57C", "Sentinelle": "#4F9EC5", "Virtuose": "#A66BD4",
-    "Finisseur": "#E8654F", "Créateur": "#9CC4EF", "Piston": "#F0A055", "Renard": "#E8C547",
-    "Chanceux": "#6BD4A6", "Guerrier": "#C54F5E", "Mentor": "#C0C8CC", "Capitaine": "#E8C547",
+    "Mur": "#98A79D", "Moteur": "#3DE26B", "Sentinelle": "#3E9BE0", "Virtuose": "#A85CE8",
+    "Finisseur": "#E8503F", "Créateur": "#9CC4EF", "Piston": "#F0A055", "Renard": "#F2C14E",
+    "Chanceux": "#6BD4A6", "Guerrier": "#C54F5E", "Mentor": "#C0C8CC", "Capitaine": "#F2C14E",
   };
-  const couleurFamille = (nom) => COULEURS_FAMILLES[nom] || "#E8C547";
+  const couleurFamille = (nom) => COULEURS_FAMILLES[nom] || "#F2C14E";
 
   const STYLES_ECOLES = {
     "Tiki-Taka": "tiki", "Kick & Rush": "kickrush", "École de la Rue": "rue",
@@ -644,7 +644,7 @@ const ONZE_SCENE = (() => {
 
     function dessinerTerrain(temps) {
       ctx.clearRect(0, 0, largeur, hauteur);
-      ctx.fillStyle = "#17501F"; ctx.fillRect(0, 0, largeur / 2, hauteur);
+      ctx.fillStyle = "#135223"; ctx.fillRect(0, 0, largeur / 2, hauteur);
       ctx.fillStyle = "#1B5827"; ctx.fillRect(largeur / 2, 0, largeur / 2, hauteur);
       // la ZONE D'ACTION : le tiers où vit le ballon est surligné
       const tiers = ballon.x < 33.3 ? 0 : ballon.x < 66.6 ? 1 : 2;
@@ -659,7 +659,7 @@ const ONZE_SCENE = (() => {
       for (const camp of ["moi", "eux"]) {
         const tremble = tremblementCage.camp === camp ? tremblementCage.force : 0;
         const dx = tremble ? Math.sin(temps * 0.09) * 3 * tremble : 0;
-        ctx.strokeStyle = tremble ? "#E8C547" : "rgba(255,255,255,0.75)";
+        ctx.strokeStyle = tremble ? "#F2C14E" : "rgba(255,255,255,0.75)";
         ctx.lineWidth = 2;
         const xc = camp === "moi" ? 2 : largeur - 2;
         ctx.beginPath(); ctx.moveTo(xc + dx, py(42)); ctx.lineTo(xc + dx, py(58)); ctx.stroke();
@@ -670,7 +670,7 @@ const ONZE_SCENE = (() => {
       const yBarre = hauteur - 4;
       let xCourant = largeur * 0.25;
       const largeurBarre = largeur * 0.5;
-      const teintes = ["#4FC57C", "#C0C8CC", "#E8654F"];
+      const teintes = ["#3DE26B", "#C0C8CC", "#E8503F"];
       for (let i = 0; i < 3; i++) {
         const l = (tempsParTiers[i] / total) * largeurBarre;
         ctx.fillStyle = teintes[i];
@@ -691,14 +691,14 @@ const ONZE_SCENE = (() => {
       ctx.fillStyle = d.camp === "moi" ? (d.gardien ? "#1E4030" : "#14301C") : (d.gardien ? "#402A14" : "#33150F");
       ctx.fill();
       ctx.lineWidth = 2;
-      ctx.strokeStyle = d.gardien ? "#E8C547" : d.camp === "moi" ? "#4FC57C" : "#E8654F";
+      ctx.strokeStyle = d.gardien ? "#F2C14E" : d.camp === "moi" ? "#3DE26B" : "#E8503F";
       ctx.stroke();
       if (porteurAnneau === d.nom) {
         ctx.beginPath(); ctx.arc(X, Y, r + 3.5 + Math.sin(temps * 0.008) * 1.2, 0, 6.283);
         ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 1.6; ctx.stroke();
       }
       ctx.shadowBlur = 0;
-      ctx.fillStyle = "#E7EEE7";
+      ctx.fillStyle = "#EDF5EC";
       ctx.font = `700 ${Math.max(r * 0.9, 7)}px system-ui, sans-serif`;
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText(String(d.num), X, Y + 0.5);
@@ -727,7 +727,7 @@ const ONZE_SCENE = (() => {
         const moitie = Math.min(Math.abs(v), 1) * 50;
         options.jauge.style.left = v >= 0 ? (50 - moitie) + "%" : "50%";
         options.jauge.style.width = moitie + "%";
-        options.jauge.style.background = v >= 0 ? "#4FC57C" : "#E8654F";
+        options.jauge.style.background = v >= 0 ? "#3DE26B" : "#E8503F";
         options.jauge.classList.toggle("pulse", jauge.pulse);
       }
     }

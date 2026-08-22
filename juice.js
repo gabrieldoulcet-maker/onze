@@ -113,7 +113,7 @@ const ONZE_JUICE = (() => {
   }
 
   /* Des confettis légers : quelques divs en transform, retirés vite. */
-  const TEINTES = ["#E8C547", "#4FC57C", "#9CC4EF", "#E8654F", "#A66BD4"];
+  const TEINTES = ["#F2C14E", "#3DE26B", "#9CC4EF", "#E8503F", "#A85CE8"];
   function confettis(racine, nb) {
     for (let i = 0; i < nb; i++) {
       const c = document.createElement("div");

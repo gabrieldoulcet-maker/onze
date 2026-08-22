@@ -19,7 +19,7 @@
 
     <div class="bandeau-club">
       <div>🏟️ <strong id="mon-club">Mon Club</strong><br>
-        <small style="color:#96A699">Niveau <span id="niveau">5</span> — <span id="nb-titulaires-max">5</span> titulaires</small></div>
+        <small style="color:var(--craie-sourde)">Niveau <span id="niveau">5</span> — <span id="nb-titulaires-max">5</span> titulaires</small></div>
       <div class="or"><span id="or">30</span>M 🪙</div>
     </div>
 
@@ -49,7 +49,7 @@
       <div class="equipe-nom" id="nom-b"></div>
       <div class="chrono" id="chrono"></div>
     </div>
-    <button class="principal" id="btn-vitesse" style="background:#24331F;color:#A9DDB6;padding:8px;font-size:0.85rem;">⏩ Accélérer ×2</button>
+    <button class="principal" id="btn-vitesse" style="background:var(--ligne);color:var(--craie-claire);padding:8px;font-size:0.85rem;">⏩ Accélérer ×2</button>
     <button class="principal masque" id="btn-retour">↩ Retour au mercato</button>
     <div class="recit" id="recit"></div>
   </div>
@@ -195,7 +195,7 @@
       const signatures = ONZE.statsSignatures(stats).map((x) => `${x.nom} ${x.valeur}`).join(" · ");
       return `<div class="carte cout-${fiche.cout}" onclick="voirFiche(${refFiche})">
         <span class="note">${note}</span>
-        <span class="infos"><span class="nom">${fiche.poste} · ${fiche.nom}${etoiles}</span> <span style="color:#E8C547">${fiche.cout}M</span><br>
+        <span class="infos"><span class="nom">${fiche.poste} · ${fiche.nom}${etoiles}</span> <span style="color:var(--or-trophee)">${fiche.cout}M</span><br>
         <span class="signatures">${signatures}</span>
         <span class="traits"> ${fiche.unique ? "⭐ " + fiche.unique + " · " : ""}${fiche.ecole ? fiche.ecole + " · " : ""}${fiche.archetype}</span></span>
         <span class="actions" onclick="event.stopPropagation()">${actionsHTML}</span>
@@ -231,7 +231,7 @@
       const apercu = ONZE.equipeDepuisFiches("Mon Club", "Toi", terrain);
       el("synergies-club").innerHTML = apercu.synergies.length
         ? ONZE_UI.badges(apercu)
-        : `<span style="color:#5A6A5C;font-size:0.72rem">Les synergies s'activent à 2 joueurs de la même École ou du même archétype.</span>`;
+        : `<span style="color:#5F7A64;font-size:0.72rem">Les synergies s'activent à 2 joueurs de la même École ou du même archétype.</span>`;
       const axes = ONZE.adnClub(apercu);
       const valeursAxes = Object.values(axes);
       const maxAxe = Math.max(...valeursAxes), minAxe = Math.min(...valeursAxes);

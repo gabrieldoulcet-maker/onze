@@ -37,6 +37,22 @@ const verifier = (nom, ok) => {
   }
   verifier("aucun texte placeholder/« bientôt » servi au joueur", fautifs.length === 0);
   for (const f of fautifs) console.log("   ⚠️ " + f);
+
+  // ---- Anti-ancienne-palette (DA saison 1) : les tokens de design/da/
+  // font foi — aucune valeur de la palette d'AVANT la DA ne doit rester
+  // en dur dans un fichier servi. ----
+  const ANCIENNE_PALETTE = ["#101711", "#0B100C", "#182219", "#161F18", "#141B14", "#24331F",
+    "#263129", "#1B241B", "#35502F", "#2A3A2C", "#6C7A6E", "#4FC57C", "#A9DDB6", "#E8C547",
+    "#E7EEE7", "#96A699", "#7E9483", "#8B9E8E", "#4F9EC5", "#A66BD4", "#E8654F", "#E88C7D",
+    "#D4A66B", "#3A2A24", "#17501F", "#1C5A2C", "#F5E08A", "#FFD9A0"];
+  const servisPalette = [...servis, "manifest.json"];
+  const fautifsPalette = [];
+  for (const f of servisPalette) {
+    const contenu = fs.readFileSync(path.join(racine, f), "utf8").toUpperCase();
+    for (const hex of ANCIENNE_PALETTE) if (contenu.includes(hex)) fautifsPalette.push(`${f} → ${hex}`);
+  }
+  verifier("aucune valeur de l'ancienne palette en dur (tokens DA S1)", fautifsPalette.length === 0);
+  for (const f of fautifsPalette.slice(0, 10)) console.log("   ⚠️ " + f);
 }
 
 (async () => {
