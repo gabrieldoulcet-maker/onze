@@ -1,0 +1,6 @@
+# Accidents de scripts (une variable de chemin vide crée ces dossiers)
+undefined/
+null/
+# Sorties locales qui n'ont rien à faire dans le dépôt
+*.log
+node_modules/
