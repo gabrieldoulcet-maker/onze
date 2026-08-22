@@ -399,6 +399,18 @@
     }
     .badge-eclat { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); font-size: 0.6rem;
       color: var(--or-trophee); font-weight: 800; text-shadow: 0 0 6px rgba(242, 193, 78, 0.9); letter-spacing: 1px; z-index: 1; }
+    /* Le compteur de titulaires : toujours visible, alerte si état illégal */
+    .compteur-titulaires {
+      position: absolute; left: 6px; bottom: 4px; z-index: 5;
+      font-size: 0.56rem; font-weight: 800; letter-spacing: 0.5px;
+      color: var(--craie-sourde); background: rgba(6, 13, 8, 0.65);
+      padding: 2px 7px; border-radius: 999px; pointer-events: none;
+    }
+    .compteur-titulaires.alerte {
+      color: var(--alerte-claire); background: var(--vendre-fond);
+      outline: 1.5px solid var(--alerte); animation: pulseUrgent 0.7s ease infinite;
+      pointer-events: auto;
+    }
     .galerie { display: flex; flex-wrap: wrap; gap: 4px; }
     /* les filtres par famille du calepin (École / archétype) */
     .filtres-galerie { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
@@ -535,6 +547,7 @@
         </div>
         <div class="journal" id="recit"></div>
         <div class="bandeau-recit" id="bandeau-recit"></div>
+        <div class="compteur-titulaires" id="compteur-titulaires"></div>
       </div>
       <div class="rangee-banc" id="banc"></div>
     </div>
@@ -799,6 +812,7 @@
       };
       partie.quetesVisibles = ["gus-et-titi", ...ONZE_ICONES.liste.slice(0, 12).map((x) => x.id)
         .sort(() => Math.random() - 0.5).slice(0, 2)];
+      attribuerUids(); // les starters reçoivent leur identifiant d'instance
       construirePool();
       nouvelleBoutique(false);
       preparerManche();
@@ -872,7 +886,7 @@
       if (!fiche) return;
       if (fiche.estIcone) return acheterIcone(indice);
       if (partie.or < fiche.cout) return signaler("Pas assez d'or pour " + fiche.nom + ".");
-      const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
+      const max = maxTitulaires();
       if (partie.terrain.length + partie.banc.length >= max + TAILLE_BANC)
         return signaler("Effectif complet — vends quelqu'un.");
       if (partie.matchEnCours && partie.banc.length >= TAILLE_BANC)
@@ -918,15 +932,17 @@
       if (partie.matchEnCours)
         return signaler("⏳ Les changements de compo prendront effet à la manche suivante.");
       const liste = partie[nomListe];
-      if (nomListe === "banc" && partie.terrain.length >= TITULAIRES_PAR_NIVEAU[partie.niveau])
+      if (nomListe === "banc" && partie.terrain.length >= maxTitulaires())
         return signaler("Terrain plein — échange plutôt (tap sur lui, puis sur un titulaire).");
-      const fiche = liste.splice(indice, 1)[0];
+      const fiche = liste[indice];
+      if (!fiche) return;
+      retirerDesListes(fiche);
       if (nomListe === "banc") {
         fiche.ligne = undefined;
         const gardienEnPlace = partie.terrain.find((j) => ligneDe(j) === "GAR");
         if (fiche.poste === "GAR" && gardienEnPlace) {
           // échange intelligent : le gardien en place redescend au banc
-          partie.terrain.splice(partie.terrain.indexOf(gardienEnPlace), 1);
+          retirerDesListes(gardienEnPlace);
           gardienEnPlace.ligne = undefined;
           partie.banc.push(gardienEnPlace);
           signaler("🔁 " + gardienEnPlace.nom + " laisse sa place dans les buts.");
@@ -969,6 +985,57 @@
     function signaler(texte) {
       el("message").textContent = texte;
       setTimeout(() => { if (el("message").textContent === texte) el("message").textContent = ""; }, 3000);
+    }
+
+    /* ============ L'intégrité de l'effectif (post-playtest, bloquants) ============
+       La limite de titulaires = le niveau de club (5→11). Centralisée ici
+       pour qu'un futur +1 (palier chimère du Douzième Homme) se branche
+       à UN seul endroit. */
+    function maxTitulaires() { return TITULAIRES_PAR_NIVEAU[partie.niveau]; }
+    /* Chaque instance de joueur porte un identifiant unique dès son entrée
+       au club : la duplication devient détectable, et les invariants la
+       font échouer en test. */
+    function nouvelUid() { partie.compteurUid = (partie.compteurUid || 0) + 1; return "u" + partie.compteurUid; }
+    function attribuerUids() {
+      for (const j of [...partie.terrain, ...partie.banc]) if (!j.uid) j.uid = nouvelUid();
+    }
+    /* MOVE atomique : une fiche sort de TOUTES les listes avant d'entrer
+       ailleurs — une instance ne peut jamais vivre dans deux tableaux
+       (c'était la racine de la duplication : un insert sans retrait). */
+    function retirerDesListes(fiche) {
+      for (const liste of [partie.terrain, partie.banc])
+        for (let i = liste.length - 1; i >= 0; i--) if (liste[i] === fiche) liste.splice(i, 1);
+    }
+    /* Les invariants du club — le thermomètre que les tests lisent à chaque
+       manche. `complet` ajoute la conservation du pool par NOM :
+       copies au pool + boutique + orbes en attente + possédées (3^(★−1))
+       + prises par les IA = le sac de départ (30/25/18/10/9). */
+    function invariantsClub(complet) {
+      const erreurs = [];
+      const max = maxTitulaires();
+      if (partie.terrain.length > max) erreurs.push(`terrain ${partie.terrain.length} > limite ${max}`);
+      const vus = new Set();
+      for (const j of [...partie.terrain, ...partie.banc]) {
+        if (!j.uid) erreurs.push(`${j.nom} sans identifiant d'instance`);
+        else if (vus.has(j.uid)) erreurs.push(`instance dupliquée : ${j.nom} (${j.uid})`);
+        vus.add(j.uid);
+      }
+      if (complet && tousLesJoueurs.length) {
+        const compte = {};
+        const ajouter = (nom, n) => { compte[nom] = (compte[nom] || 0) + n; };
+        for (const f of partie.pool) ajouter(f.nom, 1);
+        for (const f of partie.boutique) if (f && !f.estIcone) ajouter(f.nom, 1);
+        for (const o of partie.orbesEnAttente) if (o.fiche) ajouter(o.fiche.nom, o.type === "duo" ? 2 : 1);
+        for (const j of [...partie.terrain, ...partie.banc])
+          if (j.cout >= 1 && !j.icone) ajouter(j.nom, Math.pow(3, (j.etoiles || 1) - 1));
+        for (const c of partie.coachs) for (const f of c.copiesPrises || []) ajouter(f.nom, 1);
+        for (const base of tousLesJoueurs) {
+          const attendu = POOL_PAR_COUT[base.cout] || 0;
+          if ((compte[base.nom] || 0) !== attendu)
+            erreurs.push(`copies de ${base.nom} : ${compte[base.nom] || 0} ≠ ${attendu}`);
+        }
+      }
+      return { ok: !erreurs.length, erreurs };
     }
     /* Formation LIBRE (décision n°21) : seule contrainte, au plus
        1 joueur sur la ligne de but. Bus intégral, zéro milieu,
@@ -1205,7 +1272,7 @@
       if (!dejaPreparee && aPhilosophie("Académie des jeunes") && partie.banc.length < TAILLE_BANC) {
         const jeune = piocherJoueur(1);
         if (jeune) {
-          partie.banc.push({ ...jeune, etoiles: 1 });
+          partie.banc.push({ ...jeune, etoiles: 1, uid: nouvelUid() });
           const fusions = ONZE.fusionnerEffectif(partie.terrain, partie.banc);
           if (fusions.length) celebrerFusions(fusions);
         }
@@ -1275,7 +1342,7 @@
        du centre ne servent que si le banc est vide. */
     const NOMS_RESERVISTES = ["Gilbert", "Norbert", "Fernand", "Marius", "Lucien", "Célestin"];
     function autoCompleter() {
-      const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
+      const max = maxTitulaires();
       const montes = [];
       let garde = 0;
       while (partie.terrain.length < max && garde++ < 30) {
@@ -1294,7 +1361,7 @@
         const gardienPris = partie.terrain.some((j) => ligneDe(j) === "GAR");
         const poste = !gardienPris ? "GAR" : ["DÉF", "MIL", "ATT"][reserviste % 3];
         const nom = NOMS_RESERVISTES[reserviste++];
-        partie.terrain.push({ nom, cout: 0, poste, ecole: "", archetype: "", unique: null, etoiles: 1 });
+        partie.terrain.push({ nom, cout: 0, poste, ecole: "", archetype: "", unique: null, etoiles: 1, uid: nouvelUid() });
         montes.push(nom + " (réserviste)");
       }
       if (montes.length) {
@@ -2411,23 +2478,26 @@
       const fiche = partie.banc[indice];
       if (!fiche) return afficher();
       const gardienEnPlace = partie.terrain.find((j) => j !== fiche && ligneDe(j) === "GAR");
-      const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
+      const max = maxTitulaires();
       if (partie.terrain.length >= max) {
-        // terrain plein : échange auto avec un joueur de la ligne visée
+        // terrain plein : ÉCHANGE obligatoire avec un joueur de la ligne
+        // visée — jamais un ajout (c'était LE bug : un insert sans retrait
+        // faisait grossir le terrain ET dupliquait le sortant)
         const sortant = partie.terrain.find((j) => ligneDe(j) === idLigne) || partie.terrain[0];
         const indiceSortant = partie.terrain.indexOf(sortant);
-        partie.banc.splice(indice, 1);
         const ligneRecue = ligneDe(sortant);
+        retirerDesListes(fiche);
+        retirerDesListes(sortant);
         sortant.ligne = undefined;
         partie.banc.push(sortant);
         fiche.ligne = idLigne === fiche.poste ? undefined : idLigne;
         if (idLigne === "GAR" && fiche.poste !== "GAR" && gardienEnPlace) fiche.ligne = ligneRecue === fiche.poste ? undefined : ligneRecue;
         partie.terrain.splice(indiceSortant, 0, fiche);
       } else {
-        partie.banc.splice(indice, 1);
+        retirerDesListes(fiche);
         if (idLigne === "GAR" && gardienEnPlace) {
           if (fiche.poste === "GAR") { // 2ᵉ gardien : échange intelligent
-            partie.terrain.splice(partie.terrain.indexOf(gardienEnPlace), 1);
+            retirerDesListes(gardienEnPlace);
             gardienEnPlace.ligne = undefined;
             partie.banc.push(gardienEnPlace);
             fiche.ligne = undefined;
@@ -2631,7 +2701,8 @@
        terrain — un 2ᵉ GAR va au banc. Renvoie false si tout est plein. */
     function placerAuClub(fiche) {
       const copie = fiche.etoiles ? fiche : { ...fiche, etoiles: 1 };
-      const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
+      copie.uid = copie.uid || nouvelUid();
+      const max = maxTitulaires();
       const gardienEnPlace = partie.terrain.some((j) => ligneDe(j) === "GAR");
       const versTerrain = !partie.matchEnCours && partie.terrain.length < max &&
         !(copie.poste === "GAR" && gardienEnPlace);
@@ -2667,7 +2738,13 @@
         <span class="glyphes-famille" style="display:flex;gap:2px;align-items:center">${ONZE_UI.glyphe(fiche.ecole)}${ONZE_UI.glyphe(fiche.archetype)}<span style="font-size:0.5rem">${staff}</span></span></div>`;
     }
     function afficher() {
-      const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
+      const max = maxTitulaires();
+      // le compteur permanent de titulaires, en alerte si un état illégal existe
+      const invar = invariantsClub(false);
+      const compteur = el("compteur-titulaires");
+      compteur.textContent = `Titulaires ${partie.terrain.length}/${max}`;
+      compteur.classList.toggle("alerte", !invar.ok);
+      compteur.title = invar.ok ? "" : invar.erreurs.join(" · ");
       el("manche").textContent = partie.manche;
       el("prestige").textContent = moi().prestige;
       el("or").textContent = partie.or;
@@ -2839,7 +2916,7 @@
         : [{ nom: icone.nom, cout: icone.cout, poste: icone.poste, ecole: icone.ecole,
              archetype: icone.archetype, unique: null, icone: true, etoiles: 1,
              description: icone.identite }];
-      const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
+      const max = maxTitulaires();
       const placesLibres = (max - partie.terrain.length) + (TAILLE_BANC - partie.banc.length);
       if (placesLibres < arrivants.length) return signaler("Pas assez de place pour " + icone.nom + ".");
       partie.or -= icone.cout;
@@ -2926,7 +3003,7 @@
     const CLE_SAUVEGARDE = "onze-partie-v1";
     // Incrémenter quand le schéma de partie change : une sauvegarde d'une
     // autre version est écartée au chargement (plus jamais de partie coincée)
-    const VERSION_SAUVEGARDE = 3; // v3 : les IA portent un état économique complet (etatIA)
+    const VERSION_SAUVEGARDE = 4; // v4 : uid d'instance par joueur (les sauvegardes v3 pouvaient porter des doublons)
     function sauvegarder() {
       if (!partie || partie.matchEnCours) return;
       try {
@@ -2954,6 +3031,7 @@
         partie.garanties = partie.garanties || [];
         for (const manche of Object.keys(partie.butin || {}))
           partie.butin[manche] = partie.butin[manche].map((o) => typeof o === "string" ? { rarete: o } : o);
+        attribuerUids(); // filet : aucune instance sans identifiant
         preparerManche();
         afficher();
         proposerPhilosophie();

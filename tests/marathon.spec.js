@@ -122,6 +122,10 @@ async function unePartie(browser, numero) {
       partie.terrain.forEach((j) => { j.ligne = undefined; });
       partie.banc = tousJ.filter((j) => !partie.terrain.includes(j));
       afficher();
+      // le chemin UI de titularisation (celui qui dupliquait) est exercé
+      // à terrain PLEIN : l'échange doit rester un échange, jamais un ajout
+      for (let k = 0; k < 2 && partie.banc.length; k++)
+        titulariserDepuisBanc(0, ["DÉF", "MIL", "ATT"][k % 3]);
     }, { tour, boost: BOOST });
 
     // ---- les invariants durs ----
@@ -142,6 +146,7 @@ async function unePartie(browser, numero) {
         staff: partie.staff.length, gardiensTerrain,
         terrain: partie.terrain.length, max: TITULAIRES_PAR_NIVEAU[partie.niveau],
         banniereA2HS,
+        club: invariantsClub(true), // uid uniques + limite + conservation PAR NOM
       };
     });
     verifier(`P${numero} M${inv.manche} : conservation du pool (${inv.totalCopies})`, inv.totalCopies === 1344, String(inv.totalCopies));
@@ -149,6 +154,8 @@ async function unePartie(browser, numero) {
     verifier(`P${numero} M${inv.manche} : staff ≤ 10`, inv.staff <= 10, String(inv.staff));
     verifier(`P${numero} M${inv.manche} : 1 gardien max`, inv.gardiensTerrain <= 1, String(inv.gardiensTerrain));
     verifier(`P${numero} M${inv.manche} : terrain ≤ taille club`, inv.terrain <= inv.max, inv.terrain + ">" + inv.max);
+    verifier(`P${numero} M${inv.manche} : invariants du club (instances uniques, limite, copies par nom)`,
+      inv.club.ok, inv.club.erreurs.slice(0, 3).join(" | "));
     verifier(`P${numero} M${inv.manche} : pas de bannière A2HS`, !inv.banniereA2HS);
 
     // ---- reload de reprise aux manches 5 et 11 ----
