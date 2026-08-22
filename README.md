@@ -21,7 +21,12 @@ Projet solo de Gabriel — objectif : un jeu **vraiment fun, rejouable, cool à 
 ## 🗂️ Structure du dépôt
 
 - `index.html` — la page du jeu (à la racine pour l'instant : c'est ce que GitHub Pages publie le plus simplement ; on structurera en phase 2)
+- `partie.html` — l'écran unique de la Partie (paysage) : mercato, terrain, match
+- `match-moteur.js` — le moteur de match (les règles). **Intouchable sans décision de Gabriel.**
+- `match-scene.js` — la scène de match : elle met en scène ce que le moteur décide
+- `stade.js` — le décor du match en couche de thème (skins de stade)
 - `design/` — les décisions de game design, en texte, versionnées
+  (`decisions.md` = le résumé opposable ; `scene-fm.md` = le manuel de la scène de match)
 - `JOURNAL.md` — trois lignes par session de travail
 - `CLAUDE.md` — le briefing que Claude Code lit automatiquement à chaque session
 

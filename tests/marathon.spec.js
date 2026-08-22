@@ -173,9 +173,14 @@ async function unePartie(browser, numero) {
       jouerManche();
       return "lancé";
     }).catch(() => "erreur-lancement");
+    // L'écran de fin écrit « CHAMPIONS ! » ou « ÉLIMINÉ » en CAPITALES :
+    // la comparaison est insensible à la casse, sinon une élimination
+    // n'est jamais reconnue (elle ne l'était pas avant ce correctif).
+    // 100 s d'attente : depuis l'arbitrage du rythme (décision 26), un
+    // match à beaucoup de buts peut durer ~55 s.
     await page.waitForFunction(() => !!document.getElementById("btn-continuer") ||
       [...document.querySelectorAll(".volet")].some((v) => /CHAMPION|ÉLIMIN/i.test(v.textContent)),
-      null, { timeout: 45000 }).catch(() => verifier(`P${numero} M${inv.manche} : le match se termine`, false, "timeout"));
+      null, { timeout: 100000 }).catch(() => verifier(`P${numero} M${inv.manche} : le match se termine`, false, "timeout"));
     manchesJouees++;
     // les orbes se ramassent toutes seules avant l'apparition du bilan
     await page.evaluate(() => {

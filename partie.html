@@ -575,6 +575,7 @@
   <script>ONZE_ICONES_SYS.injecter();</script>
   <script src="ia-coach.js"></script>
   <script src="match-ui.js"></script>
+  <script src="stade.js"></script>
   <script src="match-scene.js"></script>
   <script src="juice.js"></script>
   <script>
@@ -1905,19 +1906,55 @@
       el("app").appendChild(volet);
     }
 
-    /* Les réglages FM du volet 🏆 : replay de but et commentaire seul */
-    function basculerReplay() {
-      let actif = true;
-      try {
-        actif = localStorage.getItem("onze-replay") === "off"; // on inverse
-        localStorage.setItem("onze-replay", actif ? "on" : "off");
-      } catch (e) {}
-      return actif;
-    }
-    function basculerCommentaire() {
-      modeCommentaire = !modeCommentaire;
-      try { localStorage.setItem("onze-commentaire", modeCommentaire ? "on" : "off"); } catch (e) {}
-      return modeCommentaire;
+    /* ============================================================
+       ⚙️ PARAMÈTRES MATCHS — l'écran de réglages de FM26 Mobile,
+       porté à ONZE (règle R10 de design/scene-fm.md). Tout est
+       persisté par ONZE_SCENE.majReglages (localStorage).
+       ============================================================ */
+    function ouvrirParametresMatch() {
+      const reg = ONZE_SCENE.reglages();
+      const volet = document.createElement("div");
+      volet.className = "volet";
+      const choix = (cle, valeur, libelle) =>
+        `<button class="opt-match${reg[cle] === valeur ? " active" : ""}" data-cle="${cle}" data-valeur="${valeur}">${libelle}</button>`;
+      const curseur = (cle, libelle) => `<div class="ligne-param">
+          <span class="param-nom">${libelle}</span>
+          <div class="groupe-opt">
+            ${[[0.75, "🐢 Plus lent"], [1, "Normal"], [1.3, "🐇 Plus vite"]]
+              .map(([v, l]) => `<button class="opt-match${Math.abs((reg[cle] || 1) - v) < 0.01 ? " active" : ""}" data-cle="${cle}" data-valeur="${v}" data-nombre="1">${l}</button>`).join("")}
+          </div></div>`;
+      const bascule = (cle, libelle) =>
+        `<button class="opt-bascule${reg[cle] ? " active" : ""}" data-cle="${cle}" data-bascule="1">${reg[cle] ? "✅" : "⬜"} ${libelle}</button>`;
+      volet.innerHTML = `<div class="panneau panneau-params">
+        <strong>⚙️ Paramètres matchs</strong>
+        <div class="ligne-param"><span class="param-nom">Vue</span><div class="groupe-opt">
+          ${choix("vue", "terrain", "🎥 Terrain")}${choix("vue", "bandeau", "💬 Commentaires seuls")}</div></div>
+        <div class="ligne-param"><span class="param-nom">Temps forts</span><div class="groupe-opt">
+          ${choix("filtre", "moments", "⚡ Moments-clés")}${choix("filtre", "resume", "📼 Résumé complet")}</div></div>
+        ${curseur("vitesseFort", "Vitesse temps forts")}
+        ${curseur("vitesseMort", "Vitesse temps morts")}
+        <div class="ligne-param"><span class="param-nom">Stade</span><div class="groupe-opt">
+          ${ONZE_STADE.liste().map((t) => choix("stade", t.id, t.nom)).join("")}</div></div>
+        <div class="ligne-param"><span class="param-nom">Affichage</span><div class="groupe-opt colonne">
+          ${bascule("replay", "Revoir les buts")}
+          ${bascule("etiquettes", "Noms des joueurs")}
+          ${bascule("trainee", "Traînée du ballon")}</div></div>
+        <button class="fermer-volet" style="position:sticky;bottom:0">Confirmer</button>
+      </div>`;
+      volet.addEventListener("click", (e) => {
+        const opt = e.target.closest("[data-cle]");
+        if (opt) {
+          const cle = opt.dataset.cle;
+          if (opt.dataset.bascule) ONZE_SCENE.majReglages({ [cle]: !ONZE_SCENE.reglages()[cle] });
+          else ONZE_SCENE.majReglages({ [cle]: opt.dataset.nombre ? Number(opt.dataset.valeur) : opt.dataset.valeur });
+          modeCommentaire = ONZE_SCENE.reglages().vue === "bandeau";
+          volet.remove();
+          ouvrirParametresMatch();
+          return;
+        }
+        if (e.target === volet || e.target.classList.contains("fermer-volet")) volet.remove();
+      });
+      el("app").appendChild(volet);
     }
 
     /* ============================================================
@@ -2064,8 +2101,7 @@
         ${partie.philosophies.length ? `<div class="coach" style="margin-top:4px"><span>🧭 ${partie.philosophies.join(" · ")}</span></div>` : ""}
         <button class="fermer-volet" onclick="basculerDetente(); this.closest('.volet').remove()">${modeDetente ? "⏱ Réactiver le chrono (référence)" : "🧘 Mode détente (sans chrono)"}</button>
         <button class="fermer-volet" onclick="this.textContent = ONZE_JUICE.basculer() ? '🔊 Sons : activés' : '🔇 Sons : coupés'">${ONZE_JUICE.estActif() ? "🔊 Sons : activés" : "🔇 Sons : coupés"}</button>
-        <button class="fermer-volet" onclick="this.textContent = basculerReplay() ? '🔁 Replay de but : activé' : '🔁 Replay de but : coupé'">${(() => { try { return localStorage.getItem("onze-replay") !== "off"; } catch (e) { return true; } })() ? "🔁 Replay de but : activé" : "🔁 Replay de but : coupé"}</button>
-        <button class="fermer-volet" onclick="this.textContent = basculerCommentaire() ? '💬 Commentaire seul : activé' : '🎥 Scène animée : activée'">${modeCommentaire ? "💬 Commentaire seul : activé" : "🎥 Scène animée : activée"}</button>
+        <button class="fermer-volet" onclick="this.closest('.volet').remove(); ouvrirParametresMatch()">⚙️ Paramètres matchs</button>
         <button class="fermer-volet" onclick="if (confirm('Relancer le tutoriel ? La partie en cours sera abandonnée.')) relancerTutoriel()">🎓 Relancer le tutoriel</button>
         <button class="fermer-volet" style="background:var(--vendre-fond);color:var(--alerte-claire)" onclick="if (confirm('Abandonner cette partie ?')) recommencerPartie()">🔁 Nouvelle partie</button>
         <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--craie-sourde);font-size:0.8rem">📜 Historique des manches</summary>
@@ -2545,8 +2581,9 @@
        arrière-plan met en pause. « Mode détente » = sans chrono. */
     const CLE_DETENTE = "onze-mode-detente";
     let modeDetente = false;
-    let modeCommentaire = false; // « commentaire seul » : pas de scène, le journal en grand
-    try { modeCommentaire = localStorage.getItem("onze-commentaire") === "on"; } catch (e) {}
+    // « Commentaires seuls » (réglage Vue, R10) : pas de scène, le journal en grand
+    let modeCommentaire = (typeof ONZE_SCENE !== "undefined" && ONZE_SCENE.reglages().vue === "bandeau");
+    try { if (localStorage.getItem("onze-commentaire") === "on") modeCommentaire = true; } catch (e) {}
     let dernierMatch = null; // { resultat, eqA, eqB } — pour le recap ⚔️
     let sceneMatch = null; // la scène animée du match (match-scene.js)
     let synergiesConnues = null; // paliers déjà célébrés (pour le son)
