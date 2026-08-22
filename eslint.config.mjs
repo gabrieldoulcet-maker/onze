@@ -13,7 +13,7 @@ export default [
         __dirname: "readonly",
         // les modules ONZE_* se définissent chacun dans leur fichier et se
         // consomment dans le navigateur — pas des globales de lint
-        ONZE: "readonly", ONZE_UI: "readonly", ONZE_SCENE: "readonly", ONZE_JUICE: "readonly", ONZE_ECUSSONS: "readonly",
+        ONZE: "readonly", ONZE_UI: "readonly", ONZE_SCENE: "readonly", ONZE_JUICE: "readonly", ONZE_ECUSSONS: "readonly", ONZE_IA: "readonly", ONZE_ICONES_SYS: "readonly",
         ONZE_ICONES: "readonly", ONZE_FAMILLES: "readonly", ONZE_ECO: "readonly",
       },
     },
