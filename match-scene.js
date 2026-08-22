@@ -1,6 +1,10 @@
 /* ============================================================
    ONZE — LA SCÈNE DE MATCH, grammaire Football Manager.
-   Manuel : design/scene-fm.md (règles R1 à R13) · décision 26.
+   Manuel : design/scene-fm.md — la spec d'observation de Gabriel,
+   qui FAIT FOI. Les repères « RN » semés dans ce fichier sont la
+   nomenclature INTERNE du code (elle regroupe plusieurs règles
+   observées par thème) : la table de correspondance avec les 13
+   règles de la spec est dans design/decisions.md, décision 26.
    ------------------------------------------------------------
    Ce fichier MET EN SCÈNE la chaîne causale émise par le moteur
    (match-moteur.js). Le moteur décide qui, quoi et l'issue ; la

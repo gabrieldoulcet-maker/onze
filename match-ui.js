@@ -99,7 +99,9 @@ const ONZE_UI = (() => {
 
   /* ============================================================
      LE TEMPO DU MATCH — grammaire Football Manager.
-     Manuel : design/scene-fm.md · décision 26.
+     Manuel : design/scene-fm.md (l'original de Gabriel fait foi ;
+     les repères « RN » sont la nomenclature interne du code, table
+     de correspondance dans design/decisions.md, décision 26).
      R2 : un match = 2 à 4 TEMPS FORTS rendus, séparés par des CUTS
           secs (carton minute + score). Le régime « domination » a
           disparu : entre deux temps forts, on ne montre RIEN.

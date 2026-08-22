@@ -1,124 +1,51 @@
-# La scène de match, grammaire FM — le manuel du chantier
+# La scène de match — spec d'observation FM (décision 26 v2)
 
-> **Note de reprise (août 2026).** Ce fichier n'était pas dans le dépôt au moment
-> de reprendre le chantier de la décision 26 : il a été **reconstruit** à partir
-> du brief de passation de Gabriel et de ses deux captures FM26 Mobile (la vue de
-> match, l'écran « Paramètres matchs »). Les 13 règles et les mesures ci-dessous
-> sont donc celles du brief, remises en forme et complétées des chiffres
-> d'implémentation. Si Gabriel retrouve sa version d'origine, elle fait foi.
+Fondée sur l'observation directe de FM26 Mobile par Gabriel (deux séries de captures : un corner → but, et 7 secondes de jeu ouvert). Ces règles remplacent et précisent la décision 26 — elles sont issues du réel, pas de mémoire.
 
-Référence unique : **Football Manager 26 Mobile, vue 2D, filtre « Moments-clés »**.
-Gabriel a la référence sous la main ; c'est lui qui juge « ça fait vrai match ».
+## Les 12 règles observées chez FM
 
----
+1. **Caméra fixe, terrain entier, toujours.** Aucun zoom, aucun travelling — même pendant un but. La lisibilité vient du contexte spatial permanent. Tribunes floues et faisceaux de projecteurs encadrent le terrain (l'ambiance vit hors des lignes).
+2. **Un temps fort commence par une mise en place.** Terrain vide (ou transition) → les 22 apparaissent DÉJÀ placés pour la situation (corner : grappe dans la surface, gardien sur sa ligne, tireur au poteau de corner). Comprendre la situation AVANT l'action fait partie du suspense. ~3-5 s.
+3. **Rythme réel : un événement lisible toutes les ~2 secondes.** Conduite → passe → course → centre → frappe. FM est PATIENT — c'est cette patience qui rend le match lisible. Notre plancher de 0,8 s/temps est un minimum absolu ; viser 1,5-2 s pour les temps importants.
+4. **Les 22 dérivent en continu.** D'une seconde à l'autre, tous les disques bougent un peu ; les équipes s'interpénètrent (pas deux blocs rigides). Personne n'est jamais figé.
+5. **La conduite de balle se voit** : le disque du porteur avance avec le point-ballon juste devant lui (« Pacho remonte balle au pied »).
+6. **La passe dans l'espace est un moment de suspense** : le ballon part vers une zone VIDE, et le receveur court pour l'atteindre.
+7. **LE COMMENTAIRE ÉCRIT LA PROMESSE, AU FUTUR.** « Ramos va essayer d'en prendre possession » · « Amo-Ameyaw envoie un ballon brossé dans la surface » — la ligne du bas anticipe l'action d'après et crée le micro-suspense textuel. Règle d'écriture : pendant une action, le commentaire annonce ce qui VA se passer (avec incertitude), puis constate ce qui s'est passé.
+8. **Les noms suivent l'action.** Numéros seuls par défaut ; les 2-3 protagonistes du moment sont étiquetés (porteur, receveur pressenti, buteur) et l'étiquette se déplace avec le récit. Au but : les noms des joueurs impliqués s'affichent. L'écran désigne qui regarder.
+9. **Une seule ligne de narration en bas** : la barre de possession (qui vit en direct, 42/58 → 45/55) au repos, remplacée par la ligne de commentaire pendant l'action. Jamais deux textes.
+10. **La mêlée a le droit d'exister** : sur corner, les disques se chevauchent franchement dans la surface — c'est de l'information (« bousculade dans la boîte »). La répulsion entre pions est contextuelle : espacement en jeu ouvert, chevauchement permis dans les mêlées de surface.
+11. **Les personnages du décor** : arbitre (disque noir « A ») qui suit le jeu près du ballon, assistants sur les touches, gardiens dans des couleurs à part (l'un jaune, l'autre grenat — jamais les couleurs des équipes).
+12. **La timeline des temps forts** : une rangée de points en haut — chaque temps fort du match est un point, le courant en surbrillance. (Pour ONZE : nos 2-4 rendus par match, naviguables au recap.)
 
-## Les 13 règles
+13. **Le commentaire quantifie le danger.** Sur un contre : « Ils sont 3 face à 3 » — le surnombre est annoncé en chiffres, le spectateur évalue lui-même la promesse. À copier : nos phases émettent le rapport de forces du moment (« 2 contre 1 dans le couloir ! », « seul face au gardien »).
 
-**R1 — Caméra fixe, terrain entier, toujours.** Aucun zoom, aucun travelling, à
-aucun moment. Le terrain occupe le cadre en entier, tribunes floues au-dessus et
-en dessous, projecteurs dans le cadre. Le spectateur ne cherche jamais où
-regarder : il voit tout, tout le temps.
+## Les mesures du mouvement (GIF analysé image par image — 253 frames, 16,9 s, ~15 fps)
 
-**R2 — Moments-clés uniquement.** Un match = 2 à 4 **temps forts** rendus,
-séparés par des **cuts secs** (carton noir bref : minute + score). Le régime
-« domination » de l'ancienne scène est **supprimé** : il n'existe plus de régime
-intermédiaire. Entre deux temps forts, on ne montre rien d'autre que le cut.
+- **Un temps fort complet = ~15 s réelles**, de la récupération au but (corner→but observé : ~23 s ; jeu ouvert : ~15 s). Notre budget 8-15 s par rendu est confirmé — FM est à la borne haute.
+- **Horloge en jeu ≈ 2× le temps réel** (56:46 → 57:15 en ~15 s) : la minute tourne à ~2 minutes de jeu par seconde réelle pendant les temps forts.
+- **Déroulé type du contre observé** : récupération au milieu (0-7 s, conduite + passes de transition) → annonce du surnombre « Ils sont 3 face à 3 » (~12 s) → but (~15 s). La montée du danger occupe les 2/3 du temps ; la résolution est brève.
+- Le ballon traverse une moitié de terrain en plusieurs temps lisibles (~2 s chacun) — jamais d'un trait.
 
-**R3 — L'anatomie d'un temps fort.** Il commence par une **mise en place**
-(~3 s : les 22 pions glissent vers leurs positions de situation, le ballon se
-pose), puis se joue **en continu**, sans coupure : un événement lisible toutes
-les ~1,5–2 s, **4 à 8 temps**, l'issue au **dernier temps seulement**.
+## Traduction ONZE (le plan du chantier)
 
-**R4 — Du vrai football continu.** Les 22 pions dérivent en permanence ; les
-blocs coulissent avec la possession ; la **conduite de balle** se voit (le pion
-avance, le ballon devant lui) ; les passes **VOYAGENT** (temps de trajet réel,
-dans l'espace, devant la course du receveur, jamais de téléportation) ; les
-**mêlées sont autorisées dans la surface** (le chevauchement des pions est une
-information : ça se bouscule) ; l'espacement se rétablit en jeu ouvert.
+- **Structure d'un match** : cut carton (minute + score) → mise en place (les pions glissent vers leurs positions de situation, 2-3 s) → action au rythme FM (~1,5-2 s par temps, 4-8 temps) → résolution (l'issue au dernier temps, micro-ralenti sur les buts) → cut. 2-4 temps forts par match selon le budget (amical 10-15 s : 1 ; plein ~40 s : 3-4). Aucun régime intermédiaire — « moments forts uniquement ».
+- **Le moteur fournit déjà la chaîne causale** ; la scène la joue au rythme ci-dessus avec : conduite visible, passes qui voyagent (dans l'espace devant les receveurs), courses de tous les pions, mêlées sur les corners/centres.
+- **Le commentaire au futur** est une nouvelle exigence du moteur de texte : chaque temps émet deux lignes potentielles — l'annonce (« X va tenter sa chance… ») et la résolution (« …ARRÊT de Gé ! ») — la scène affiche l'annonce pendant le geste, la résolution à l'issue.
+- **Étiquettes de noms dynamiques** sur les 2-3 protagonistes (notre équivalent : prénom + note du moment), déplacées avec l'action.
+- **Personnages du décor** : arbitre + gardiens en couleurs dédiées (déjà le cas) + tribunes/projecteurs dans l'habillage Arcade.
+- **Timeline des temps forts** en haut de la scène (points), naviguable après le match depuis le recap ⚔️.
+- Ce qui reste NOTRE identité (pas copié de FM) : déclenchements de synergies visibles (auras/écussons de familles), styles d'École dans la construction, célébrations Arcade, tirs au but du duel final.
 
-**R5 — Le commentaire écrit la promesse, au futur.** Une seule ligne, en bas.
-Il annonce ce qui *va* se passer (« Ramos va essayer d'en prendre possession »),
-il **quantifie le danger** (« Ils sont 3 face à 3 »), puis il **constate**
-l'issue. Au repos, la ligne laisse la place à la **barre de possession**.
+## Annexe — les réglages que FM expose (capture de l'écran « Paramètres matchs »)
 
-**R6 — Les noms suivent l'action.** Numéros par défaut ; **étiquettes** (nom) sur
-les 2-3 protagonistes du moment ; **tous les noms** affichés au but.
+La liste officielle des options FM, à transposer dans le volet réglages d'ONZE quand la scène sera livrée :
 
-**R7 — On ne rend que des promesses.** Seules les actions à enjeu réel sont
-rendues. L'**issue est cachée** jusqu'au dernier temps : but, arrêt et poteau
-partagent la même chorégraphie et la même énergie. Les **presque-buts se
-célèbrent** (« OHHH ! »). Recette : sur 10 actions rendues, le spectateur doit se
-tromper d'issue **3 ou 4 fois**. Ratio du moteur (~6 occasions pour ~2,7 buts) :
-**déjà calibré, on n'y touche pas**.
+- **Vue** : Terrain / Commentaires seuls → ONZE : Scène / Bandeau seul.
+- **Temps forts** : Résumé complet / Moments-clés → ONZE : nos 2-4 rendus (Moments-clés) + un mode « Résumé complet » optionnel qui rend plus de phases (pour qui aime regarder).
+- **DEUX vitesses indépendantes** : « Vitesse temps forts » et « Vitesse temps morts », en curseurs → ONZE remplace le ×2 global par ces deux curseurs (savourer les actions, expédier les transitions).
+- **Affichage des temps morts** : Derniers scores / Stats du match / Les deux → ONZE : toasts des scores du lobby + mini-stats, réglables pareil.
+- **Interrupteurs** : Ballon animé (la traînée — confort/perf) · Superpositions (les étiquettes de noms) · Revoir les buts (replay) → à reprendre tels quels.
 
-**R8 — Les mesures de référence (vitesse minimum FM).**
+## Captures de référence
 
-| Mesure | Valeur |
-|---|---|
-| Temps fort complet | ~15 s (corner ~23 s) |
-| Horloge de jeu pendant un temps fort | ≈ 2 min de jeu / seconde réelle |
-| Montée du danger | 2/3 de la durée du temps fort |
-| Résolution | brève (le dernier tiers) |
-| Micro-ralenti sur une frappe de but | 0,5 s |
-| Mise en place | ~3 s (compressée à ~1,5 s en format court) |
-| Cut entre deux temps forts | ~0,9 s |
-
-**R9 — Les budgets ONZE (inchangés, stricts).** Amical 10-15 s → **1** temps fort
-rendu ; manches 4-9 ~25 s → **2-3** ; match plein ~40 s → **3-5**.
-**Règle d'arbitrage : la LISIBILITÉ prime.** Si ça ne rentre pas, on réduit le
-**NOMBRE** de rendus, jamais leur clarté. Plancher **0,8 s par temps** ; le temps
-décisif peut s'étirer à ~1 s.
-
-**R10 — Les réglages exposés** (calqués sur l'écran « Paramètres matchs » de FM) :
-deux **vitesses indépendantes** (temps forts / temps morts), vue **Scène /
-Bandeau seul**, **Moments-clés / Résumé complet**, **replay de but** on/off,
-**étiquettes** on/off, **traînée du ballon** on/off.
-
-**R11 — L'identité ONZE par-dessus la grammaire FM.** Déclenchements de synergies
-visibles (écussons/auras des 23 familles, SVG dans `design/da/`) ; styles d'École
-dans la **construction** des actions (Tiki passes courtes, Kick & Rush long ballon
-→ remise, Rue conduite/dribbles, Catenaccio bloc bas → contre) ; célébrations
-Arcade branchées sur les sons existants ; notes des joueurs en direct dans le
-recap ⚔️ ; tirs au but pour les nuls du duel final.
-
-**R12 — Fidélité au moteur, zéro cosmétique aléatoire (décision 24).** Chaque
-chose montrée vient d'une donnée réelle : le vrai perceur, le vrai défenseur
-battu, les attaques passent par les forces de l'équipe, les rendus adverses
-ciblent tes faiblesses. Recette : en 3 matchs d'une équipe, on devine son ADN au
-mouvement.
-
-**R13 — Le stade est une couche de thème séparée.** Terrain, tribunes, éclairage,
-couleur du gazon, filets = un **thème de stade** en config (`stade.js`), jamais en
-dur dans la scène. Objectif : des skins de stade cosmétiques plus tard (comme les
-arènes de TFT) sans retoucher la scène.
-
----
-
-## Annexe — l'écran « Paramètres matchs » de FM26 Mobile
-
-Relevé sur la capture de Gabriel, dans l'ordre :
-
-- **Vue** : `Terrain` · `Commentaires seuls`
-- **Temps forts** : `Résumé complet` · `Moments-clés`
-- **Vitesse temps forts** : curseur `Plus lent` → `Plus vite`
-- **Vitesse temps morts** : curseur `Plus lent` → `Plus vite`
-- **Affichage** : `Derniers scores` · `Stats du match`
-- Interrupteurs : `Calendrier` · `Ballon animé` · `Les deux` ·
-  `Événements en match interactifs` · `Superpositions` · `Revoir les buts`
-- Bouton `Confirmer`
-
-ONZE reprend ce qui a du sens pour un auto-battler (R10) et laisse tomber le
-reste (calendrier, événements interactifs — le match d'ONZE est sans action).
-
----
-
-## Définition de « fini »
-
-1. Un match plein se regarde **sans lire** : on comprend qui attaque, qui domine,
-   et chaque action rendue, du terrain seul.
-2. **Test des promesses** : sur 10 actions rendues, Gabriel se trompe d'issue 3-4 fois.
-3. **Test de l'ADN** : 3 matchs d'un club suffisent à deviner son École dominante
-   au mouvement.
-4. Budgets tenus au chronomètre, 60 fps, réglages exposés, stade thémable, suite verte.
-5. **Verdict souverain** : Gabriel regarde un match à côté de FM Touch et dit
-   « ça fait vrai match ».
+Les deux séries de Gabriel (corner→but FC Versailles, et jeu ouvert Pacho/Ramos) font foi. Elles sont à archiver dans design/da/references-fm/ (Gabriel les fournit). Manque optionnel : une occasion manquée (arrêt) et un penalty — à capturer si l'occasion se présente.
