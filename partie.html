@@ -210,21 +210,46 @@
     /* ---- La barre boutique du bas (copie TFT) ---- */
     /* La boutique garde sa hauteur de contenu : c'est le TERRAIN qui se
        comprime quand la hauteur manque (jamais les boutons d'achat). */
+    /* ---- LA BOUTIQUE FAÇON TFT MOBILE (sprint post-playtest, point 2) :
+       bande basse généreuse (~30 % de l'écran ouverte), XP + odds à
+       gauche, or en médaillon central, refresh + verrou à droite. ---- */
     .boutique-barre {
       flex: 0 0 auto; display: flex; gap: 6px; align-items: stretch;
+      min-height: max(96px, 30vh);
       background: var(--nuit-profonde); border-top: 1px solid var(--ligne);
-      padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
+      padding: 10px 8px calc(6px + env(safe-area-inset-bottom));
     }
-    .bloc-eco {
-      flex: 0 0 96px; display: flex; flex-direction: column; gap: 3px;
+    .medaillon-or {
+      position: absolute; top: -13px; left: 50%; transform: translateX(-50%); z-index: 6;
+      display: flex; align-items: center; gap: 5px;
+      background: var(--nuit-profonde); border: 1.5px solid var(--or-trophee);
+      border-radius: var(--r-pilule); padding: 2px 12px;
+      font-weight: 800; font-size: 0.85rem; font-variant-numeric: tabular-nums; color: var(--or-trophee);
+      box-shadow: 0 0 14px rgba(242, 193, 78, 0.35);
     }
-    .bloc-eco .or-affiche { text-align: center; color: var(--or-trophee); font-weight: 800; font-size: 0.9rem; }
-    .bloc-eco button {
-      flex: 1; background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
+    .medaillon-or .piece {
+      width: 16px; height: 16px; border-radius: 50%; background: var(--orbe-or);
+      color: #1A1405; font-size: 0.58rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .bloc-xp { flex: 0 0 96px; display: flex; flex-direction: column; gap: 3px; }
+    .bloc-xp .niveau-affiche { font-weight: 800; font-size: 0.72rem; color: var(--craie);
+      display: flex; justify-content: space-between; align-items: baseline; }
+    .bloc-xp .niveau-affiche small { color: var(--craie-sourde); font-weight: 700; font-size: 0.58rem; }
+    .xp-jauge { height: 5px; background: var(--surface-1); border-radius: 3px; overflow: hidden; }
+    .xp-jauge > div { height: 100%; background: var(--poste-d); border-radius: 3px; transition: width 0.3s; }
+    .odds-affiche { display: flex; gap: 3px; font-size: 0.6rem; font-weight: 800; cursor: pointer;
+      padding: 2px 0; justify-content: space-between; }
+    .odds-affiche span { flex: 1; text-align: center; border-radius: 4px; padding: 1px 0; background: var(--surface-1); }
+    .bloc-xp button, .bloc-droite button {
+      background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
       border-radius: 7px; font-size: 0.6rem; font-weight: 700; cursor: pointer; padding: 3px;
       line-height: 1.25;
     }
-    .bloc-eco button:disabled { color: #5F7A64; }
+    .bloc-xp button { flex: 1; }
+    .bloc-xp button:disabled, .bloc-droite button:disabled { color: #5F7A64; }
+    .bloc-droite { flex: 0 0 46px; display: flex; flex-direction: column; gap: 4px; }
+    .bloc-droite button { flex: 1; font-size: 0.72rem; }
     .rangee-boutique { flex: 1; display: flex; gap: 5px; overflow-x: auto; overflow-y: visible; padding-top: 7px; }
     /* ---- LA CARTE BLASON (DA S1, Lot 3 · 1a) ----
        Hiérarchie stricte : cadre couleur de coût → note-écusson →
@@ -296,18 +321,16 @@
     .carte-boutique .tag-etat { position: absolute; top: -8px; left: 6px; font-weight: 800; font-size: 0.5rem;
       padding: 1px 6px; border-radius: var(--r-pilule); background: var(--calepin); color: #04121F; z-index: 1; }
     .carte-boutique .tag-etat.or { background: var(--or-trophee); color: #1A1405; }
-    .btn-verrou-carte { flex: 0 0 30px; background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
-      border-radius: 7px; font-size: 0.85rem; cursor: pointer; }
+    .btn-verrou-carte { font-size: 0.85rem; }
 
     /* ---- Boutique escamotable (toggle sur le sac d'or, façon TFT) ----
        Repliée : les cartes et l'XP disparaissent, il RESTE or + refresh
        + verrou — et le terrain récupère toute la hauteur. */
-    .btn-sac { flex: 0 0 30px; background: var(--surface-1); color: var(--or-trophee); border: 1px solid var(--ligne);
-      border-radius: 7px; font-size: 0.85rem; cursor: pointer; }
-    .boutique-barre.repliee .rangee-boutique, .boutique-barre.repliee #btn-xp { display: none; }
-    .boutique-barre.repliee .bloc-eco { flex: 1; flex-direction: row; align-items: center; justify-content: flex-start; gap: 8px; }
-    .boutique-barre.repliee .bloc-eco .or-affiche { flex: 0 0 auto; }
-    .boutique-barre.repliee .bloc-eco button { flex: 0 0 auto; padding: 4px 10px; }
+    .btn-sac { color: var(--or-trophee); font-size: 0.85rem; }
+    .boutique-barre.repliee { min-height: 0; padding-top: 6px; }
+    .boutique-barre.repliee .rangee-boutique, .boutique-barre.repliee .bloc-xp { display: none; }
+    .boutique-barre.repliee .bloc-droite { flex: 1; flex-direction: row; justify-content: flex-end; }
+    .boutique-barre.repliee .bloc-droite button { flex: 0 0 auto; padding: 4px 12px; }
 
     /* ---- Drag & drop (pointer events, fantôme en translate3d → 60 fps) ---- */
     .jeton { touch-action: none; }
@@ -505,14 +528,19 @@
   <!-- ===== Barre boutique du bas (copie TFT) ===== -->
   <div class="boutique-barre" id="boutique-barre" style="position:relative">
     <div class="zone-vente" id="zone-vente"></div>
-    <button class="btn-sac" id="btn-sac" title="Replier / déplier la boutique">🪙</button>
-    <div class="bloc-eco">
-      <div class="or-affiche"><span id="or">0</span>M 🪙</div>
+    <div class="medaillon-or"><span class="piece">M</span><span id="or">0</span>M</div>
+    <div class="bloc-xp">
+      <div class="niveau-affiche">NIV <span id="niveau-boutique">3</span> <small><span id="xp-boutique">0/6</span></small></div>
+      <div class="xp-jauge"><div id="xp-jauge-remplissage" style="width:0%"></div></div>
+      <div class="odds-affiche" id="odds-affiche" title="Les stats de la boutique"></div>
       <button id="btn-xp">📈 Acheter XP<br>4M → +4</button>
-      <button id="btn-refresh">🔄 Actualiser<br>2M</button>
     </div>
     <div class="rangee-boutique" id="boutique"></div>
-    <button class="btn-verrou-carte" id="btn-verrou">🔓</button>
+    <div class="bloc-droite">
+      <button id="btn-refresh">🔄<br>2M</button>
+      <button class="btn-verrou-carte" id="btn-verrou">🔓</button>
+      <button class="btn-sac" id="btn-sac" title="Replier / déplier la boutique">🪙</button>
+    </div>
   </div>
 
   <div class="message-flottant" id="message"></div>
@@ -1513,6 +1541,49 @@
       proposerPhilosophie();
       proposerMercatoHiver();
       lancerChronoMercato();
+    }
+
+    /* ============ Les stats de la boutique (tap sur les odds) ============
+       Le panneau TFT-style : les % par coût du niveau actuel, les copies
+       restantes par coût dans le pool, et pour chaque joueur ÉPINGLÉ au
+       calepin la probabilité réelle par carte, calculée sur le pool
+       restant (« 8 copies restantes → 4,2 % par carte »). */
+    function ouvrirStatsBoutique() {
+      const odds = ODDS_PAR_NIVEAU[Math.min(partie.niveau, 10)];
+      const parCout = [0, 0, 0, 0, 0, 0];
+      for (const j of partie.pool) parCout[j.cout] = (parCout[j.cout] || 0) + 1;
+      const lignesCouts = [1, 2, 3, 4, 5].map((c) =>
+        `<div style="display:flex;align-items:center;gap:8px;padding:2px 0">
+          <span style="width:52px;font-weight:800;color:var(--cout-${c})">coût ${c}</span>
+          <span style="width:44px;font-weight:800;font-variant-numeric:tabular-nums">${odds[c - 1]} %</span>
+          <span class="barre-stat" style="flex:1;height:7px;background:var(--nuit-profonde);border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:${odds[c - 1]}%;background:var(--cout-${c})"></span></span>
+          <span style="width:110px;text-align:right;color:var(--craie-sourde);font-size:0.7rem">${parCout[c]} copies au pool</span>
+        </div>`).join("");
+      const lignesEpingles = partie.calepin.map((nom) => {
+        const fiche = tousLesJoueurs.find((j) => j.nom === nom);
+        if (!fiche) return "";
+        const copies = partie.pool.filter((j) => j.nom === nom).length;
+        const totalCout = parCout[fiche.cout] || 0;
+        const probaParCarte = totalCout ? (odds[fiche.cout - 1] / 100) * (copies / totalCout) * 100 : 0;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:2px 0">
+          <span style="width:96px;font-family:var(--police-display);transform:var(--pente);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nom}</span>
+          <span style="width:24px;font-weight:800;color:var(--cout-${fiche.cout})">${fiche.cout}</span>
+          <span style="flex:1;color:var(--craie-sourde);font-size:0.7rem">${copies} copie${copies > 1 ? "s" : ""} restante${copies > 1 ? "s" : ""}</span>
+          <span style="font-weight:800;color:${copies ? "var(--calepin)" : "var(--alerte-claire)"};font-variant-numeric:tabular-nums">${copies ? "→ " + probaParCarte.toFixed(1).replace(".", ",") + " % par carte" : "épuisé !"}</span>
+        </div>`;
+      }).join("");
+      const volet = document.createElement("div");
+      volet.className = "volet";
+      volet.innerHTML = `<div class="panneau">
+        <strong>📊 La boutique — niveau ${partie.niveau}</strong>
+        <div style="color:var(--craie-sourde);font-size:0.72rem;margin:2px 0 8px">Chaque carte tire d'abord un coût (les %), puis un joueur au hasard parmi les copies restantes de ce coût.</div>
+        ${lignesCouts}
+        ${partie.calepin.length ? `<div style="margin-top:10px;color:var(--calepin);font-weight:800;font-size:0.72rem;letter-spacing:1px">📝 TES ÉPINGLÉS AU CALEPIN</div>${lignesEpingles}`
+          : `<div style="margin-top:10px;color:var(--craie-sourde);font-size:0.72rem">Épingle des joueurs au calepin 📝 pour voir leur probabilité réelle ici.</div>`}
+        <button class="fermer-volet">Fermer</button>
+      </div>`;
+      volet.addEventListener("click", (e) => { if (e.target === volet || e.target.classList.contains("fermer-volet")) volet.remove(); });
+      el("app").appendChild(volet);
     }
 
     /* Le Mercato d'hiver (le carrousel de TFT) : aux manches 8 et 13,
@@ -2529,6 +2600,14 @@
       el("btn-refresh").disabled = partie.or < COUT_REFRESH;
       el("btn-xp").disabled = partie.or < COUT_XP || partie.niveau >= 10;
       el("btn-verrou").textContent = partie.verrou ? "🔒" : "🔓";
+      // le bloc XP de la boutique (façon TFT) : niveau, jauge, odds du niveau
+      el("niveau-boutique").textContent = partie.niveau;
+      const xpRequis = XP_POUR_MONTER[partie.niveau];
+      el("xp-boutique").textContent = xpRequis ? `${partie.xp}/${xpRequis} xp` : "max";
+      el("xp-jauge-remplissage").style.width = xpRequis ? Math.min(100, 100 * partie.xp / xpRequis) + "%" : "100%";
+      const oddsNiveau = ODDS_PAR_NIVEAU[Math.min(partie.niveau, 10)];
+      el("odds-affiche").innerHTML = oddsNiveau.map((pc, i) =>
+        `<span style="color:var(--cout-${i + 1})">${pc}</span>`).join("");
 
       // Synergies + mini ADN
       const apercu = equipeDuClub();
@@ -2932,6 +3011,7 @@
             { enCours: partie.matchEnCours }); // en direct : zéro spoiler
         });
         // Boutique escamotable : tap sur le sac d'or (état non sauvegardé)
+        el("odds-affiche").addEventListener("click", ouvrirStatsBoutique);
         el("btn-sac").addEventListener("click", () => {
           const replie = el("boutique-barre").classList.toggle("repliee");
           el("btn-sac").textContent = replie ? "👜" : "🪙";
