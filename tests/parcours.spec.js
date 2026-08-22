@@ -108,9 +108,13 @@ const verifier = (nom, ok) => {
   await page.evaluate(() => document.querySelector('[data-action="fermer"]').click());
   verifier("calepin : 2 joueurs épinglés", epingles.length === 2);
   const brille = await page.evaluate((nom) => {
-    partie.boutique[0] = tousLesJoueurs.find((j) => j.nom === nom);
+    const originale = partie.boutique[0]; // remise en place ensuite : la copie
+    partie.boutique[0] = tousLesJoueurs.find((j) => j.nom === nom); // injectée ne doit pas fausser le pool
     afficher();
-    return document.querySelector("#boutique .carte-boutique").classList.contains("planifie");
+    const ok = document.querySelector("#boutique .carte-boutique").classList.contains("planifie");
+    partie.boutique[0] = originale;
+    afficher();
+    return ok;
   }, epingles[0]);
   verifier("calepin : le joueur planifié brille en boutique", brille);
 
@@ -125,6 +129,47 @@ const verifier = (nom, ok) => {
     !document.getElementById("page-staff").classList.contains("masque") &&
     document.getElementById("page-synergies").classList.contains("masque")));
   await page.click("#btn-bascule-gauche");
+
+  // ---- BLOQUANTS post-playtest : limite de titulaires + anti-duplication ----
+  // Remplir le terrain à la limite (recrues tirées du pool, donc conservées),
+  // puis titulariser depuis le banc : l'échange est OBLIGATOIRE — le terrain
+  // ne grossit jamais, personne ne se duplique, les invariants tiennent.
+  const verrouEffectif = await page.evaluate(() => {
+    const max = maxTitulaires();
+    let garde = 0;
+    while (partie.terrain.length < max && garde++ < 20) {
+      const f = piocherJoueur(5);
+      if (!f) break;
+      placerAuClub({ ...f, etoiles: 1 });
+    }
+    const recrue = piocherJoueur(5);
+    if (recrue) placerAuClub({ ...recrue, etoiles: 1 }); // terrain plein → banc
+    const avant = { terrain: partie.terrain.length, banc: partie.banc.length };
+    titulariserDepuisBanc(partie.banc.length - 1, "MIL"); // le geste qui dupliquait
+    titulariserDepuisBanc(0, "DÉF");                      // et une deuxième fois
+    const apres = { terrain: partie.terrain.length, banc: partie.banc.length };
+    const inv = invariantsClub(true);
+    const compteur = document.getElementById("compteur-titulaires").textContent;
+    return { max, avant, apres, inv, compteur };
+  });
+  verifier(`limite de titulaires : l'échange à terrain plein n'ajoute jamais (${verrouEffectif.apres.terrain}/${verrouEffectif.max})`,
+    verrouEffectif.avant.terrain === verrouEffectif.max &&
+    verrouEffectif.apres.terrain === verrouEffectif.max &&
+    verrouEffectif.apres.banc === verrouEffectif.avant.banc);
+  verifier("anti-duplication : invariants du club au vert (instances uniques + copies par nom)",
+    verrouEffectif.inv.ok, verrouEffectif.inv.erreurs.slice(0, 3).join(" | "));
+  verifier(`compteur permanent « ${verrouEffectif.compteur} »`,
+    verrouEffectif.compteur === `Titulaires ${verrouEffectif.max}/${verrouEffectif.max}`);
+  // un état illégal FORCÉ doit allumer l'alerte du compteur (puis on répare)
+  verifier("compteur : alerte sur état illégal", await page.evaluate(() => {
+    const intrus = { ...tousLesJoueurs[0], etoiles: 1, uid: "test-intrus" };
+    partie.terrain.push(intrus);
+    afficher();
+    const alerte = document.getElementById("compteur-titulaires").classList.contains("alerte");
+    partie.terrain.pop();
+    afficher();
+    return alerte && !document.getElementById("compteur-titulaires").classList.contains("alerte");
+  }));
 
   // ---- Scouting fluide : ouvrir, swiper, revenir ----
   await page.evaluate(() => scouterIndice(partie.coachs.findIndex((c) => c.ia)));
@@ -198,6 +243,34 @@ const verifier = (nom, ok) => {
   }
   const bilan = await page.evaluate(() => ({ manche: partie.manche, or: partie.or, historique: partie.historique.length }));
   verifier(`5 manches jouées sans erreur (on est à la manche ${bilan.manche})`, bilan.manche >= 5 && bilan.historique >= 4);
+
+  // ---- Décision 28 : la séance de tirs au but (mise en scène, tir par tir) ----
+  const tabMiParcours = { billes: 0, titre: false };
+  const seanceFinale = await page.evaluate(() => new Promise((resoudre) => {
+    arreterChrono();
+    const seance = { scoreA: 2, scoreB: 1, vainqueur: "A", tirs: [
+      { camp: "A", tireur: "Testeur", gardien: "Gant", marque: true, santo: false, texte: "Testeur s'élance… BUT !", score: { A: 1, B: 0 } },
+      { camp: "B", tireur: "Rival", gardien: "Gus", marque: false, santo: true, texte: "El Santo s'interpose — d'office !", score: { A: 1, B: 0 } },
+      { camp: "A", tireur: "Momo", gardien: "Gant", marque: true, santo: false, texte: "Momo s'élance… BUT !", score: { A: 2, B: 0 } },
+      { camp: "B", tireur: "Billy", gardien: "Gus", marque: true, santo: false, texte: "Billy transforme.", score: { A: 2, B: 1 } },
+    ] };
+    jouerSeanceTirs(seance, () => resoudre({
+      fini: !document.querySelector(".seance-tirs"),
+      journal: document.getElementById("recit").textContent.includes("Tirs au but"),
+    }));
+    setTimeout(() => {
+      window.__tabEchantillon = {
+        billes: document.querySelectorAll(".seance-tirs .bille").length,
+        titre: document.body.textContent.includes("TIRS AU BUT"),
+      };
+    }, 3600);
+  }));
+  Object.assign(tabMiParcours, await page.evaluate(() => window.__tabEchantillon || {}));
+  verifier("tirs au but : séance jouée tir par tir (billes + titre) puis journal du match",
+    tabMiParcours.billes >= 2 && tabMiParcours.titre && seanceFinale.fini && seanceFinale.journal);
+  // hygiène : le journal vérifié, on le vide (c'est un calque sur le terrain
+  // — les tests de drag qui suivent visent des jetons dessous)
+  await page.evaluate(() => { document.getElementById("recit").innerHTML = ""; });
 
   // ---- L'homme du match est annoncé, le recap est encore là après coup ----
   await page.tap("#btn-recap");

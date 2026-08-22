@@ -74,6 +74,12 @@ function unePartie(mesures) {
         }
         if (r.scoreA > r.scoreB) appliquer(c1, c2, r.ecart, manche);
         else if (r.scoreB > r.scoreA) appliquer(c2, c1, r.ecart, manche);
+        else if (coachs.filter((c) => c.vivant).length === 2 && !c2.fantome) {
+          // décision 31 : à 2 survivants, le nul se décide aux tirs au but
+          const seance = M.tirsAuBut(eq1, eq2);
+          if (seance.vainqueur === "A") appliquer(c1, c2, 1, manche);
+          else appliquer(c2, c1, 1, manche);
+        }
       }
     }
   }
