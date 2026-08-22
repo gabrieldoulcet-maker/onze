@@ -74,12 +74,37 @@ const verifier = (nom, ok) => {
   });
   verifier("achats en boutique (manche 1)", await page.evaluate(() => partie.terrain.length + partie.banc.length > 0));
 
+  // ---- Iconographie système (Lot 6) : le chrome n'affiche plus d'emojis ----
+  verifier("icônes SVG : boutons de panneaux + pastilles de manche + monnaies", await page.evaluate(() => {
+    const boutons = ["btn-calepin", "btn-plein-ecran", "btn-recap", "btn-journal", "btn-match",
+      "btn-xp", "btn-refresh", "btn-verrou", "btn-sac", "btn-bascule-gauche", "btn-historique"];
+    const chromeOk = boutons.every((id) => document.getElementById(id).querySelector("svg.ic-sys"));
+    const pastillesOk = [...document.querySelectorAll(".pastille-manche")].every((p) => p.querySelector("svg.ic-sys"));
+    const emojiChrome = /[🤝⚔🧭❄🏆📜📝🧪⛶🔒🔓🪙🔄📈🧰🎯⚽🔎💚]/u;
+    const sansEmoji = boutons.every((id) => !emojiChrome.test(document.getElementById(id).textContent)) &&
+      ![...document.querySelectorAll(".pastille-manche")].some((p) => emojiChrome.test(p.textContent));
+    return chromeOk && pastillesOk && sansEmoji;
+  }));
+
   // ---- Le calepin : épingler 2 joueurs, l'un doit briller en boutique ----
   await page.tap("#btn-calepin");
   await page.waitForSelector(".galerie .carte-galerie");
   await page.tap(".galerie .carte-galerie:nth-child(1)");
   await page.tap(".galerie .carte-galerie:nth-child(2)");
   const epingles = await page.$$eval(".carte-galerie.epingle", (l) => l.map((c) => c.dataset.nom));
+  // le filtre par famille : choisir une École ne montre QUE ses joueurs
+  const filtreOk = await page.evaluate(() => {
+    const select = document.querySelector('[data-filtre="ecole"]');
+    const ecole = [...select.options].find((o) => o.value).value;
+    select.value = ecole;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    const attendu = tousLesJoueurs.filter((j) => j.ecole === ecole).length;
+    const montres = document.querySelectorAll(".galerie .carte-galerie").length;
+    const memoire = document.querySelector('[data-filtre="ecole"]').value === ecole; // le choix survit au re-rendu
+    return { ecole, attendu, montres, memoire };
+  });
+  verifier(`calepin : filtre par École (${filtreOk.ecole} : ${filtreOk.montres}/${filtreOk.attendu})`,
+    filtreOk.montres === filtreOk.attendu && filtreOk.attendu > 0 && filtreOk.memoire);
   await page.evaluate(() => document.querySelector('[data-action="fermer"]').click());
   verifier("calepin : 2 joueurs épinglés", epingles.length === 2);
   const brille = await page.evaluate((nom) => {
@@ -152,13 +177,14 @@ const verifier = (nom, ok) => {
       await page.click("#btn-journal");
     }
     // attendre le volet de bilan de fin de manche (le match dure ~5-20 s en ×2)
+    // le bilan n'apparaît qu'APRÈS le ramassage automatique des orbes
     await page.waitForFunction(() => !!document.getElementById("btn-continuer"), null, { timeout: 120000 });
-    await page.evaluate(() => {
-      arreterChrono();
-      // le bilan de manche : ouvrir les orbes puis « Continuer »
-      document.querySelectorAll(".volet .orbe").forEach((o) => o.click());
-    });
-    await page.waitForTimeout(400);
+    await page.evaluate(() => { arreterChrono(); });
+    if (m === 1) {
+      verifier("orbes : ramassées toutes seules sur le terrain (bannières)", await page.evaluate(() =>
+        partie.orbesEnAttente.length === 0 && (partie.compteurs.orbesRamassees || 0) >= 2));
+    }
+    await page.waitForTimeout(200);
     await page.evaluate(() => {
       const btn = document.getElementById("btn-continuer");
       if (btn) { btn.click(); }
@@ -188,6 +214,50 @@ const verifier = (nom, ok) => {
     return ok;
   });
   verifier("labo 🧪 : la grille des 36 s'ouvre", !!labo);
+
+  // ---- Staff en drag & drop : 2 glissers CONSÉCUTIFS (le 2ᵉ fut un bug :
+  //      la sélection de texte du 1er déclenchait un drag natif → pointercancel),
+  //      aperçu de la spécialisation pendant le survol, confirmation de fusion ----
+  await page.evaluate(() => {
+    arreterChrono();
+    const noms = Object.keys(ONZE.COMPOSANTS_STAFF).filter((n) => n !== "Passeport");
+    partie.staff = [noms[0], noms[1]];
+    if (!partie.terrain.length && partie.banc.length) partie.terrain.push(partie.banc.shift());
+    partie.terrain[0].staffCartes = [];
+    partie.terrain[0].specialisations = [];
+    afficher();
+  });
+  await page.click("#btn-bascule-gauche");
+  const unDragStaff = async () => {
+    const bb = await (await page.$(".badge-staff")).boundingBox();
+    const jb = await (await page.$('.jeton[data-liste="terrain"][data-indice="0"]')).boundingBox();
+    await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2);
+    await page.mouse.down();
+    let apercu = "";
+    for (let p = 1; p <= 6; p++) {
+      await page.mouse.move(bb.x + (jb.x + jb.width / 2 - bb.x) * p / 6, bb.y + (jb.y + jb.height / 2 - bb.y) * p / 6);
+      await page.waitForTimeout(25);
+      const bulle = await page.$(".fantome .etiquette-apercu");
+      if (bulle) apercu = await bulle.textContent();
+    }
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+    return apercu;
+  };
+  const apercu1 = await unDragStaff();
+  verifier("drag staff 1 : la carte est posée + aperçu « 1ʳᵉ carte » pendant le survol",
+    await page.evaluate(() => partie.staff.length === 1 && (partie.terrain[0].staffCartes || []).length === 1) &&
+    apercu1.includes("1ʳᵉ carte"));
+  const apercu2 = await unDragStaff();
+  verifier("drag staff 2 (consécutif) : aperçu de la spécialisation + demande de confirmation",
+    apercu2.includes("→") &&
+    await page.evaluate(() => !!document.querySelector("[data-choix='oui']")));
+  await page.evaluate(() => document.querySelector("[data-choix='oui']").click());
+  verifier("fusion confirmée : spécialisation appliquée, inventaire vidé",
+    await page.evaluate(() => partie.staff.length === 0 &&
+      ((partie.terrain[0].specialisations || []).length + (partie.terrain[0].emblemes || []).length) >= 1));
+  await page.evaluate(() => { document.querySelectorAll(".fusion-banniere, .voile-fiche").forEach((v) => v.remove()); });
+  await page.click("#btn-bascule-gauche");
 
   // ---- Sauvegarde/restauration : recharger la page reprend la partie ----
   const mancheAvant = await page.evaluate(() => { sauvegarder(); return partie.manche; });

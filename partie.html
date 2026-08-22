@@ -154,6 +154,14 @@
     .jeton .etoiles { font-size: 0.54rem; text-shadow: 0 0 5px rgba(242, 193, 78, 0.8); }
     .jeton.vide { border: 2px dashed var(--ligne); color: #ffffff55; background: transparent; min-height: 30px;
       display: flex; align-items: center; justify-content: center; text-align: center; }
+    /* La case vide de la grille de placement : un emplacement EXPLICITE */
+    .case-vide {
+      width: 62px; min-height: 36px; border: 2px dashed var(--ligne-forte);
+      border-radius: var(--r-carte-banc); background: rgba(6, 13, 8, 0.25);
+      display: flex; align-items: center; justify-content: center;
+      color: #ffffff55; font-size: 1rem; font-weight: 700; cursor: pointer;
+    }
+    .case-vide.verrouillee { border-color: var(--ligne); background: transparent; color: #ffffff18; cursor: default; }
     .jeton.cout-1 { --couleur-cout: var(--cout-1); } .jeton.cout-2 { --couleur-cout: var(--cout-2); }
     .jeton.cout-3 { --couleur-cout: var(--cout-3); } .jeton.cout-4 { --couleur-cout: var(--cout-4); }
     .jeton.cout-5 { --couleur-cout: var(--cout-5); background: var(--fond-carte-or); } .jeton.cout-0 { --couleur-cout: #5F7A64; }
@@ -210,21 +218,46 @@
     /* ---- La barre boutique du bas (copie TFT) ---- */
     /* La boutique garde sa hauteur de contenu : c'est le TERRAIN qui se
        comprime quand la hauteur manque (jamais les boutons d'achat). */
+    /* ---- LA BOUTIQUE FAÇON TFT MOBILE (sprint post-playtest, point 2) :
+       bande basse généreuse (~30 % de l'écran ouverte), XP + odds à
+       gauche, or en médaillon central, refresh + verrou à droite. ---- */
     .boutique-barre {
       flex: 0 0 auto; display: flex; gap: 6px; align-items: stretch;
+      min-height: max(96px, 30vh);
       background: var(--nuit-profonde); border-top: 1px solid var(--ligne);
-      padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
+      padding: 10px 8px calc(6px + env(safe-area-inset-bottom));
     }
-    .bloc-eco {
-      flex: 0 0 96px; display: flex; flex-direction: column; gap: 3px;
+    .medaillon-or {
+      position: absolute; top: -13px; left: 50%; transform: translateX(-50%); z-index: 6;
+      display: flex; align-items: center; gap: 5px;
+      background: var(--nuit-profonde); border: 1.5px solid var(--or-trophee);
+      border-radius: var(--r-pilule); padding: 2px 12px;
+      font-weight: 800; font-size: 0.85rem; font-variant-numeric: tabular-nums; color: var(--or-trophee);
+      box-shadow: 0 0 14px rgba(242, 193, 78, 0.35);
     }
-    .bloc-eco .or-affiche { text-align: center; color: var(--or-trophee); font-weight: 800; font-size: 0.9rem; }
-    .bloc-eco button {
-      flex: 1; background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
+    .medaillon-or .piece {
+      width: 16px; height: 16px; border-radius: 50%; background: var(--orbe-or);
+      color: #1A1405; font-size: 0.58rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .bloc-xp { flex: 0 0 96px; display: flex; flex-direction: column; gap: 3px; }
+    .bloc-xp .niveau-affiche { font-weight: 800; font-size: 0.72rem; color: var(--craie);
+      display: flex; justify-content: space-between; align-items: baseline; }
+    .bloc-xp .niveau-affiche small { color: var(--craie-sourde); font-weight: 700; font-size: 0.58rem; }
+    .xp-jauge { height: 5px; background: var(--surface-1); border-radius: 3px; overflow: hidden; }
+    .xp-jauge > div { height: 100%; background: var(--poste-d); border-radius: 3px; transition: width 0.3s; }
+    .odds-affiche { display: flex; gap: 3px; font-size: 0.6rem; font-weight: 800; cursor: pointer;
+      padding: 2px 0; justify-content: space-between; }
+    .odds-affiche span { flex: 1; text-align: center; border-radius: 4px; padding: 1px 0; background: var(--surface-1); }
+    .bloc-xp button, .bloc-droite button {
+      background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
       border-radius: 7px; font-size: 0.6rem; font-weight: 700; cursor: pointer; padding: 3px;
       line-height: 1.25;
     }
-    .bloc-eco button:disabled { color: #5F7A64; }
+    .bloc-xp button { flex: 1; }
+    .bloc-xp button:disabled, .bloc-droite button:disabled { color: #5F7A64; }
+    .bloc-droite { flex: 0 0 46px; display: flex; flex-direction: column; gap: 4px; }
+    .bloc-droite button { flex: 1; font-size: 0.72rem; }
     .rangee-boutique { flex: 1; display: flex; gap: 5px; overflow-x: auto; overflow-y: visible; padding-top: 7px; }
     /* ---- LA CARTE BLASON (DA S1, Lot 3 · 1a) ----
        Hiérarchie stricte : cadre couleur de coût → note-écusson →
@@ -296,18 +329,16 @@
     .carte-boutique .tag-etat { position: absolute; top: -8px; left: 6px; font-weight: 800; font-size: 0.5rem;
       padding: 1px 6px; border-radius: var(--r-pilule); background: var(--calepin); color: #04121F; z-index: 1; }
     .carte-boutique .tag-etat.or { background: var(--or-trophee); color: #1A1405; }
-    .btn-verrou-carte { flex: 0 0 30px; background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
-      border-radius: 7px; font-size: 0.85rem; cursor: pointer; }
+    .btn-verrou-carte { font-size: 0.85rem; }
 
     /* ---- Boutique escamotable (toggle sur le sac d'or, façon TFT) ----
        Repliée : les cartes et l'XP disparaissent, il RESTE or + refresh
        + verrou — et le terrain récupère toute la hauteur. */
-    .btn-sac { flex: 0 0 30px; background: var(--surface-1); color: var(--or-trophee); border: 1px solid var(--ligne);
-      border-radius: 7px; font-size: 0.85rem; cursor: pointer; }
-    .boutique-barre.repliee .rangee-boutique, .boutique-barre.repliee #btn-xp { display: none; }
-    .boutique-barre.repliee .bloc-eco { flex: 1; flex-direction: row; align-items: center; justify-content: flex-start; gap: 8px; }
-    .boutique-barre.repliee .bloc-eco .or-affiche { flex: 0 0 auto; }
-    .boutique-barre.repliee .bloc-eco button { flex: 0 0 auto; padding: 4px 10px; }
+    .btn-sac { color: var(--or-trophee); font-size: 0.85rem; }
+    .boutique-barre.repliee { min-height: 0; padding-top: 6px; }
+    .boutique-barre.repliee .rangee-boutique, .boutique-barre.repliee .bloc-xp { display: none; }
+    .boutique-barre.repliee .bloc-droite { flex: 1; flex-direction: row; justify-content: flex-end; }
+    .boutique-barre.repliee .bloc-droite button { flex: 0 0 auto; padding: 4px 12px; }
 
     /* ---- Drag & drop (pointer events, fantôme en translate3d → 60 fps) ---- */
     .jeton { touch-action: none; }
@@ -324,6 +355,12 @@
     .jeton.source-drag { opacity: 0.35; }
     .ligne-terrain.cible, .rangee-banc.cible { background: rgba(61, 226, 107, 0.18); border-radius: 8px; }
     .jeton.cible { outline: 2px dashed var(--gazon-electrique); }
+    .jeton.cible-staff { box-shadow: var(--lueur-fusion); }
+    .etiquette-apercu {
+      position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+      background: var(--surface-2); color: var(--or-trophee); font-size: 0.62rem; font-weight: 800;
+      border: 1px solid var(--or-trophee); border-radius: 6px; padding: 1px 6px; white-space: nowrap;
+    }
     .zone-vente {
       position: absolute; inset: 0; z-index: 110; display: none;
       align-items: center; justify-content: center;
@@ -363,6 +400,13 @@
     .badge-eclat { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); font-size: 0.6rem;
       color: var(--or-trophee); font-weight: 800; text-shadow: 0 0 6px rgba(242, 193, 78, 0.9); letter-spacing: 1px; z-index: 1; }
     .galerie { display: flex; flex-wrap: wrap; gap: 4px; }
+    /* les filtres par famille du calepin (École / archétype) */
+    .filtres-galerie { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+    .filtres-galerie select {
+      background: var(--surface-2); color: var(--craie-claire); border: 1px solid var(--ligne-forte);
+      border-radius: 8px; padding: 5px 6px; font-size: 0.68rem; font-family: var(--police-texte);
+      font-weight: 700; max-width: 46%;
+    }
     .galerie .carte-galerie {
       flex: 0 0 31%; background: var(--surface-1); border: 1px solid var(--ligne); border-radius: 8px;
       padding: 4px; font-size: 0.62rem; cursor: pointer; color: #C9D6C9;
@@ -419,8 +463,6 @@
       width: 100%; margin-top: 10px; background: var(--ligne); color: var(--craie-claire);
       border: none; border-radius: 10px; padding: 9px; font-weight: 700; cursor: pointer;
     }
-    .orbes { margin: 8px 0 2px; }
-    .orbe { width: 64px; height: 64px; font-size: 1.5rem; }
   </style>
 </head>
 <body>
@@ -450,25 +492,25 @@
 
   <!-- ===== Barre du haut ===== -->
   <div class="haut">
-    <span class="manche-info" id="btn-historique">📜
-      💚 <span id="prestige">40</span> · Niv <span id="niveau">3</span> ·
+    <span class="manche-info" id="btn-historique"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-parchemin"></use></svg>
+      <span style="color:var(--gazon-electrique)"><svg class="ic-sys" width="12" height="12" viewBox="0 0 48 48"><use href="#is-coeur"></use></svg></span> <span id="prestige">40</span> · Niv <span id="niveau">3</span> ·
       XP <span id="xp">0</span>/<span id="xp-suivant">6</span> ·
-      <span id="serie">—</span> · 🧰 <span id="staff">0</span> · 🔥 <span id="ferveur">0</span><span class="masque" id="manche">1</span></span>
+      <span id="serie">—</span> · <svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-staff"></use></svg> <span id="staff">0</span> · <span style="color:var(--alerte-claire)"><svg class="ic-sys" width="12" height="12" viewBox="0 0 48 48"><use href="#is-flamme"></use></svg></span> <span id="ferveur">0</span><span class="masque" id="manche">1</span></span>
     <div class="progression">
       <div class="rangee-pastilles" id="progression"></div>
       <div class="chrono-barre masque" id="chrono-barre"><div id="chrono-remplissage"></div></div>
     </div>
-    <button id="btn-calepin">📝</button>
-    <button id="btn-plein-ecran">⛶</button>
-    <button id="btn-recap" class="masque">⚔️</button>
-    <button id="btn-vitesse" class="masque">⏩ ×2</button>
+    <button id="btn-calepin"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-calepin"></use></svg></button>
+    <button id="btn-plein-ecran"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-plein-ecran"></use></svg></button>
+    <button id="btn-recap" class="masque"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-epees"></use></svg></button>
+    <button id="btn-vitesse" class="masque"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-vitesse"></use></svg> ×2</button>
   </div>
 
   <!-- ===== Centre : synergies | plateau + banc | classement ===== -->
   <div class="centre">
     <div class="col-synergies">
       <button id="btn-legende" style="background:var(--surface-1);color:var(--craie-sourde);border:1px solid var(--ligne);border-radius:6px;font-size:0.6rem;padding:2px;cursor:pointer">？ Légende</button>
-      <button id="btn-bascule-gauche">🧰 Staff · 🎯</button>
+      <button id="btn-bascule-gauche"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-staff"></use></svg> Staff · <svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-cible"></use></svg></button>
       <div id="page-synergies">
         <div id="synergies-club"></div>
         <div class="mini-adn" id="axes-adn"></div>
@@ -488,7 +530,7 @@
           <span id="nom-adversaire-match"></span>
           <span class="score-match"> <span id="score-a">0</span> – <span id="score-b">0</span> </span>
           <span id="chrono"></span>
-          <button class="btn-journal" id="btn-journal" title="Journal du match">📜</button>
+          <button class="btn-journal" id="btn-journal" title="Journal du match"><svg class="ic-sys" width="14" height="14" viewBox="0 0 48 48"><use href="#is-parchemin"></use></svg></button>
           <div class="jauge-domination"><div id="jauge-dom"></div></div>
         </div>
         <div class="journal" id="recit"></div>
@@ -498,21 +540,26 @@
     </div>
     <div class="col-classement" id="col-classement">
       <div id="classement-liste"></div>
-      <button class="principal" id="btn-match">⚽</button>
+      <button class="principal" id="btn-match"><svg class="ic-sys" width="20" height="20" viewBox="0 0 48 48"><use href="#is-ballon"></use></svg></button>
     </div>
   </div>
 
   <!-- ===== Barre boutique du bas (copie TFT) ===== -->
   <div class="boutique-barre" id="boutique-barre" style="position:relative">
     <div class="zone-vente" id="zone-vente"></div>
-    <button class="btn-sac" id="btn-sac" title="Replier / déplier la boutique">🪙</button>
-    <div class="bloc-eco">
-      <div class="or-affiche"><span id="or">0</span>M 🪙</div>
-      <button id="btn-xp">📈 Acheter XP<br>4M → +4</button>
-      <button id="btn-refresh">🔄 Actualiser<br>2M</button>
+    <div class="medaillon-or"><span class="piece">M</span><span id="or">0</span>M</div>
+    <div class="bloc-xp">
+      <div class="niveau-affiche">NIV <span id="niveau-boutique">3</span> <small><span id="xp-boutique">0/6</span></small></div>
+      <div class="xp-jauge"><div id="xp-jauge-remplissage" style="width:0%"></div></div>
+      <div class="odds-affiche" id="odds-affiche" title="Les stats de la boutique"></div>
+      <button id="btn-xp"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-xp"></use></svg> Acheter XP<br>4M → +4</button>
     </div>
     <div class="rangee-boutique" id="boutique"></div>
-    <button class="btn-verrou-carte" id="btn-verrou">🔓</button>
+    <div class="bloc-droite">
+      <button id="btn-refresh"><svg class="ic-sys" width="15" height="15" viewBox="0 0 48 48"><use href="#is-refresh"></use></svg><br>2M</button>
+      <button class="btn-verrou-carte" id="btn-verrou"><svg class="ic-sys" width="16" height="16" viewBox="0 0 48 48"><use href="#is-cadenas-ouvert"></use></svg></button>
+      <button class="btn-sac" id="btn-sac" title="Replier / déplier la boutique"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-piece"></use></svg></button>
+    </div>
   </div>
 
   <div class="message-flottant" id="message"></div>
@@ -524,6 +571,9 @@
   <script src="icones.js"></script>
   <script src="synergies-data.js"></script>
   <script src="ecussons.js"></script>
+  <script src="icones-systeme.js"></script>
+  <script>ONZE_ICONES_SYS.injecter();</script>
+  <script src="ia-coach.js"></script>
   <script src="match-ui.js"></script>
   <script src="stade.js"></script>
   <script src="match-scene.js"></script>
@@ -728,8 +778,13 @@
     function nouvellePartie() {
       const coachs = [{ nom: "Mon Club", ia: false, prestige: PRESTIGE_DEPART, serie: 0, vivant: true }];
       for (const c of COACHS_IA) coachs.push({ ...c, ia: true, prestige: PRESTIGE_DEPART, serie: 0, vivant: true });
+      // La difficulté (accueil, défaut Pro) joue sur l'INTELLIGENCE des
+      // IA — jamais sur leurs stats (sprint post-playtest, point 1).
+      let difficulte = "pro";
+      try { difficulte = localStorage.getItem("onze-difficulte") || "pro"; } catch (e) {}
+      for (const c of coachs) if (c.ia) ONZE_IA.initCoach(c);
       partie = {
-        manche: 1, coachs,
+        manche: 1, coachs, difficulte,
         or: OR_DEPART, niveau: 3, xp: 0, staff: [],
         terrain: STARTERS.map((j) => ({ ...j, etoiles: 1 })), banc: [], boutique: [], pool: [],
         butin: planifierButin(),
@@ -1026,41 +1081,43 @@
       const fiche = piocherJoueur(3, 2);
       return fiche ? { rarete, type: "joueur", fiche } : { rarete, type: "or", montant: 4 };
     }
-    function ouvrirOrbe(bouton, indice) {
-      const orbe = partie.orbesEnAttente[indice];
-      if (!orbe || orbe.ouvert) return;
-      orbe.ouvert = true;
+    /* Applique le contenu d'une orbe à la partie et rend le message de
+       sa bannière (le ramassage est automatique — façon TFT). */
+    function resoudreOrbe(orbe) {
       if (orbe.rarete === "or") partie.compteurs.orbeOr++;
-      const revele = document.createElement("div");
-      revele.className = "orbe-revele";
+      partie.compteurs.orbesRamassees = (partie.compteurs.orbesRamassees || 0) + 1;
       if (orbe.type === "or") {
         partie.or += orbe.montant;
-        revele.innerHTML = `🪙 <strong>+${orbe.montant}M</strong><br><small>La billetterie a bien marché.</small>`;
-      } else if (orbe.type === "staff") {
+        return `🪙 <strong>+${orbe.montant}M</strong> <small>— la billetterie a bien marché.</small>`;
+      }
+      if (orbe.type === "staff") {
         const gardee = gagnerCarteStaff(orbe.membre);
         if (orbe.montantBonus) partie.or += orbe.montantBonus;
-        revele.innerHTML = gardee
+        return gardee
           ? `🧰 <strong>${orbe.membre}</strong> rejoint le club !` +
             (orbe.montantBonus ? ` <strong>+${orbe.montantBonus}M</strong>` : "") +
-            `<br><small>Deux cartes sur un joueur fusionnent en spécialisation (panneau 🧰).</small>`
-          : `🧰 Inventaire staff plein (${PLAFOND_STAFF}) — <strong>${orbe.membre}</strong> revendu <strong>+2M</strong>` +
-            (orbe.montantBonus ? ` <strong>+${orbe.montantBonus}M</strong>` : "") +
-            `<br><small>Assigne tes cartes avant d'en gagner d'autres !</small>`;
-      } else if (orbe.type === "relique") {
+            ` <small>— deux cartes sur un joueur fusionnent (panneau 🧰).</small>`
+          : `🧰 Inventaire plein (${PLAFOND_STAFF}) — <strong>${orbe.membre}</strong> revendu <strong>+2M</strong>` +
+            (orbe.montantBonus ? ` <strong>+${orbe.montantBonus}M</strong>` : "");
+      }
+      if (orbe.type === "relique") {
         // le trésor d'une partie : la Relique (unique, très rare)
         gagnerCarteStaff(orbe.nom); // vit dans l'inventaire, s'assigne comme une carte
         partie.reliqueRecue = orbe.nom;
         ONZE_JUICE.jouer("icone");
-        revele.innerHTML = `🏺 <strong>${orbe.nom}</strong> !<br><small>${RELIQUES[orbe.nom].desc}<br>Une RELIQUE — la seule de ta partie. Assigne-la comme une carte staff.</small>`;
-      } else if (orbe.type === "staffClub") {
+        return `🏺 <strong>${orbe.nom}</strong> !<br><small>${RELIQUES[orbe.nom].desc}<br>Une RELIQUE — la seule de ta partie. Assigne-la comme une carte staff.</small>`;
+      }
+      if (orbe.type === "staffClub") {
         partie.staffClub = partie.staffClub || [];
         partie.staffClub.push(orbe.nom);
         ONZE_JUICE.jouer("unique");
-        revele.innerHTML = `🏟️ <strong>${orbe.nom}</strong> rejoint le club !<br><small>${STAFF_CLUB[orbe.nom].desc} (effet d'équipe, permanent)</small>`;
-      } else if (orbe.type === "consommable") {
+        return `🏟️ <strong>${orbe.nom}</strong> rejoint le club !<br><small>${STAFF_CLUB[orbe.nom].desc} (effet d'équipe, permanent)</small>`;
+      }
+      if (orbe.type === "consommable") {
         gagnerCarteStaff(orbe.nom);
-        revele.innerHTML = `🧪 <strong>${orbe.nom}</strong><br><small>${CONSOMMABLES[orbe.nom].desc} Utilise-le depuis l'inventaire staff.</small>`;
-      } else if (orbe.type === "iconique") {
+        return `🧪 <strong>${orbe.nom}</strong><br><small>${CONSOMMABLES[orbe.nom].desc} Utilise-le depuis l'inventaire staff.</small>`;
+      }
+      if (orbe.type === "iconique") {
         // sublime une spécialisation existante en version ICONIQUE (×1,5)
         const porteurs = [...partie.terrain, ...partie.banc].filter((j) =>
           (j.specialisations || []).some((s) => !(j.specsIconiques || []).includes(s)));
@@ -1069,25 +1126,58 @@
           const spec = hasardParmi(j.specialisations.filter((s) => !(j.specsIconiques || []).includes(s)));
           j.specsIconiques = [...(j.specsIconiques || []), spec];
           ONZE_JUICE.jouer("fusion3");
-          revele.innerHTML = `🌟 <strong>${spec}</strong> devient ICONIQUE sur ${j.nom} !<br><small>Version dorée : les bonus de la spécialisation ×1,5 — la seule de ta partie.</small>`;
-        } else {
-          partie.or += 4;
-          revele.innerHTML = `🌟 Personne à sublimer… <strong>+4M</strong> de compensation.<br><small>Il fallait une spécialisation sur le terrain.</small>`;
+          return `🌟 <strong>${spec}</strong> devient ICONIQUE sur ${j.nom} !<br><small>Version dorée : les bonus ×1,5 — la seule de ta partie.</small>`;
         }
-      } else {
-        const nombre = orbe.type === "duo" ? 2 : 1;
-        for (let n = 0; n < nombre; n++) placerAuClub({ ...orbe.fiche, etoiles: 1 });
-        const fusions = ONZE.fusionnerEffectif(partie.terrain, partie.banc);
-        if (fusions.length) celebrerFusions(fusions);
-        revele.innerHTML = orbe.type === "duo"
-          ? `⚽⚽ <strong>${orbe.fiche.nom} × 2</strong> — le duo du centre de formation !<br><small>Deux copies d'un coup… la fusion se rapproche.</small>`
-          : `⚽ <strong>${orbe.fiche.nom}</strong> signe gratuitement !<br><small>${orbe.fiche.ecole || "Sans École"} · ${orbe.fiche.archetype || "sans archétype"} — une orientation à saisir ?</small>`;
+        partie.or += 4;
+        return `🌟 Personne à sublimer… <strong>+4M</strong> de compensation.<br><small>Il fallait une spécialisation sur le terrain.</small>`;
       }
-      bouton.replaceWith(revele);
-      afficher();
-      tutoNotifier("orbe");
-      const continuer = document.getElementById("btn-continuer");
-      if (continuer && partie.orbesEnAttente.every((o) => o.ouvert)) continuer.classList.remove("masque");
+      const nombre = orbe.type === "duo" ? 2 : 1;
+      for (let n = 0; n < nombre; n++) placerAuClub({ ...orbe.fiche, etoiles: 1 });
+      const fusions = ONZE.fusionnerEffectif(partie.terrain, partie.banc);
+      if (fusions.length) celebrerFusions(fusions);
+      return orbe.type === "duo"
+        ? `⚽⚽ <strong>${orbe.fiche.nom} × 2</strong> — le duo du centre de formation !`
+        : `⚽ <strong>${orbe.fiche.nom}</strong> signe gratuitement ! <small>${orbe.fiche.ecole || "Sans École"} · ${orbe.fiche.archetype || "sans archétype"}</small>`;
+    }
+    /* Le ramassage façon TFT : les orbes tombent sur le terrain, puis se
+       ramassent toutes seules l'une après l'autre — chaque contenu passe
+       en petite bannière. `apresButin` enchaîne (le bilan de manche). */
+    function ramasserOrbes(apresButin) {
+      const orbes = partie.orbesEnAttente;
+      if (!orbes.length) return apresButin();
+      // un voile invisible fige l'interface le temps du ramassage (~2-4 s)
+      const bouclier = document.createElement("div");
+      bouclier.style.cssText = "position:fixed;inset:0;z-index:55";
+      document.body.appendChild(bouclier);
+      const terrain = el("terrain-scene");
+      const pastilles = orbes.map((orbe, i) => {
+        const p = document.createElement("div");
+        p.className = "orbe-terrain " + orbe.rarete;
+        // étalées en travers du terrain, avec un peu de dispersion
+        p.style.left = (orbes.length === 1 ? 48 : 16 + (66 * i) / (orbes.length - 1) + (Math.random() * 8 - 4)) + "%";
+        p.style.top = 32 + Math.random() * 34 + "%";
+        p.style.animationDelay = `${i * 0.12}s, ${0.5 + i * 0.12}s`;
+        terrain.appendChild(p);
+        return p;
+      });
+      tutoNotifier("etat"); // la bulle du tuto « butin » se réveille ici
+      let banc = document.getElementById("bannieres-butin");
+      if (!banc) { banc = document.createElement("div"); banc.id = "bannieres-butin"; document.body.appendChild(banc); }
+      orbes.forEach((orbe, i) => {
+        setTimeout(() => {
+          pastilles[i].classList.add("ramassee");
+          setTimeout(() => pastilles[i].remove(), 450);
+          ONZE_JUICE.jouer("achat");
+          const banniere = document.createElement("div");
+          banniere.className = "banniere-orbe " + orbe.rarete;
+          banniere.innerHTML = resoudreOrbe(orbe);
+          banc.appendChild(banniere);
+          setTimeout(() => banniere.remove(), 3600);
+          afficher();
+          tutoNotifier("orbe");
+        }, 900 + i * 900);
+      });
+      setTimeout(() => { partie.orbesEnAttente = []; bouclier.remove(); apresButin(); }, 900 + orbes.length * 900);
     }
 
     /* ================= Adversaires ================= */
@@ -1101,42 +1191,10 @@
         : { nom: ["Gégé", "Bernard", "Paulo", "Kiki", "Dédé"][i], cout: 0, poste, ecole: "", archetype: "", unique: null });
       return ONZE.equipeDepuisFiches(gabarit.nom, gabarit.nom, fiches); // nom seul dans le récit
     }
-    /* Courbe calibrée (simulations/parties.js) : ~50 % de top 4 */
-    /* Règle TFT fondamentale : les 7 IA piochent dans le MÊME pool de
-       copies que le joueur. Chaque copie prise manque en boutique (une
-       École contestée se raréfie) ; les copies reviennent au pool quand
-       l'équipe est recomposée ou que le club est éliminé. */
-    function genererEquipeIA(coach) {
-      if (coach.copiesPrises) for (const fiche of coach.copiesPrises) partie.pool.push(fiche);
-      coach.copiesPrises = [];
-      const niveau = ONZE_ECO.niveauIA(partie.manche);
-      const taille = TITULAIRES_PAR_NIVEAU[niveau];
-      let budget = ONZE_ECO.budgetIA(partie.manche);
-      const compo = [];
-      const besoins = ["GAR"];
-      for (let i = 0; i < taille - 1; i++) besoins.push(["DÉF", "MIL", "ATT"][i % 3]);
-      for (const poste of besoins) {
-        const slotsRestants = besoins.length - compo.length;
-        const coutMax = Math.max(1, Math.min(5, Math.floor(budget - (slotsRestants - 1))));
-        const nomsPris = new Set(compo.map((j) => j.nom));
-        let candidats = partie.pool.filter((j) => j.poste === poste && j.cout <= coutMax && !nomsPris.has(j.nom));
-        const fideles = candidats.filter((j) => j.ecole === coach.ecole);
-        if (fideles.length && Math.random() < 0.75) candidats = fideles;
-        // une entrée par NOM : sans ça, « les 3 meilleurs candidats »
-        // seraient 3 copies du même joueur cher (IA sur-optimisées)
-        const parNom = new Map();
-        for (const j of candidats) if (!parNom.has(j.nom)) parNom.set(j.nom, j);
-        candidats = [...parNom.values()];
-        candidats.sort((a, b) => b.cout - a.cout);
-        const choix = candidats[Math.floor(Math.random() * Math.min(3, candidats.length))] || candidats[0];
-        if (choix) {
-          compo.push(choix); budget -= choix.cout;
-          partie.pool.splice(partie.pool.indexOf(choix), 1);
-          coach.copiesPrises.push(choix);
-        }
-      }
-      return ONZE.equipeDepuisFiches(coach.nom, coach.nom, compo);
-    }
+    /* Les IA jouent les stratégies du banc méta : voir ia-coach.js
+       (l'ancien générateur « à budget » a été retiré au sprint
+       post-playtest — les IA jouent désormais la même économie que le
+       joueur, à la même table, sur le même pool). */
 
     /* ================= Le déroulé des manches ================= */
     function preparerManche() {
@@ -1153,12 +1211,20 @@
           if (fusions.length) celebrerFusions(fusions);
         }
       }
+    /* Les 7 IA jouent les stratégies du banc méta (ia-coach.js) : une
+       manche de mercato INCRÉMENTALE (jamais rejouée au reload — c'est
+       l'idempotence par manche qui protège), puis l'alignement. Règle
+       TFT fondamentale intacte : mêmes 1344 copies pour tout le monde,
+       registre coach.copiesPrises, retour au pool à l'élimination. */
+      const ctxIA = { ECO: ONZE_ECO, M: ONZE, difficulte: partie.difficulte || "pro" };
       for (const c of partie.coachs) if (c.ia) {
-        if (c.vivant) { c.equipe = genererEquipeIA(c); }
-        else if (c.copiesPrises && c.copiesPrises.length) {
+        if (c.vivant) {
+          if (!c.etatIA) ONZE_IA.initCoach(c); // vieille partie migrée à la volée
+          if (!dejaPreparee) ONZE_IA.jouerManche(c, partie.pool, partie.manche, ctxIA);
+          c.equipe = ONZE_IA.equipeDe(c, ctxIA);
+        } else if (c.copiesPrises && c.copiesPrises.length) {
           // club éliminé : ses copies retournent au pool (règle TFT)
-          for (const fiche of c.copiesPrises) partie.pool.push(fiche);
-          c.copiesPrises = [];
+          ONZE_IA.liberer(c, partie.pool);
         }
       }
       if (amical) {
@@ -1193,7 +1259,7 @@
         const seul = autres[0];
         const sources = partie.coachs.filter((c) => c.vivant && c !== seul);
         const source = sources[Math.floor(Math.random() * sources.length)];
-        const equipeSource = source.ia ? (source.equipe || genererEquipeIA(source)) : equipeDuClub();
+        const equipeSource = source.ia ? (source.equipe || ONZE_IA.equipeDe(source, { ECO: ONZE_ECO, M: ONZE, difficulte: partie.difficulte })) : equipeDuClub();
         const fantome = {
           nom: "Équipe B — " + source.nom, ia: true, fantome: true, vivant: true,
           prestige: source.prestige, serie: 0,
@@ -1277,7 +1343,7 @@
       el("nom-adversaire-match").textContent = "⚔️ " + (monAdversaire ? monAdversaire.nom : partie.appariement.nomAdversaire);
       el("btn-vitesse").classList.remove("masque");
       el("btn-match").disabled = true;
-      el("btn-match").textContent = "⏱ Match…";
+      el("btn-match").innerHTML = `${ONZE_ICONES_SYS.ic("chrono", 13)} Match…`;
       el("recit").innerHTML = "";
       // La scène animée (phase 3) : le terrain devient la scène, le
       // récit complet se replie derrière 📜, le bandeau prend le relais.
@@ -1404,36 +1470,30 @@
           ? partie.butin[partie.manche].map((orbe) => creerOrbe(orbe.rarete, orbe.staffGaranti))
           : [];
 
-      // Panneau de fin de manche par-dessus le terrain
-      let html = `<div class="panneau">`;
-      html += `<strong>Manche ${partie.manche} — ${resultat.scoreA} – ${resultat.scoreB}</strong>`;
-      if (!amical) {
-        html += `<div class="classement" style="margin-top:6px">`;
-        for (const r of resultatsIA)
-          html += `<div class="coach"><span>${r.c1.nom} ${r.scoreA} – ${r.scoreB} ${r.c2.nom}</span></div>`;
-        if (partie.exempt) html += `<div class="coach"><span>${partie.exempt.nom} — exempt</span></div>`;
-        html += `</div>`;
-      }
-      html += `<div class="coach" style="margin-top:6px"><span>💰 +${revenu}M (${base} droits TV` +
-        (sponsors ? ` +${sponsors} sponsors` : "") + (bonusSerie ? ` +${bonusSerie} série` : "") +
-        (bonusVictoire ? ` +1 victoire` : "") + `)</span></div>`;
-      if (partie.orbesEnAttente.length) {
-        html += `<div style="text-align:center;margin-top:8px"><strong>🎁 ${coupe ? "Le butin de la coupe !" : "Le butin de l'amical !"}</strong><br>` +
-          `<small style="color:var(--craie-sourde)">Touche chaque orbe pour l'ouvrir.</small></div><div class="orbes">` +
-          partie.orbesEnAttente.map((o, i) => `<button class="orbe ${o.rarete}" onclick="ouvrirOrbe(this, ${i})">🎁</button>`).join("") +
-          `</div>`;
-      }
-      html += `<button class="fermer-volet ${partie.orbesEnAttente.length ? "masque" : ""}" id="btn-continuer">➡️ Continuer</button></div>`;
-      const volet = document.createElement("div");
-      volet.className = "volet";
-      volet.innerHTML = html;
-      el("app").appendChild(volet);
-      tutoNotifier("etat"); // la bulle des orbes se réveille sur le bilan
-      document.getElementById("btn-continuer").addEventListener("click", () => { arreterChrono(); volet.remove(); continuer(); });
-      demarrerChrono(30, () => { // ~30 s puis tout s'ouvre et on continue
-        volet.querySelectorAll(".orbe").forEach((o) => o.click());
-        setTimeout(() => { volet.remove(); continuer(); }, 600);
-      });
+      // Le butin se ramasse SUR le terrain (façon TFT), PUIS le panneau
+      // de fin de manche apparaît par-dessus.
+      const montrerBilan = () => {
+        let html = `<div class="panneau">`;
+        html += `<strong>Manche ${partie.manche} — ${resultat.scoreA} – ${resultat.scoreB}</strong>`;
+        if (!amical) {
+          html += `<div class="classement" style="margin-top:6px">`;
+          for (const r of resultatsIA)
+            html += `<div class="coach"><span>${r.c1.nom} ${r.scoreA} – ${r.scoreB} ${r.c2.nom}</span></div>`;
+          if (partie.exempt) html += `<div class="coach"><span>${partie.exempt.nom} — exempt</span></div>`;
+          html += `</div>`;
+        }
+        html += `<div class="coach" style="margin-top:6px"><span>💰 +${revenu}M (${base} droits TV` +
+          (sponsors ? ` +${sponsors} sponsors` : "") + (bonusSerie ? ` +${bonusSerie} série` : "") +
+          (bonusVictoire ? ` +1 victoire` : "") + `)</span></div>`;
+        html += `<button class="fermer-volet" id="btn-continuer">➡️ Continuer</button></div>`;
+        const volet = document.createElement("div");
+        volet.className = "volet";
+        volet.innerHTML = html;
+        el("app").appendChild(volet);
+        document.getElementById("btn-continuer").addEventListener("click", () => { arreterChrono(); volet.remove(); continuer(); });
+        demarrerChrono(30, () => { volet.remove(); continuer(); }); // ~30 s puis on continue
+      };
+      ramasserOrbes(montrerBilan);
 
       // ---- les stats de SAISON par joueur (l'homme de ta partie) ----
       partie.statsSaison = partie.statsSaison || {};
@@ -1534,6 +1594,49 @@
       lancerChronoMercato();
     }
 
+    /* ============ Les stats de la boutique (tap sur les odds) ============
+       Le panneau TFT-style : les % par coût du niveau actuel, les copies
+       restantes par coût dans le pool, et pour chaque joueur ÉPINGLÉ au
+       calepin la probabilité réelle par carte, calculée sur le pool
+       restant (« 8 copies restantes → 4,2 % par carte »). */
+    function ouvrirStatsBoutique() {
+      const odds = ODDS_PAR_NIVEAU[Math.min(partie.niveau, 10)];
+      const parCout = [0, 0, 0, 0, 0, 0];
+      for (const j of partie.pool) parCout[j.cout] = (parCout[j.cout] || 0) + 1;
+      const lignesCouts = [1, 2, 3, 4, 5].map((c) =>
+        `<div style="display:flex;align-items:center;gap:8px;padding:2px 0">
+          <span style="width:52px;font-weight:800;color:var(--cout-${c})">coût ${c}</span>
+          <span style="width:44px;font-weight:800;font-variant-numeric:tabular-nums">${odds[c - 1]} %</span>
+          <span class="barre-stat" style="flex:1;height:7px;background:var(--nuit-profonde);border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:${odds[c - 1]}%;background:var(--cout-${c})"></span></span>
+          <span style="width:110px;text-align:right;color:var(--craie-sourde);font-size:0.7rem">${parCout[c]} copies au pool</span>
+        </div>`).join("");
+      const lignesEpingles = partie.calepin.map((nom) => {
+        const fiche = tousLesJoueurs.find((j) => j.nom === nom);
+        if (!fiche) return "";
+        const copies = partie.pool.filter((j) => j.nom === nom).length;
+        const totalCout = parCout[fiche.cout] || 0;
+        const probaParCarte = totalCout ? (odds[fiche.cout - 1] / 100) * (copies / totalCout) * 100 : 0;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:2px 0">
+          <span style="width:96px;font-family:var(--police-display);transform:var(--pente);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nom}</span>
+          <span style="width:24px;font-weight:800;color:var(--cout-${fiche.cout})">${fiche.cout}</span>
+          <span style="flex:1;color:var(--craie-sourde);font-size:0.7rem">${copies} copie${copies > 1 ? "s" : ""} restante${copies > 1 ? "s" : ""}</span>
+          <span style="font-weight:800;color:${copies ? "var(--calepin)" : "var(--alerte-claire)"};font-variant-numeric:tabular-nums">${copies ? "→ " + probaParCarte.toFixed(1).replace(".", ",") + " % par carte" : "épuisé !"}</span>
+        </div>`;
+      }).join("");
+      const volet = document.createElement("div");
+      volet.className = "volet";
+      volet.innerHTML = `<div class="panneau">
+        <strong>📊 La boutique — niveau ${partie.niveau}</strong>
+        <div style="color:var(--craie-sourde);font-size:0.72rem;margin:2px 0 8px">Chaque carte tire d'abord un coût (les %), puis un joueur au hasard parmi les copies restantes de ce coût.</div>
+        ${lignesCouts}
+        ${partie.calepin.length ? `<div style="margin-top:10px;color:var(--calepin);font-weight:800;font-size:0.72rem;letter-spacing:1px">📝 TES ÉPINGLÉS AU CALEPIN</div>${lignesEpingles}`
+          : `<div style="margin-top:10px;color:var(--craie-sourde);font-size:0.72rem">Épingle des joueurs au calepin 📝 pour voir leur probabilité réelle ici.</div>`}
+        <button class="fermer-volet">Fermer</button>
+      </div>`;
+      volet.addEventListener("click", (e) => { if (e.target === volet || e.target.classList.contains("fermer-volet")) volet.remove(); });
+      el("app").appendChild(volet);
+    }
+
     /* Le Mercato d'hiver (le carrousel de TFT) : aux manches 8 et 13,
        un étal de joueurs dont certains arrivent avec une carte staff.
        La priorité va aux clubs en difficulté : mieux tu es classé,
@@ -1561,7 +1664,7 @@
         <strong>❄️ Le Mercato d'hiver</strong><br>
         <small style="color:var(--craie-sourde)">Un joueur offert — les clubs en difficulté ont été servis avant toi${rang > 0 ? " (" + rang + " déjà passés)" : ""}.</small>
         <div class="bandeau-scouting">${partie.coachs.map((c, i) => c.ia && c.vivant
-          ? `<button onclick="scouterIndice(${i})">🔎 ${c.nom.split(" ")[0]}</button>` : "").join("")}</div>
+          ? `<button onclick="scouterIndice(${i})">${ONZE_ICONES_SYS.ic("loupe", 11)} ${c.nom.split(" ")[0]}</button>` : "").join("")}</div>
         ${etal.map((choix, i) => {
           const stats = ONZE.genererStats(choix.fiche);
           return `<button class="fermer-volet" style="text-align:left" data-hiver="${i}">
@@ -1723,10 +1826,18 @@
     function ouvrirCalepin() {
       const volet = document.createElement("div");
       volet.className = "volet";
+      // le filtre par famille (post-playtest 6) : École et/ou archétype
+      const filtre = { ecole: "", archetype: "" };
       const rendre = () => {
         const cibles = partie.calepin.map((nom) => tousLesJoueurs.find((j) => j.nom === nom)).filter(Boolean);
         const apercu = cibles.length ? ONZE.equipeDepuisFiches("Cible", "Toi", cibles) : null;
-        const disponibles = [...tousLesJoueurs].sort((a, b) => a.cout - b.cout || a.nom.localeCompare(b.nom));
+        const disponibles = [...tousLesJoueurs]
+          .filter((j) => (!filtre.ecole || j.ecole === filtre.ecole) &&
+            (!filtre.archetype || j.archetype === filtre.archetype))
+          .sort((a, b) => a.cout - b.cout || a.nom.localeCompare(b.nom));
+        const options = (familles, choisi, tous) => `<option value="">${tous}</option>` +
+          Object.keys(familles).map((nom) =>
+            `<option value="${nom}"${nom === choisi ? " selected" : ""}>${nom}</option>`).join("");
         volet.innerHTML = `<div class="panneau" style="max-width:560px">
           <strong>📝 Le Calepin du recruteur</strong>
           <small style="color:var(--craie-sourde)">· ${partie.calepin.length}/11 épinglés — ils brilleront en boutique</small>
@@ -1735,17 +1846,29 @@
             <button class="fermer-volet" style="width:auto;margin:0;padding:6px 10px" data-action="vider">🗑 Vider</button>
           </div>
           ${apercu ? `<div class="synergies" style="margin-bottom:6px">${ONZE_UI.badges(apercu)}</div>` : ""}
+          <div class="filtres-galerie">
+            <select data-filtre="ecole">${options(ONZE_UI.GLYPHES.ecoles, filtre.ecole, "Toutes les Écoles")}</select>
+            <select data-filtre="archetype">${options(ONZE_UI.GLYPHES.archetypes, filtre.archetype, "Tous les archétypes")}</select>
+            ${filtre.ecole || filtre.archetype
+              ? `<span style="color:var(--craie-sourde);font-size:0.68rem">${disponibles.length} joueur${disponibles.length > 1 ? "s" : ""}</span>` : ""}
+          </div>
           <div class="galerie">${disponibles.map((j) => {
             const epingle = partie.calepin.includes(j.nom);
             return `<div class="carte-galerie${epingle ? " epingle" : ""}" data-nom="${j.nom.replace(/"/g, "&quot;")}">
               <span class="pastille p-${j.poste}">${ONZE_UI.GLYPHES.postes[j.poste]}</span>
               <strong>${j.nom}</strong> <span style="color:var(--or-trophee)">${j.cout}M</span><br>
               <span class="glyphes-famille">${ONZE_UI.glyphe(j.ecole)}${ONZE_UI.glyphe(j.archetype)}</span></div>`;
-          }).join("")}</div>
+          }).join("") || `<div style="color:var(--craie-sourde);font-size:0.72rem;padding:8px">Personne ne cumule ces deux familles — change un filtre.</div>`}</div>
           <button class="fermer-volet" data-action="fermer">Fermer</button>
         </div>`;
       };
       rendre();
+      volet.addEventListener("change", (e) => {
+        const cle = e.target.dataset && e.target.dataset.filtre;
+        if (!cle) return;
+        filtre[cle] = e.target.value;
+        rendre();
+      });
       volet.addEventListener("click", (e) => {
         if (e.target === volet) return volet.remove();
         const action = e.target.closest("[data-action]") && e.target.closest("[data-action]").dataset.action;
@@ -1855,7 +1978,7 @@
         texte: "🏟️ Lance ta première manche ! Les 3 premières sont des <strong>amicaux</strong> : aucun risque, et du <strong>butin</strong> à la clé.",
         attend: "match" },
       { id: "orbes", cible: null, position: "centre", declencheur: "orbes",
-        texte: "🎁 Ton butin ! Touche chaque <strong>orbe</strong> pour l'ouvrir — or, joueurs gratuits, cartes staff…",
+        texte: "🎁 Ton butin tombe sur le terrain — des <strong>orbes</strong> qui se ramassent toutes seules : or, joueurs gratuits, cartes staff… Le contenu défile en bannières.",
         attend: "orbe" },
       { id: "staff", cible: "col-synergies", position: "gauche", declencheur: "carteStaff",
         texte: "🧰 Une <strong>carte staff</strong> ! Touche-la dans la colonne de gauche pour l'assigner à un joueur.<br><strong>Deux cartes sur le même joueur fusionnent</strong> en spécialisation définitive.",
@@ -1954,8 +2077,8 @@
       const versStaff = pageGauche === "synergies";
       el("page-synergies").classList.toggle("masque", !versStaff);
       el("page-staff").classList.toggle("masque", versStaff);
-      el("btn-bascule-gauche").textContent = versStaff
-        ? `🧰 Staff${partie.staff.length ? " (" + partie.staff.length + ")" : ""} · 🎯 quêtes`
+      el("btn-bascule-gauche").innerHTML = versStaff
+        ? `${ONZE_ICONES_SYS.ic("staff", 13)} Staff${partie.staff.length ? " (" + partie.staff.length + ")" : ""} · ${ONZE_ICONES_SYS.ic("cible", 13)} quêtes`
         : "✦ Synergies · ADN";
     }
 
@@ -1963,9 +2086,9 @@
     function ligneClassement() {
       return partie.coachs.slice().sort((a, b) => b.prestige - a.prestige).map((c) => {
         const classes = "coach" + (c.ia ? "" : " moi") + (c.vivant ? "" : " mort");
-        const serie = c.serie > 1 ? ` 🔥${c.serie}` : "";
+        const serie = c.serie > 1 ? ` ${ONZE_ICONES_SYS.ic("flamme", 10)}${c.serie}` : "";
         const indice = partie.coachs.indexOf(c);
-        return `<div class="${classes}" style="cursor:pointer" onclick="scouterIndice(${indice})"><span>🔎 ${c.nom}${serie}</span><span>💚 ${c.prestige}</span></div>`;
+        return `<div class="${classes}" style="cursor:pointer" onclick="scouterIndice(${indice})"><span>${ONZE_ICONES_SYS.ic("loupe", 11)} ${c.nom}${serie}</span><span>${ONZE_ICONES_SYS.ic("coeur", 10)} ${c.prestige}</span></div>`;
       }).join("");
     }
     function ouvrirClassement() {
@@ -2020,7 +2143,7 @@
       const rendre = () => {
         const c = clubs[indice];
         const adverse = !!c.ia;
-        const equipe = adverse ? (c.equipe = c.equipe || genererEquipeIA(c)) : equipeDuClub();
+        const equipe = adverse ? (c.equipe = c.equipe || ONZE_IA.equipeDe(c, { ECO: ONZE_ECO, M: ONZE, difficulte: partie.difficulte })) : equipeDuClub();
         voile.setAttribute("data-equipe-adverse", adverse ? "1" : "");
         voile.equipeScoutee = adverse ? equipe : null;
         const axes = ONZE.adnClub(equipe);
@@ -2029,7 +2152,7 @@
         voile.innerHTML = `<div class="fiche-joueur${adverse ? " visite" : ""}">
           <div class="nav-vestiaire">
             <button class="fleche-vestiaire" data-nav="-1">◀</button>
-            <h3 style="margin:0">🔎 ${equipe.nom}${adverse ? ` <span class="tag-visite">🟡 tu visites</span>` : ""}</h3>
+            <h3 style="margin:0">${ONZE_ICONES_SYS.ic("loupe", 14)} ${equipe.nom}${adverse ? ` <span class="tag-visite">🟡 tu visites</span>` : ""}</h3>
             <button class="fleche-vestiaire" data-nav="1">▶</button>
           </div>
           <div class="sous-titre">${adverse ? "École " + c.ecole + " · 💚 " + c.prestige + " — swipe pour changer de club" : "ton propre vestiaire — swipe pour visiter les autres"}</div>
@@ -2127,28 +2250,41 @@
         const fiche = partie[nomListe][Number(indice)];
         const enAttente = (fiche.staffCartes || [])[0];
         const fusion = enAttente ? apercuCombo(enAttente, carte) : null;
-        if (fusion) {
-          // confirmation : une fusion est définitive
-          const confirmation = document.createElement("div");
-          confirmation.className = "voile-fiche";
-          confirmation.innerHTML = `<div class="fiche-joueur" style="max-width:300px;text-align:center">
-            <h3>⚗️ Fusionner ?</h3>
-            <div class="sous-titre">${enAttente} + ${carte} sur ${fiche.nom}<br>→ <strong>${fusion}</strong></div>
-            <div style="color:var(--alerte-claire);font-size:0.72rem;margin-bottom:6px">C'est définitif.</div>
-            <button class="fermer" data-choix="oui" style="background:var(--gazon-electrique);color:var(--nuit-profonde)">Fusionner</button>
-            <button class="fermer" data-choix="non">Annuler</button>
-          </div>`;
-          confirmation.addEventListener("click", (e2) => {
-            const choix = e2.target.dataset && e2.target.dataset.choix;
-            if (e2.target === confirmation || choix === "non") return confirmation.remove();
-            if (choix === "oui") { confirmation.remove(); appliquerCarte(fiche, carte, indiceCarte); }
-          });
-          el("app").appendChild(confirmation);
-          return;
-        }
+        if (fusion) return confirmerFusionStaff(fiche, carte, indiceCarte, enAttente, fusion);
         appliquerCarte(fiche, carte, indiceCarte);
       });
       el("app").appendChild(voile);
+    }
+    /* Une fusion de staff est DÉFINITIVE : confirmation partagée par le
+       tap-choisir et le drag & drop. */
+    function confirmerFusionStaff(fiche, carte, indiceCarte, enAttente, fusion) {
+      const confirmation = document.createElement("div");
+      confirmation.className = "voile-fiche";
+      confirmation.innerHTML = `<div class="fiche-joueur" style="max-width:300px;text-align:center">
+        <h3>⚗️ Fusionner ?</h3>
+        <div class="sous-titre">${enAttente} + ${carte} sur ${fiche.nom}<br>→ <strong>${fusion}</strong></div>
+        <div style="color:var(--alerte-claire);font-size:0.72rem;margin-bottom:6px">C'est définitif.</div>
+        <button class="fermer" data-choix="oui" style="background:var(--gazon-electrique);color:var(--nuit-profonde)">Fusionner</button>
+        <button class="fermer" data-choix="non">Annuler</button>
+      </div>`;
+      confirmation.addEventListener("click", (e2) => {
+        const choix = e2.target.dataset && e2.target.dataset.choix;
+        if (e2.target === confirmation || choix === "non") return confirmation.remove();
+        if (choix === "oui") { confirmation.remove(); appliquerCarte(fiche, carte, indiceCarte); }
+      });
+      el("app").appendChild(confirmation);
+    }
+    /* Le DRAG & DROP du staff (post-playtest 4) : une carte glissée de
+       l'inventaire directement sur un joueur — le tap-choisir reste. */
+    function deposerStaffSur(indiceCarte, fiche) {
+      const carte = partie.staff[indiceCarte];
+      if (!carte || !fiche) return;
+      if (RELIQUES[carte]) return assignerRelique(indiceCarte);      // choix guidé conservé
+      if (CONSOMMABLES[carte]) return utiliserConsommable(indiceCarte);
+      const enAttente = (fiche.staffCartes || [])[0];
+      const fusion = enAttente ? apercuCombo(enAttente, carte) : null;
+      if (fusion) return confirmerFusionStaff(fiche, carte, indiceCarte, enAttente, fusion);
+      appliquerCarte(fiche, carte, indiceCarte);
     }
     function appliquerCarte(fiche, carte, indiceCarte) {
       const resultat = ONZE.assignerCarte(fiche, carte);
@@ -2305,6 +2441,55 @@
        (lignes échangées sur le terrain, titularisation banc↔terrain).
        Re-tap sur le même : ouvre le menu (fiche, ligne, banc, vendre). */
     let selection = null;
+    /* Titularisation banc → terrain sur une ligne précise — partagée par
+       le drag & drop et le tap sur une case vide (grille de placement). */
+    function titulariserDepuisBanc(indice, idLigne) {
+      const fiche = partie.banc[indice];
+      if (!fiche) return afficher();
+      const gardienEnPlace = partie.terrain.find((j) => j !== fiche && ligneDe(j) === "GAR");
+      const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
+      if (partie.terrain.length >= max) {
+        // terrain plein : échange auto avec un joueur de la ligne visée
+        const sortant = partie.terrain.find((j) => ligneDe(j) === idLigne) || partie.terrain[0];
+        const indiceSortant = partie.terrain.indexOf(sortant);
+        partie.banc.splice(indice, 1);
+        const ligneRecue = ligneDe(sortant);
+        sortant.ligne = undefined;
+        partie.banc.push(sortant);
+        fiche.ligne = idLigne === fiche.poste ? undefined : idLigne;
+        if (idLigne === "GAR" && fiche.poste !== "GAR" && gardienEnPlace) fiche.ligne = ligneRecue === fiche.poste ? undefined : ligneRecue;
+        partie.terrain.splice(indiceSortant, 0, fiche);
+      } else {
+        partie.banc.splice(indice, 1);
+        if (idLigne === "GAR" && gardienEnPlace) {
+          if (fiche.poste === "GAR") { // 2ᵉ gardien : échange intelligent
+            partie.terrain.splice(partie.terrain.indexOf(gardienEnPlace), 1);
+            gardienEnPlace.ligne = undefined;
+            partie.banc.push(gardienEnPlace);
+            fiche.ligne = undefined;
+          } else fiche.ligne = undefined; // pas de 2ᵉ dans les buts : ligne naturelle
+        } else fiche.ligne = idLigne === fiche.poste ? undefined : idLigne;
+        partie.terrain.push(fiche);
+      }
+      afficher();
+    }
+    /* Tap sur une case vide de la grille : place la sélection ICI. */
+    function tapCaseVide(ligne) {
+      if (!selection) return;
+      const sel = selection;
+      selection = null;
+      if (partie.matchEnCours) { afficher(); return signaler("⏳ Les changements prendront effet à la manche suivante."); }
+      if (sel.nomListe === "terrain") {
+        const j = partie.terrain[sel.indice];
+        if (!j) return afficher();
+        if (ligne === "GAR" && partie.terrain.some((x) => x !== j && ligneDe(x) === "GAR")) return afficher();
+        j.ligne = ligne === j.poste ? undefined : ligne;
+        afficher();
+        return;
+      }
+      if (sel.nomListe === "banc") titulariserDepuisBanc(sel.indice, ligne);
+    }
+
     function tapJeton(nomListe, indice) {
       if (!selection) {
         selection = { nomListe, indice };
@@ -2459,11 +2644,11 @@
 
     /* La ligne de progression : icône et « un mot » par manche */
     function iconeManche(m) {
-      if (m <= DERNIERE_MANCHE_AMICALE) return "🤝";
-      if (MANCHES_MERCATO_HIVER.includes(m)) return "❄️";
-      if (MANCHES_COUPE.includes(m)) return "🏆";
-      if (MANCHES_PHILOSOPHIE.includes(m)) return "🧭";
-      return "⚔️";
+      if (m <= DERNIERE_MANCHE_AMICALE) return ONZE_ICONES_SYS.ic("poignee", 12);
+      if (MANCHES_MERCATO_HIVER.includes(m)) return ONZE_ICONES_SYS.ic("flocon", 12);
+      if (MANCHES_COUPE.includes(m)) return ONZE_ICONES_SYS.ic("trophee", 12);
+      if (MANCHES_PHILOSOPHIE.includes(m)) return ONZE_ICONES_SYS.ic("boussole", 12);
+      return ONZE_ICONES_SYS.ic("epees", 12);
     }
     function infoManche(m) {
       let texte;
@@ -2526,18 +2711,31 @@
       el("niveau").textContent = partie.niveau;
       el("xp").textContent = partie.xp;
       el("xp-suivant").textContent = XP_POUR_MONTER[partie.niveau] || "MAX";
-      el("serie").textContent = moi().serie > 0 ? "🔥" + moi().serie : moi().serie < 0 ? "❄️" + (-moi().serie) : "—";
+      el("serie").innerHTML = moi().serie > 0 ? ONZE_ICONES_SYS.ic("flamme", 11) + moi().serie : moi().serie < 0 ? ONZE_ICONES_SYS.ic("flocon", 11) + (-moi().serie) : "—";
       el("staff").textContent = partie.staff.length;
       el("ferveur").textContent = partie.compteurs.ferveur;
 
-      // Le terrain : les titulaires à leur LIGNE JOUÉE (formation libre)
+      // Le terrain : la GRILLE DE CASES explicites (post-playtest 3) —
+      // chaque ligne (cage + DÉF/MIL/ATT) montre ses emplacements, vides
+      // compris ; un joueur posé occupe visiblement SA case ; au-delà des
+      // places du niveau, les cases restent verrouillées (grisées).
       for (const poste of ["GAR", "DÉF", "MIL", "ATT"]) el("ligne-" + poste).innerHTML = "";
-      partie.terrain.forEach((fiche, i) => {
-        el("ligne-" + (fiche.ligne || fiche.poste)).insertAdjacentHTML("beforeend", jetonHTML(fiche, "terrain", i));
-      });
-      const libres = max - partie.terrain.length;
-      for (let i = 0; i < libres; i++)
-        el("ligne-MIL").insertAdjacentHTML("beforeend", `<div class="jeton vide">+</div>`);
+      const parLigneTerrain = { "GAR": [], "DÉF": [], "MIL": [], "ATT": [] };
+      partie.terrain.forEach((fiche, i) => parLigneTerrain[fiche.ligne || fiche.poste].push([fiche, i]));
+      const quotaLigne = Math.ceil((max - 1) / 3);
+      let videsDisponibles = max - partie.terrain.length;
+      for (const poste of ["GAR", "DÉF", "MIL", "ATT"]) {
+        const zone = el("ligne-" + poste);
+        for (const [fiche, i] of parLigneTerrain[poste]) zone.insertAdjacentHTML("beforeend", jetonHTML(fiche, "terrain", i));
+        const cible = poste === "GAR" ? 1 : quotaLigne;
+        for (let v = parLigneTerrain[poste].length; v < cible; v++) {
+          const dispo = videsDisponibles > 0;
+          if (dispo) videsDisponibles--;
+          zone.insertAdjacentHTML("beforeend", dispo
+            ? `<div class="case-vide" data-ligne="${poste}" onclick="tapCaseVide('${poste}')">+</div>`
+            : `<div class="case-vide verrouillee" title="Monte en niveau pour débloquer cette place"></div>`);
+        }
+      }
 
       // Banc et boutique dans le tiroir
       el("banc").innerHTML = partie.banc.length
@@ -2583,7 +2781,15 @@
 
       el("btn-refresh").disabled = partie.or < COUT_REFRESH;
       el("btn-xp").disabled = partie.or < COUT_XP || partie.niveau >= 10;
-      el("btn-verrou").textContent = partie.verrou ? "🔒" : "🔓";
+      el("btn-verrou").innerHTML = ONZE_ICONES_SYS.ic(partie.verrou ? "cadenas" : "cadenas-ouvert", 16);
+      // le bloc XP de la boutique (façon TFT) : niveau, jauge, odds du niveau
+      el("niveau-boutique").textContent = partie.niveau;
+      const xpRequis = XP_POUR_MONTER[partie.niveau];
+      el("xp-boutique").textContent = xpRequis ? `${partie.xp}/${xpRequis} xp` : "max";
+      el("xp-jauge-remplissage").style.width = xpRequis ? Math.min(100, 100 * partie.xp / xpRequis) + "%" : "100%";
+      const oddsNiveau = ODDS_PAR_NIVEAU[Math.min(partie.niveau, 10)];
+      el("odds-affiche").innerHTML = oddsNiveau.map((pc, i) =>
+        `<span style="color:var(--cout-${i + 1})">${pc}</span>`).join("");
 
       // Synergies + mini ADN
       const apercu = equipeDuClub();
@@ -2619,7 +2825,7 @@
           partie.staff.map((carte, i) => {
             const icone = RELIQUES[carte] ? "🏺" : CONSOMMABLES[carte] ? "🧪" : carte === "Passeport" ? "🛂" : "🧰";
             const rare = RELIQUES[carte] || carte === "Passeport";
-            return `<span class="badge${rare ? " presque" : ""}" style="cursor:pointer;display:block;text-align:left" onclick="assignerStaff(${i})">${icone} ${carte}</span>`;
+            return `<span class="badge badge-staff${rare ? " presque" : ""}" data-staff="${i}" style="cursor:grab;display:block;text-align:left;touch-action:none" onclick="assignerStaff(${i})">${icone} ${carte}</span>`;
           }).join("")
         : "";
 
@@ -2637,7 +2843,7 @@
         .sort((a, b) => b.prestige - a.prestige).map((c) => {
           const indice = partie.coachs.indexOf(c);
           const classes = "coach-ligne" + (c.ia ? "" : " moi") + (c.vivant ? "" : " mort");
-          const serie = c.serie > 1 ? " 🔥" : c.serie < -1 ? " ❄️" : "";
+          const serie = c.serie > 1 ? ` ${ONZE_ICONES_SYS.ic("flamme", 10)}` : c.serie < -1 ? ` ${ONZE_ICONES_SYS.ic("flocon", 10)}` : "";
           return `<div class="${classes}" data-indice="${indice}" onclick="scouterIndice(${indice})">${c.nom}${serie}
             <div class="barre-prestige"><div style="width:${Math.round(100 * c.prestige / PRESTIGE_DEPART)}%"></div></div></div>`;
         }).join("");
@@ -2656,8 +2862,8 @@
       if (!partie.matchEnCours) {
         const verdict = verdictFormation();
         el("btn-match").disabled = !!verdict;
-        el("btn-match").textContent = verdict ? "⚽ " + verdict
-          : `⚽ Manche ${partie.manche}` + (formationIncomplete() ? " 😬" : "");
+        el("btn-match").innerHTML = verdict ? `${ONZE_ICONES_SYS.ic("ballon", 13)} ` + verdict
+          : `${ONZE_ICONES_SYS.ic("ballon", 13)} Manche ${partie.manche}` + (formationIncomplete() ? " 😬" : "");
       }
       sauvegarder();
     }
@@ -2757,7 +2963,7 @@
     const CLE_SAUVEGARDE = "onze-partie-v1";
     // Incrémenter quand le schéma de partie change : une sauvegarde d'une
     // autre version est écartée au chargement (plus jamais de partie coincée)
-    const VERSION_SAUVEGARDE = 2;
+    const VERSION_SAUVEGARDE = 3; // v3 : les IA portent un état économique complet (etatIA)
     function sauvegarder() {
       if (!partie || partie.matchEnCours) return;
       try {
@@ -2903,6 +3109,82 @@
       if (drag.depasse) { e.stopPropagation(); e.preventDefault(); }
     }, true);
 
+    /* ---- Le drag du STAFF : inventaire → joueur, aperçu en survol ---- */
+    const dragStaff = { candidat: null, actif: false, indice: -1, fantome: null, depasse: false };
+    document.addEventListener("pointerdown", (e) => {
+      const badge = e.target.closest(".badge-staff");
+      if (!badge) return;
+      dragStaff.candidat = { x: e.clientX, y: e.clientY, indice: Number(badge.dataset.staff) };
+    });
+    document.addEventListener("pointermove", (e) => {
+      if (dragStaff.candidat && !dragStaff.actif &&
+          Math.hypot(e.clientX - dragStaff.candidat.x, e.clientY - dragStaff.candidat.y) > 8) {
+        dragStaff.actif = true;
+        dragStaff.depasse = true;
+        dragStaff.indice = dragStaff.candidat.indice;
+        const carte = partie.staff[dragStaff.indice];
+        const f = document.createElement("div");
+        f.className = "fantome";
+        f.innerHTML = `<span class="badge" style="font-size:0.72rem">🧰 ${carte}</span>`;
+        el("app").appendChild(f);
+        dragStaff.fantome = f;
+      }
+      if (!dragStaff.actif) return;
+      e.preventDefault();
+      dragStaff.fantome.style.transform = `translate3d(${e.clientX - 24}px, ${e.clientY - 34}px, 0) rotate(-4deg)`;
+      document.querySelectorAll(".jeton.cible-staff").forEach((x) => x.classList.remove("cible-staff"));
+      const dessous = document.elementFromPoint(e.clientX, e.clientY);
+      const jeton = dessous && dessous.closest(".jeton[data-liste]");
+      let apercu = "";
+      if (jeton) {
+        jeton.classList.add("cible-staff");
+        const fiche = partie[jeton.dataset.liste][Number(jeton.dataset.indice)];
+        const carte = partie.staff[dragStaff.indice];
+        if (fiche && carte && !RELIQUES[carte] && !CONSOMMABLES[carte]) {
+          const enAttente = (fiche.staffCartes || [])[0];
+          apercu = enAttente ? "⚗️ → " + (apercuCombo(enAttente, carte) || "combo impossible")
+            : "1ʳᵉ carte — petit bonus";
+        }
+      }
+      let bulle = dragStaff.fantome.querySelector(".etiquette-apercu");
+      if (apercu) {
+        if (!bulle) { bulle = document.createElement("span"); bulle.className = "etiquette-apercu"; dragStaff.fantome.appendChild(bulle); }
+        bulle.textContent = apercu;
+      } else if (bulle) bulle.remove();
+    }, { passive: false });
+    document.addEventListener("pointerup", (e) => {
+      dragStaff.candidat = null;
+      if (!dragStaff.actif) return;
+      dragStaff.actif = false;
+      if (dragStaff.fantome) dragStaff.fantome.remove();
+      dragStaff.fantome = null;
+      document.querySelectorAll(".jeton.cible-staff").forEach((x) => x.classList.remove("cible-staff"));
+      const dessous = document.elementFromPoint(e.clientX, e.clientY);
+      const jeton = dessous && dessous.closest(".jeton[data-liste]");
+      if (jeton) {
+        const fiche = partie[jeton.dataset.liste][Number(jeton.dataset.indice)];
+        deposerStaffSur(dragStaff.indice, fiche);
+      }
+      setTimeout(() => { dragStaff.depasse = false; }, 80);
+    });
+    document.addEventListener("pointercancel", () => {
+      dragStaff.candidat = null;
+      if (!dragStaff.actif) return;
+      dragStaff.actif = false;
+      if (dragStaff.fantome) dragStaff.fantome.remove();
+      dragStaff.fantome = null;
+      document.querySelectorAll(".jeton.cible-staff").forEach((x) => x.classList.remove("cible-staff"));
+      setTimeout(() => { dragStaff.depasse = false; }, 80);
+    });
+    document.addEventListener("click", (e) => {
+      if (dragStaff.depasse) { e.stopPropagation(); e.preventDefault(); }
+    }, true);
+    // le drag NATIF du navigateur (texte sélectionné, image…) couperait nos
+    // gestes d'un pointercancel : jamais pendant un drag maison
+    document.addEventListener("dragstart", (e) => {
+      if (drag.candidat || drag.actif || dragStaff.candidat || dragStaff.actif) e.preventDefault();
+    });
+
     function finirDrag(sous) {
       const { fiche, nomListe, indice } = drag;
       drag.actif = false;
@@ -2936,32 +3218,8 @@
           fiche.ligne = idLigne === fiche.poste ? undefined : idLigne;
           afficher(); return;
         }
-        // banc → terrain : titularisation sur la ligne visée
-        const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
-        if (partie.terrain.length >= max) {
-          // terrain plein : échange auto avec un joueur de la ligne visée
-          const sortant = partie.terrain.find((j) => ligneDe(j) === idLigne) || partie.terrain[0];
-          const indiceSortant = partie.terrain.indexOf(sortant);
-          partie.banc.splice(indice, 1);
-          const ligneRecue = ligneDe(sortant);
-          sortant.ligne = undefined;
-          partie.banc.push(sortant);
-          fiche.ligne = idLigne === fiche.poste ? undefined : idLigne;
-          if (idLigne === "GAR" && fiche.poste !== "GAR" && gardienEnPlace) fiche.ligne = ligneRecue === fiche.poste ? undefined : ligneRecue;
-          partie.terrain.splice(indiceSortant, 0, fiche);
-        } else {
-          partie.banc.splice(indice, 1);
-          if (idLigne === "GAR" && gardienEnPlace) {
-            if (fiche.poste === "GAR") { // 2ᵉ gardien : échange intelligent
-              partie.terrain.splice(partie.terrain.indexOf(gardienEnPlace), 1);
-              gardienEnPlace.ligne = undefined;
-              partie.banc.push(gardienEnPlace);
-              fiche.ligne = undefined;
-            } else fiche.ligne = undefined; // pas de 2ᵉ dans les buts : ligne naturelle
-          } else fiche.ligne = idLigne === fiche.poste ? undefined : idLigne;
-          partie.terrain.push(fiche);
-        }
-        afficher(); return;
+        titulariserDepuisBanc(indice, idLigne);
+        return;
       }
       // 4. vers le banc : sortie du terrain
       if (sous.banc && nomListe === "terrain") {
@@ -2987,6 +3245,7 @@
             { enCours: partie.matchEnCours }); // en direct : zéro spoiler
         });
         // Boutique escamotable : tap sur le sac d'or (état non sauvegardé)
+        el("odds-affiche").addEventListener("click", ouvrirStatsBoutique);
         el("btn-sac").addEventListener("click", () => {
           const replie = el("boutique-barre").classList.toggle("repliee");
           el("btn-sac").textContent = replie ? "👜" : "🪙";
@@ -3026,7 +3285,7 @@
         });
         el("btn-vitesse").addEventListener("click", () => {
           const v = ONZE_UI.basculerVitesse();
-          el("btn-vitesse").textContent = v === 2 ? "▶️ ×1" : "⏩ ×2";
+          el("btn-vitesse").innerHTML = `${ONZE_ICONES_SYS.ic("vitesse", 13)} ` + (v === 2 ? "×1" : "×2");
         });
         if (!restaurer()) { nouvellePartie(); proposerTutoriel(); }
       })
