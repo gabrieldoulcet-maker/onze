@@ -277,7 +277,22 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
 
   /* ---- Un MATCH PLEIN sous instruments : régimes, durées, mouvement,
      étiquettes, ballon jamais téléporté ---- */
-  const releve = await page.evaluate(async () => {
+  /* Le match de relevé doit avoir de la MATIÈRE : un 0-0 à une seule
+     occasion ne prouve rien sur les buts ni sur les formats. On rejoue
+     (jusqu'à 4 fois) jusqu'à décrocher un match avec au moins un but —
+     le moteur n'est pas touché, on tire juste un autre match. */
+  let releve = null;
+  for (let essai = 0; essai < 4; essai++) {
+    releve = await mesurerUnMatch(page);
+    if (releve.buts >= 1 && releve.misesEnPlace >= 2) break;
+    console.log(`   (relevé ${essai + 1} sans matière — ${releve.buts} but(s), ${releve.misesEnPlace} temps fort(s) — on rejoue)`);
+  }
+
+  async function mesurerUnMatch(pageDuMatch) { return pageDuMatch.evaluate(async () => {
+    // repartir propre : si un bilan de manche traîne, on le referme
+    const btn = document.getElementById("btn-continuer");
+    if (btn) btn.click();
+    document.querySelectorAll(".volet").forEach((v) => v.remove());
     arreterChrono();
     partie.manche = 10;
     // on instrumente la scène AVANT qu'elle naisse
@@ -351,10 +366,25 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       // la durée d'affichage d'une issue avant la suite
       issuesMs: journal.temps.map((x, i) => x.issue && journal.temps[i + 1]
         ? journal.temps[i + 1].t - x.t : null).filter((v) => v !== null),
-      // la durée réelle des temps DÉCISIFS non terminaux (percée, frappe) :
-      // l'issue est exclue, sa suite est un cut et fausserait la mesure
-      decisifsMs: journal.temps.map((x, i) => x.decisif && !x.issue && journal.temps[i + 1]
-        ? journal.temps[i + 1].t - x.t : null).filter((v) => v !== null),
+      /* La durée réelle des temps DÉCISIFS non terminaux (percée, frappe).
+         L'issue est exclue : sa suite est un cut et fausserait la mesure.
+         Chaque temps est rattaché à son FORMAT (décision 31) — on le lit
+         sur la mise en place qui l'ouvre : ~3 s en grand, ~1,2 s en
+         court. Les deux formats n'ont pas le même contrat de patience. */
+      decisifs: (() => {
+        const sortie = [];
+        let formatCourant = null;
+        journal.temps.forEach((x, i) => {
+          if (x.type === "_miseEnPlace") {
+            const mep = journal.temps[i + 1] ? journal.temps[i + 1].t - x.t : 0;
+            formatCourant = mep >= 2000 ? "grand" : "court";
+            return;
+          }
+          if (!x.decisif || x.issue || !journal.temps[i + 1]) return;
+          sortie.push({ format: formatCourant, duree: journal.temps[i + 1].t - x.t });
+        });
+        return sortie;
+      })(),
       issues: journal.temps.filter((t) => t.issue).length,
       buts: journal.temps.filter((t) => t.type === "issue_but").length,
       ecartMin: ecarts.length ? Math.min(...ecarts) : 0,
@@ -365,7 +395,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       etiqMed: etiqAction.length ? etiqAction.slice().sort((a, b) => a - b)[Math.floor(etiqAction.length / 2)] : 0,
       etiqBut,
     };
-  });
+  }); }
 
   verifier(`R2 : aucun régime « domination » (${releve.regimes.join(", ")})`,
     !releve.regimes.includes("domination"));
@@ -389,11 +419,15 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   const plafondDur = releve.buts >= 6 ? 65000 : 54000;
   verifier(`R9 : plafond dur de ~50 s tenu (${(releve.duree / 1000).toFixed(1)} s pour ${releve.misesEnPlace} rendus dont ${releve.buts} buts, limite ${(plafondDur / 1000).toFixed(0)} s)`,
     releve.duree > 20000 && releve.duree < plafondDur);
-  // Règle 3 de la spec : les temps DÉCISIFS (percée, frappe, issue) sont
-  // patients — 1,5 s au moins. C'est la patience de FM qui rend lisible.
-  const decisifsCourts = releve.decisifsMs.filter((v) => v < 1450).length;
-  verifier(`Règle 3 : les temps décisifs sont patients (${releve.decisifsMs.length} mesurés, le plus court ${releve.decisifsMs.length ? Math.round(Math.min(...releve.decisifsMs)) : "—"} ms ≥ 1450)`,
-    releve.decisifsMs.length >= 3 && decisifsCourts === 0);
+  /* Règle 3 : la patience. Le GRAND format tient ses temps décisifs à
+     1,5-2 s. Le FORMAT COURT (décision 31) les tient à 1-1,3 s — c'est
+     la construction qu'il raccourcit, jamais la chorégraphie du but. */
+  const decGrand = releve.decisifs.filter((d) => d.format === "grand").map((d) => d.duree);
+  const decCourt = releve.decisifs.filter((d) => d.format === "court").map((d) => d.duree);
+  verifier(`Règle 3 : les temps décisifs du GRAND format sont patients (${decGrand.length} mesurés, le plus court ${decGrand.length ? Math.round(Math.min(...decGrand)) : "—"} ms ≥ 1450)`,
+    decGrand.length >= 1 && decGrand.every((v) => v >= 1450));
+  verifier(`Décision 31 : les temps de construction du FORMAT COURT tiennent 1-1,3 s (${decCourt.length} mesurés${decCourt.length ? `, de ${Math.round(Math.min(...decCourt))} à ${Math.round(Math.max(...decCourt))} ms` : ""})`,
+    decCourt.every((v) => v >= 1000 && v <= 1400));
   verifier(`R4 : les 22 pions bougent en permanence (vitesse moyenne ${releve.vitesseMoyenne.toFixed(2)} %/s, ${Math.round(releve.partsImmobiles * 100)} % de relevés figés)`,
     releve.vitesseMoyenne > 0.8 && releve.partsImmobiles < 0.2);
   verifier(`R4 : le ballon ne se téléporte jamais (saut max ${releve.sautMaxBallon.toFixed(1)} % de terrain en 50 ms)`,
