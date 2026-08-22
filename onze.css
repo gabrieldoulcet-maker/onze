@@ -97,6 +97,8 @@ body {
   user-select: none;
 }
 input, textarea { -webkit-user-select: text; user-select: text; }
+/* Les icônes système (Lot 6) s'alignent sur la ligne de texte */
+.ic-sys { display: inline-block; vertical-align: -0.15em; }
 header { text-align: center; margin-bottom: 12px; }
 header h1 { font-family: var(--police-display); font-weight: 400; font-size: 1.7rem; margin: 0; letter-spacing: 1px; transform: var(--pente); }
 header h1 span { color: var(--gazon-electrique); }

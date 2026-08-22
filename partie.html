@@ -492,25 +492,25 @@
 
   <!-- ===== Barre du haut ===== -->
   <div class="haut">
-    <span class="manche-info" id="btn-historique">📜
-      💚 <span id="prestige">40</span> · Niv <span id="niveau">3</span> ·
+    <span class="manche-info" id="btn-historique"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-parchemin"></use></svg>
+      <span style="color:var(--gazon-electrique)"><svg class="ic-sys" width="12" height="12" viewBox="0 0 48 48"><use href="#is-coeur"></use></svg></span> <span id="prestige">40</span> · Niv <span id="niveau">3</span> ·
       XP <span id="xp">0</span>/<span id="xp-suivant">6</span> ·
-      <span id="serie">—</span> · 🧰 <span id="staff">0</span> · 🔥 <span id="ferveur">0</span><span class="masque" id="manche">1</span></span>
+      <span id="serie">—</span> · <svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-staff"></use></svg> <span id="staff">0</span> · <span style="color:var(--alerte-claire)"><svg class="ic-sys" width="12" height="12" viewBox="0 0 48 48"><use href="#is-flamme"></use></svg></span> <span id="ferveur">0</span><span class="masque" id="manche">1</span></span>
     <div class="progression">
       <div class="rangee-pastilles" id="progression"></div>
       <div class="chrono-barre masque" id="chrono-barre"><div id="chrono-remplissage"></div></div>
     </div>
-    <button id="btn-calepin">📝</button>
-    <button id="btn-plein-ecran">⛶</button>
-    <button id="btn-recap" class="masque">⚔️</button>
-    <button id="btn-vitesse" class="masque">⏩ ×2</button>
+    <button id="btn-calepin"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-calepin"></use></svg></button>
+    <button id="btn-plein-ecran"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-plein-ecran"></use></svg></button>
+    <button id="btn-recap" class="masque"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-epees"></use></svg></button>
+    <button id="btn-vitesse" class="masque"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-vitesse"></use></svg> ×2</button>
   </div>
 
   <!-- ===== Centre : synergies | plateau + banc | classement ===== -->
   <div class="centre">
     <div class="col-synergies">
       <button id="btn-legende" style="background:var(--surface-1);color:var(--craie-sourde);border:1px solid var(--ligne);border-radius:6px;font-size:0.6rem;padding:2px;cursor:pointer">？ Légende</button>
-      <button id="btn-bascule-gauche">🧰 Staff · 🎯</button>
+      <button id="btn-bascule-gauche"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-staff"></use></svg> Staff · <svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-cible"></use></svg></button>
       <div id="page-synergies">
         <div id="synergies-club"></div>
         <div class="mini-adn" id="axes-adn"></div>
@@ -530,7 +530,7 @@
           <span id="nom-adversaire-match"></span>
           <span class="score-match"> <span id="score-a">0</span> – <span id="score-b">0</span> </span>
           <span id="chrono"></span>
-          <button class="btn-journal" id="btn-journal" title="Journal du match">📜</button>
+          <button class="btn-journal" id="btn-journal" title="Journal du match"><svg class="ic-sys" width="14" height="14" viewBox="0 0 48 48"><use href="#is-parchemin"></use></svg></button>
           <div class="jauge-domination"><div id="jauge-dom"></div></div>
         </div>
         <div class="journal" id="recit"></div>
@@ -540,7 +540,7 @@
     </div>
     <div class="col-classement" id="col-classement">
       <div id="classement-liste"></div>
-      <button class="principal" id="btn-match">⚽</button>
+      <button class="principal" id="btn-match"><svg class="ic-sys" width="20" height="20" viewBox="0 0 48 48"><use href="#is-ballon"></use></svg></button>
     </div>
   </div>
 
@@ -552,13 +552,13 @@
       <div class="niveau-affiche">NIV <span id="niveau-boutique">3</span> <small><span id="xp-boutique">0/6</span></small></div>
       <div class="xp-jauge"><div id="xp-jauge-remplissage" style="width:0%"></div></div>
       <div class="odds-affiche" id="odds-affiche" title="Les stats de la boutique"></div>
-      <button id="btn-xp">📈 Acheter XP<br>4M → +4</button>
+      <button id="btn-xp"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-xp"></use></svg> Acheter XP<br>4M → +4</button>
     </div>
     <div class="rangee-boutique" id="boutique"></div>
     <div class="bloc-droite">
-      <button id="btn-refresh">🔄<br>2M</button>
-      <button class="btn-verrou-carte" id="btn-verrou">🔓</button>
-      <button class="btn-sac" id="btn-sac" title="Replier / déplier la boutique">🪙</button>
+      <button id="btn-refresh"><svg class="ic-sys" width="15" height="15" viewBox="0 0 48 48"><use href="#is-refresh"></use></svg><br>2M</button>
+      <button class="btn-verrou-carte" id="btn-verrou"><svg class="ic-sys" width="16" height="16" viewBox="0 0 48 48"><use href="#is-cadenas-ouvert"></use></svg></button>
+      <button class="btn-sac" id="btn-sac" title="Replier / déplier la boutique"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-piece"></use></svg></button>
     </div>
   </div>
 
@@ -571,6 +571,8 @@
   <script src="icones.js"></script>
   <script src="synergies-data.js"></script>
   <script src="ecussons.js"></script>
+  <script src="icones-systeme.js"></script>
+  <script>ONZE_ICONES_SYS.injecter();</script>
   <script src="ia-coach.js"></script>
   <script src="match-ui.js"></script>
   <script src="match-scene.js"></script>
@@ -1340,7 +1342,7 @@
       el("nom-adversaire-match").textContent = "⚔️ " + (monAdversaire ? monAdversaire.nom : partie.appariement.nomAdversaire);
       el("btn-vitesse").classList.remove("masque");
       el("btn-match").disabled = true;
-      el("btn-match").textContent = "⏱ Match…";
+      el("btn-match").innerHTML = `${ONZE_ICONES_SYS.ic("chrono", 13)} Match…`;
       el("recit").innerHTML = "";
       // La scène animée (phase 3) : le terrain devient la scène, le
       // récit complet se replie derrière 📜, le bandeau prend le relais.
@@ -1661,7 +1663,7 @@
         <strong>❄️ Le Mercato d'hiver</strong><br>
         <small style="color:var(--craie-sourde)">Un joueur offert — les clubs en difficulté ont été servis avant toi${rang > 0 ? " (" + rang + " déjà passés)" : ""}.</small>
         <div class="bandeau-scouting">${partie.coachs.map((c, i) => c.ia && c.vivant
-          ? `<button onclick="scouterIndice(${i})">🔎 ${c.nom.split(" ")[0]}</button>` : "").join("")}</div>
+          ? `<button onclick="scouterIndice(${i})">${ONZE_ICONES_SYS.ic("loupe", 11)} ${c.nom.split(" ")[0]}</button>` : "").join("")}</div>
         ${etal.map((choix, i) => {
           const stats = ONZE.genererStats(choix.fiche);
           return `<button class="fermer-volet" style="text-align:left" data-hiver="${i}">
@@ -2038,8 +2040,8 @@
       const versStaff = pageGauche === "synergies";
       el("page-synergies").classList.toggle("masque", !versStaff);
       el("page-staff").classList.toggle("masque", versStaff);
-      el("btn-bascule-gauche").textContent = versStaff
-        ? `🧰 Staff${partie.staff.length ? " (" + partie.staff.length + ")" : ""} · 🎯 quêtes`
+      el("btn-bascule-gauche").innerHTML = versStaff
+        ? `${ONZE_ICONES_SYS.ic("staff", 13)} Staff${partie.staff.length ? " (" + partie.staff.length + ")" : ""} · ${ONZE_ICONES_SYS.ic("cible", 13)} quêtes`
         : "✦ Synergies · ADN";
     }
 
@@ -2047,9 +2049,9 @@
     function ligneClassement() {
       return partie.coachs.slice().sort((a, b) => b.prestige - a.prestige).map((c) => {
         const classes = "coach" + (c.ia ? "" : " moi") + (c.vivant ? "" : " mort");
-        const serie = c.serie > 1 ? ` 🔥${c.serie}` : "";
+        const serie = c.serie > 1 ? ` ${ONZE_ICONES_SYS.ic("flamme", 10)}${c.serie}` : "";
         const indice = partie.coachs.indexOf(c);
-        return `<div class="${classes}" style="cursor:pointer" onclick="scouterIndice(${indice})"><span>🔎 ${c.nom}${serie}</span><span>💚 ${c.prestige}</span></div>`;
+        return `<div class="${classes}" style="cursor:pointer" onclick="scouterIndice(${indice})"><span>${ONZE_ICONES_SYS.ic("loupe", 11)} ${c.nom}${serie}</span><span>${ONZE_ICONES_SYS.ic("coeur", 10)} ${c.prestige}</span></div>`;
       }).join("");
     }
     function ouvrirClassement() {
@@ -2114,7 +2116,7 @@
         voile.innerHTML = `<div class="fiche-joueur${adverse ? " visite" : ""}">
           <div class="nav-vestiaire">
             <button class="fleche-vestiaire" data-nav="-1">◀</button>
-            <h3 style="margin:0">🔎 ${equipe.nom}${adverse ? ` <span class="tag-visite">🟡 tu visites</span>` : ""}</h3>
+            <h3 style="margin:0">${ONZE_ICONES_SYS.ic("loupe", 14)} ${equipe.nom}${adverse ? ` <span class="tag-visite">🟡 tu visites</span>` : ""}</h3>
             <button class="fleche-vestiaire" data-nav="1">▶</button>
           </div>
           <div class="sous-titre">${adverse ? "École " + c.ecole + " · 💚 " + c.prestige + " — swipe pour changer de club" : "ton propre vestiaire — swipe pour visiter les autres"}</div>
@@ -2605,11 +2607,11 @@
 
     /* La ligne de progression : icône et « un mot » par manche */
     function iconeManche(m) {
-      if (m <= DERNIERE_MANCHE_AMICALE) return "🤝";
-      if (MANCHES_MERCATO_HIVER.includes(m)) return "❄️";
-      if (MANCHES_COUPE.includes(m)) return "🏆";
-      if (MANCHES_PHILOSOPHIE.includes(m)) return "🧭";
-      return "⚔️";
+      if (m <= DERNIERE_MANCHE_AMICALE) return ONZE_ICONES_SYS.ic("poignee", 12);
+      if (MANCHES_MERCATO_HIVER.includes(m)) return ONZE_ICONES_SYS.ic("flocon", 12);
+      if (MANCHES_COUPE.includes(m)) return ONZE_ICONES_SYS.ic("trophee", 12);
+      if (MANCHES_PHILOSOPHIE.includes(m)) return ONZE_ICONES_SYS.ic("boussole", 12);
+      return ONZE_ICONES_SYS.ic("epees", 12);
     }
     function infoManche(m) {
       let texte;
@@ -2672,7 +2674,7 @@
       el("niveau").textContent = partie.niveau;
       el("xp").textContent = partie.xp;
       el("xp-suivant").textContent = XP_POUR_MONTER[partie.niveau] || "MAX";
-      el("serie").textContent = moi().serie > 0 ? "🔥" + moi().serie : moi().serie < 0 ? "❄️" + (-moi().serie) : "—";
+      el("serie").innerHTML = moi().serie > 0 ? ONZE_ICONES_SYS.ic("flamme", 11) + moi().serie : moi().serie < 0 ? ONZE_ICONES_SYS.ic("flocon", 11) + (-moi().serie) : "—";
       el("staff").textContent = partie.staff.length;
       el("ferveur").textContent = partie.compteurs.ferveur;
 
@@ -2742,7 +2744,7 @@
 
       el("btn-refresh").disabled = partie.or < COUT_REFRESH;
       el("btn-xp").disabled = partie.or < COUT_XP || partie.niveau >= 10;
-      el("btn-verrou").textContent = partie.verrou ? "🔒" : "🔓";
+      el("btn-verrou").innerHTML = ONZE_ICONES_SYS.ic(partie.verrou ? "cadenas" : "cadenas-ouvert", 16);
       // le bloc XP de la boutique (façon TFT) : niveau, jauge, odds du niveau
       el("niveau-boutique").textContent = partie.niveau;
       const xpRequis = XP_POUR_MONTER[partie.niveau];
@@ -2804,7 +2806,7 @@
         .sort((a, b) => b.prestige - a.prestige).map((c) => {
           const indice = partie.coachs.indexOf(c);
           const classes = "coach-ligne" + (c.ia ? "" : " moi") + (c.vivant ? "" : " mort");
-          const serie = c.serie > 1 ? " 🔥" : c.serie < -1 ? " ❄️" : "";
+          const serie = c.serie > 1 ? ` ${ONZE_ICONES_SYS.ic("flamme", 10)}` : c.serie < -1 ? ` ${ONZE_ICONES_SYS.ic("flocon", 10)}` : "";
           return `<div class="${classes}" data-indice="${indice}" onclick="scouterIndice(${indice})">${c.nom}${serie}
             <div class="barre-prestige"><div style="width:${Math.round(100 * c.prestige / PRESTIGE_DEPART)}%"></div></div></div>`;
         }).join("");
@@ -2823,8 +2825,8 @@
       if (!partie.matchEnCours) {
         const verdict = verdictFormation();
         el("btn-match").disabled = !!verdict;
-        el("btn-match").textContent = verdict ? "⚽ " + verdict
-          : `⚽ Manche ${partie.manche}` + (formationIncomplete() ? " 😬" : "");
+        el("btn-match").innerHTML = verdict ? `${ONZE_ICONES_SYS.ic("ballon", 13)} ` + verdict
+          : `${ONZE_ICONES_SYS.ic("ballon", 13)} Manche ${partie.manche}` + (formationIncomplete() ? " 😬" : "");
       }
       sauvegarder();
     }
@@ -3246,7 +3248,7 @@
         });
         el("btn-vitesse").addEventListener("click", () => {
           const v = ONZE_UI.basculerVitesse();
-          el("btn-vitesse").textContent = v === 2 ? "▶️ ×1" : "⏩ ×2";
+          el("btn-vitesse").innerHTML = `${ONZE_ICONES_SYS.ic("vitesse", 13)} ` + (v === 2 ? "×1" : "×2");
         });
         if (!restaurer()) { nouvellePartie(); proposerTutoriel(); }
       })

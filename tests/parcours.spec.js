@@ -74,6 +74,18 @@ const verifier = (nom, ok) => {
   });
   verifier("achats en boutique (manche 1)", await page.evaluate(() => partie.terrain.length + partie.banc.length > 0));
 
+  // ---- Iconographie système (Lot 6) : le chrome n'affiche plus d'emojis ----
+  verifier("icônes SVG : boutons de panneaux + pastilles de manche + monnaies", await page.evaluate(() => {
+    const boutons = ["btn-calepin", "btn-plein-ecran", "btn-recap", "btn-journal", "btn-match",
+      "btn-xp", "btn-refresh", "btn-verrou", "btn-sac", "btn-bascule-gauche", "btn-historique"];
+    const chromeOk = boutons.every((id) => document.getElementById(id).querySelector("svg.ic-sys"));
+    const pastillesOk = [...document.querySelectorAll(".pastille-manche")].every((p) => p.querySelector("svg.ic-sys"));
+    const emojiChrome = /[🤝⚔🧭❄🏆📜📝🧪⛶🔒🔓🪙🔄📈🧰🎯⚽🔎💚]/u;
+    const sansEmoji = boutons.every((id) => !emojiChrome.test(document.getElementById(id).textContent)) &&
+      ![...document.querySelectorAll(".pastille-manche")].some((p) => emojiChrome.test(p.textContent));
+    return chromeOk && pastillesOk && sansEmoji;
+  }));
+
   // ---- Le calepin : épingler 2 joueurs, l'un doit briller en boutique ----
   await page.tap("#btn-calepin");
   await page.waitForSelector(".galerie .carte-galerie");
