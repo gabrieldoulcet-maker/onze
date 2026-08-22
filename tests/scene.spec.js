@@ -368,7 +368,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
         ? journal.temps[i + 1].t - x.t : null).filter((v) => v !== null),
       /* La durée réelle des temps DÉCISIFS non terminaux (percée, frappe).
          L'issue est exclue : sa suite est un cut et fausserait la mesure.
-         Chaque temps est rattaché à son FORMAT (décision 31) — on le lit
+         Chaque temps est rattaché à son FORMAT (décision 32) — on le lit
          sur la mise en place qui l'ouvre : ~3 s en grand, ~1,2 s en
          court. Les deux formats n'ont pas le même contrat de patience. */
       decisifs: (() => {
@@ -420,13 +420,13 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   verifier(`R9 : plafond dur de ~50 s tenu (${(releve.duree / 1000).toFixed(1)} s pour ${releve.misesEnPlace} rendus dont ${releve.buts} buts, limite ${(plafondDur / 1000).toFixed(0)} s)`,
     releve.duree > 20000 && releve.duree < plafondDur);
   /* Règle 3 : la patience. Le GRAND format tient ses temps décisifs à
-     1,5-2 s. Le FORMAT COURT (décision 31) les tient à 1-1,3 s — c'est
+     1,5-2 s. Le FORMAT COURT (décision 32) les tient à 1-1,3 s — c'est
      la construction qu'il raccourcit, jamais la chorégraphie du but. */
   const decGrand = releve.decisifs.filter((d) => d.format === "grand").map((d) => d.duree);
   const decCourt = releve.decisifs.filter((d) => d.format === "court").map((d) => d.duree);
   verifier(`Règle 3 : les temps décisifs du GRAND format sont patients (${decGrand.length} mesurés, le plus court ${decGrand.length ? Math.round(Math.min(...decGrand)) : "—"} ms ≥ 1450)`,
     decGrand.length >= 1 && decGrand.every((v) => v >= 1450));
-  verifier(`Décision 31 : les temps de construction du FORMAT COURT tiennent 1-1,3 s (${decCourt.length} mesurés${decCourt.length ? `, de ${Math.round(Math.min(...decCourt))} à ${Math.round(Math.max(...decCourt))} ms` : ""})`,
+  verifier(`Décision 32 : les temps de construction du FORMAT COURT tiennent 1-1,3 s (${decCourt.length} mesurés${decCourt.length ? `, de ${Math.round(Math.min(...decCourt))} à ${Math.round(Math.max(...decCourt))} ms` : ""})`,
     decCourt.every((v) => v >= 1000 && v <= 1400));
   verifier(`R4 : les 22 pions bougent en permanence (vitesse moyenne ${releve.vitesseMoyenne.toFixed(2)} %/s, ${Math.round(releve.partsImmobiles * 100)} % de relevés figés)`,
     releve.vitesseMoyenne > 0.8 && releve.partsImmobiles < 0.2);

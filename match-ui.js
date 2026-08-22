@@ -129,7 +129,7 @@ const ONZE_UI = (() => {
                                      // reste à l'écran : c'est la récompense
 
   /* ============================================================
-     LES DEUX FORMATS DE TEMPS FORT (arbitrage de Gabriel).
+     LES DEUX FORMATS DE TEMPS FORT (décision 32).
      FM ne donne pas la même longueur à tous ses temps forts, et
      c'est ce qui réconcilie « tous les buts sont rendus »
      (décision 25) avec le budget de ~40 s (décision 20).
