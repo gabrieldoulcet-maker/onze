@@ -80,6 +80,19 @@ const verifier = (nom, ok) => {
   await page.tap(".galerie .carte-galerie:nth-child(1)");
   await page.tap(".galerie .carte-galerie:nth-child(2)");
   const epingles = await page.$$eval(".carte-galerie.epingle", (l) => l.map((c) => c.dataset.nom));
+  // le filtre par famille : choisir une École ne montre QUE ses joueurs
+  const filtreOk = await page.evaluate(() => {
+    const select = document.querySelector('[data-filtre="ecole"]');
+    const ecole = [...select.options].find((o) => o.value).value;
+    select.value = ecole;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    const attendu = tousLesJoueurs.filter((j) => j.ecole === ecole).length;
+    const montres = document.querySelectorAll(".galerie .carte-galerie").length;
+    const memoire = document.querySelector('[data-filtre="ecole"]').value === ecole; // le choix survit au re-rendu
+    return { ecole, attendu, montres, memoire };
+  });
+  verifier(`calepin : filtre par École (${filtreOk.ecole} : ${filtreOk.montres}/${filtreOk.attendu})`,
+    filtreOk.montres === filtreOk.attendu && filtreOk.attendu > 0 && filtreOk.memoire);
   await page.evaluate(() => document.querySelector('[data-action="fermer"]').click());
   verifier("calepin : 2 joueurs épinglés", epingles.length === 2);
   const brille = await page.evaluate((nom) => {

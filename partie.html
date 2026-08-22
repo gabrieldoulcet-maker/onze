@@ -400,6 +400,13 @@
     .badge-eclat { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); font-size: 0.6rem;
       color: var(--or-trophee); font-weight: 800; text-shadow: 0 0 6px rgba(242, 193, 78, 0.9); letter-spacing: 1px; z-index: 1; }
     .galerie { display: flex; flex-wrap: wrap; gap: 4px; }
+    /* les filtres par famille du calepin (École / archétype) */
+    .filtres-galerie { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+    .filtres-galerie select {
+      background: var(--surface-2); color: var(--craie-claire); border: 1px solid var(--ligne-forte);
+      border-radius: 8px; padding: 5px 6px; font-size: 0.68rem; font-family: var(--police-texte);
+      font-weight: 700; max-width: 46%;
+    }
     .galerie .carte-galerie {
       flex: 0 0 31%; background: var(--surface-1); border: 1px solid var(--ligne); border-radius: 8px;
       padding: 4px; font-size: 0.62rem; cursor: pointer; color: #C9D6C9;
@@ -1816,10 +1823,18 @@
     function ouvrirCalepin() {
       const volet = document.createElement("div");
       volet.className = "volet";
+      // le filtre par famille (post-playtest 6) : École et/ou archétype
+      const filtre = { ecole: "", archetype: "" };
       const rendre = () => {
         const cibles = partie.calepin.map((nom) => tousLesJoueurs.find((j) => j.nom === nom)).filter(Boolean);
         const apercu = cibles.length ? ONZE.equipeDepuisFiches("Cible", "Toi", cibles) : null;
-        const disponibles = [...tousLesJoueurs].sort((a, b) => a.cout - b.cout || a.nom.localeCompare(b.nom));
+        const disponibles = [...tousLesJoueurs]
+          .filter((j) => (!filtre.ecole || j.ecole === filtre.ecole) &&
+            (!filtre.archetype || j.archetype === filtre.archetype))
+          .sort((a, b) => a.cout - b.cout || a.nom.localeCompare(b.nom));
+        const options = (familles, choisi, tous) => `<option value="">${tous}</option>` +
+          Object.keys(familles).map((nom) =>
+            `<option value="${nom}"${nom === choisi ? " selected" : ""}>${nom}</option>`).join("");
         volet.innerHTML = `<div class="panneau" style="max-width:560px">
           <strong>📝 Le Calepin du recruteur</strong>
           <small style="color:var(--craie-sourde)">· ${partie.calepin.length}/11 épinglés — ils brilleront en boutique</small>
@@ -1828,17 +1843,29 @@
             <button class="fermer-volet" style="width:auto;margin:0;padding:6px 10px" data-action="vider">🗑 Vider</button>
           </div>
           ${apercu ? `<div class="synergies" style="margin-bottom:6px">${ONZE_UI.badges(apercu)}</div>` : ""}
+          <div class="filtres-galerie">
+            <select data-filtre="ecole">${options(ONZE_UI.GLYPHES.ecoles, filtre.ecole, "Toutes les Écoles")}</select>
+            <select data-filtre="archetype">${options(ONZE_UI.GLYPHES.archetypes, filtre.archetype, "Tous les archétypes")}</select>
+            ${filtre.ecole || filtre.archetype
+              ? `<span style="color:var(--craie-sourde);font-size:0.68rem">${disponibles.length} joueur${disponibles.length > 1 ? "s" : ""}</span>` : ""}
+          </div>
           <div class="galerie">${disponibles.map((j) => {
             const epingle = partie.calepin.includes(j.nom);
             return `<div class="carte-galerie${epingle ? " epingle" : ""}" data-nom="${j.nom.replace(/"/g, "&quot;")}">
               <span class="pastille p-${j.poste}">${ONZE_UI.GLYPHES.postes[j.poste]}</span>
               <strong>${j.nom}</strong> <span style="color:var(--or-trophee)">${j.cout}M</span><br>
               <span class="glyphes-famille">${ONZE_UI.glyphe(j.ecole)}${ONZE_UI.glyphe(j.archetype)}</span></div>`;
-          }).join("")}</div>
+          }).join("") || `<div style="color:var(--craie-sourde);font-size:0.72rem;padding:8px">Personne ne cumule ces deux familles — change un filtre.</div>`}</div>
           <button class="fermer-volet" data-action="fermer">Fermer</button>
         </div>`;
       };
       rendre();
+      volet.addEventListener("change", (e) => {
+        const cle = e.target.dataset && e.target.dataset.filtre;
+        if (!cle) return;
+        filtre[cle] = e.target.value;
+        rendre();
+      });
       volet.addEventListener("click", (e) => {
         if (e.target === volet) return volet.remove();
         const action = e.target.closest("[data-action]") && e.target.closest("[data-action]").dataset.action;
