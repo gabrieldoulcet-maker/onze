@@ -43,7 +43,16 @@
       flex-direction: column; align-items: center; justify-content: center;
       gap: 14px; padding: 24px; text-align: center;
     }
-    @media (orientation: portrait) { #tourne-ecran { display: flex; } }
+    /* Le jeu ne se REND que dans un vrai viewport paysage (celui que la
+       suite de tests couvre) : en portrait, l'écran de rotation et RIEN
+       d'autre. Détection ceinture-bretelles : media query + classe posée
+       par JS sur resize/orientationchange (fiabilité iOS Safari). */
+    @media (orientation: portrait) {
+      #tourne-ecran { display: flex; }
+      #app { display: none; }
+    }
+    html.en-portrait #tourne-ecran { display: flex; }
+    html.en-portrait #app { display: none; }
     #tourne-ecran .rotor { font-size: 3rem; animation: tourne-doux 2.4s ease-in-out infinite; }
     @keyframes tourne-doux {
       0%, 55%, 100% { transform: rotate(0deg); }
@@ -315,15 +324,28 @@
   </style>
 </head>
 <body>
-  <!-- ===== Écran doux « tourne ton téléphone » (portrait uniquement) ===== -->
+  <!-- ===== Écran « tourne ton téléphone » (portrait uniquement) ===== -->
   <div id="tourne-ecran">
     <div class="rotor">🔄</div>
     <h2>Tourne ton téléphone</h2>
-    <p>ONZE se joue en paysage — comme un vrai match.</p>
-    <div class="promo-pwa" id="promo-pwa">📲 <strong>Astuce :</strong> installe ONZE sur ton écran
-      d'accueil (bouton Partager → « Sur l'écran d'accueil ») : le jeu se lance en plein écran,
-      sans barre de navigateur.</div>
+    <p>ONZE se joue en paysage — comme un vrai match.<br>
+      Si rien ne bouge : désactive le <strong>verrou d'orientation</strong> d'iOS
+      (Centre de contrôle, l'icône 🔒🔄).</p>
+    <div class="promo-pwa" id="promo-pwa">📲 <strong>Ajouter à l'écran d'accueil = plein écran
+      automatique.</strong><br>Bouton Partager → « Sur l'écran d'accueil » : plus de barre de
+      navigateur, une icône d'app.</div>
   </div>
+  <script>
+    /* La détection d'orientation, fiable partout : la media query CSS fait
+       foi, ET une classe est posée par JS à chaque resize/orientationchange
+       (si l'une des deux dit « portrait », le jeu ne se rend pas). */
+    (function () {
+      const maj = () => document.documentElement.classList.toggle("en-portrait", window.innerHeight > window.innerWidth);
+      window.addEventListener("resize", maj);
+      window.addEventListener("orientationchange", maj);
+      maj();
+    })();
+  </script>
   <div id="app">
 
   <!-- ===== Barre du haut ===== -->

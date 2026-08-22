@@ -39,22 +39,33 @@ const TAILLES = [
     total += rognes;
     await page.close();
   }
-  // ---- Portrait : plus de rendu tourné — l'écran doux « Tourne ton
-  // téléphone » s'affiche (et disparaît en paysage). Leçon du playtest :
-  // la rotation logicielle était pénible avec la barre Safari. ----
+  // ---- Portrait : l'écran de rotation s'affiche et RIEN D'AUTRE (la
+  // rotation logicielle est supprimée — c'était un mode à moitié cassé
+  // qui échappait à ces tests). Retour paysage : le jeu revient entier. ----
   {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await page.goto("http://localhost:8123/partie.html");
-    await page.waitForSelector(".carte-boutique");
+    await page.waitForFunction(() => typeof partie !== "undefined" && partie.boutique, null, { timeout: 8000 });
     const r = await page.evaluate(() => ({
-      ecranDoux: getComputedStyle(document.getElementById("tourne-ecran")).display !== "none",
-      renduTourne: getComputedStyle(document.getElementById("app")).transform !== "none",
-      promo: getComputedStyle(document.getElementById("promo-pwa")).display !== "none",
+      ecranRotation: getComputedStyle(document.getElementById("tourne-ecran")).display !== "none",
+      appCache: getComputedStyle(document.getElementById("app")).display === "none",
+      classeJS: document.documentElement.classList.contains("en-portrait"),
     }));
+    // « rien d'autre » : aucun contrôle critique ne doit avoir de boîte visible
+    const boiteMatch = await (await page.$("#btn-match")).boundingBox();
+    const boiteRefresh = await (await page.$("#btn-refresh")).boundingBox();
+    // retour paysage : le jeu se rend à nouveau, l'écran disparaît
     await page.setViewportSize({ width: 844, height: 390 });
-    const cache = await page.evaluate(() => getComputedStyle(document.getElementById("tourne-ecran")).display === "none");
-    const ok = r.ecranDoux && !r.renduTourne && r.promo && cache;
-    console.log(`${ok ? "✅" : "❌"} portrait : écran doux 🔄 (visible ${r.ecranDoux}, rendu tourné ${r.renduTourne}, promo PWA ${r.promo}, caché en paysage ${cache})`);
+    await page.waitForTimeout(300); // le resize se propage (classe JS + reflow)
+    const retour = await page.evaluate(() => ({
+      ecranCache: getComputedStyle(document.getElementById("tourne-ecran")).display === "none",
+      appVisible: getComputedStyle(document.getElementById("app")).display !== "none",
+      classeRetiree: !document.documentElement.classList.contains("en-portrait"),
+    }));
+    const boiteMatchRetour = await (await page.$("#btn-match")).boundingBox();
+    const ok = r.ecranRotation && r.appCache && r.classeJS && !boiteMatch && !boiteRefresh &&
+      retour.ecranCache && retour.appVisible && retour.classeRetiree && !!boiteMatchRetour;
+    console.log(`${ok ? "✅" : "❌"} portrait : écran de rotation et rien d'autre (app cachée ${r.appCache}, classe JS ${r.classeJS}, contrôles sans boîte ${!boiteMatch && !boiteRefresh}) · retour paysage complet ${retour.ecranCache && retour.appVisible && !!boiteMatchRetour}`);
     if (!ok) total++;
     await page.close();
   }
