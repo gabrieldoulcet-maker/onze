@@ -127,11 +127,66 @@ const ONZE_UI = (() => {
   const RESPIRATION_MS = 700;        // le souffle après une issue
   const CELEBRATION_MS = 1100;       // le constat d'un but (ou d'un presque-but)
                                      // reste à l'écran : c'est la récompense
+
+  /* ============================================================
+     LES DEUX FORMATS DE TEMPS FORT (arbitrage de Gabriel).
+     FM ne donne pas la même longueur à tous ses temps forts, et
+     c'est ce qui réconcilie « tous les buts sont rendus »
+     (décision 25) avec le budget de ~40 s (décision 20).
+
+     GRAND FORMAT — l'existant : mise en place pleine (3 s), 4 à 8
+       temps patients (1 à 1,8 s), issue. ~13 s.
+     FORMAT COURT — pour les buts surnuméraires quand le match
+       déborde : mise en place brève (1,2 s), 2 à 3 temps de
+       construction (1,15 s), puis l'issue AVEC SA CHORÉGRAPHIE
+       COMPLÈTE — micro-ralenti et célébration compris, on n'y
+       touche jamais. ~8 s.
+
+     Allocation : tout le monde en grand format tant que ça rentre ;
+     si ça déborde, les buts les MOINS importants basculent en
+     format court, du moins important au plus important. Le dernier
+     but du match garde toujours le grand format.
+     ============================================================ */
+  const TEMPS_COURT_MS = 1150;             // un temps de construction en format court
+  const MISE_EN_PLACE_COURTE_MS = 1200;
+  const RESPIRATION_COURTE_MS = 500;
+  /* 2 temps de construction (la percée et l'armement) : c'est le bas de
+     la fourchette « 2-3 » de l'arbitrage, et c'est ce qui pose le format
+     court à ~7,8 s — dans les ~6-8 s visées. À 3 temps il monte à 8,9 s
+     et sort de la fourchette. */
+  const CONSTRUCTION_COURTE = 2;
+  // La cible reste ~40 s (décision 20) ; le plafond dur est ce qui
+  // déclenche le basculement en format court.
+  const PLAFOND_DUR_MS = 50000;
+
   const dureeMiseEnPlace = (nbPhases) => nbPhases <= 4 ? 2000 : nbPhases <= 6 ? 2600 : 3000;
   /* Sont DÉCISIFS : la percée, la frappe et l'issue — les trois temps où
      se joue la promesse. Tout le reste est de la construction. */
   const estDecisif = (t) => t.issue || t.decisif || t.type === "percee";
-  const dureeTemps = (t) => t.issue ? TEMPS_ISSUE_MS : estDecisif(t) ? TEMPS_DECISIF_MS : TEMPS_TRANSITION_MS;
+  const dureeTemps = (t, court) => t.issue ? TEMPS_ISSUE_MS
+    : court ? TEMPS_COURT_MS
+    : estDecisif(t) ? TEMPS_DECISIF_MS : TEMPS_TRANSITION_MS;
+
+  /* Le format court garde l'ossature de l'action : sa naissance, son
+     temps le plus parlant, l'armement — et TOUTES les issues (avec
+     leurs rebonds, qui font la couture d'un doublé). On ne coupe que
+     les relais de circulation. */
+  const RANG_UTILITE = { frappe: 0, percee: 1, contre: 2, geste: 3, conduite: 4,
+    recuperation: 5, relais_long: 6, stop: 7, hors_jeu: 8, relais: 9 };
+  function actionCourte(action) {
+    const garde = new Set();
+    action.forEach((t, i) => { if (t.issue || t.type === "rebond") garde.add(i); });
+    action.map((t, i) => ({ t, i }))
+      .filter((x) => !garde.has(x.i))
+      .sort((a, b) => (RANG_UTILITE[a.t.type] ?? 9) - (RANG_UTILITE[b.t.type] ?? 9))
+      .slice(0, CONSTRUCTION_COURTE)
+      .forEach((x) => garde.add(x.i));
+    const courte = action.filter((t, i) => garde.has(i));
+    courte.situation = action.situation;
+    courte.equipe = action.equipe;
+    courte.style = action.style;
+    return courte;
+  }
   /* Un but et un presque-but gagnent un temps d'arrêt sur image : sans
      lui, le constat file en ~0,6 s et la récompense passe inaperçue. */
   const dureeCelebration = (t) => (t.type === "issue_but" || t.pres) ? CELEBRATION_MS : 0;
@@ -141,9 +196,42 @@ const ONZE_UI = (() => {
   const aBut = (phase) => phase.evenements.some((ev) => ev.but);
   const prioriteDe = (phase) => Math.max(...phase.evenements.map((ev) =>
     ev.but ? 100 : ev.type === "arret" ? (ev.pres ? 60 : 40) : ev.type === "blocage" ? 30 : ev.type === "rebond" ? 20 : 0));
-  const coutTempsFort = (action, miseEnPlaceMs) =>
-    CUT_MS + miseEnPlaceMs + RESPIRATION_MS +
-    action.reduce((t, tp) => t + dureeTemps(tp) + dureeCelebration(tp), 0);
+  const coutTempsFort = (action, miseEnPlaceMs, court) =>
+    CUT_MS + (court ? MISE_EN_PLACE_COURTE_MS : miseEnPlaceMs) +
+    (court ? RESPIRATION_COURTE_MS : RESPIRATION_MS) +
+    (court ? actionCourte(action) : action)
+      .reduce((t, tp) => t + dureeTemps(tp, court) + dureeCelebration(tp), 0);
+
+  /* L'IMPORTANCE d'une phase — c'est elle qui décide qui garde le grand
+     format. Elle se lit dans le déroulé RÉEL du match : le dernier but
+     est le plus important (c'est lui qui scelle le sort), puis les buts
+     qui font basculer le score, puis les occasions par danger. */
+  function importancesDes(phases, nomA) {
+    const score = { a: 0, b: 0 };
+    const infos = new Map();
+    let derniereAvecBut = null;
+    for (const phase of phases) {
+      let but = false, bascule = false;
+      for (const ev of phase.evenements) {
+        if (!ev.but) continue;
+        but = true;
+        const avant = Math.sign(score.a - score.b);
+        if (ev.equipe === nomA) score.a++; else score.b++;
+        if (Math.sign(score.a - score.b) !== avant) bascule = true;
+      }
+      if (but) derniereAvecBut = phase;
+      infos.set(phase, { but, bascule });
+    }
+    const importance = new Map();
+    for (const phase of phases) {
+      const i = infos.get(phase);
+      importance.set(phase,
+        (phase === derniereAvecBut ? 10000 : 0) +
+        (i.but ? 1000 : 0) + (i.bascule ? 500 : 0) +
+        prioriteDe(phase) + phase.numero);
+    }
+    return { importance, derniereAvecBut };
+  }
 
   /* Le texte de repli quand un temps n'a ni promesse ni événement */
   const texteDuTemps = (t) => {
@@ -155,6 +243,73 @@ const ONZE_UI = (() => {
     if (t.type === "frappe") return `${t.tireur ? t.tireur + " arme sa frappe…" : "La frappe part…"}`;
     return null;
   };
+
+  /* ============================================================
+     LE PLAN DU MATCH — fonction PURE et testable.
+     Décide QUELLES phases deviennent des temps forts, et dans QUEL
+     FORMAT. C'est ici que vit l'arbitrage de Gabriel : tous les buts
+     sont rendus (décision 25), tout le monde en grand format tant que
+     ça rentre sous le plafond dur, puis bascule en format court du
+     moins important au plus important — le dernier but du match garde
+     toujours le grand format.
+     Sortie : { actions, rendues, courtes, miseEnPlaceMs, dureeMorte }
+     ============================================================ */
+  function planifierTempsForts(resultat, equipeA, equipeB, opts = {}) {
+    const { delaiPhase = DELAI_PHASE_MS, vitesse: v = 1, resume = false } = opts;
+    const nbPhases = resultat.phases.length;
+    const budgetTotal = delaiPhase * nbPhases;
+    const miseEnPlaceMs = dureeMiseEnPlace(nbPhases);
+    // les budgets de la spec : amical 1 rendu, manches 4-9 : 2-3,
+    // match plein : 3-4. En ×2, seuls les buts sont rendus.
+    const maxRendus = resume ? 99 : v === 2 ? 0 : nbPhases <= 4 ? 1 : nbPhases <= 6 ? 3 : 4;
+
+    const actions = new Map();
+    for (const phase of resultat.phases) {
+      if (estChaude(phase)) actions.set(phase, ONZE_SCENE.construireAction(phase, equipeA, equipeB));
+    }
+    const candidates = [...actions.keys()]
+      .sort((a, b) => (aBut(b) - aBut(a)) || (prioriteDe(b) - prioriteDe(a)));
+    const rendues = new Set();
+    let coutTotal = 0;
+    for (const phase of candidates) {
+      const cout = coutTempsFort(actions.get(phase), miseEnPlaceMs, false);
+      if (aBut(phase)) { rendues.add(phase); coutTotal += cout; continue; }
+      if (rendues.size < maxRendus && (resume || coutTotal + cout <= budgetTotal)) {
+        rendues.add(phase); coutTotal += cout;
+      }
+    }
+
+    /* ---- L'ALLOCATION DES FORMATS ---- */
+    const { importance, derniereAvecBut } = importancesDes(resultat.phases, equipeA.nom);
+    const courtes = new Set();
+    if (!resume) {
+      const parImportance = [...rendues].sort((a, b) => importance.get(a) - importance.get(b));
+      const majeurs = parImportance.slice(-2);           // les 2 moments les plus importants
+      const cout = () => [...rendues].reduce((t, p) =>
+        t + coutTempsFort(actions.get(p), miseEnPlaceMs, courtes.has(p)), 0);
+      // 1er passage : tout sauf les 2 moments majeurs
+      for (const phase of parImportance) {
+        if (cout() <= PLAFOND_DUR_MS) break;
+        if (majeurs.includes(phase)) continue;
+        courtes.add(phase);
+      }
+      // dernier recours (festival de buts) : le 2ᵉ moment majeur bascule
+      // lui aussi ; le dernier but du match, JAMAIS.
+      for (const phase of parImportance) {
+        if (cout() <= PLAFOND_DUR_MS) break;
+        if (phase === derniereAvecBut) continue;
+        courtes.add(phase);
+      }
+      coutTotal = cout();
+    }
+
+    // le temps mort restant se répartit sur les phases non rendues
+    const nbMortes = nbPhases - rendues.size;
+    const dureeMorte = Math.max(500, Math.min(1600,
+      nbMortes ? (budgetTotal - coutTotal) / nbMortes : 900));
+    return { actions, rendues, courtes, miseEnPlaceMs, dureeMorte, nbPhases,
+      coutTotal, derniereAvecBut, importance };
+  }
 
   function rejouer(resultat, equipeA, equipeB, elements, auCoupDeSifflet, options = {}) {
     const delaiPhase = options.delaiPhase || DELAI_PHASE_MS;
@@ -204,41 +359,10 @@ const ONZE_UI = (() => {
          4. Réglage « Résumé complet » (R10) : le plafond saute, tout
             ce qui porte une occasion est rendu. ---- */
       const reg = ONZE_SCENE.reglages();
-      const budgetTotal = delaiPhase * resultat.phases.length;
-      const nbPhases = resultat.phases.length;
-      const miseEnPlaceMs = dureeMiseEnPlace(nbPhases);
-      const resume = reg.filtre === "resume";
-      // le plafond de format (R9) — en ×2, seuls les buts sont rendus
-      // les budgets de la spec : amical 1 rendu, manches 4-9 : 2-3,
-      // match plein : 3-4. En ×2, seuls les buts sont rendus.
-      const maxRendus = resume ? 99 : vitesse === 2 ? 0
-        : nbPhases <= 4 ? 1 : nbPhases <= 6 ? 3 : 4;
-      const actions = new Map();
-      for (const phase of resultat.phases) {
-        if (estChaude(phase)) actions.set(phase, ONZE_SCENE.construireAction(phase, equipeA, equipeB));
-      }
-      const candidates = [...actions.keys()]
-        .sort((a, b) => (aBut(b) - aBut(a)) || (prioriteDe(b) - prioriteDe(a)));
-      const rendues = new Set();
-      let coutTotal = 0;
-      for (const phase of candidates) {
-        const cout = coutTempsFort(actions.get(phase), miseEnPlaceMs);
-        if (aBut(phase)) { rendues.add(phase); coutTotal += cout; continue; }
-        if (rendues.size < maxRendus && (resume || coutTotal + cout <= budgetTotal)) {
-          rendues.add(phase); coutTotal += cout;
-        }
-      }
-      /* L'ARBITRAGE DU BUDGET (arbitrage de Gabriel). La seule variable
-         d'ajustement est le NOMBRE de temps forts — jamais leurs
-         secondes. La sélection ci-dessus s'en charge : une occasion qui
-         ne rentre pas n'est pas rendue, point.
-         Le seul plancher irréductible est la décision 25 : TOUS les buts
-         sont rendus. Un match à 5 buts dure donc plus longtemps qu'un
-         match à 2 — c'est voulu, un festival mérite son temps d'écran. */
-      // le temps mort restant se répartit sur les phases non rendues
-      const nbMortes = nbPhases - rendues.size;
-      const dureeMorte = Math.max(500, Math.min(1600,
-        nbMortes ? (budgetTotal - coutTotal) / nbMortes : 900));
+      const plan = planifierTempsForts(resultat, equipeA, equipeB, {
+        delaiPhase, vitesse, resume: reg.filtre === "resume",
+      });
+      const { actions, rendues, courtes, miseEnPlaceMs, dureeMorte } = plan;
       const scoresLobby = (options.scoresLobby || []).slice();
       // la possession affichée vient des VRAIS gains de balle du moteur
       const comptePossession = { moi: 0, eux: 0 };
@@ -276,9 +400,14 @@ const ONZE_UI = (() => {
         }
 
         /* --- TEMPS FORT --- */
-        const action = actions.get(phase);
+        const court = courtes.has(phase);
+        const action = court ? actionCourte(actions.get(phase)) : actions.get(phase);
+        // le journal reste complet : le solde rattrape ce que le format
+        // court n'a pas mis en scène
         const couverts = new Set(action.map((t) => t.ev).filter(Boolean));
-        const dureeJouee = action.reduce((t, tp) => t + dureeTemps(tp) + dureeCelebration(tp), 0) + RESPIRATION_MS;
+        const mepMs = court ? MISE_EN_PLACE_COURTE_MS : miseEnPlaceMs;
+        const respirationMs = court ? RESPIRATION_COURTE_MS : RESPIRATION_MS;
+        const dureeJouee = action.reduce((t, tp) => t + dureeTemps(tp, court) + dureeCelebration(tp), 0) + respirationMs;
         // 1. le CUT sec : carton minute + score
         pousser(CUT_MS, true, 0, () => {
           blocCourant = blocPhase(elements.recit, phase.minute, phase.numero);
@@ -295,14 +424,14 @@ const ONZE_UI = (() => {
         //    et l'horloge se remet à courir pour tout le temps fort (R8) —
         //    3 minutes de jeu, jamais plus : au-delà, la scène dépasserait
         //    la minute de la phase suivante et MENTIRAIT.
-        pousser(miseEnPlaceMs, false, 0, () => {
+        pousser(mepMs, false, 0, () => {
           const f = facteurFort();
-          options.scene.miseEnPlace(action, miseEnPlaceMs / f);
-          options.scene.reglerMinute(phase.minute + 3, (miseEnPlaceMs + dureeJouee) / f);
+          options.scene.miseEnPlace(action, mepMs / f);
+          options.scene.reglerMinute(phase.minute + 3, (mepMs + dureeJouee) / f);
         });
         // 3. les temps du temps fort
         action.forEach((t) => {
-          const duree = dureeTemps(t);
+          const duree = dureeTemps(t, court);
           pousser(duree, false, PLANCHER_MS, () => {
             if (t.issue) {
               // l'issue : le journal et le score n'arrivent qu'à la
@@ -320,7 +449,7 @@ const ONZE_UI = (() => {
           if (fete) pousser(fete, false, 0, () => {});
         });
         // 4. le solde (les événements hors chorégraphie) et la respiration
-        pousser(RESPIRATION_MS, false, 0, () => {
+        pousser(respirationMs, false, 0, () => {
           phase.evenements.forEach((ev) => { if (!couverts.has(ev)) jouerEvenement(ev); });
           options.scene.repos();
         });
@@ -482,5 +611,6 @@ const ONZE_UI = (() => {
     (document.getElementById("app") || document.body).appendChild(voile);
   }
 
-  return { rejouer, badges, basculerVitesse, ouvrirFiche, ouvrirRecap, GLYPHES, glyphe };
+  return { rejouer, badges, basculerVitesse, ouvrirFiche, ouvrirRecap, GLYPHES, glyphe,
+           planifierTempsForts, actionCourte, coutTempsFort };
 })();
