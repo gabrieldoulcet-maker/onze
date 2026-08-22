@@ -273,25 +273,42 @@ button.principal:disabled { background: #0C130D; color: #4A5A4C; box-shadow: non
 }
 .etoiles { color: var(--or-trophee); letter-spacing: 1px; }
 
-/* ---- Le butin des amicaux : des orbes qu'on ouvre (décision n°17) ---- */
-.orbes { display: flex; gap: 14px; justify-content: center; margin: 12px 0; }
-.orbe {
-  width: 84px; height: 84px; border-radius: 50%;
+/* ---- Le butin façon TFT (décision n°17, post-playtest 5) : les orbes
+   TOMBENT sur le terrain en fin de manche et se ramassent toutes seules ;
+   leur contenu défile en petites bannières en haut de l'écran. ---- */
+.orbe-terrain {
+  position: absolute; width: 42px; height: 42px; border-radius: 50%;
+  z-index: 30; pointer-events: none;
   background: var(--orbe-or);
-  border: none; cursor: pointer;
-  font-size: 2rem; box-shadow: 0 0 24px rgba(242, 193, 78, 0.5), inset 0 -8px 14px rgba(0, 0, 0, 0.3);
-  animation: orbePulse 1.6s ease infinite;
+  box-shadow: 0 0 22px rgba(242, 193, 78, 0.55), inset 0 -8px 12px rgba(0, 0, 0, 0.35);
+  animation: orbeTombe 0.5s cubic-bezier(0.2, 1.5, 0.4, 1) backwards, orbeFlotte 1.6s 0.5s ease-in-out infinite;
 }
-@keyframes orbePulse {
-  0%, 100% { box-shadow: 0 0 18px rgba(242, 193, 78, 0.4), inset 0 -8px 14px rgba(0, 0, 0, 0.3); }
-  50% { box-shadow: 0 0 38px rgba(242, 193, 78, 0.8), inset 0 -8px 14px rgba(0, 0, 0, 0.3); }
+.orbe-terrain.gris { background: var(--orbe-gris); box-shadow: 0 0 16px rgba(200, 210, 200, 0.4), inset 0 -8px 12px rgba(0, 0, 0, 0.35); }
+.orbe-terrain.bleu { background: var(--orbe-bleu); box-shadow: 0 0 18px rgba(120, 170, 240, 0.5), inset 0 -8px 12px rgba(0, 0, 0, 0.35); }
+.orbe-terrain.ramassee { animation: orbeRamassee 0.4s ease forwards; }
+@keyframes orbeTombe { 0% { transform: translateY(-70px) scale(0.4); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes orbeFlotte { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes orbeRamassee { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.9); opacity: 0; } }
+#bannieres-butin {
+  position: fixed; top: 8px; left: 50%; transform: translateX(-50%);
+  z-index: 70; display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none;
 }
-.orbe-revele {
-  background: var(--surface-1); border: 1px solid var(--or-trophee); border-radius: 12px;
-  padding: 10px 12px; font-size: 0.85rem; text-align: center;
-  animation: apparait 0.4s ease; max-width: 200px;
+.banniere-orbe {
+  background: linear-gradient(165deg, #152A19, #0A160D); border: 1.5px solid var(--ligne-forte);
+  border-radius: 10px; padding: 6px 14px; font-size: 0.74rem; color: var(--craie-claire);
+  max-width: min(430px, 86vw); text-align: center; box-shadow: var(--ombre-panneau);
+  animation: banniereOrbe 3.6s ease forwards;
 }
-.orbe-revele strong { color: var(--or-trophee); }
+.banniere-orbe.or { border-color: var(--or-trophee); }
+.banniere-orbe.bleu { border-color: var(--stat-signature); }
+.banniere-orbe strong { color: var(--or-trophee); }
+.banniere-orbe small { color: var(--craie-sourde); }
+@keyframes banniereOrbe {
+  0% { transform: translateY(-16px); opacity: 0; }
+  8% { transform: none; opacity: 1; }
+  88% { opacity: 1; }
+  100% { opacity: 0; }
+}
 
 /* ---- La carte : note globale + stats signatures ---- */
 .carte .note {
@@ -370,10 +387,6 @@ button.principal:disabled { background: #0C130D; color: #4A5A4C; box-shadow: non
 .badge.presque { border-color: var(--or-trophee); }
 .badge.inactif { border: 1px solid var(--ligne); }
 .badge.inactif .badge-texte { color: var(--craie-sourde); }
-
-/* ---- Les trois raretés d'orbes ---- */
-.orbe.gris { background: var(--orbe-gris); box-shadow: 0 0 18px rgba(200, 210, 200, 0.35), inset 0 -8px 14px rgba(0, 0, 0, 0.3); animation: none; }
-.orbe.bleu { background: var(--orbe-bleu); box-shadow: 0 0 22px rgba(120, 170, 240, 0.45), inset 0 -8px 14px rgba(0, 0, 0, 0.3); animation: none; }
 
 /* ---- Le jeton sélectionné pour un échange (formation libre) ---- */
 .jeton.choisi { outline: 2px solid var(--or-trophee); box-shadow: 0 0 14px rgba(242, 193, 78, 0.6); }

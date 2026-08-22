@@ -456,8 +456,6 @@
       width: 100%; margin-top: 10px; background: var(--ligne); color: var(--craie-claire);
       border: none; border-radius: 10px; padding: 9px; font-weight: 700; cursor: pointer;
     }
-    .orbes { margin: 8px 0 2px; }
-    .orbe { width: 64px; height: 64px; font-size: 1.5rem; }
   </style>
 </head>
 <body>
@@ -1073,41 +1071,43 @@
       const fiche = piocherJoueur(3, 2);
       return fiche ? { rarete, type: "joueur", fiche } : { rarete, type: "or", montant: 4 };
     }
-    function ouvrirOrbe(bouton, indice) {
-      const orbe = partie.orbesEnAttente[indice];
-      if (!orbe || orbe.ouvert) return;
-      orbe.ouvert = true;
+    /* Applique le contenu d'une orbe à la partie et rend le message de
+       sa bannière (le ramassage est automatique — façon TFT). */
+    function resoudreOrbe(orbe) {
       if (orbe.rarete === "or") partie.compteurs.orbeOr++;
-      const revele = document.createElement("div");
-      revele.className = "orbe-revele";
+      partie.compteurs.orbesRamassees = (partie.compteurs.orbesRamassees || 0) + 1;
       if (orbe.type === "or") {
         partie.or += orbe.montant;
-        revele.innerHTML = `🪙 <strong>+${orbe.montant}M</strong><br><small>La billetterie a bien marché.</small>`;
-      } else if (orbe.type === "staff") {
+        return `🪙 <strong>+${orbe.montant}M</strong> <small>— la billetterie a bien marché.</small>`;
+      }
+      if (orbe.type === "staff") {
         const gardee = gagnerCarteStaff(orbe.membre);
         if (orbe.montantBonus) partie.or += orbe.montantBonus;
-        revele.innerHTML = gardee
+        return gardee
           ? `🧰 <strong>${orbe.membre}</strong> rejoint le club !` +
             (orbe.montantBonus ? ` <strong>+${orbe.montantBonus}M</strong>` : "") +
-            `<br><small>Deux cartes sur un joueur fusionnent en spécialisation (panneau 🧰).</small>`
-          : `🧰 Inventaire staff plein (${PLAFOND_STAFF}) — <strong>${orbe.membre}</strong> revendu <strong>+2M</strong>` +
-            (orbe.montantBonus ? ` <strong>+${orbe.montantBonus}M</strong>` : "") +
-            `<br><small>Assigne tes cartes avant d'en gagner d'autres !</small>`;
-      } else if (orbe.type === "relique") {
+            ` <small>— deux cartes sur un joueur fusionnent (panneau 🧰).</small>`
+          : `🧰 Inventaire plein (${PLAFOND_STAFF}) — <strong>${orbe.membre}</strong> revendu <strong>+2M</strong>` +
+            (orbe.montantBonus ? ` <strong>+${orbe.montantBonus}M</strong>` : "");
+      }
+      if (orbe.type === "relique") {
         // le trésor d'une partie : la Relique (unique, très rare)
         gagnerCarteStaff(orbe.nom); // vit dans l'inventaire, s'assigne comme une carte
         partie.reliqueRecue = orbe.nom;
         ONZE_JUICE.jouer("icone");
-        revele.innerHTML = `🏺 <strong>${orbe.nom}</strong> !<br><small>${RELIQUES[orbe.nom].desc}<br>Une RELIQUE — la seule de ta partie. Assigne-la comme une carte staff.</small>`;
-      } else if (orbe.type === "staffClub") {
+        return `🏺 <strong>${orbe.nom}</strong> !<br><small>${RELIQUES[orbe.nom].desc}<br>Une RELIQUE — la seule de ta partie. Assigne-la comme une carte staff.</small>`;
+      }
+      if (orbe.type === "staffClub") {
         partie.staffClub = partie.staffClub || [];
         partie.staffClub.push(orbe.nom);
         ONZE_JUICE.jouer("unique");
-        revele.innerHTML = `🏟️ <strong>${orbe.nom}</strong> rejoint le club !<br><small>${STAFF_CLUB[orbe.nom].desc} (effet d'équipe, permanent)</small>`;
-      } else if (orbe.type === "consommable") {
+        return `🏟️ <strong>${orbe.nom}</strong> rejoint le club !<br><small>${STAFF_CLUB[orbe.nom].desc} (effet d'équipe, permanent)</small>`;
+      }
+      if (orbe.type === "consommable") {
         gagnerCarteStaff(orbe.nom);
-        revele.innerHTML = `🧪 <strong>${orbe.nom}</strong><br><small>${CONSOMMABLES[orbe.nom].desc} Utilise-le depuis l'inventaire staff.</small>`;
-      } else if (orbe.type === "iconique") {
+        return `🧪 <strong>${orbe.nom}</strong><br><small>${CONSOMMABLES[orbe.nom].desc} Utilise-le depuis l'inventaire staff.</small>`;
+      }
+      if (orbe.type === "iconique") {
         // sublime une spécialisation existante en version ICONIQUE (×1,5)
         const porteurs = [...partie.terrain, ...partie.banc].filter((j) =>
           (j.specialisations || []).some((s) => !(j.specsIconiques || []).includes(s)));
@@ -1116,25 +1116,58 @@
           const spec = hasardParmi(j.specialisations.filter((s) => !(j.specsIconiques || []).includes(s)));
           j.specsIconiques = [...(j.specsIconiques || []), spec];
           ONZE_JUICE.jouer("fusion3");
-          revele.innerHTML = `🌟 <strong>${spec}</strong> devient ICONIQUE sur ${j.nom} !<br><small>Version dorée : les bonus de la spécialisation ×1,5 — la seule de ta partie.</small>`;
-        } else {
-          partie.or += 4;
-          revele.innerHTML = `🌟 Personne à sublimer… <strong>+4M</strong> de compensation.<br><small>Il fallait une spécialisation sur le terrain.</small>`;
+          return `🌟 <strong>${spec}</strong> devient ICONIQUE sur ${j.nom} !<br><small>Version dorée : les bonus ×1,5 — la seule de ta partie.</small>`;
         }
-      } else {
-        const nombre = orbe.type === "duo" ? 2 : 1;
-        for (let n = 0; n < nombre; n++) placerAuClub({ ...orbe.fiche, etoiles: 1 });
-        const fusions = ONZE.fusionnerEffectif(partie.terrain, partie.banc);
-        if (fusions.length) celebrerFusions(fusions);
-        revele.innerHTML = orbe.type === "duo"
-          ? `⚽⚽ <strong>${orbe.fiche.nom} × 2</strong> — le duo du centre de formation !<br><small>Deux copies d'un coup… la fusion se rapproche.</small>`
-          : `⚽ <strong>${orbe.fiche.nom}</strong> signe gratuitement !<br><small>${orbe.fiche.ecole || "Sans École"} · ${orbe.fiche.archetype || "sans archétype"} — une orientation à saisir ?</small>`;
+        partie.or += 4;
+        return `🌟 Personne à sublimer… <strong>+4M</strong> de compensation.<br><small>Il fallait une spécialisation sur le terrain.</small>`;
       }
-      bouton.replaceWith(revele);
-      afficher();
-      tutoNotifier("orbe");
-      const continuer = document.getElementById("btn-continuer");
-      if (continuer && partie.orbesEnAttente.every((o) => o.ouvert)) continuer.classList.remove("masque");
+      const nombre = orbe.type === "duo" ? 2 : 1;
+      for (let n = 0; n < nombre; n++) placerAuClub({ ...orbe.fiche, etoiles: 1 });
+      const fusions = ONZE.fusionnerEffectif(partie.terrain, partie.banc);
+      if (fusions.length) celebrerFusions(fusions);
+      return orbe.type === "duo"
+        ? `⚽⚽ <strong>${orbe.fiche.nom} × 2</strong> — le duo du centre de formation !`
+        : `⚽ <strong>${orbe.fiche.nom}</strong> signe gratuitement ! <small>${orbe.fiche.ecole || "Sans École"} · ${orbe.fiche.archetype || "sans archétype"}</small>`;
+    }
+    /* Le ramassage façon TFT : les orbes tombent sur le terrain, puis se
+       ramassent toutes seules l'une après l'autre — chaque contenu passe
+       en petite bannière. `apresButin` enchaîne (le bilan de manche). */
+    function ramasserOrbes(apresButin) {
+      const orbes = partie.orbesEnAttente;
+      if (!orbes.length) return apresButin();
+      // un voile invisible fige l'interface le temps du ramassage (~2-4 s)
+      const bouclier = document.createElement("div");
+      bouclier.style.cssText = "position:fixed;inset:0;z-index:55";
+      document.body.appendChild(bouclier);
+      const terrain = el("terrain-scene");
+      const pastilles = orbes.map((orbe, i) => {
+        const p = document.createElement("div");
+        p.className = "orbe-terrain " + orbe.rarete;
+        // étalées en travers du terrain, avec un peu de dispersion
+        p.style.left = (orbes.length === 1 ? 48 : 16 + (66 * i) / (orbes.length - 1) + (Math.random() * 8 - 4)) + "%";
+        p.style.top = 32 + Math.random() * 34 + "%";
+        p.style.animationDelay = `${i * 0.12}s, ${0.5 + i * 0.12}s`;
+        terrain.appendChild(p);
+        return p;
+      });
+      tutoNotifier("etat"); // la bulle du tuto « butin » se réveille ici
+      let banc = document.getElementById("bannieres-butin");
+      if (!banc) { banc = document.createElement("div"); banc.id = "bannieres-butin"; document.body.appendChild(banc); }
+      orbes.forEach((orbe, i) => {
+        setTimeout(() => {
+          pastilles[i].classList.add("ramassee");
+          setTimeout(() => pastilles[i].remove(), 450);
+          ONZE_JUICE.jouer("achat");
+          const banniere = document.createElement("div");
+          banniere.className = "banniere-orbe " + orbe.rarete;
+          banniere.innerHTML = resoudreOrbe(orbe);
+          banc.appendChild(banniere);
+          setTimeout(() => banniere.remove(), 3600);
+          afficher();
+          tutoNotifier("orbe");
+        }, 900 + i * 900);
+      });
+      setTimeout(() => { partie.orbesEnAttente = []; bouclier.remove(); apresButin(); }, 900 + orbes.length * 900);
     }
 
     /* ================= Adversaires ================= */
@@ -1427,36 +1460,30 @@
           ? partie.butin[partie.manche].map((orbe) => creerOrbe(orbe.rarete, orbe.staffGaranti))
           : [];
 
-      // Panneau de fin de manche par-dessus le terrain
-      let html = `<div class="panneau">`;
-      html += `<strong>Manche ${partie.manche} — ${resultat.scoreA} – ${resultat.scoreB}</strong>`;
-      if (!amical) {
-        html += `<div class="classement" style="margin-top:6px">`;
-        for (const r of resultatsIA)
-          html += `<div class="coach"><span>${r.c1.nom} ${r.scoreA} – ${r.scoreB} ${r.c2.nom}</span></div>`;
-        if (partie.exempt) html += `<div class="coach"><span>${partie.exempt.nom} — exempt</span></div>`;
-        html += `</div>`;
-      }
-      html += `<div class="coach" style="margin-top:6px"><span>💰 +${revenu}M (${base} droits TV` +
-        (sponsors ? ` +${sponsors} sponsors` : "") + (bonusSerie ? ` +${bonusSerie} série` : "") +
-        (bonusVictoire ? ` +1 victoire` : "") + `)</span></div>`;
-      if (partie.orbesEnAttente.length) {
-        html += `<div style="text-align:center;margin-top:8px"><strong>🎁 ${coupe ? "Le butin de la coupe !" : "Le butin de l'amical !"}</strong><br>` +
-          `<small style="color:var(--craie-sourde)">Touche chaque orbe pour l'ouvrir.</small></div><div class="orbes">` +
-          partie.orbesEnAttente.map((o, i) => `<button class="orbe ${o.rarete}" onclick="ouvrirOrbe(this, ${i})">🎁</button>`).join("") +
-          `</div>`;
-      }
-      html += `<button class="fermer-volet ${partie.orbesEnAttente.length ? "masque" : ""}" id="btn-continuer">➡️ Continuer</button></div>`;
-      const volet = document.createElement("div");
-      volet.className = "volet";
-      volet.innerHTML = html;
-      el("app").appendChild(volet);
-      tutoNotifier("etat"); // la bulle des orbes se réveille sur le bilan
-      document.getElementById("btn-continuer").addEventListener("click", () => { arreterChrono(); volet.remove(); continuer(); });
-      demarrerChrono(30, () => { // ~30 s puis tout s'ouvre et on continue
-        volet.querySelectorAll(".orbe").forEach((o) => o.click());
-        setTimeout(() => { volet.remove(); continuer(); }, 600);
-      });
+      // Le butin se ramasse SUR le terrain (façon TFT), PUIS le panneau
+      // de fin de manche apparaît par-dessus.
+      const montrerBilan = () => {
+        let html = `<div class="panneau">`;
+        html += `<strong>Manche ${partie.manche} — ${resultat.scoreA} – ${resultat.scoreB}</strong>`;
+        if (!amical) {
+          html += `<div class="classement" style="margin-top:6px">`;
+          for (const r of resultatsIA)
+            html += `<div class="coach"><span>${r.c1.nom} ${r.scoreA} – ${r.scoreB} ${r.c2.nom}</span></div>`;
+          if (partie.exempt) html += `<div class="coach"><span>${partie.exempt.nom} — exempt</span></div>`;
+          html += `</div>`;
+        }
+        html += `<div class="coach" style="margin-top:6px"><span>💰 +${revenu}M (${base} droits TV` +
+          (sponsors ? ` +${sponsors} sponsors` : "") + (bonusSerie ? ` +${bonusSerie} série` : "") +
+          (bonusVictoire ? ` +1 victoire` : "") + `)</span></div>`;
+        html += `<button class="fermer-volet" id="btn-continuer">➡️ Continuer</button></div>`;
+        const volet = document.createElement("div");
+        volet.className = "volet";
+        volet.innerHTML = html;
+        el("app").appendChild(volet);
+        document.getElementById("btn-continuer").addEventListener("click", () => { arreterChrono(); volet.remove(); continuer(); });
+        demarrerChrono(30, () => { volet.remove(); continuer(); }); // ~30 s puis on continue
+      };
+      ramasserOrbes(montrerBilan);
 
       // ---- les stats de SAISON par joueur (l'homme de ta partie) ----
       partie.statsSaison = partie.statsSaison || {};
@@ -1885,7 +1912,7 @@
         texte: "🏟️ Lance ta première manche ! Les 3 premières sont des <strong>amicaux</strong> : aucun risque, et du <strong>butin</strong> à la clé.",
         attend: "match" },
       { id: "orbes", cible: null, position: "centre", declencheur: "orbes",
-        texte: "🎁 Ton butin ! Touche chaque <strong>orbe</strong> pour l'ouvrir — or, joueurs gratuits, cartes staff…",
+        texte: "🎁 Ton butin tombe sur le terrain — des <strong>orbes</strong> qui se ramassent toutes seules : or, joueurs gratuits, cartes staff… Le contenu défile en bannières.",
         attend: "orbe" },
       { id: "staff", cible: "col-synergies", position: "gauche", declencheur: "carteStaff",
         texte: "🧰 Une <strong>carte staff</strong> ! Touche-la dans la colonne de gauche pour l'assigner à un joueur.<br><strong>Deux cartes sur le même joueur fusionnent</strong> en spécialisation définitive.",

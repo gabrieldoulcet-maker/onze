@@ -177,10 +177,7 @@ async function unePartie(browser, numero) {
       [...document.querySelectorAll(".volet")].some((v) => /CHAMPION|ÉLIMIN/i.test(v.textContent)),
       null, { timeout: 45000 }).catch(() => verifier(`P${numero} M${inv.manche} : le match se termine`, false, "timeout"));
     manchesJouees++;
-    await page.evaluate(() => {
-      document.querySelectorAll(".volet .orbe").forEach((o) => o.click());
-    });
-    await page.waitForTimeout(150);
+    // les orbes se ramassent toutes seules avant l'apparition du bilan
     await page.evaluate(() => {
       const b = document.getElementById("btn-continuer");
       if (b) b.click();

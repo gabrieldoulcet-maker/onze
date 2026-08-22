@@ -145,13 +145,14 @@ const verifier = (nom, ok) => {
       await page.click("#btn-journal");
     }
     // attendre le volet de bilan de fin de manche (le match dure ~5-20 s en ×2)
+    // le bilan n'apparaît qu'APRÈS le ramassage automatique des orbes
     await page.waitForFunction(() => !!document.getElementById("btn-continuer"), null, { timeout: 120000 });
-    await page.evaluate(() => {
-      arreterChrono();
-      // le bilan de manche : ouvrir les orbes puis « Continuer »
-      document.querySelectorAll(".volet .orbe").forEach((o) => o.click());
-    });
-    await page.waitForTimeout(400);
+    await page.evaluate(() => { arreterChrono(); });
+    if (m === 1) {
+      verifier("orbes : ramassées toutes seules sur le terrain (bannières)", await page.evaluate(() =>
+        partie.orbesEnAttente.length === 0 && (partie.compteurs.orbesRamassees || 0) >= 2));
+    }
+    await page.waitForTimeout(200);
     await page.evaluate(() => {
       const btn = document.getElementById("btn-continuer");
       if (btn) { btn.click(); }
