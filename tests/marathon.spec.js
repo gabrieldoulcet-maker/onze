@@ -173,9 +173,14 @@ async function unePartie(browser, numero) {
       jouerManche();
       return "lancé";
     }).catch(() => "erreur-lancement");
+    // L'écran de fin écrit « CHAMPIONS ! » ou « ÉLIMINÉ » en CAPITALES :
+    // la comparaison est insensible à la casse, sinon une élimination
+    // n'est jamais reconnue (elle ne l'était pas avant ce correctif).
+    // 100 s d'attente : depuis l'arbitrage du rythme (décision 26), un
+    // match à beaucoup de buts peut durer ~55 s.
     await page.waitForFunction(() => !!document.getElementById("btn-continuer") ||
-      [...document.querySelectorAll(".volet")].some((v) => v.textContent.includes("CHAMPION") || v.textContent.includes("Éliminé")),
-      null, { timeout: 45000 }).catch(() => verifier(`P${numero} M${inv.manche} : le match se termine`, false, "timeout"));
+      [...document.querySelectorAll(".volet")].some((v) => /champion|élimin/i.test(v.textContent)),
+      null, { timeout: 100000 }).catch(() => verifier(`P${numero} M${inv.manche} : le match se termine`, false, "timeout"));
     manchesJouees++;
     await page.evaluate(() => {
       document.querySelectorAll(".volet .orbe").forEach((o) => o.click());
@@ -194,7 +199,7 @@ async function unePartie(browser, numero) {
     vivant: partie.coachs.find((c) => !c.ia).vivant,
     vivants: partie.coachs.filter((c) => c.vivant).length,
     finAffichee: [...document.querySelectorAll(".volet")].some((v) =>
-      v.textContent.includes("CHAMPION") || v.textContent.includes("Éliminé")),
+      /champion|élimin/i.test(v.textContent)),
   }));
   const partieFinie = bilanFinal.vivants <= 1 || !bilanFinal.vivant;
   if (partieFinie) verifier(`P${numero} : la partie se TERMINE proprement (fin affichée)`, bilanFinal.finAffichee, JSON.stringify(bilanFinal));
