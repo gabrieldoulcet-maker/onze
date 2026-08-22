@@ -8,7 +8,7 @@
    calepin, or légendaire) · les états s'empilent, la silhouette
    ne change jamais · tap ≥ 44 px · FX = transform/opacity/shadow.
    ============================================================ */
-@import url('https://fonts.googleapis.com/css2?family=Bowlby+One+SC&family=Archivo:ital,wght@0,400;0,600;0,700;0,800;1,400;1,700&display=swap');
+@import url('fonts/fonts.css'); /* Bowlby One SC + Archivo, auto-hébergées */
 
 :root {
   /* ---- fonds & surfaces ---- */
@@ -64,6 +64,20 @@
 
 /* La display : nom de carte, titre d'écran — penchée, jamais sous 10 px */
 .display { font-family: var(--police-display); font-weight: 400; transform: var(--pente); }
+
+/* ---- Les écussons de familles (Lot 2) : mini sur carte, badge ±actif ---- */
+.ecusson-mini {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: var(--nuit-profonde); border: 1px solid var(--ligne-forte);
+  vertical-align: -3px; flex: 0 0 auto;
+}
+.ecusson-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: var(--surface-2); flex: 0 0 auto;
+}
+.ecusson-badge.actif { box-shadow: 0 0 0 1.5px var(--gazon-electrique), 0 0 10px rgba(61, 226, 107, 0.5); }
+.ecusson-badge.eteint { background: transparent; border: 1.5px dashed var(--ligne-forte); }
+.ecusson-badge.eteint svg { filter: grayscale(1); opacity: 0.4; }
 
 * { box-sizing: border-box; }
 body {
@@ -290,6 +304,22 @@ button.principal:disabled { background: #0C130D; color: #4A5A4C; box-shadow: non
   animation: apparait 0.25s ease;
 }
 .fiche-joueur h3 { margin: 0 0 2px; font-family: var(--police-display); font-weight: 400; font-size: 1.15rem; transform: var(--pente); }
+/* L'AFFICHE DE HÉROS (Lot 3) : filigrane géant, note-écusson, signatures dorées */
+.fiche-joueur .filigrane-note {
+  position: absolute; top: -18px; right: -8px; font-family: var(--police-display);
+  font-size: 6.5rem; line-height: 1; color: var(--or-trophee); opacity: 0.09;
+  transform: var(--pente); pointer-events: none;
+}
+.fiche-joueur .note-heros {
+  flex: 0 0 30px; width: 30px; height: 34px;
+  clip-path: polygon(0 0, 100% 0, 100% 68%, 50% 100%, 0 68%);
+  background: var(--nuit-profonde); border-top: 4px solid var(--ligne-forte);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.95rem; color: var(--craie);
+}
+.ligne-stat.signature .nom-stat, .ligne-stat.signature .valeur-stat { color: var(--or-trophee); }
+.ligne-stat.signature .barre-stat > div { background: linear-gradient(90deg, #C98F1B, #F2C14E); }
+.ligne-stat.signature .valeur-stat.boostee { color: var(--gazon-electrique); }
 .fiche-joueur .sous-titre { color: var(--craie-sourde); font-size: 0.78rem; margin-bottom: 10px; }
 .fiche-joueur .description { color: var(--craie-claire); font-size: 0.8rem; font-style: italic; margin-bottom: 10px; }
 .ligne-stat { display: flex; align-items: center; gap: 8px; padding: 2px 0; font-size: 0.8rem; }

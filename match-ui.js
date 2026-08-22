@@ -27,7 +27,9 @@ const ONZE_UI = (() => {
       "Mentor": "🦉", "Capitaine": "🎖️",
     },
   };
-  const glyphe = (nom) => GLYPHES.ecoles[nom] || GLYPHES.archetypes[nom] || "";
+  const glyphe = (nom) =>
+    (typeof ONZE_ECUSSONS !== "undefined" && ONZE_ECUSSONS.idDe(nom)) ? ONZE_ECUSSONS.mini(nom)
+    : (GLYPHES.ecoles[nom] || GLYPHES.archetypes[nom] || "");
   const DELAI_PHASE_MS = 5000;     // 8 phases → ~40 s de match
   const DELAI_EVENEMENT_MS = 1400; // les actions d'une phase s'égrènent
   let vitesse = 1;                 // 1 = direct, 2 = accéléré
@@ -372,18 +374,33 @@ const ONZE_UI = (() => {
     const etoiles = (fiche.etoiles || 1) >= 2 ? " " + "★".repeat(fiche.etoiles) : "";
     const voile = document.createElement("div");
     voile.className = "voile-fiche";
+    // les 2 stats signatures sont DORÉES (l'affiche de héros, Lot 3)
+    const signatures = new Set(ONZE.statsSignatures(stats).map((x) => x.nom));
     const lignes = Object.entries(stats).map(([stat, valeur]) => {
       const boost = boosts[stat] || 0;
       const classe = boost > 0 ? "boostee" : boost < 0 ? "malussee" : "";
       const detail = boost ? ` (${statsBase[stat]}${boost > 0 ? "+" : ""}${boost})` : "";
-      return `<div class="ligne-stat"><span class="nom-stat">${ONZE.NOMS_STATS[stat]}</span>` +
+      const sig = signatures.has(ONZE.NOMS_STATS[stat]);
+      return `<div class="ligne-stat${sig ? " signature" : ""}"><span class="nom-stat">${ONZE.NOMS_STATS[stat]}</span>` +
         `<span class="valeur-stat ${classe}">${valeur}</span>` +
         `<span class="barre-stat"><div style="width:${valeur}%"></div></span>` +
         `<span style="font-size:0.66rem;color:var(--craie-sourde)">${detail}</span></div>`;
     }).join("");
-    voile.innerHTML = `<div class="fiche-joueur">
-      <h3>${fiche.nom}${etoiles} <span style="float:right;color:var(--or-trophee)">${note}</span></h3>
-      <div class="sous-titre">${fiche.poste} · ${fiche.cout}M${fiche.unique ? " · ⭐ " + fiche.unique : ""}${fiche.ecole ? " · " + fiche.ecole : ""}${fiche.archetype ? " · " + fiche.archetype : ""}</div>
+    const coutCadre = fiche.icone || fiche.cout === 5 ? "var(--cout-5)" : `var(--cout-${fiche.cout || 1}, var(--ligne-forte))`;
+    const pilule = (contenu) => `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--nuit-profonde);border-radius:var(--r-pilule);padding:2px 8px;font-size:0.66rem;font-weight:700;color:var(--craie-claire)">${contenu}</span>`;
+    voile.innerHTML = `<div class="fiche-joueur" style="position:relative;overflow:hidden;border:2.5px solid ${coutCadre}">
+      <div class="filigrane-note">${note}</div>
+      <div style="display:flex;align-items:center;gap:9px;position:relative">
+        <span class="note-heros" style="border-top-color:${coutCadre}">${note}</span>
+        <h3 style="flex:1">${fiche.nom}${etoiles}</h3>
+        <span class="pastille p-${fiche.poste}" style="font-size:0.8rem;min-width:24px;padding:3px 4px">${GLYPHES.postes[fiche.poste] || fiche.poste}</span>
+      </div>
+      ${fiche.unique ? `<div class="sous-titre" style="color:var(--or-trophee);font-weight:800;font-style:italic">✦ ${fiche.unique} — UNIQUE</div>` : ""}
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin:4px 0 8px;position:relative">
+        ${fiche.ecole ? pilule(glyphe(fiche.ecole) + " " + fiche.ecole) : ""}
+        ${fiche.archetype ? pilule(glyphe(fiche.archetype) + " " + fiche.archetype) : ""}
+        ${pilule(`<span style="color:${coutCadre}">coût ${fiche.cout}</span>`)}
+      </div>
       ${fiche.description ? `<div class="description">${fiche.description}</div>` : ""}
       ${fiche.ecoleBonus ? `<div class="sous-titre">🛂 Emblème : compte aussi comme <strong>${fiche.ecoleBonus}</strong></div>` : ""}
       ${fiche.citoyenDuMonde ? `<div class="sous-titre">🌍 Citoyen du monde : +1 dans toutes tes Écoles actives</div>` : ""}

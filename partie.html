@@ -135,18 +135,22 @@
       display: flex; flex-direction: column; justify-content: center; gap: 4px;
       min-width: 58px; z-index: 1;
     }
+    /* ---- Le jeton (terrain + banc) : la carte Blason MINI (Lot 3) —
+       cadre couleur de coût, nom penché, poste + note + étoiles. ---- */
     .jeton {
-      width: 60px; border-radius: 8px; padding: 2px;
-      background: #0E1F12E6; border: 1px solid var(--ligne-forte);
-      text-align: center; cursor: pointer; font-size: 0.56rem; color: #C9D6C9; line-height: 1.2;
+      width: 62px; border-radius: var(--r-carte-banc); padding: 2px 4px;
+      background: var(--fond-carte); border: 2px solid var(--couleur-cout, var(--ligne-forte));
+      text-align: left; cursor: pointer; font-size: 0.54rem; color: var(--craie-claire); line-height: 1.2;
     }
-    .jeton .note-jeton { font-weight: 800; font-size: 0.72rem; color: var(--craie); }
-    .jeton .etoiles { font-size: 0.56rem; }
-    .jeton.vide { border-style: dashed; color: #ffffff66; background: #060D0855; min-height: 30px;
-      display: flex; align-items: center; justify-content: center; }
-    .jeton.cout-1 { border-left: 3px solid var(--cout-1); } .jeton.cout-2 { border-left: 3px solid var(--gazon-electrique); }
-    .jeton.cout-3 { border-left: 3px solid var(--poste-d); } .jeton.cout-4 { border-left: 3px solid var(--cout-4); }
-    .jeton.cout-5 { border-left: 3px solid var(--or-trophee); } .jeton.cout-0 { border-left: 3px solid #5F7A64; }
+    .jeton .nom-jeton { font-family: var(--police-display); font-weight: 400; font-size: 0.58rem;
+      transform: var(--pente); color: var(--craie); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+    .jeton .note-jeton { font-weight: 800; font-size: 0.62rem; color: var(--craie); }
+    .jeton .etoiles { font-size: 0.54rem; text-shadow: 0 0 5px rgba(242, 193, 78, 0.8); }
+    .jeton.vide { border: 2px dashed var(--ligne); color: #ffffff55; background: transparent; min-height: 30px;
+      display: flex; align-items: center; justify-content: center; text-align: center; }
+    .jeton.cout-1 { --couleur-cout: var(--cout-1); } .jeton.cout-2 { --couleur-cout: var(--cout-2); }
+    .jeton.cout-3 { --couleur-cout: var(--cout-3); } .jeton.cout-4 { --couleur-cout: var(--cout-4); }
+    .jeton.cout-5 { --couleur-cout: var(--cout-5); background: var(--fond-carte-or); } .jeton.cout-0 { --couleur-cout: #5F7A64; }
     .rangee-banc {
       flex: 0 0 auto; display: flex; gap: 4px; overflow-x: auto; overflow-y: hidden;
       padding: 3px 2px 0; min-height: 34px;
@@ -215,25 +219,77 @@
       line-height: 1.25;
     }
     .bloc-eco button:disabled { color: #5F7A64; }
-    .rangee-boutique { flex: 1; display: flex; gap: 5px; overflow-x: auto; }
+    .rangee-boutique { flex: 1; display: flex; gap: 5px; overflow-x: auto; overflow-y: visible; padding-top: 7px; }
+    /* ---- LA CARTE BLASON (DA S1, Lot 3 · 1a) ----
+       Hiérarchie stricte : cadre couleur de coût → note-écusson →
+       nom penché → pastille de poste → 2 stats signatures →
+       écussons → bouton prix. Les ÉTATS s'empilent en couches
+       (lueur, badge, rayons) : la base ne bouge JAMAIS. */
     .carte-boutique {
-      flex: 1 0 96px; min-height: 0; background: var(--surface-1); border: 1px solid var(--ligne); border-radius: 9px;
-      padding: 3px 5px; font-size: 0.56rem; color: #C9D6C9; cursor: pointer; line-height: 1.2;
-      display: flex; flex-direction: column; gap: 1px; overflow: hidden;
+      position: relative; flex: 1 0 88px; min-width: 0; min-height: 0;
+      background: var(--fond-carte); border: 2px solid var(--couleur-cout, var(--cout-1));
+      border-radius: var(--r-carte);
+      padding: 4px 6px 3px; font-size: 0.56rem; color: var(--craie-claire); cursor: pointer; line-height: 1.2;
+      display: flex; flex-direction: column; gap: 1px;
+      box-shadow: var(--ombre-carte);
     }
-    .carte-boutique .haut-carte { display: flex; justify-content: space-between; font-weight: 800; font-size: 0.64rem; color: var(--craie); }
-    .carte-boutique .prix { color: var(--or-trophee); }
-    .carte-boutique .signatures { color: #9CC4EF; font-weight: 700; }
-    .carte-boutique .traits-carte { color: var(--craie-sourde); font-size: 0.52rem; }
+    .carte-boutique.cout-0 { --couleur-cout: #5F7A64; }
+    .carte-boutique.cout-1 { --couleur-cout: var(--cout-1); }
+    .carte-boutique.cout-2 { --couleur-cout: var(--cout-2); }
+    .carte-boutique.cout-3 { --couleur-cout: var(--cout-3); }
+    .carte-boutique.cout-4 { --couleur-cout: var(--cout-4); }
+    .carte-boutique.cout-5 { --couleur-cout: var(--cout-5); background: var(--fond-carte-or);
+      box-shadow: 0 0 14px rgba(242, 193, 78, 0.35), var(--ombre-carte); }
+    /* la gemme de coût sur l'épaule droite */
+    .carte-boutique .gemme { position: absolute; top: -7px; right: 8px; width: 13px; height: 13px;
+      transform: rotate(45deg); background: var(--couleur-cout, var(--cout-1)); border-radius: 2px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5); }
+    .carte-boutique .gemme-chiffre { position: absolute; top: -6px; right: 9px; width: 11px; text-align: center;
+      font-weight: 800; font-size: 0.56rem; color: var(--fond-stade); z-index: 1; }
+    /* la rangée d'identité : note-écusson · nom penché · pastille */
+    .carte-boutique .ligne-identite { display: flex; align-items: center; gap: 4px; min-height: 17px; }
+    .carte-boutique .note-ecusson {
+      flex: 0 0 15px; width: 15px; height: 17px;
+      clip-path: polygon(0 0, 100% 0, 100% 68%, 50% 100%, 0 68%);
+      background: var(--nuit-profonde); border-top: 2px solid var(--couleur-cout, var(--cout-1));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 0.56rem; color: var(--craie);
+    }
+    .carte-boutique .nom-carte {
+      flex: 1; font-family: var(--police-display); font-weight: 400; font-size: 0.66rem;
+      transform: var(--pente); color: var(--craie);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .carte-boutique .signatures { color: var(--stat-signature); font-weight: 700; }
+    .carte-boutique .sous-carte { font-weight: 700; font-style: italic; color: var(--or-trophee); min-height: 11px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .carte-boutique .pied-carte { margin-top: auto; display: flex; align-items: center; gap: 3px; }
+    .carte-boutique .pied-carte .ecussons { display: flex; gap: 3px; }
     .carte-boutique button {
-      margin-top: auto; background: var(--gazon-electrique); color: var(--nuit-profonde); border: none;
-      border-radius: 6px; padding: 3px; font-weight: 800; font-size: 0.62rem; cursor: pointer;
+      flex: 1; margin: 0; background: var(--gazon-electrique); color: #04240E; border: none;
+      border-radius: 6px; padding: 3px 4px; font-weight: 800; font-size: 0.62rem; cursor: pointer;
+      box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+      position: relative;
     }
-    .carte-boutique button:disabled { background: #0C130D; color: #4A5A4C; }
-    .carte-boutique.vendue { opacity: 0.35; justify-content: center; text-align: center; }
-    .carte-boutique.cout-1 { border-top: 3px solid var(--cout-1); } .carte-boutique.cout-2 { border-top: 3px solid var(--gazon-electrique); }
-    .carte-boutique.cout-3 { border-top: 3px solid var(--poste-d); } .carte-boutique.cout-4 { border-top: 3px solid var(--cout-4); }
-    .carte-boutique.cout-5 { border-top: 3px solid var(--or-trophee); }
+    /* zone tactile étendue à 44 px au-delà du visuel (règle dure DA) */
+    .carte-boutique button::after { content: ""; position: absolute; inset: -12px -6px -8px -6px; }
+    .carte-boutique.cout-5 button { background: var(--or-trophee); }
+    .carte-boutique button:disabled { background: #0C130D; color: #4A5A4C; box-shadow: none; }
+    .carte-boutique.vendue { opacity: 0.35; justify-content: center; text-align: center; border-color: var(--ligne); box-shadow: none; }
+    /* l'état GRISÉ (pas les moyens) : couche filtre, la base ne bouge pas */
+    .carte-boutique.grisee { filter: grayscale(0.85) brightness(0.6); }
+    /* la carte ICÔNE : rayons or tournants derrière la carte */
+    .carte-boutique.carte-icone { border-color: var(--or-trophee); background: var(--fond-carte-or); z-index: 0; }
+    .carte-boutique.carte-icone::before {
+      content: ""; position: absolute; inset: -14px; z-index: -1; border-radius: 50%;
+      background: conic-gradient(from 0deg, rgba(242,193,78,0.28) 0deg 14deg, transparent 14deg 36deg, rgba(242,193,78,0.28) 36deg 50deg, transparent 50deg 72deg, rgba(242,193,78,0.28) 72deg 86deg, transparent 86deg 108deg, rgba(242,193,78,0.28) 108deg 122deg, transparent 122deg 144deg, rgba(242,193,78,0.28) 144deg 158deg, transparent 158deg 180deg, rgba(242,193,78,0.28) 180deg 194deg, transparent 194deg 216deg, rgba(242,193,78,0.28) 216deg 230deg, transparent 230deg 252deg, rgba(242,193,78,0.28) 252deg 266deg, transparent 266deg 288deg, rgba(242,193,78,0.28) 288deg 302deg, transparent 302deg 324deg, rgba(242,193,78,0.28) 324deg 338deg, transparent 338deg 360deg);
+      animation: tourneRayons 12s linear infinite;
+    }
+    @keyframes tourneRayons { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    /* le tag d'état (CALEPIN / ICÔNE) en pilule sur l'épaule gauche */
+    .carte-boutique .tag-etat { position: absolute; top: -8px; left: 6px; font-weight: 800; font-size: 0.5rem;
+      padding: 1px 6px; border-radius: var(--r-pilule); background: var(--calepin); color: #04121F; z-index: 1; }
+    .carte-boutique .tag-etat.or { background: var(--or-trophee); color: #1A1405; }
     .btn-verrou-carte { flex: 0 0 30px; background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
       border-radius: 7px; font-size: 0.85rem; cursor: pointer; }
 
@@ -285,11 +341,21 @@
 
     /* Le Calepin : les joueurs planifiés brillent en boutique ;
        l'éclat de fusion : ★★ si 2 copies possédées (or si 3★ en vue) */
-    .carte-boutique.planifie { border-color: #9CC4EF; box-shadow: 0 0 10px rgba(156, 196, 239, 0.5); }
-    .carte-boutique.eclat { border-color: var(--gazon-electrique); box-shadow: 0 0 12px rgba(61, 226, 107, 0.65); animation: eclatPulse 1.4s ease infinite; }
-    .carte-boutique.eclat-or { border-color: var(--or-trophee); box-shadow: 0 0 14px rgba(242, 193, 78, 0.8); animation: eclatPulse 1.1s ease infinite; }
-    @keyframes eclatPulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.25); } }
-    .badge-eclat { position: absolute; top: 2px; right: 4px; font-size: 0.6rem; color: var(--or-trophee); font-weight: 800; }
+    /* Les ÉTATS de la carte — des COUCHES de lueur (1 couleur = 1 sens) :
+       bleu = épinglée au calepin · vert = fusion ★★ en vue · or = ★★★ */
+    .carte-boutique.planifie { box-shadow: var(--lueur-calepin); }
+    .carte-boutique.eclat { animation: pulseFusion 1.6s ease infinite; }
+    @keyframes pulseFusion {
+      0%, 100% { box-shadow: 0 0 0 2px #3DE26B, 0 0 14px 3px rgba(61, 226, 107, 0.45); }
+      50% { box-shadow: 0 0 0 2px #3DE26B, 0 0 24px 7px rgba(61, 226, 107, 0.75); }
+    }
+    .carte-boutique.eclat-or { animation: pulseOr 1.1s ease infinite; }
+    @keyframes pulseOr {
+      0%, 100% { box-shadow: 0 0 0 2px #F2C14E, 0 0 14px 3px rgba(242, 193, 78, 0.5); }
+      50% { box-shadow: 0 0 0 2px #F2C14E, 0 0 26px 8px rgba(242, 193, 78, 0.85); }
+    }
+    .badge-eclat { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); font-size: 0.6rem;
+      color: var(--or-trophee); font-weight: 800; text-shadow: 0 0 6px rgba(242, 193, 78, 0.9); letter-spacing: 1px; z-index: 1; }
     .galerie { display: flex; flex-wrap: wrap; gap: 4px; }
     .galerie .carte-galerie {
       flex: 0 0 31%; background: var(--surface-1); border: 1px solid var(--ligne); border-radius: 8px;
@@ -423,6 +489,7 @@
   <script src="match-moteur.js"></script>
   <script src="icones.js"></script>
   <script src="synergies-data.js"></script>
+  <script src="ecussons.js"></script>
   <script src="match-ui.js"></script>
   <script src="match-scene.js"></script>
   <script src="juice.js"></script>
@@ -1699,7 +1766,7 @@
        ============================================================ */
     const ETAPES_TUTO = [
       { id: "boutique", cible: "boutique-barre", position: "haut",
-        texte: "⚽ Voici ton <strong>mercato</strong>. Chaque manche, 5 joueurs se présentent.<br>Touche <strong>Recruter</strong> pour engager ton premier joueur (tu as reçu quelques millions).",
+        texte: "⚽ Voici ton <strong>mercato</strong>. Chaque manche, 5 joueurs se présentent.<br>Touche le <strong>bouton-prix vert</strong> d'une carte pour engager ton premier joueur (tu as reçu quelques millions).",
         attend: "achat" },
       { id: "terrain", cible: "terrain-scene", position: "centre",
         texte: "👕 Tes recrues rejoignent le <strong>terrain</strong> (ou le banc s'il est plein).<br>Glisse un joueur pour le déplacer, touche-le pour voir sa fiche.",
@@ -2370,8 +2437,9 @@
       const staff = `${"🧪".repeat(nbSpecs)}${"🧰".repeat(nbCartes)}${fiche.ecoleBonus ? "🛂" : ""}${fiche.relique ? "🏺" : ""}${(fiche.specsIconiques || []).length ? "🌟" : ""}`;
       const choisi = selection && selection.nomListe === nomListe && selection.indice === indice;
       return `<div class="jeton cout-${fiche.cout}${choisi ? " choisi" : ""}" data-liste="${nomListe}" data-indice="${indice}" onclick="tapJeton('${nomListe}', ${indice})">
-        ${pastilleHTML(fiche)} <span class="note-jeton">${note}</span> ${etoiles}<br>${fiche.nom}<br>
-        <span class="glyphes-famille">${ONZE_UI.glyphe(fiche.ecole)}${ONZE_UI.glyphe(fiche.archetype)}${staff}</span></div>`;
+        <span class="nom-jeton">${fiche.nom}</span>
+        <span style="display:flex;align-items:center;gap:2px">${pastilleHTML(fiche)} <span class="note-jeton">${note}</span><span style="margin-left:auto">${etoiles}</span></span>
+        <span class="glyphes-famille" style="display:flex;gap:2px;align-items:center">${ONZE_UI.glyphe(fiche.ecole)}${ONZE_UI.glyphe(fiche.archetype)}<span style="font-size:0.5rem">${staff}</span></span></div>`;
     }
     function afficher() {
       const max = TITULAIRES_PAR_NIVEAU[partie.niveau];
@@ -2405,12 +2473,15 @@
       el("boutique").innerHTML = partie.boutique.map((fiche, i) => {
         if (!fiche) return `<div class="carte-boutique vendue">—</div>`;
         if (fiche.estIcone) {
+          // la carte ICÔNE : or + rayons tournants (état légendaire, Lot 3)
           const icone = ONZE_ICONES.parId(fiche.id);
-          return `<div class="carte-boutique" style="border:1px solid var(--or-trophee);box-shadow:0 0 12px rgba(242, 193, 78,0.35)">
-            <span class="haut-carte"><span>🏆 ICÔNE</span><span class="prix">${icone.cout}M</span></span>
-            <span><strong>${icone.nom}</strong></span>
-            <span class="traits-carte">${icone.ecole || "Sans École"}${icone.archetype ? " · " + icone.archetype : ""}</span>
-            <button onclick="event.stopPropagation(); acheter(${i})" ${partie.or < icone.cout ? "disabled" : ""}>Signer ${icone.cout}M</button>
+          const grisee = partie.or < icone.cout ? " grisee" : "";
+          return `<div class="carte-boutique cout-5 carte-icone${grisee}">
+            <span class="tag-etat or">ICÔNE</span>
+            <span class="gemme"></span><span class="gemme-chiffre">${icone.cout}</span>
+            <span class="ligne-identite"><span class="nom-carte">${icone.nom}</span></span>
+            <span class="sous-carte">${icone.ecole || "Sans École"}${icone.archetype ? " · " + icone.archetype : ""}</span>
+            <span class="pied-carte"><button onclick="event.stopPropagation(); acheter(${i})" ${partie.or < icone.cout ? "disabled" : ""}>Signer · ${icone.cout}M</button></span>
           </div>`;
         }
         const stats = ONZE.genererStats(fiche);
@@ -2420,13 +2491,16 @@
         const eclatOr = copies === 2 && aDeuxEtoiles(fiche.nom);
         const eclat = copies >= 2 ? (eclatOr ? "eclat-or" : "eclat") : "";
         const planifie = partie.calepin.includes(fiche.nom) ? "planifie" : "";
-        const badgeEclat = copies >= 2 ? `<span class="badge-eclat">${eclatOr ? "★★★" : "★★"}</span>` : (copies === 1 ? `<span class="badge-eclat" style="color:var(--craie-sourde)">•2/3</span>` : "");
-        return `<div class="carte-boutique cout-${fiche.cout} ${eclat} ${planifie}" style="position:relative" onclick="ONZE_UI.ouvrirFiche(tousLesJoueurs.find((j) => j.nom === '${fiche.nom.replace(/'/g, "\\'")}'))">${badgeEclat}
-          <span class="haut"><span>${note} ${pastilleHTML(fiche)}</span><span class="prix">${fiche.cout}M</span></span>
-          <span><strong>${fiche.nom}</strong></span>
+        const grisee = partie.or < fiche.cout && !eclat ? " grisee" : "";
+        const badgeEclat = copies >= 2 ? `<span class="badge-eclat">${eclatOr ? "★★★" : "★★"}</span>` : (copies === 1 ? `<span class="badge-eclat" style="color:var(--craie-sourde);text-shadow:none">•2/3</span>` : "");
+        const tag = planifie ? `<span class="tag-etat">CALEPIN</span>` : "";
+        return `<div class="carte-boutique cout-${fiche.cout} ${eclat} ${planifie}${grisee}" onclick="ONZE_UI.ouvrirFiche(tousLesJoueurs.find((j) => j.nom === '${fiche.nom.replace(/'/g, "\\'")}'))">${badgeEclat}${tag}
+          <span class="gemme"></span><span class="gemme-chiffre">${fiche.cout}</span>
+          <span class="ligne-identite"><span class="note-ecusson">${note}</span><span class="nom-carte">${fiche.nom}</span>${pastilleHTML(fiche)}</span>
           <span class="signatures">${signatures}</span>
-          <span class="traits-carte"><span class="glyphes-famille">${ONZE_UI.glyphe(fiche.ecole)}${ONZE_UI.glyphe(fiche.archetype)}</span> ${fiche.unique ? "⭐ " + fiche.unique : (fiche.ecole || "")}<br>${fiche.archetype || ""}</span>
-          <button onclick="event.stopPropagation(); acheter(${i})" ${partie.or < fiche.cout ? "disabled" : ""}>Recruter ${fiche.cout}M</button>
+          <span class="sous-carte">${fiche.unique ? "✦ " + fiche.unique : `<span style="color:var(--craie-sourde);font-style:normal">${fiche.ecole || ""}${fiche.archetype ? " · " + fiche.archetype : ""}</span>`}</span>
+          <span class="pied-carte"><span class="ecussons">${ONZE_UI.glyphe(fiche.ecole)}${ONZE_UI.glyphe(fiche.archetype)}</span>
+            <button onclick="event.stopPropagation(); acheter(${i})" ${partie.or < fiche.cout ? "disabled" : ""}>${fiche.cout}M</button></span>
         </div>`;
       }).join("");
 

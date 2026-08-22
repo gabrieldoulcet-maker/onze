@@ -190,6 +190,7 @@ const ONZE_SCENE = (() => {
           if (st.couloirs && n >= 2 && (i === 0 || i === n - 1)) y = i === 0 ? 10 : 90;
           const d = {
             nom: j.nom, num: numero++, camp, gardien: ligneDuJoueur(j) === "GAR",
+            etoiles: j.etoiles || 1,
             ecole: j.ecole, archetype: j.archetype,
             baseX: xLigne(camp, ligne), baseY: y,
             x: xLigne(camp, ligne), y, cx: null, cy: null,
@@ -681,27 +682,45 @@ const ONZE_SCENE = (() => {
       }
     }
 
+    /* Le pion DA (Lot 3) : disque en relief — lumière haut-gauche,
+       ombre interne basse, gardien or — un jeton de plateau lisible
+       à 60 fps (dégradés recréés par frame : coût négligeable). */
     function dessinerDisque(d, temps) {
       const r = Math.max(hauteur * 0.045, 8) * d.echelle;
       const X = px(d.x), Y = py(d.y);
       ctx.save();
       if (d.aura > 0) { ctx.shadowColor = d.auraCouleur; ctx.shadowBlur = 14; }
       else if (d.flash > 0) { ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 10; }
+      else { ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 5; ctx.shadowOffsetY = 3; }
+      // la matière : radial éclairé à 32 % / 26 % (comme l'artboard)
+      const grad = ctx.createRadialGradient(X - r * 0.36, Y - r * 0.48, r * 0.15, X, Y, r);
+      if (d.gardien) { grad.addColorStop(0, "#F8DE8E"); grad.addColorStop(1, "#B8860B"); }
+      else if (d.camp === "moi") { grad.addColorStop(0, "#4FE07E"); grad.addColorStop(1, "#1B7A3A"); }
+      else { grad.addColorStop(0, "#E87F6F"); grad.addColorStop(1, "#8E2E1F"); }
       ctx.beginPath(); ctx.arc(X, Y, r, 0, 6.283);
-      ctx.fillStyle = d.camp === "moi" ? (d.gardien ? "#1E4030" : "#14301C") : (d.gardien ? "#402A14" : "#33150F");
+      ctx.fillStyle = grad;
       ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = d.gardien ? "#F2C14E" : d.camp === "moi" ? "#3DE26B" : "#E8503F";
-      ctx.stroke();
+      ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+      // l'ombre interne basse (le relief du jeton)
+      const ombre = ctx.createLinearGradient(X, Y - r, X, Y + r);
+      ombre.addColorStop(0.55, "rgba(0,0,0,0)");
+      ombre.addColorStop(1, "rgba(0,0,0,0.38)");
+      ctx.fillStyle = ombre;
+      ctx.fill();
       if (porteurAnneau === d.nom) {
         ctx.beginPath(); ctx.arc(X, Y, r + 3.5 + Math.sin(temps * 0.008) * 1.2, 0, 6.283);
-        ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 1.6; ctx.stroke();
+        ctx.strokeStyle = "rgba(253,248,234,0.9)"; ctx.lineWidth = 1.8; ctx.stroke();
       }
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "#EDF5EC";
-      ctx.font = `700 ${Math.max(r * 0.9, 7)}px system-ui, sans-serif`;
+      ctx.fillStyle = d.gardien ? "#1A1405" : d.camp === "moi" ? "#04240E" : "#1F0704";
+      ctx.font = `800 ${Math.max(r * 0.9, 7)}px Archivo, system-ui, sans-serif`;
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText(String(d.num), X, Y + 0.5);
+      // les étoiles au-dessus du pion (or dès ★★, comme l'artboard)
+      if (d.etoiles >= 2) {
+        ctx.fillStyle = "#F2C14E";
+        ctx.font = `${Math.max(r * 0.55, 6)}px system-ui, sans-serif`;
+        ctx.fillText("★".repeat(Math.min(d.etoiles, 3)), X, Y - r - 4);
+      }
       ctx.restore();
     }
 
