@@ -51,7 +51,8 @@ const ONZE_UI = (() => {
       const prochain = paliers ? paliers.find((p) => p > sy.nb) : null;
       const libelle = prochain ? `${sy.nb}/${prochain}` : `${sy.nb}`;
       const presque = prochain && prochain - sy.nb === 1 ? " presque" : "";
-      rendus.push(`<span class="badge${presque}" data-famille="${sy.nom}">${glyphe(sy.nom)} ${sy.nom} ${libelle}${presque ? " ✨" : ""}</span>`);
+      const ecusson = typeof ONZE_ECUSSONS !== "undefined" ? ONZE_ECUSSONS.badge(sy.nom, true, 18) : glyphe(sy.nom);
+      rendus.push(`<span class="badge synergie-active${presque}" data-famille="${sy.nom}">${ecusson} <span class="badge-texte">${sy.nom}<small>${libelle}${presque ? " ✨" : ""}</small></span></span>`);
     }
     // familles pas encore actives mais à UN joueur du premier palier
     const comptes = {};
@@ -64,7 +65,8 @@ const ONZE_UI = (() => {
       if (vus.has(nom) || nom === "Capitaine") continue;
       const paliers = paliersDe(nom, type);
       if (paliers && paliers[0] - nb === 1) {
-        rendus.push(`<span class="badge inactif" data-famille="${nom}">${glyphe(nom)} ${nom} ${nb}/${paliers[0]} ✨</span>`);
+        const ecussonEteint = typeof ONZE_ECUSSONS !== "undefined" ? ONZE_ECUSSONS.badge(nom, false, 18) : glyphe(nom);
+        rendus.push(`<span class="badge inactif" data-famille="${nom}">${ecussonEteint} <span class="badge-texte">${nom}<small>${nb}/${paliers[0]} ✨</small></span></span>`);
       }
     }
     return rendus.join("");

@@ -244,14 +244,18 @@ button.principal:disabled { background: #0C130D; color: #4A5A4C; box-shadow: non
 .masque { display: none !important; }
 
 /* ---- La fusion : un événement mis en scène (décision n°13) ---- */
+/* ★★ = l'éclat VERT · ★★★ = l'or (règle dure : l'or n'arrive qu'à 3★) */
 .fusion-banniere {
   position: fixed; top: 30%; left: 50%; transform: translateX(-50%);
-  background: linear-gradient(135deg, #F2C14E, #C98F1B);
-  color: #1A1405; font-weight: 800; font-size: 1.05rem;
+  background: linear-gradient(135deg, #3DE26B, #1B7A3A);
+  color: #04240E; font-weight: 800; font-size: 1.05rem;
   padding: 16px 22px; border-radius: 14px; text-align: center;
-  box-shadow: 0 0 40px rgba(242, 193, 78, 0.55);
+  box-shadow: 0 0 40px rgba(61, 226, 107, 0.55);
   z-index: 50; pointer-events: none;
   animation: fusionPop 2.6s ease forwards;
+}
+.fusion-banniere.trois-etoiles {
+  background: linear-gradient(135deg, #F2C14E, #C98F1B); color: #1A1405;
 }
 .fusion-banniere small { display: block; font-weight: 600; font-size: 0.78rem; margin-top: 4px; }
 @keyframes fusionPop {
@@ -349,9 +353,17 @@ button.principal:disabled { background: #0C130D; color: #4A5A4C; box-shadow: non
 .axe .barre-axe > div.faible { background: var(--alerte); }
 .axe .valeur-axe { width: 24px; text-align: right; font-variant-numeric: tabular-nums; color: var(--craie-sourde); }
 
-/* ---- Badges : « encore 1 » et familles presque allumées ---- */
-.badge.presque { border: 1px solid var(--or-trophee); }
-.badge.inactif { background: var(--fond-stade); color: var(--craie-sourde); border: 1px dashed var(--ligne-forte); }
+/* ---- Badges de synergies (Lot 4) : écusson ± illuminé + compte ---- */
+.badge.synergie-active, .badge.inactif {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(6, 13, 8, 0.8); border: 1px solid var(--gazon-electrique);
+  border-radius: var(--r-tuile); padding: 2px 6px 2px 3px;
+}
+.badge .badge-texte { display: inline-flex; flex-direction: column; line-height: 1.15; color: var(--gazon-electrique); }
+.badge .badge-texte small { color: var(--craie-sourde); font-weight: 700; }
+.badge.presque { border-color: var(--or-trophee); }
+.badge.inactif { border: 1px solid var(--ligne); }
+.badge.inactif .badge-texte { color: var(--craie-sourde); }
 
 /* ---- Les trois raretés d'orbes ---- */
 .orbe.gris { background: var(--orbe-gris); box-shadow: 0 0 18px rgba(200, 210, 200, 0.35), inset 0 -8px 14px rgba(0, 0, 0, 0.3); animation: none; }
@@ -415,9 +427,15 @@ button.principal:disabled { background: #0C130D; color: #4A5A4C; box-shadow: non
 .scene-match .cri-but {
   position: absolute; transform: translateX(-50%); z-index: 8; pointer-events: none;
   font-family: var(--police-display); font-weight: 400;
-  font-size: 1.25rem; color: var(--or-trophee); text-shadow: 0 2px 0 #04240E, 0 2px 8px #000;
+  font-size: 1.25rem; color: var(--craie); text-shadow: 0 2px 0 #04240E, 0 2px 8px #000;
   animation: criBut 1.15s ease forwards;
 }
+/* Le BUT à 3 intensités (Lot 5) : même squelette, l'enjeu fait la taille */
+.scene-match .cri-but.niv1 { font-size: 1.05rem; }
+.scene-match .cri-but.niv2 { font-size: 1.45rem; color: var(--gazon-electrique);
+  text-shadow: 0 2px 0 #04240E, 0 0 22px rgba(61, 226, 107, 0.7); }
+.scene-match .cri-but.niv3 { font-size: 1.45rem; color: var(--or-trophee);
+  text-shadow: 0 2px 0 #04240E, 0 0 30px rgba(242, 193, 78, 0.8); }
 @keyframes criBut { 0% { transform: translateX(-50%) scale(0.5) skewX(-8deg); opacity: 0; } 20% { transform: translateX(-50%) scale(1.25) skewX(-8deg); opacity: 1; } 75% { transform: translateX(-50%) scale(1) skewX(-8deg); opacity: 1; } 100% { opacity: 0; } }
 
 /* le bandeau compact du récit (journal en une ligne, extensible 📜) */

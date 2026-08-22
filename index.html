@@ -14,14 +14,32 @@
   <link rel="apple-touch-icon" href="icons/icone-180.png">
   <link rel="stylesheet" href="onze.css">
   <style>
-    body { justify-content: center; gap: 8px; }
-    header h1 { font-size: 3.4rem; letter-spacing: 4px; }
+    body { justify-content: center; gap: 8px; background: var(--fond-ecran); }
+    /* Le logo ARCADE (DA S1, Lot 1 · 1b) : le badge de borne — cartouche
+       vert électrique, ONZE penché, O-ballon, traits de vitesse. */
+    .cartouche-logo {
+      position: relative; display: inline-flex; flex-direction: column; align-items: center; gap: 4px;
+      transform: skewX(-8deg) rotate(-2deg);
+      background: linear-gradient(180deg, #14351D, #0A1B10);
+      border: 4px solid var(--gazon-electrique); border-radius: 20px;
+      padding: 14px 30px;
+      box-shadow: 0 0 0 4px var(--nuit-profonde), 0 0 34px rgba(61, 226, 107, 0.45), inset 0 -8px 0 rgba(0, 0, 0, 0.4);
+    }
+    .cartouche-logo .nom-logo {
+      font-family: var(--police-display); font-weight: 400; font-size: 3rem; line-height: 1;
+      color: var(--gazon-electrique); text-shadow: 0 4px 0 #04240E, 0 0 24px rgba(61, 226, 107, 0.6);
+    }
+    .cartouche-logo .filet { display: flex; align-items: center; gap: 7px; }
+    .cartouche-logo .filet i { display: block; width: 34px; height: 3px; background: var(--or-trophee); border-radius: 999px; }
+    header .devise { font-family: var(--police-texte); font-weight: 800; font-size: 0.7rem;
+      letter-spacing: 4px; color: var(--or-trophee); margin-top: 10px; }
+    .trait-vitesse { position: fixed; height: 12px; border-radius: 999px; transform: skewX(-30deg); pointer-events: none; }
     .menu { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 8px; }
     .bouton-jouer {
       display: block; text-decoration: none; text-align: center;
-      background: var(--gazon-electrique); color: var(--nuit-profonde);
-      border-radius: 14px; padding: 18px; font-size: 1.2rem; font-weight: 900;
-      box-shadow: 0 4px 18px rgba(61, 226, 107, 0.35);
+      background: var(--gazon-electrique); color: #04240E;
+      border-radius: 14px; padding: 16px; font-size: 1.2rem; font-weight: 800;
+      box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.25), 0 0 26px rgba(61, 226, 107, 0.4);
     }
     .reglages { display: flex; gap: 6px; }
     .reglages button {
@@ -41,9 +59,16 @@
   </style>
 </head>
 <body>
+  <div class="trait-vitesse" style="left:-40px; top:22%; width:280px; background:linear-gradient(90deg, rgba(61,226,107,0), #3DE26B); opacity:0.55"></div>
+  <div class="trait-vitesse" style="left:-40px; top:calc(22% + 22px); width:190px; height:8px; background:linear-gradient(90deg, rgba(61,226,107,0), #3DE26B); opacity:0.35"></div>
+  <div class="trait-vitesse" style="right:-40px; top:64%; width:280px; background:linear-gradient(270deg, rgba(242,193,78,0), #F2C14E); opacity:0.45"></div>
+  <div class="trait-vitesse" style="right:-40px; top:calc(64% + 22px); width:180px; height:8px; background:linear-gradient(270deg, rgba(242,193,78,0), #F2C14E); opacity:0.3"></div>
   <header>
-    <h1>ON<span>ZE</span></h1>
-    <p>L'auto-battler du football</p>
+    <div class="cartouche-logo">
+      <span class="nom-logo">ONZE</span>
+      <span class="filet"><i></i><svg width="24" height="24" viewBox="0 0 64 64"><circle cx="32" cy="32" r="29" fill="#FDF8EA" stroke="#04240E" stroke-width="6"></circle><polygon points="32,21 42,28.5 38,40.5 26,40.5 22,28.5" fill="#04240E"></polygon></svg><i></i></span>
+    </div>
+    <p class="devise">HUIT COACHS · UN MERCATO</p>
   </header>
   <div class="menu">
     <a class="bouton-jouer" href="partie.html">🏆 Jouer</a>

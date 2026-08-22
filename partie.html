@@ -53,12 +53,18 @@
     }
     html.en-portrait #tourne-ecran { display: flex; }
     html.en-portrait #app { display: none; }
-    #tourne-ecran .rotor { font-size: 3rem; animation: tourne-doux 2.4s ease-in-out infinite; }
+    #tourne-ecran .rotor { animation: tourne-doux 2.4s ease-in-out infinite; }
+    /* le téléphone-cartouche (satellite « Tourne ton téléphone », Lot 4) */
+    .telephone-cartouche {
+      width: 54px; height: 34px; border: 3px solid var(--gazon-electrique); border-radius: 8px;
+      box-shadow: 0 0 16px rgba(61, 226, 107, 0.4); transform: rotate(90deg);
+    }
     @keyframes tourne-doux {
       0%, 55%, 100% { transform: rotate(0deg); }
-      25%, 40% { transform: rotate(90deg); }
+      25%, 40% { transform: rotate(-90deg); }
     }
-    #tourne-ecran h2 { margin: 0; font-size: 1.25rem; color: var(--or-trophee); }
+    #tourne-ecran h2 { margin: 8px 0 0; font-family: var(--police-display); font-weight: 400;
+      font-size: 1.3rem; color: var(--craie); transform: var(--pente); }
     #tourne-ecran p { margin: 0; font-size: 0.85rem; color: var(--craie-sourde); max-width: 300px; line-height: 1.45; }
     #tourne-ecran .promo-pwa {
       margin-top: 10px; padding: 10px 14px; border: 1px solid var(--ligne); border-radius: 12px;
@@ -90,8 +96,8 @@
     .pastille-manche small { display: block; font-size: 0.5rem; color: var(--craie-sourde); }
     .pastille-manche.passee { opacity: 0.25; }
     .pastille-manche.courante {
-      background: var(--surface-1); border: 1px solid var(--gazon-electrique); opacity: 1;
-      box-shadow: 0 0 8px rgba(61, 226, 107, 0.5); font-size: 0.82rem;
+      background: var(--surface-2); border: 1.5px solid var(--or-trophee); opacity: 1;
+      box-shadow: 0 0 12px rgba(242, 193, 78, 0.6); font-size: 0.82rem;
     }
     .haut button {
       background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
@@ -363,10 +369,32 @@
     }
     .galerie .carte-galerie.epingle { border-color: #9CC4EF; box-shadow: 0 0 8px rgba(156, 196, 239, 0.5); }
 
+    /* Le toast : une pilule discrète (vocabulaire d'interaction, Lot 4) */
     .message-flottant {
       position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%);
-      color: var(--alerte-claire); font-size: 0.75rem; z-index: 90; background: #060D08DD;
-      border-radius: 8px; padding: 0 8px; pointer-events: none; text-align: center;
+      color: var(--craie-claire); font-size: 0.75rem; z-index: 90;
+      background: #060D08E8; border: 1px solid var(--ligne);
+      border-radius: var(--r-pilule); padding: 0 12px; pointer-events: none; text-align: center;
+    }
+    /* La bannière en balayage latéral (Lot 5) : couleur = sens —
+       vert fusion · or palier/légendaire. Le layout ne bouge pas. */
+    .banniere-balayage {
+      position: absolute; left: 0; right: 0; top: 64px; z-index: 95; pointer-events: none;
+      padding: 8px 18px; font-weight: 800; font-size: 0.85rem;
+      font-family: var(--police-display); letter-spacing: 0.5px;
+      background: linear-gradient(90deg, rgba(242, 193, 78, 0.20), rgba(242, 193, 78, 0));
+      border-left: 3px solid var(--or-trophee); color: var(--or-trophee);
+      animation: balayage 1.4s ease forwards;
+    }
+    .banniere-balayage.verte {
+      background: linear-gradient(90deg, rgba(61, 226, 107, 0.20), rgba(61, 226, 107, 0));
+      border-left-color: var(--gazon-electrique); color: var(--gazon-electrique);
+    }
+    @keyframes balayage {
+      0% { transform: translateX(-24px); opacity: 0; }
+      12% { transform: none; opacity: 1; }
+      80% { opacity: 1; }
+      100% { opacity: 0; }
     }
 
     /* ---- Volets et panneaux ---- */
@@ -375,11 +403,17 @@
       z-index: 60; display: flex; align-items: center; justify-content: center;
       padding: 14px; overflow-y: auto;
     }
+    /* Le GABARIT COMMUN des panneaux (Lot 4) : même matière, même
+       rayon, même ombre — seule la couleur de bord dit le contexte. */
     .volet .panneau {
-      background: #131b14; border: 1px solid var(--ligne-forte); border-radius: 14px;
+      background: linear-gradient(165deg, #152A19, #0A160D);
+      border: 2px solid var(--ligne-forte); border-radius: var(--r-panneau);
       width: 100%; max-width: 420px; max-height: 92vh; overflow-y: auto;
       padding: 14px; animation: apparait 0.25s ease; font-size: 0.8rem;
+      box-shadow: var(--ombre-panneau);
     }
+    .volet .panneau > strong:first-child { font-family: var(--police-display); font-weight: 400;
+      font-size: 0.95rem; display: inline-block; transform: var(--pente); }
     .volet .panneau .classement { border: none; padding: 0; margin: 0 0 8px; background: none; }
     .volet .fermer-volet {
       width: 100%; margin-top: 10px; background: var(--ligne); color: var(--craie-claire);
@@ -392,7 +426,7 @@
 <body>
   <!-- ===== Écran « tourne ton téléphone » (portrait uniquement) ===== -->
   <div id="tourne-ecran">
-    <div class="rotor">🔄</div>
+    <div class="rotor"><div class="telephone-cartouche"></div></div>
     <h2>Tourne ton téléphone</h2>
     <p>ONZE se joue en paysage — comme un vrai match.<br>
       Si rien ne bouge : désactive le <strong>verrou d'orientation</strong> d'iOS
@@ -1465,14 +1499,20 @@
         if (je.vivant) ONZE_JUICE.jouer("icone"); else ONZE_JUICE.jouer("defaite");
         const volet = document.createElement("div");
         volet.className = "volet";
-        volet.innerHTML = `<div class="panneau" style="text-align:center;max-width:480px">
-          <div style="font-size:1.35rem;font-weight:900;margin-bottom:2px">${je.vivant ? "🏆 CHAMPION !" : "💔 Éliminé"}</div>
-          <div style="color:var(--craie-sourde);font-size:0.78rem;margin-bottom:8px">${place}ᵉ sur 8 · manche ${partie.manche}</div>
+        volet.innerHTML = `<div class="panneau" style="text-align:center;max-width:480px;${je.vivant ? "border-color:var(--or-trophee);background:linear-gradient(165deg,#1F1C10,#0A160D)" : ""}">
+          <div style="font-family:var(--police-display);font-size:1.7rem;transform:var(--pente);margin-bottom:2px;${je.vivant
+            ? "color:var(--or-trophee);text-shadow:0 3px 0 #04240E, 0 0 26px rgba(242,193,78,0.5)"
+            : "color:var(--craie-claire);text-shadow:0 3px 0 #04240E"}">${je.vivant ? "CHAMPIONS !" : "ÉLIMINÉ"}</div>
+          <div style="color:var(--craie-sourde);font-size:0.78rem;margin-bottom:8px">${place}ᵉ sur 8 · manche ${partie.manche}${je.vivant ? "" : " · le club retiendra la leçon"}</div>
           <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-bottom:8px">
             ${partie.terrain.map((j) => `<span class="jeton cout-${j.cout}" style="width:56px;cursor:default">
               ${pastilleHTML(j)}${(j.etoiles || 1) >= 2 ? `<span class="etoiles">${"★".repeat(j.etoiles)}</span>` : ""}<br>${j.nom.replace(/ ★+$/, "")}</span>`).join("")}
           </div>
-          ${heros ? `<div class="coach" style="margin-bottom:4px"><span>🌟 L'homme de ta partie : <strong>${heros.nom}</strong> — ${heros.buts} but${heros.buts > 1 ? "s" : ""}, ${heros.passes} passe${heros.passes > 1 ? "s" : ""} décisive${heros.passes > 1 ? "s" : ""}${heros.arrets ? ", " + heros.arrets + " arrêts" : ""}</span></div>` : ""}
+          ${heros ? `<div style="display:inline-block;border:2.5px solid var(--or-trophee);border-radius:12px;background:var(--fond-carte-or);box-shadow:0 0 22px rgba(242,193,78,0.35);padding:8px 14px;margin-bottom:6px">
+            <div style="font-size:0.6rem;color:var(--craie-sourde);letter-spacing:2px">HOMME DE LA PARTIE 🌟</div>
+            <div style="font-family:var(--police-display);font-size:1.1rem;transform:var(--pente)">${heros.nom.replace(/ ★+$/, "")}</div>
+            <div style="font-size:0.7rem;color:var(--craie-sourde)">${heros.buts} but${heros.buts > 1 ? "s" : ""} · ${heros.passes} passe${heros.passes > 1 ? "s" : ""} décisive${heros.passes > 1 ? "s" : ""}${heros.arrets ? " · " + heros.arrets + " arrêts" : ""}</div>
+          </div>` : ""}
           ${icones.length ? `<div class="coach" style="margin-bottom:4px"><span>🎯 Icônes débloquées : <strong>${icones.join(" · ")}</strong></span></div>` : ""}
           <details style="margin:4px 0"><summary style="cursor:pointer;color:var(--craie-sourde);font-size:0.76rem">🏁 Le classement final</summary>
             <div class="classement" style="margin-top:4px">${ligneClassement()}</div></details>
@@ -2515,7 +2555,17 @@
       // Le son de palier : une famille vient de s'allumer ou de monter
       const clesSynergies = new Set(apercu.synergies.map((sy) => sy.nom + "|" + sy.s));
       if (synergiesConnues) {
-        for (const cle of clesSynergies) if (!synergiesConnues.has(cle)) { ONZE_JUICE.jouer("palier"); break; }
+        for (const cle of clesSynergies) if (!synergiesConnues.has(cle)) {
+          ONZE_JUICE.jouer("palier");
+          // La bannière en balayage (Lot 5) : « FAMILLE — PALIER N »
+          const [nomFam, s] = cle.split("|");
+          const banniere = document.createElement("div");
+          banniere.className = "banniere-balayage";
+          banniere.textContent = `${nomFam.toUpperCase()} — PALIER ${s}`;
+          el("app").appendChild(banniere);
+          setTimeout(() => banniere.remove(), 1500);
+          break;
+        }
       }
       synergiesConnues = clesSynergies;
       const axes = ONZE.adnClub(apercu);
@@ -2775,7 +2825,7 @@
       }
       if (!drag.actif) return;
       e.preventDefault();
-      drag.fantome.style.transform = `translate3d(${e.clientX - 30}px, ${e.clientY - 46}px, 0)`;
+      drag.fantome.style.transform = `translate3d(${e.clientX - 30}px, ${e.clientY - 46}px, 0) rotate(-4deg) scale(1.06)`;
       // cibles + malus prévisualisé (au rythme du rendu)
       if (drag.rafPrevu) return;
       drag.rafPrevu = true;

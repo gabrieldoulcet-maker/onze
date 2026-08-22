@@ -190,7 +190,7 @@ const ONZE_SCENE = (() => {
           if (st.couloirs && n >= 2 && (i === 0 || i === n - 1)) y = i === 0 ? 10 : 90;
           const d = {
             nom: j.nom, num: numero++, camp, gardien: ligneDuJoueur(j) === "GAR",
-            etoiles: j.etoiles || 1,
+            etoiles: j.etoiles || 1, icone: !!j.icone, unique: !!j.unique,
             ecole: j.ecole, archetype: j.archetype,
             baseX: xLigne(camp, ligne), baseY: y,
             x: xLigne(camp, ligne), y, cx: null, cy: null,
@@ -227,6 +227,7 @@ const ONZE_SCENE = (() => {
     const REPLAY_ACTIF = (() => { try { return localStorage.getItem("onze-replay") !== "off"; } catch (e) { return true; } })();
     const tampon = [];
     let replay = null; // { etats, indice, t0 }
+    const butsMarques = { moi: 0, eux: 0 }; // pour doser la célébration (Lot 5)
 
     function dominationDe(phase) {
       let score = 0, poids = 0;
@@ -486,11 +487,19 @@ const ONZE_SCENE = (() => {
           regime = "rendu"; facteurTemps = 1; ballon.suspendu = false;
           if (tireur) tireur.echelle = 1;
           ballon.cx = butCible.x; ballon.cy = butCible.y + (Math.random() * 10 - 5); ballon.vitesse = 18;
+          // La célébration PROPORTIONNELLE à l'enjeu (Lot 5) : ordinaire /
+          // but qui fait basculer la manche / but de légende (Icône, Unique)
+          const menaitPas = butsMarques[camp2] <= butsMarques[adverse(camp2)];
+          butsMarques[camp2]++;
+          const bascule = menaitPas && butsMarques[camp2] >= butsMarques[adverse(camp2)];
+          const legende = tireur && (tireur.icone || tireur.unique);
+          const niv = legende ? 3 : bascule ? 2 : 1;
           setTimeout(() => {
             if (detruit) return;
             tremblementCage = { camp: adverse(camp2), force: 1 };
             ephemere("flash-but", butCible.x, 50, "", 800);
-            ephemere("cri-but", 50, 30, "⚽ BUUUT !", 1300);
+            ephemere("cri-but niv" + niv, 50, 30, niv === 3 ? "LÉGENDE !" : niv === 2 ? "BUUUT !" : "BUT !",
+              niv === 3 ? 2200 : niv === 2 ? 1300 : 900);
             if (tireur) {
               listeDisques.filter((d) => d.camp === camp2 && d !== tireur && !d.gardien)
                 .sort((a, b) => Math.hypot(a.x - tireur.x, a.y - tireur.y) - Math.hypot(b.x - tireur.x, b.y - tireur.y))
