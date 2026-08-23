@@ -117,6 +117,15 @@ const verifier = (nom, ok) => {
     return chromeOk && pastillesOk && sansEmoji;
   }));
 
+  // ---- Accessibilité : aucun bouton « anonyme » (icône seule sans nom) ----
+  const boutonsAnonymes = await page.evaluate(() =>
+    [...document.querySelectorAll("button, [role='button']")]
+      .filter((b) => !/[A-Za-zÀ-ÿ]{2,}/.test(b.textContent || "") &&
+        !(b.getAttribute("aria-label") || "").trim() && !(b.title || "").trim())
+      .map((b) => b.id || b.className || b.outerHTML.slice(0, 50)));
+  verifier("accessibilité : chaque bouton icône porte un nom (aria-label ou title)", boutonsAnonymes.length === 0);
+  if (boutonsAnonymes.length) console.log("   ⚠️ sans nom : " + boutonsAnonymes.slice(0, 6).join(" | "));
+
   // ---- Le calepin : épingler 2 joueurs, l'un doit briller en boutique ----
   await page.tap("#btn-calepin");
   await page.waitForSelector(".galerie .carte-galerie");
