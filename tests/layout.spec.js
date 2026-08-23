@@ -37,6 +37,56 @@ const TAILLES = [
     }
     console.log(`${rognes ? "❌" : "✅"} ${taille.nom} (${taille.largeur}×${taille.hauteur})${rognes ? " : " + rognes + " contrôle(s) rogné(s)" : ""}`);
     total += rognes;
+
+    /* ---- L'ÉCHELLE DES PIONS DE SCÈNE (décision 33) ----
+       FM affiche des disques d'un diamètre ≈ 5 % de la hauteur du
+       terrain. On vérifie le ratio sur CHAQUE taille d'écran, et que le
+       gardien (or) comme le porteur (anneau clair) restent identifiables
+       à cette taille — c'est la lecture des blocs et des courses qui en
+       dépend. Les pions de la GRILLE de placement sont un autre
+       composant (cibles tactiles ≥ 44 px) : on n'y touche pas. ---- */
+    const echelle = await page.evaluate(async () => {
+      arreterChrono(); partie.manche = 10; preparerManche(); jouerManche();
+      await new Promise((r) => setTimeout(r, 2600));
+      const d = sceneMatch.diagnostic();
+      const toile = document.querySelector(".scene-match canvas");
+      const ctx = toile.getContext("2d");
+      const dpr = toile.width / toile.clientWidth;
+      const geo = d.cadre, r = d.rayonPion;
+      const px = (p) => ({ X: (p.x / 100) * geo.w, Y: geo.y + (p.y / 100) * geo.h });
+      /* La scène bouge entre la lecture du diagnostic et celle des
+         pixels : on ne cherche donc pas UN pixel, on balaie le
+         voisinage du joueur. La question posée reste la bonne — « à
+         cette taille, voit-on encore que c'est le gardien / le
+         porteur ? » */
+      const balayer = (centre, rayonPx, test) => {
+        const R = Math.ceil(rayonPx);
+        const img = ctx.getImageData(
+          Math.max(0, Math.round(centre.X * dpr) - R), Math.max(0, Math.round(centre.Y * dpr) - R),
+          R * 2, R * 2).data;
+        for (let i = 0; i < img.length; i += 4) {
+          if (test(img[i], img[i + 1], img[i + 2])) return true;
+        }
+        return false;
+      };
+      // le gardien : son aplat doit rester doré
+      const g = d.positions.find((p) => p.role === "gardien");
+      const gardienOr = g ? balayer(px(g), (r + 6) * dpr,
+        (R, V, B) => R > 170 && V > 130 && B < 140) : null;
+      // le porteur : un anneau clair autour de lui
+      const po = d.ballon.porteur && d.positions.find((p) => p.nom === d.ballon.porteur);
+      const anneau = po ? balayer(px(po), (r * 2 + 8) * dpr,
+        (R, V, B) => R > 205 && V > 205 && B > 195) : null;
+      return { ratio: d.ratioPion, rayon: r, hauteur: geo.h, gardienOr, anneau };
+    });
+    const ratioPct = echelle.ratio * 100;
+    const ratioOk = ratioPct >= 4.5 && ratioPct <= 6.5;
+    console.log(`${ratioOk ? "✅" : "❌"} ${taille.nom} : pions à ${ratioPct.toFixed(1)} % de la hauteur du terrain (rayon ${echelle.rayon.toFixed(1)} px, terrain ${echelle.hauteur.toFixed(0)} px) — bornes 4,5-6,5 %`);
+    if (!ratioOk) total++;
+    const identifiable = echelle.gardienOr !== false && echelle.anneau !== false;
+    console.log(`${identifiable ? "✅" : "❌"} ${taille.nom} : gardien (or ${echelle.gardienOr}) et porteur (anneau ${echelle.anneau}) identifiables à cette taille`);
+    if (!identifiable) total++;
+
     await page.close();
   }
   // ---- Portrait : l'écran de rotation s'affiche et RIEN D'AUTRE (la

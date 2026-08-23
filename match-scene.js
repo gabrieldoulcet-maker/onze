@@ -1266,71 +1266,105 @@ const ONZE_SCENE = (() => {
     dimensionner();
     const surResize = () => dimensionner();
     window.addEventListener("resize", surResize);
-    const rayonPion = () => Math.max(geo.h * 0.052, 7.5);
+    /* L'ÉCHELLE DES PIONS (décision 33, campagne de mesures FM n°2).
+       FM affiche des disques d'un diamètre ≈ 5 % de la hauteur du
+       terrain. On était au double (10,4 %), et ça écrasait l'espace :
+       à cette taille on ne lit plus ni les blocs ni les courses.
+       Cible : diamètre 5-6 % → rayon = 2,7 % de la hauteur, avec un
+       plancher de lisibilité pour les très petits écrans. */
+    const rayonPion = () => Math.max(geo.h * 0.027, 2.4);
 
+    /* Le pion de scène, habillage ALLÉGÉ (décision 33) : à 5 % de la
+       hauteur du terrain, un jeton en relief avec étoiles n'a plus de
+       place — c'est anneau + numéro, comme FM. Les étoiles passent sur
+       l'étiquette, le détail vit dans la fiche joueur.
+       L'identité tient sur trois choses qui restent lisibles à cette
+       taille : la COULEUR du camp, l'OR du gardien, l'ANNEAU du porteur. */
     function dessinerPion(p, temps) {
       const r = rayonPion() * p.echelle;
       const X = geo.px(p.x), Y = geo.py(p.y);
+      const numeroLisible = r >= 4;      // en dessous, le chiffre ne rentre plus
       ctx.save();
-      // l'ombre portée sur le gazon
+      // l'ombre portée : elle décolle le pion du gazon
       ctx.beginPath();
-      ctx.ellipse(X + r * 0.18, Y + r * 0.62, r * 0.92, r * 0.34, 0, 0, 6.283);
-      ctx.fillStyle = "rgba(0,0,0,0.32)"; ctx.fill();
-      if (p.aura > 0) { ctx.shadowColor = p.auraCouleur; ctx.shadowBlur = 14; }
-      else if (p.flash > 0) { ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 10; }
-      // le jeton en relief (DA Arcade, Lot 3) : lumière haut-gauche
-      const grad = ctx.createRadialGradient(X - r * 0.36, Y - r * 0.48, r * 0.15, X, Y, r);
-      if (p.gardien) { grad.addColorStop(0, "#F8DE8E"); grad.addColorStop(1, "#B8860B"); }
-      else if (p.camp === "moi") { grad.addColorStop(0, "#4FE07E"); grad.addColorStop(1, "#1B7A3A"); }
-      else { grad.addColorStop(0, "#E87F6F"); grad.addColorStop(1, "#8E2E1F"); }
+      ctx.ellipse(X + r * 0.16, Y + r * 0.55, r * 0.95, r * 0.38, 0, 0, 6.283);
+      ctx.fillStyle = "rgba(0,0,0,0.34)"; ctx.fill();
+      if (p.aura > 0) { ctx.shadowColor = p.auraCouleur; ctx.shadowBlur = 10; }
+      else if (p.flash > 0) { ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 8; }
+      // le disque : aplat franc + liseré sombre, pour trancher sur le vert
       ctx.beginPath(); ctx.arc(X, Y, r, 0, 6.283);
-      ctx.fillStyle = grad; ctx.fill();
+      ctx.fillStyle = p.gardien ? "#F0C64B" : p.camp === "moi" ? "#3DE26B" : "#E8503F";
+      ctx.fill();
       ctx.shadowBlur = 0;
-      const ombre = ctx.createLinearGradient(X, Y - r, X, Y + r);
-      ombre.addColorStop(0.55, "rgba(0,0,0,0)");
-      ombre.addColorStop(1, "rgba(0,0,0,0.38)");
-      ctx.fillStyle = ombre; ctx.fill();
+      ctx.lineWidth = Math.max(r * 0.16, 0.7);
+      ctx.strokeStyle = "rgba(6,12,8,0.55)";
+      ctx.stroke();
       // l'anneau du porteur de balle : le point focal unique
       if (ballon.porteur === p.nom) {
-        ctx.beginPath(); ctx.arc(X, Y, r + 3.4 + Math.sin(temps * 0.008) * 1.1, 0, 6.283);
-        ctx.strokeStyle = "rgba(253,248,234,0.92)"; ctx.lineWidth = 1.8; ctx.stroke();
+        ctx.beginPath(); ctx.arc(X, Y, r + Math.max(r * 0.7, 2.6), 0, 6.283);
+        ctx.strokeStyle = "rgba(253,248,234,0.95)";
+        ctx.lineWidth = Math.max(r * 0.34, 1.3); ctx.stroke();
       }
       // le pion qui se jette : un trait de glissade derrière lui
       if (p.plonge > 0) {
         ctx.beginPath();
-        ctx.moveTo(X - p.vx * 0.9, Y - p.vy * 0.9);
+        ctx.moveTo(X - p.vx * 0.7, Y - p.vy * 0.7);
         ctx.lineTo(X, Y);
-        ctx.strokeStyle = "rgba(253,248,234,0.35)"; ctx.lineWidth = r * 0.5; ctx.lineCap = "round";
+        ctx.strokeStyle = "rgba(253,248,234,0.35)"; ctx.lineWidth = r * 0.7; ctx.lineCap = "round";
         ctx.stroke();
       }
-      ctx.fillStyle = p.gardien ? "#1A1405" : p.camp === "moi" ? "#04240E" : "#1F0704";
-      ctx.font = `800 ${Math.max(r * 0.9, 7)}px Archivo, system-ui, sans-serif`;
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(String(p.num), X, Y + 0.5);
-      if (p.etoiles >= 2) {
-        ctx.fillStyle = "#F2C14E";
-        ctx.font = `${Math.max(r * 0.5, 6)}px system-ui, sans-serif`;
-        ctx.fillText("★".repeat(Math.min(p.etoiles, 3)), X, Y - r - 3.5);
+      if (numeroLisible) {
+        ctx.fillStyle = p.gardien ? "#1A1405" : p.camp === "moi" ? "#04240E" : "#2A0A05";
+        ctx.font = `800 ${(r * 1.15).toFixed(1)}px Archivo, system-ui, sans-serif`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(String(p.num), X, Y + 0.3);
       }
-      // R6 : l'étiquette de nom, seulement sur les protagonistes
-      if (p.etiquette) {
-        const nom = p.nom.length > 12 ? p.nom.slice(0, 11) + "." : p.nom;
-        ctx.font = `700 ${Math.max(r * 0.62, 7)}px Archivo, system-ui, sans-serif`;
+      ctx.restore();
+    }
+
+    /* R6 : les étiquettes, dessinées en SECOND PASSAGE — au-dessus de
+       tous les pions, et surtout sans se chevaucher : quand deux
+       protagonistes sont côte à côte, la seconde étiquette descend d'un
+       cran plutôt que d'écraser la première.
+       Leur taille ne suit PLUS celle du pion : elles doivent rester
+       lisibles quand le disque devient minuscule. Ce sont elles qui
+       portent le numéro et les étoiles, que le disque n'a plus la place
+       d'afficher. */
+    function dessinerEtiquettes() {
+      const r = rayonPion();
+      const taille = borne(geo.h * 0.055, 8, 11);
+      ctx.save();
+      ctx.font = `700 ${taille}px Archivo, system-ui, sans-serif`;
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      const hb = taille * 1.32;
+      const posees = [];
+      for (const p of listePions) {
+        if (!p.etiquette) continue;
+        const court = p.nom.length > 12 ? p.nom.slice(0, 11) + "." : p.nom;
+        const etoiles = p.etoiles >= 2 ? " " + "★".repeat(Math.min(p.etoiles, 3)) : "";
+        const nom = `${p.num} ${court}${etoiles}`;
         const l = ctx.measureText(nom).width + 8;
-        const yb = Y + r + 3;
-        ctx.fillStyle = "rgba(8,14,10,0.72)";
+        const X = geo.px(p.x);
+        let yb = geo.py(p.y) + r + 2.5;
+        // évitement : on descend tant que ça recouvre une étiquette posée
+        for (let essai = 0; essai < 4; essai++) {
+          const gene = posees.some((q) => Math.abs(q.X - X) < (q.l + l) / 2 && Math.abs(q.yb - yb) < hb + 1);
+          if (!gene) break;
+          yb += hb + 2;
+        }
+        posees.push({ X, yb, l });
+        ctx.fillStyle = "rgba(8,14,10,0.78)";
         ctx.beginPath();
-        if (ctx.roundRect) { ctx.roundRect(X - l / 2, yb, l, r * 1.05, 3); ctx.fill(); }
-        else ctx.fillRect(X - l / 2, yb, l, r * 1.05);
-        ctx.fillStyle = "rgba(253,248,234,0.94)";
-        ctx.textBaseline = "top";
-        ctx.fillText(nom, X, yb + r * 0.18);
+        if (ctx.roundRect) { ctx.roundRect(X - l / 2, yb, l, hb, 3); ctx.fill(); }
+        else ctx.fillRect(X - l / 2, yb, l, hb);
+        ctx.fillStyle = p.etoiles >= 2 ? "#F2C14E" : "rgba(253,248,234,0.96)";
+        ctx.fillText(nom, X, yb + hb * 0.16);
       }
       ctx.restore();
     }
 
     function dessinerBallon(x, y, z, trainee) {
-      const r = Math.max(geo.h * 0.017, 3);
+      const r = Math.max(geo.h * 0.013, 2.2);   // ~la moitié d'un pion
       // l'ombre au sol : c'est elle qui donne la hauteur (le long ballon)
       const X = geo.px(x), Ysol = geo.py(y), Y = Ysol - geo.uy(z);
       ctx.save();
@@ -1444,6 +1478,7 @@ const ONZE_SCENE = (() => {
         }
       } else {
         for (const p of listePions) dessinerPion(p, temps);
+        dessinerEtiquettes();
         dessinerBallon(ballon.x, ballon.y, ballon.z, ballon.trainee);
         if (facteurTemps < 1) {  // le micro-ralenti : un voile et le ballon appuyé
           ctx.fillStyle = "rgba(6, 12, 8, 0.22)";
@@ -1491,6 +1526,9 @@ const ONZE_SCENE = (() => {
         styles, regime, possession, situation: situationCourante,
         // R1 : le cadre du terrain — il ne doit JAMAIS bouger (caméra fixe)
         cadre: geo ? { x: geo.x, y: geo.y, w: geo.w, h: geo.h } : null,
+        // décision 33 : l'échelle des pions, mesurée par la recette
+        rayonPion: geo ? rayonPion() : null,
+        ratioPion: geo ? (2 * rayonPion()) / geo.h : null,
         jauge: { affichee: jauge.affichee, cible: jauge.cible },
         possessionPct: { moi: possessionPct.moi, eux: possessionPct.eux },
         nbDisques: listePions.length,

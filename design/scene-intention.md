@@ -41,3 +41,12 @@ Itérations courtes, une par groupe de règles : (a) physique de course + suppre
 Calibrage : commencer avec les valeurs standard ci-dessus ; si un comportement semble faux, une capture FM ciblée « joueurs loin du ballon » tranchera (Gabriel peut la fournir — ne pas bloquer dessus).
 
 À consigner dans decisions.md comme l'étape 2 de la décision 26. La timeline/arbitre/temps morts (itération prévue) passent APRÈS ce chantier : l'intention prime sur le décor.
+
+## Ajout — l'échelle des pions de scène (mesuré sur les clips FM, 2ᵉ campagne)
+
+FM affiche des disques d'un **diamètre ≈ 5 % de la hauteur du terrain**. Notre scène était à **≈ 10,4 %** (rayon `geo.h * 0.052`) — le double, et ça compte : des pions trop gros écrasent l'espace et cassent la lecture des blocs et des courses.
+
+- **Cible** : diamètre de scène ≈ **5-6 %** de la hauteur du terrain (rayon ≈ `geo.h * 0.027`), avec un **plancher de lisibilité** pour les très petits écrans.
+- **Habillage allégé à cette taille** : anneau + numéro, comme FM. Les étoiles et les détails passent sur l'**étiquette** ou dans la **fiche joueur**, plus sur le disque.
+- **Ne change RIEN aux pions de la grille de placement** : eux sont des **cibles tactiles (≥ 44 px)**, c'est un autre composant.
+- **Recette** : le ratio diamètre/hauteur de scène est mesuré et **borné (4,5-6,5 %)** sur les 5 tailles d'écran du test de layout, et le **gardien** comme le **porteur** restent identifiables à la nouvelle taille.
