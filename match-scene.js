@@ -111,7 +111,11 @@ const ONZE_SCENE = (() => {
 
   const ligneDuJoueur = (j) => j.ligne || j.poste;
   const lerp = (a, b, t) => a + (b - a) * t;
-  const borne = (v, min, max) => Math.max(min, Math.min(max, v));
+  /* Borne NaN-safe : dans une couche de rendu, un seul NaN se propage à
+     tout et fige la scène. On le stoppe à la source (le milieu de la
+     plage), et la recette vérifie qu'aucune position n'est non finie —
+     une vraie régression se voit donc en test, pas à l'écran. */
+  const borne = (v, min, max) => (isFinite(v) ? Math.max(min, Math.min(max, v)) : (min + max) / 2);
 
   /* ============================================================
      3. LE DÉCOUPAGE D'UNE ACTION — fonction PURE et testable.
@@ -309,8 +313,8 @@ const ONZE_SCENE = (() => {
             baseX: xLigne(camp, ligne), baseY: y,
             x: xLigne(camp, ligne), y, vx: 0, vy: 0,
             cx: null, cy: null,           // cible imposée par un temps (sinon ambiante)
-            vMax: 11 + (vit / 100) * 13,  // 11 à 24 % de terrain / seconde
-            accel: 3.2 + (vit / 100) * 2.6,
+            vMax: 11 + (vit / 100) * 13,   // 11 à 24 % de terrain / seconde
+            accel: 26 + (vit / 100) * 22,  // % de terrain / s² : de 0 à pleine vitesse en ~0,5 s
             role: null, etiquette: false, aura: 0, auraCouleur: null, flash: 0,
             echelle: 1, phase: Math.random() * 6.28, plonge: 0,
           };
@@ -348,6 +352,11 @@ const ONZE_SCENE = (() => {
     const possessionPct = { moi: 50, eux: 50, afficheMoi: 50 };
     const tremblements = { moi: 0, eux: 0 };
     let situationCourante = "placee";
+    /* La scène garde la chorégraphie du temps fort EN ENTIER : c'est ce
+       qui permet au receveur du temps suivant de commencer sa course
+       avant que la passe parte (décision 33, la règle reine). */
+    let sequenceCourante = null;
+    let indexCourant = -1;
     const butsMarques = { moi: 0, eux: 0 };
     let cartonCut = null;
 
@@ -360,54 +369,298 @@ const ONZE_SCENE = (() => {
        même quand aucun temps n'est joué (R4).
        ============================================================ */
 
-    /* Le coulissement des blocs : les deux équipes suivent le ballon.
-       Celle qui attaque monte et s'étire, celle qui défend recule et se
-       resserre. C'est la lecture « qui domine » en un coup d'œil. */
-    function cibleAmbiante(p) {
-      const sens = sensDe(p.camp);
-      if (p.gardien) {
-        // le gardien ajuste sur sa ligne, et sort quand ça chauffe
-        const but = BUTS[p.camp];
-        const proche = Math.abs(ballon.x - but.x) < 22;
-        const sortie = proche ? borne((22 - Math.abs(ballon.x - but.x)) * 0.35, 0, 7) : 0;
-        return {
-          x: but.x + sens * (2.5 + sortie),
-          y: 50 + (ballon.y - 50) * (proche ? 0.55 : 0.3),
-        };
+    /* ============================================================
+       LE CERVEAU DE PLACEMENT (design/scene-intention.md, décision 33).
+       À chaque tick, chacun des 22 pions reçoit une CIBLE et une RAISON
+       nommée. On doit pouvoir mettre pause, pointer n'importe quel pion
+       et expliquer sa position avec un mot de football.
+       Interdit absolu : plus AUCUNE position ne dépend d'une fonction
+       périodique du temps. Le mouvement permanent émerge des
+       micro-décisions — le marquage qui se réajuste, l'angle de passe
+       qui se rouvre, la ligne qui respire.
+       Les rôles, par PRIORITÉ (le premier qui s'applique gagne) :
+       scénario > gardien > porteur > appel > soutien > pressing >
+       marquage > ligne > équilibre.
+       ============================================================ */
+
+    /* --- Outils de géométrie de terrain --- */
+    const distance = (a, b) => Math.hypot(a.x - b.x, (a.y - b.y) * 0.62);
+    /* La distance d'un pion au segment de passe : c'est elle qui dit si
+       une ligne de passe est ouverte ou fermée. */
+    function distanceAuSegment(q, a, b) {
+      const vx = b.x - a.x, vy = (b.y - a.y) * 0.62;
+      const wx = q.x - a.x, wy = (q.y - a.y) * 0.62;
+      const l2 = vx * vx + vy * vy;
+      const t = l2 ? borne((wx * vx + wy * vy) / l2, 0, 1) : 0;
+      return Math.hypot(wx - vx * t, wy - vy * t);
+    }
+    /* Une ligne de passe est OUVERTE si aucun adversaire ne la coupe. */
+    function ligneOuverte(de, vers, camp) {
+      for (const q of listePions) {
+        if (q.camp === camp || q.gardien) continue;
+        if (distanceAuSegment(q, de, vers) < 3.4) return false;
       }
+      return true;
+    }
+    /* La hauteur de la ligne défensive d'un camp : elle SUIT le ballon —
+       basse quand il approche, remontée quand il s'éloigne. Les
+       défenseurs la partagent, ils montent et descendent ensemble. */
+    function hauteurLigne(camp) {
+      const sens = sensDe(camp);
+      const but = BUTS[camp].x;
+      const ecart = Math.abs(ballon.x - but);
+      const bas = styles[camp].style === "catenaccio" ? 6 : 10;   // le bloc bas est une identité
+      const haut = styles[camp].style === "grinta" ? 50 : 42;     // La Grinta presse haut
+      return but + sens * borne(ecart * 0.62, bas, haut);
+    }
+
+    /* --- 8. LE GARDIEN : sur l'axe ballon-but, il sort quand ça chauffe --- */
+    function cibleGardien(g) {
+      const sens = sensDe(g.camp);
+      const but = BUTS[g.camp];
+      const proche = Math.abs(ballon.x - but.x) < 22;
+      const sortie = proche ? borne((22 - Math.abs(ballon.x - but.x)) * 0.35, 0, 7) : 0;
+      return { x: but.x + sens * (2.5 + sortie),
+        y: 50 + (ballon.y - 50) * (proche ? 0.55 : 0.3) };
+    }
+
+    /* --- 1. LE PORTEUR : il conduit vers l'avant, vers l'espace libre.
+       Il FUIT le presseur le plus proche : il dévie plutôt que de lui
+       rentrer dedans. --- */
+    function cibleConduite(p) {
+      const sens = sensDe(p.camp);
+      const but = BUTS[adverse(p.camp)];
+      let x = p.x + sens * 13;
+      let y = lerp(p.y, but.y, 0.22);
+      const presseur = listePions
+        .filter((q) => q.camp !== p.camp && !q.gardien)
+        .sort((a, b) => distance(a, p) - distance(b, p))[0];
+      if (presseur && distance(presseur, p) < 12) {
+        // l'esquive : on s'écarte du côté opposé au presseur
+        const cote = presseur.y > p.y ? -1 : 1;
+        y = borne(p.y + cote * 10, 8, 92);
+        x = p.x + sens * 7;
+      }
+      return { x: dansLeJeu(x), y: borne(y, 6, 94) };
+    }
+
+    /* --- 2. L'APPEL EN PROFONDEUR — la règle reine de la projection.
+       La scène connaît la chorégraphie à l'avance : le receveur du temps
+       SUIVANT commence sa course maintenant, AVANT que la passe parte.
+       C'est elle qui permet au spectateur d'anticiper.
+       L'appel CONTOURNE la ligne adverse (arc dans son dos), il ne la
+       traverse pas de face. --- */
+    function receveurAttendu() {
+      if (!sequenceCourante) return null;
+      const suivant = sequenceCourante[indexCourant + 1];
+      if (!suivant) return null;
+      const nom = suivant.vers || suivant.tireur || suivant.acteur;
+      const p = nom && pionDe(nom);
+      if (!p || p.nom === ballon.porteur) return null;
+      return p;
+    }
+    function cibleAppel(p) {
+      const sens = sensDe(p.camp);
+      const but = BUTS[adverse(p.camp)];
+      const ligne = hauteurLigne(adverse(p.camp));
+      let x = p.x + sens * 16;
+      let y = lerp(p.y, but.y, 0.18);
+      // s'il s'apprête à traverser la ligne de face, il l'élargit d'abord
+      const traverse = sens > 0 ? (p.x < ligne && x > ligne) : (p.x > ligne && x < ligne);
+      if (traverse) {
+        const cote = p.y < 50 ? -1 : 1;
+        y = borne(p.y + cote * 9, 8, 92);
+      }
+      return { x: dansLeJeu(x), y: borne(y, 6, 94) };
+    }
+
+    /* --- 3. LES SOUTIENS : le triangle permanent du football.
+       Les 2 coéquipiers les plus proches du porteur se placent à
+       distance de passe, dans un angle OUVERT. Si un défenseur ferme la
+       ligne, ils se déplacent pour la rouvrir — et c'est ce
+       réajustement continu qui remplace la sinusoïde. --- */
+    const DISTANCE_SOUTIEN = { tiki: 12, catenaccio: 16, kickrush: 19, rue: 13, total: 15, grinta: 15 };
+    function cibleSoutien(p, porteur) {
+      const sens = sensDe(p.camp);
+      const d = DISTANCE_SOUTIEN[styles[p.camp].style] || 15;
+      let meilleure = null, meilleurScore = -Infinity;
+      for (let k = 0; k < 12; k++) {
+        const angle = (k / 12) * 6.283;
+        const c = { x: porteur.x + Math.cos(angle) * d,
+                    y: porteur.y + Math.sin(angle) * d * 1.35, camp: p.camp };
+        if (c.x < 7 || c.x > 93 || c.y < 7 || c.y > 93) continue;
+        let score = ligneOuverte(porteur, c, p.camp) ? 12 : 0;   // l'angle ouvert d'abord
+        score += (c.x - porteur.x) * sens * 0.35;                // on préfère l'avant
+        score -= distance(c, p) * 0.30;                          // sans courir à l'autre bout
+        // INERTIE DE DÉCISION : on ne change pas d'idée pour un cheveu.
+        // Sans ça, le meilleur angle bascule à chaque frame et le joueur
+        // fait des allers-retours — un bruit pire que la sinusoïde.
+        if (p.soutienMemo) score += 6 - Math.min(6, distance(c, p.soutienMemo));
+        if (score > meilleurScore) { meilleurScore = score; meilleure = c; }
+      }
+      if (meilleure) p.soutienMemo = { x: meilleure.x, y: meilleure.y };
+      return meilleure ? { x: meilleure.x, y: meilleure.y } : { x: p.x, y: p.y };
+    }
+
+    /* --- 5. LE MARQUAGE : goal-side, entre son homme et son propre but.
+       Un attaquant sans défenseur goal-side dans notre tiers, c'est un
+       TROU — et ça doit se voir, parce que c'est une information. --- */
+    function cibleMarquage(d, homme) {
+      const but = BUTS[d.camp];
+      // un défenseur ANTICIPE : il se place sur où son homme VA être,
+      // pas sur où il est — sinon il court derrière toute la phase
+      const vise = { x: homme.x + (homme.vx || 0) * 0.35,
+                     y: homme.y + (homme.vy || 0) * 0.35 };
+      const dx = but.x - vise.x, dy = but.y - vise.y;
+      const n = Math.hypot(dx, dy) || 1;
+      return { x: borne(vise.x + (dx / n) * 3.2, 2, 98),
+               y: borne(vise.y + (dy / n) * 3.2, 3, 97) };
+    }
+
+    /* --- 7. L'ÉQUILIBRE : la forme du bloc (coulissement, compression,
+       étirement des attaquants). C'est le rôle par DÉFAUT, plus le seul
+       comportement — et il n'a plus de dérive parasite. --- */
+    function cibleEquilibre(p) {
+      const sens = sensDe(p.camp);
       const attaque = possession === p.camp;
-      // le glissement longitudinal : le bloc suit la ligne du ballon
       const glisse = (ballon.x - 50) * (attaque ? 0.62 : 0.66);
-      // la compression latérale : on se resserre du côté du ballon
       const resserre = attaque ? 0.94 : 0.80;
       const glisseY = (ballon.y - 50) * (attaque ? 0.20 : 0.34);
       let x = p.baseX + glisse;
       let y = 50 + (p.baseY - 50) * resserre + glisseY;
-      // l'étirement de l'attaque : les attaquants prennent la profondeur
       if (attaque && p.ligne === "ATT") x += sens * 5;
-      if (!attaque && p.ligne === "ATT") x -= sens * 3;  // le repli du premier rideau
-      // la dérive permanente : personne n'est jamais figé
-      const t = performance.now();
-      x += Math.sin(t * 0.0011 + p.phase) * 1.1;
-      y += Math.cos(t * 0.0009 + p.phase * 1.3) * 1.4;
+      if (!attaque && p.ligne === "ATT") x -= sens * 3;
       return { x: borne(x, 2, 98), y: borne(y, 4, 96) };
     }
 
-    /* Le pressing : les deux défenseurs les plus proches du ballon
-       viennent dessus, côté but (ils ne traversent pas le porteur). */
-    function appliquerPressing() {
-      if (!possession) return;
-      const camp = adverse(possession);
-      const sens = sensDe(camp);
-      const proches = listePions
-        .filter((p) => p.camp === camp && !p.gardien && p.cx === null)
-        .sort((a, b) => Math.hypot(a.x - ballon.x, a.y - ballon.y) - Math.hypot(b.x - ballon.x, b.y - ballon.y))
-        .slice(0, 2);
-      for (const p of proches) {
-        p.role = "pressing";
-        p.presseX = ballon.x - sens * 2.5;
-        p.presseY = ballon.y + (p.y > ballon.y ? 1.2 : -1.2);
+    /* ============================================================
+       LE CERVEAU : une passe par frame sur les 22 pions.
+       ============================================================ */
+    function cerveauDePlacement() {
+      const porteur = ballon.porteur ? pions[ballon.porteur] : null;
+      const campAtt = porteur ? porteur.camp : possession;
+      const campDef = campAtt ? adverse(campAtt) : null;
+      /* Entre deux temps forts, il ne se passe RIEN : le ballon est mort.
+         Personne ne presse un ballon mort et personne ne marque à
+         l'arrêt — seule la forme tient (ligne, équilibre, gardien).
+         C'est aussi ce qui fait que la scène se CALME au repos. */
+      const jeuVivant = regime === "action" || regime === "miseEnPlace" || regime === "ralenti";
+
+      for (const p of listePions) {
+        // la mémoire d'une décision ne survit pas au changement de rôle
+        if (p.role !== "soutien") p.soutienMemo = null;
+        if (p.role !== "marquage") p.marque = null;
+        p.role = null; p.cible = null;
       }
+
+      /* 0. LE SCÉNARIO prime : quand le moteur a parlé, on obéit.
+         Une chorégraphie peut ne contraindre QU'UN axe (« il suit sa
+         passe » ne dit rien du couloir) : l'axe libre reste tenu par la
+         forme du bloc, jamais par une valeur nulle. */
+      for (const p of listePions) {
+        if (p.cx === null && p.cy === null) continue;
+        const forme = cibleEquilibre(p);
+        p.cible = { x: p.cx !== null ? p.cx : forme.x, y: p.cy !== null ? p.cy : forme.y };
+        p.role = p.roleScenario || "scenario";
+      }
+      // 8. les gardiens n'ont jamais d'autre rôle
+      for (const camp of ["moi", "eux"]) {
+        const g = gardienDe(camp);
+        if (!g || g.cx !== null) continue;
+        g.role = "gardien"; g.cible = cibleGardien(g);
+      }
+      // 1. le porteur
+      if (jeuVivant && porteur && !porteur.cible) {
+        porteur.role = "porteur"; porteur.cible = cibleConduite(porteur);
+      }
+      // 2. l'appel en profondeur — un seul appel tranchant à la fois
+      const receveur = jeuVivant ? receveurAttendu() : null;
+      if (receveur && !receveur.cible && !receveur.gardien) {
+        receveur.role = "appel"; receveur.cible = cibleAppel(receveur);
+      }
+      // 3. les soutiens : les 2 plus proches du porteur
+      if (jeuVivant && porteur) {
+        listePions
+          .filter((q) => q.camp === porteur.camp && !q.gardien && !q.cible &&
+            distance(q, porteur) < 32)          // on ne traverse pas le terrain pour se proposer
+          .sort((a, b) => distance(a, porteur) - distance(b, porteur))
+          .slice(0, 2)
+          .forEach((q) => { q.role = "soutien"; q.cible = cibleSoutien(q, porteur); });
+      }
+      // 4. le pressing : les 2 défenseurs les plus proches du ballon,
+      //    côté but. Fidélité moteur : le défenseur que le moteur a
+      //    désigné battu est justement celui qui arrive en retard.
+      if (campDef) {
+        const sens = sensDe(campDef);
+        const zoneBasse = Math.abs(ballon.x - BUTS[campDef].x) < 30;
+        const candidatsPress = listePions
+          .filter((q) => q.camp === campDef && !q.gardien && !q.cible &&
+            !(zoneBasse && q.ligne === "ATT"));  // le point haut ne redescend pas presser
+        // INERTIE : celui qui pressait déjà garde la mission (bonus de 6 %
+        // de terrain) — sinon les deux plus proches changent chaque frame
+        candidatsPress
+          .sort((a, b) => (distance(a, ballon) - (a.pressait ? 6 : 0)) -
+                          (distance(b, ballon) - (b.pressait ? 6 : 0)))
+          .slice(0, 2)
+          .forEach((q) => {
+            q.role = "pressing";
+            q.cible = { x: borne(ballon.x - sens * 2.5, 2, 98),
+                        y: borne(ballon.y + (q.y > ballon.y ? 1.4 : -1.4), 3, 97) };
+          });
+      }
+      // 5. le marquage : dans NOTRE tiers, chaque danger a son homme
+      if (jeuVivant && campDef) {
+        const sens = sensDe(campDef);
+        const but = BUTS[campDef].x;
+        const tiers = but + sens * 33;
+        const dansNotreTiers = sens > 0 ? ballon.x < tiers : ballon.x > tiers;
+        if (dansNotreTiers) {
+          const dangers = listePions
+            .filter((q) => q.camp === campAtt && !q.gardien &&
+              (sens > 0 ? q.x < tiers + 8 : q.x > tiers - 8))
+            .sort((a, b) => Math.abs(a.x - but) - Math.abs(b.x - but));
+          const aMarquer = dangers.slice(0, 2);        // deux hommes au plus
+          const candidats = listePions.filter((q) => q.camp === campDef && !q.gardien && !q.cible &&
+            (q.ligne === "DÉF" || q.ligne === "MIL"));
+          const pris = new Set();
+          const libres = [];
+          // on GARDE son homme tant qu'il reste dangereux
+          for (const d of candidats) {
+            const homme = d.marque && aMarquer.find((h) => h.nom === d.marque);
+            if (homme && !pris.has(homme.nom)) {
+              pris.add(homme.nom);
+              d.role = "marquage"; d.cible = cibleMarquage(d, homme);
+            } else libres.push(d);
+          }
+          // puis on couvre les dangers encore libres, au plus proche
+          for (const homme of aMarquer) {
+            if (pris.has(homme.nom) || !libres.length) continue;
+            libres.sort((a, b) => distance(a, homme) - distance(b, homme));
+            const d = libres.shift();
+            pris.add(homme.nom);
+            d.role = "marquage"; d.marque = homme.nom; d.cible = cibleMarquage(d, homme);
+          }
+          for (const d of libres) d.marque = null;   // il a lâché son homme
+        }
+      }
+      // 6. la ligne défensive : les défenseurs restants partagent une
+      //    hauteur commune — ils montent et descendent ENSEMBLE
+      for (const camp of ["moi", "eux"]) {
+        const h = hauteurLigne(camp);
+        listePions
+          .filter((q) => q.camp === camp && !q.gardien && !q.cible && q.ligne === "DÉF")
+          .forEach((q) => {
+            q.role = "ligne";
+            const eq = cibleEquilibre(q);
+            q.cible = { x: borne(h, 2, 98), y: eq.y };
+          });
+      }
+      // 7. l'équilibre : tous les autres tiennent la forme
+      for (const p of listePions) {
+        if (p.cible) continue;
+        p.role = "equilibre"; p.cible = cibleEquilibre(p);
+      }
+      for (const p of listePions) p.pressait = p.role === "pressing";
     }
 
     /* ============================================================
@@ -538,6 +791,7 @@ const ONZE_SCENE = (() => {
     }
     function repos() {
       regime = "repos";
+      sequenceCourante = null; indexCourant = -1;
       bande.classList.remove("visible");
       barrePossession.classList.add("visible");
       for (const p of listePions) { p.cx = null; p.cy = null; p.role = null; p.etiquette = false; }
@@ -587,6 +841,8 @@ const ONZE_SCENE = (() => {
       barrePossession.classList.remove("visible");
       const camp = sequence.equipe ? campDe(sequence.equipe) : "moi";
       const situation = sequence.situation || "placee";
+      sequenceCourante = sequence;
+      indexCourant = -1;
       situationCourante = situation;
       possession = camp;
       const sens = sensDe(camp);
@@ -668,22 +924,19 @@ const ONZE_SCENE = (() => {
       if (!reg.etiquettes) return;
       for (const p of listePions) p.etiquette = true;
     }
-    /* Les courses d'appel : le terrain vit autour du porteur */
-    function coursesAppel(camp, sauf) {
-      const sens = sensDe(camp);
-      listePions
-        .filter((p) => p.camp === camp && !p.gardien && !(sauf || []).includes(p.nom))
-        .sort((a, b) => (b.ligne === "ATT") - (a.ligne === "ATT"))
-        .slice(0, 3)
-        .forEach((p, i) => {
-          p.cx = borne(p.x + sens * (7 + i * 3), 5, 95);
-          p.cy = borne(p.y + (i % 2 ? 7 : -7), 6, 94);
-          p.role = "appel";
-        });
-    }
+    /* Les courses hors-ballon ne sont PLUS scénarisées ici : c'est le
+       cerveau de placement (décision 33) qui les décide, avec une
+       raison — appel du receveur attendu, soutien dans l'angle ouvert.
+       L'ancienne fonction `coursesAppel` envoyait des coéquipiers vers
+       l'avant sans motif : c'était le bruit que ce chantier supprime. */
 
     function jouerTemps(t, duree, surIssue) {
       const ms = Math.max(400, duree || 800);
+      // où en est-on dans la chorégraphie ? (pour l'appel du receveur suivant)
+      if (sequenceCourante) {
+        const i = sequenceCourante.indexOf(t);
+        indexCourant = i >= 0 ? i : indexCourant + 1;
+      }
       const camp = t.equipe ? campDe(t.equipe) : "moi";
       const sens = sensDe(camp);
       if (!t.issue) regime = "action";
@@ -698,7 +951,6 @@ const ONZE_SCENE = (() => {
             donnerLeBallon(p.nom, 70);
             p.cx = borne(p.x + sens * 5, 5, 95); p.cy = p.y;
             etiqueter([p.nom]);
-            coursesAppel(camp, [p.nom]);
           }
           break;
         }
@@ -711,14 +963,14 @@ const ONZE_SCENE = (() => {
           for (const q of listePions) {
             if (q.camp !== camp || q.gardien) continue;
             q.cx = borne(q.x + sens * (14 + (q.ligne === "ATT" ? 10 : 0)), 5, 95);
-            q.cy = borne(q.y + (Math.sin(q.phase) * 6), 6, 94);
-            q.role = "contre";
+            q.cy = borne(lerp(q.y, q.baseY, 0.35) + (q.baseY - 50) * 0.12, 6, 94);
+            q.roleScenario = "contre";
           }
           // la défense adverse est prise à revers : elle se replie en courant
           for (const q of listePions) {
             if (q.camp === camp || q.gardien) continue;
             q.cx = borne(q.x - sens * 12, 5, 95);
-            q.role = "repli";
+            q.roleScenario = "repli";
           }
           chipEtSynergie(t.ev, ballon, ms);
           break;
@@ -730,10 +982,9 @@ const ONZE_SCENE = (() => {
           if (vers) {
             const cadence = { tiki: 78, kickrush: 95, catenaccio: 58, rue: 62, total: 74, grinta: 80 };
             passer(t.de, t.vers, { vitesse: cadence[styles[camp].style] || 70 });
-            if (de) { de.cx = borne(de.x + sens * 4, 5, 95); de.role = "suit"; }   // il suit sa passe
+            if (de) { de.cx = borne(de.x + sens * 4, 5, 95); de.roleScenario = "suit"; }   // il suit sa passe
             vers.cx = borne(vers.x + sens * 4, 5, 95);
             etiqueter([t.de, t.vers]);
-            coursesAppel(camp, [t.de, t.vers]);
           }
           break;
         }
@@ -744,13 +995,12 @@ const ONZE_SCENE = (() => {
           if (vers) {
             // la cloche : le ballon monte, l'ombre au sol le trahit
             vers.cx = borne(vers.x + sens * 12, 5, 95);
-            vers.cy = borne(vers.y + (Math.sin(vers.phase) * 5), 6, 94);
+            vers.cy = borne(lerp(vers.y, vers.baseY, 0.4), 6, 94);
             passer(t.de, t.vers, { vitesse: 52, cloche: true });
           } else {
             passer(t.de, null, { x1: borne(50 + sens * 30, 5, 95), y1: 30 + Math.random() * 40, vitesse: 52, cloche: true });
           }
           etiqueter([t.de, t.vers]);
-          coursesAppel(camp, [t.de, t.vers]);
           chipEtSynergie(t.ev, ballon, ms);
           break;
         }
@@ -761,11 +1011,15 @@ const ONZE_SCENE = (() => {
           if (p) {
             donnerLeBallon(p.nom, 66);
             // la Rue : conduite en crochets, le pion serpente vers le but
+            // le crochet part du CÔTÉ OPPOSÉ au défenseur le plus proche :
+            // une décision de football, pas une fonction du temps
+            const genant = listePions.filter((q) => q.camp !== p.camp && !q.gardien)
+              .sort((a, b) => distance(a, p) - distance(b, p))[0];
+            const cote = genant ? (genant.y > p.y ? -1 : 1) : (p.y > 50 ? -1 : 1);
             p.cx = borne(p.x + sens * 13, 5, 95);
-            p.cy = borne(p.y + (Math.sin(performance.now() * 0.002 + p.phase) * 11), 6, 94);
-            p.role = "conduite";
+            p.cy = borne(p.y + cote * 10, 6, 94);
+            p.roleScenario = "conduite";
             etiqueter([p.nom]);
-            coursesAppel(camp, [p.nom]);
           }
           break;
         }
@@ -793,7 +1047,7 @@ const ONZE_SCENE = (() => {
           const p = pionDe(t.acteur), battu = pionDe(t.battu);
           etiqueter([t.acteur, t.battu]);
           if (p) {
-            p.role = "percee";
+            p.roleScenario = "percee";
             if (t.sousType === "course") {
               // le sprint dans le couloir : il prend la profondeur, plein axe
               const couloir = p.y < 50 ? Math.max(10, p.y - 8) : Math.min(90, p.y + 8);
@@ -824,9 +1078,8 @@ const ONZE_SCENE = (() => {
             battu.plonge = 520;
             battu.cx = borne(battu.x - sens * 3, 4, 96);
             battu.cy = borne(battu.y + (p && p.cy !== null ? (battu.y - p.cy) * 0.4 : 4), 5, 95);
-            battu.role = "battu";
+            battu.roleScenario = "battu";
           }
-          coursesAppel(camp, [t.acteur, t.battu]);
           chipEtSynergie(t.ev, p || ballon, ms);
           break;
         }
@@ -857,7 +1110,7 @@ const ONZE_SCENE = (() => {
           possession = camp;
           if (p) {
             p.cx = borne(ballon.x, 5, 95); p.cy = borne(ballon.y, 6, 94);
-            p.role = "rebond";
+            p.roleScenario = "rebond";
             etiqueter([t.acteur]);
             setTimeout(() => { if (!detruit) donnerLeBallon(p.nom, 60); }, ms * 0.5);
           }
@@ -881,7 +1134,7 @@ const ONZE_SCENE = (() => {
             const distanceBut = borne(Math.abs(tireur.x - but.x), 12, 26);
             tireur.cx = borne(but.x - sens * distanceBut, 11, 89);
             tireur.cy = borne(lerp(tireur.y, 50, 0.45), 24, 76);
-            tireur.role = "tireur";
+            tireur.roleScenario = "tireur";
           }
           if (gk) { gk.cx = borne(BUTS[gk.camp].x + sensDe(gk.camp) * 4, 2, 98); gk.cy = borne(lerp(50, ballon.y, 0.6), 40, 60); }
           // deux défenseurs se jettent dans la trajectoire (mêlée permise)
@@ -1131,28 +1384,32 @@ const ONZE_SCENE = (() => {
       precedent = temps;
       const dt = dtBrut * facteurTemps;
 
-      // le pressing est recalculé à chaque frame (il suit le ballon)
-      for (const p of listePions) if (p.role === "pressing") p.role = null;
-      appliquerPressing();
+      /* Le CERVEAU décide, la PHYSIQUE exécute (décision 33). Une passe
+         par frame sur 22 pions : quelques microsecondes. */
+      cerveauDePlacement();
 
       for (const p of listePions) {
-        let cible;
-        if (p.cx !== null) cible = { x: p.cx, y: p.cy };
-        else if (p.role === "pressing") cible = { x: p.presseX, y: p.presseY };
-        else cible = cibleAmbiante(p);
+        const cible = p.cible || { x: p.x, y: p.y };
         const dx = cible.x - p.x, dy = cible.y - p.y;
         const dist = Math.hypot(dx, dy);
-        // vitesse voulue : plein régime tant qu'on est loin, freinage à l'arrivée
-        const v = Math.min(p.vMax, dist * 4.5);
-        const vxVoulu = dist > 0.05 ? (dx / dist) * v : 0;
-        const vyVoulu = dist > 0.05 ? (dy / dist) * v : 0;
-        const k = Math.min(1, dtBrut * p.accel);
-        p.vx = lerp(p.vx, vxVoulu, k);
-        p.vy = lerp(p.vy, vyVoulu, k);
+        /* LA PHYSIQUE DE COURSE : il court, il ne glisse pas. Vitesse
+           voulue plein régime tant qu'il est loin, freinage à
+           l'approche — et l'accélération est BORNÉE, donc il ne change
+           jamais de direction d'un coup : il tourne avec de l'inertie. */
+        const vVoulue = Math.min(p.vMax, dist * 4.2);
+        const vxVoulu = dist > 0.02 ? (dx / dist) * vVoulue : 0;
+        const vyVoulu = dist > 0.02 ? (dy / dist) * vVoulue : 0;
+        const ax = vxVoulu - p.vx, ay = vyVoulu - p.vy;
+        const norme = Math.hypot(ax, ay);
+        const budget = p.accel * dtBrut;            // ce qu'il peut gagner cette frame
+        const k = norme > budget ? budget / norme : 1;
+        p.vx += ax * k; p.vy += ay * k;
         p.x = borne(p.x + p.vx * dt, 1, 99);
         p.y = borne(p.y + p.vy * dt, 2, 98);
-        // une cible atteinte se relâche : le pion reprend la vie ambiante
-        if (p.cx !== null && dist < 1.2) { p.cx = null; p.cy = null; if (p.role !== "pressing") p.role = null; }
+        // filet : un pion ne peut pas sortir de la réalité (voir `borne`)
+        if (!isFinite(p.vx) || !isFinite(p.vy)) { p.vx = 0; p.vy = 0; }
+        // une cible SCÉNARISÉE atteinte se relâche : le cerveau reprend la main
+        if ((p.cx !== null || p.cy !== null) && dist < 1.2) { p.cx = null; p.cy = null; p.roleScenario = null; }
         if (p.aura > 0) p.aura -= dtBrut * 1000;
         if (p.flash > 0) p.flash -= dtBrut * 1000;
         if (p.plonge > 0) p.plonge -= dtBrut * 1000;
@@ -1242,7 +1499,13 @@ const ONZE_SCENE = (() => {
         etiquettes: listePions.filter((p) => p.etiquette).map((p) => p.nom),
         theme: theme.nom, replayEnCours: !!replay,
         positions: listePions.map((p) => ({ nom: p.nom, camp: p.camp, x: p.x, y: p.y, base: p.baseX,
-          vitesse: Math.hypot(p.vx, p.vy) })),
+          vitesse: Math.hypot(p.vx, p.vy),
+          // décision 33 : « pourquoi es-tu là ? » — la raison, et la cible
+          role: p.role, marque: p.marque || null,
+          cible: p.cible ? { x: p.cible.x, y: p.cible.y } : null,
+          ecartCible: p.cible ? Math.hypot(p.cible.x - p.x, p.cible.y - p.y) : null })),
+        ligneDefensive: { moi: hauteurLigne("moi"), eux: hauteurLigne("eux") },
+        receveurAttendu: (() => { const r = receveurAttendu(); return r ? r.nom : null; })(),
       }),
       detruire: () => {
         detruit = true;

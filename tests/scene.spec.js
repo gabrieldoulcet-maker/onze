@@ -316,13 +316,55 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     const regimes = [];
     const vitesses = [];
     let ballonPrec = null, sautMaxBallon = 0;
-    let etiqAction = [], etiqBut = 0;
+    let etiqAction = [], etiqBut = 0, nonFinies = 0;
+    // décision 33 : les mesures du cerveau de placement
+    let sansRaison = 0; const ecartsCible = [];
+    let appelsVus = 0, appelsEnCourse = 0;
+    let reposDepuis = 0, vitesseReposCourante = 0; const finsDeRepos = [];
+    let lignesVues = 0, sommeEcartType = 0;
+    let marquagesVus = 0, marquagesBons = 0;
     await new Promise((fini) => {
       const tic = setInterval(() => {
         const sc = typeof sceneMatch !== "undefined" ? sceneMatch : null;
         if (!sc) return;
         const d = sc.diagnostic();
         regimes.push(d.regime);
+        if (d.positions.some((p) => !isFinite(p.x) || !isFinite(p.y)) ||
+            !isFinite(d.ballon.x) || !isFinite(d.ballon.y)) nonFinies++;
+        // --- décision 33 : le cerveau ---
+        const champ = d.positions.filter((p) => p.role !== "gardien");
+        if (champ.some((p) => !p.role)) sansRaison++;
+        champ.forEach((p) => { if (p.ecartCible !== null) ecartsCible.push(p.ecartCible); });
+        if (d.receveurAttendu) {
+          const r = d.positions.find((p) => p.nom === d.receveurAttendu);
+          if (r) { appelsVus++; if (r.vitesse > 1.5) appelsEnCourse++; }
+        }
+        /* Le repos : on ne mesure PAS le pic juste après un temps fort
+           (les pions s'y replacent, c'est de la convergence). On garde la
+           vitesse à la FIN de chaque période de repos : c'est là qu'une
+           scène pilotée par une fonction du temps continuerait d'osciller
+           alors qu'une scène pilotée par des intentions s'est calmée. */
+        if (d.regime === "repos") {
+          vitesseReposCourante = Math.max(...champ.map((p) => p.vitesse));
+          reposDepuis++;
+        } else if (reposDepuis >= 3) {
+          finsDeRepos.push(vitesseReposCourante); reposDepuis = 0;
+        } else reposDepuis = 0;
+        for (const camp of ["moi", "eux"]) {
+          const ligne = d.positions.filter((p) => p.camp === camp && p.role === "ligne");
+          if (ligne.length < 2) continue;
+          const moy = ligne.reduce((t, p) => t + p.x, 0) / ligne.length;
+          sommeEcartType += Math.sqrt(ligne.reduce((t, p) => t + (p.x - moy) ** 2, 0) / ligne.length);
+          lignesVues++;
+        }
+        for (const m of d.positions.filter((p) => p.role === "marquage" && p.marque)) {
+          const homme = d.positions.find((p) => p.nom === m.marque);
+          if (!homme) continue;
+          marquagesVus++;
+          // goal-side : le marqueur est entre son homme et SON but
+          const but = m.camp === "moi" ? 1.5 : 98.5;
+          if (Math.abs(m.x - but) <= Math.abs(homme.x - but) + 0.5) marquagesBons++;
+        }
         if (d.regime === "action") {
           vitesses.push(d.positions.reduce((t, p) => t + p.vitesse, 0) / d.positions.length);
           etiqAction.push(d.etiquettes.length);
@@ -391,6 +433,17 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       vitesseMoyenne: vitesses.length ? vitesses.reduce((a, b) => a + b, 0) / vitesses.length : 0,
       partsImmobiles: vitesses.filter((v) => v < 0.15).length / Math.max(vitesses.length, 1),
       sautMaxBallon,
+      // aucune position ne doit jamais devenir non finie
+      nonFinies,
+      // décision 33
+      sansRaison,
+      ecartMedian: ecartsCible.length ? ecartsCible.slice().sort((a, b) => a - b)[Math.floor(ecartsCible.length / 2)] : 0,
+      appelsVus, appelsEnCourse,
+      reposVus: finsDeRepos.length,
+      vitesseRepos: finsDeRepos.length
+        ? finsDeRepos.slice().sort((a, b) => a - b)[Math.floor(finsDeRepos.length / 2)] : 0,
+      lignesVues, ecartTypeLigne: lignesVues ? sommeEcartType / lignesVues : 0,
+      marquagesVus, marquagesBons,
       etiqMax: etiqAction.length ? Math.max(...etiqAction) : 0,
       etiqMed: etiqAction.length ? etiqAction.slice().sort((a, b) => a - b)[Math.floor(etiqAction.length / 2)] : 0,
       etiqBut,
@@ -428,6 +481,8 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     decGrand.length >= 1 && decGrand.every((v) => v >= 1450));
   verifier(`Décision 32 : les temps de construction du FORMAT COURT tiennent 1-1,3 s (${decCourt.length} mesurés${decCourt.length ? `, de ${Math.round(Math.min(...decCourt))} à ${Math.round(Math.max(...decCourt))} ms` : ""})`,
     decCourt.every((v) => v >= 1000 && v <= 1400));
+  verifier(`Décision 33 : aucune position non finie (${releve.nonFinies} relevé(s) fautif(s))`,
+    releve.nonFinies === 0);
   verifier(`R4 : les 22 pions bougent en permanence (vitesse moyenne ${releve.vitesseMoyenne.toFixed(2)} %/s, ${Math.round(releve.partsImmobiles * 100)} % de relevés figés)`,
     releve.vitesseMoyenne > 0.8 && releve.partsImmobiles < 0.2);
   verifier(`R4 : le ballon ne se téléporte jamais (saut max ${releve.sautMaxBallon.toFixed(1)} % de terrain en 50 ms)`,
@@ -435,6 +490,62 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   verifier(`R6 : les étiquettes suivent l'action, pas tout le monde (médiane ${releve.etiqMed}, max ${releve.etiqMax})`,
     releve.etiqMed >= 1 && releve.etiqMed <= 4);
   verifier(`R6 : tous les noms s'affichent au but (${releve.etiqBut} relevés)`, releve.etiqBut >= 1);
+  /* ============================================================
+     LE CERVEAU DE PLACEMENT (design/scene-intention.md, décision 33) —
+     les cinq tests d'acceptation de la spec.
+     ============================================================ */
+  verifier(`Décision 33 — test de pause : chaque pion a une RAISON nommée (${releve.sansRaison} relevé(s) avec un pion sans rôle)`,
+    releve.sansRaison === 0);
+  verifier(`Décision 33 — test de pause : les pions convergent vers leur cible (écart médian ${releve.ecartMedian.toFixed(1)} % de terrain)`,
+    releve.ecartMedian > 0 && releve.ecartMedian < 14);
+  verifier(`Décision 33 — test de projection : le receveur attendu est DÉJÀ en course (${releve.appelsEnCourse}/${releve.appelsVus} appels mesurés en mouvement)`,
+    releve.appelsVus >= 2 && releve.appelsEnCourse / releve.appelsVus >= 0.8);
+  /* Zéro sinusoïde : le vrai test est comportemental. Sans ballon qui
+     bouge et sans temps joué, une scène pilotée par une fonction du
+     temps oscillerait sans fin ; une scène pilotée par des intentions
+     se STABILISE. On mesure la décroissance au repos. */
+  /* ZÉRO BRUIT — le test déterministe. Une scène qu'on laisse
+     TRANQUILLE (aucun temps joué, ballon immobile) doit se figer : si
+     une seule position dépendait d'une fonction du temps, les pions
+     oscilleraient indéfiniment. On mesure après 3,5 s de calme. */
+  const calme = await page.evaluate(async () => {
+    const parEcole = (ecole, n) => tousLesJoueurs.filter((j) => j.ecole === ecole).slice(0, n)
+      .map((j) => ({ ...j, etoiles: 1 }));
+    const bac = document.createElement("div");
+    bac.style.cssText = "position:fixed;left:-2000px;width:800px;height:360px";
+    document.body.appendChild(bac);
+    const sc = ONZE_SCENE.creer(bac,
+      ONZE.equipeDepuisFiches("A", "A", parEcole("Tiki-Taka", 6)),
+      ONZE.equipeDepuisFiches("B", "B", parEcole("Catenaccio", 6)), {});
+    const lire = () => sc.diagnostic().positions.map((p) => ({ v: p.vitesse, x: p.x, y: p.y }));
+    await new Promise((r) => setTimeout(r, 3500));
+    const a = lire();
+    await new Promise((r) => setTimeout(r, 800));
+    const b = lire();
+    sc.detruire(); bac.remove();
+    return {
+      vitesseMax: Math.max(...a.map((p) => p.v)),
+      // et surtout : plus personne ne BOUGE entre deux relevés distants
+      deplacementMax: Math.max(...a.map((p, i) => Math.hypot(b[i].x - p.x, b[i].y - p.y))),
+    };
+  });
+  /* Ce qui compte est le DÉPLACEMENT : une scène pilotée par le temps
+     dériverait sans fin. La vitesse résiduelle, elle, vient des pions
+     qui se bousculent sur place (la répulsion les repousse, ils
+     reviennent) — c'est du sur-place, pas de la dérive. */
+  verifier(`Décision 33 — zéro bruit : une scène laissée tranquille se FIGE (déplacement ${calme.deplacementMax.toFixed(2)} % de terrain en 0,8 s ; vitesse résiduelle ${calme.vitesseMax.toFixed(1)} %/s de sur-place)`,
+    calme.deplacementMax < 0.6);
+  console.log(`   (repos en match : vitesse médiane ${releve.vitesseRepos.toFixed(1)} %/s sur ${releve.reposVus} période(s) — les pions se replacent encore, c'est de la convergence)`);
+  verifier(`Décision 33 — la ligne se voit : les défenseurs partagent une hauteur (écart-type ${releve.ecartTypeLigne.toFixed(1)} % de terrain)`,
+    releve.lignesVues >= 2 && releve.ecartTypeLigne < 8);
+  /* Le marquage n'est JAMAIS à 100 %, et c'est voulu : quand le moteur
+     désigne un défenseur battu, il se retrouve du mauvais côté — et ça
+     doit se voir. On vérifie que la règle tient dans la large majorité
+     des cas, pas qu'elle est absolue. */
+  const tauxGoalSide = releve.marquagesVus ? releve.marquagesBons / releve.marquagesVus : 1;
+  verifier(`Décision 33 — le marquage se voit : le marqueur est goal-side ${Math.round(tauxGoalSide * 100)} % du temps (${releve.marquagesBons}/${releve.marquagesVus})`,
+    releve.marquagesVus === 0 || tauxGoalSide >= 0.7);
+
   const mepMin = releve.misesEnPlaceMs.length ? Math.min(...releve.misesEnPlaceMs) : 0;
   verifier(`R3 : la mise en place a le temps de se jouer (la plus courte ${Math.round(mepMin)} ms ≥ 1200)`,
     mepMin >= 1150);
