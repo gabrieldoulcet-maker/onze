@@ -215,7 +215,7 @@
       el("or").textContent = or;
       el("boutique").innerHTML = boutique.map((fiche, i) =>
         fiche
-          ? carteHTML(fiche, `<button class="achat" onclick="acheter(${i})" ${or < fiche.cout ? "disabled" : ""}>${fiche.cout}M</button>`, `'boutique:${i}'`)
+          ? carteHTML(fiche, `<button class="achat" onclick="acheter(${i})" aria-label="Acheter ${fiche.nom.replace(/"/g, "&quot;")} pour ${fiche.cout}M" ${or < fiche.cout ? "disabled" : ""}>${fiche.cout}M</button>`, `'boutique:${i}'`)
           : `<div class="carte vide">— vendu —</div>`
       ).join("");
       el("btn-refresh").disabled = or < COUT_REFRESH;

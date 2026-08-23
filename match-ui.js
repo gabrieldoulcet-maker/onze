@@ -531,7 +531,7 @@ const ONZE_UI = (() => {
         <div class="sous-titre">${hdm ? `🌟 Homme du match${opts.enCours ? " provisoire" : ""} : <strong>${hdm.nom}</strong> (${hdm.equipe})` : "Personne ne s'est encore illustré…"}</div>
         <div style="margin:6px 0">
           ${[equipeA, equipeB].map((eq) =>
-            `<button class="onglet-recap" data-camp="${eq.nom.replace(/"/g, "&quot;")}" style="width:auto;margin:0 4px 0 0;padding:5px 10px;font-size:0.7rem;${eq.nom === campActif ? "background:var(--ligne-forte);border-color:var(--gazon-electrique)" : ""}">${eq.nom}</button>`).join("")}
+            `<button class="onglet-recap" data-camp="${eq.nom.replace(/"/g, "&quot;")}" aria-label="Voir les notes de ${eq.nom.replace(/"/g, "&quot;")}" style="width:auto;margin:0 4px 0 0;padding:5px 10px;font-size:0.7rem;${eq.nom === campActif ? "background:var(--ligne-forte);border-color:var(--gazon-electrique)" : ""}">${eq.nom}</button>`).join("")}
         </div>
         ${lignes.map((l) => `<div class="ligne-stat">
           <span class="note-recap" style="color:${couleurNote(Number(note10(l)))}">${note10(l)}</span>

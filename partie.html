@@ -524,17 +524,17 @@
       <div class="rangee-pastilles" id="progression"></div>
       <div class="chrono-barre masque" id="chrono-barre"><div id="chrono-remplissage"></div></div>
     </div>
-    <button id="btn-calepin"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-calepin"></use></svg></button>
-    <button id="btn-plein-ecran"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-plein-ecran"></use></svg></button>
-    <button id="btn-recap" class="masque"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-epees"></use></svg></button>
-    <button id="btn-vitesse" class="masque"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-vitesse"></use></svg> ×2</button>
+    <button id="btn-calepin" aria-label="Calepin : la galerie des 71 joueurs"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-calepin"></use></svg></button>
+    <button id="btn-plein-ecran" aria-label="Passer en plein écran"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-plein-ecran"></use></svg></button>
+    <button id="btn-recap" class="masque" aria-label="Recap du match : les notes des joueurs"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-epees"></use></svg></button>
+    <button id="btn-vitesse" class="masque" aria-label="Accélérer le match"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-vitesse"></use></svg> ×2</button>
   </div>
 
   <!-- ===== Centre : synergies | plateau + banc | classement ===== -->
   <div class="centre">
     <div class="col-synergies">
       <button id="btn-legende" style="background:var(--surface-1);color:var(--craie-sourde);border:1px solid var(--ligne);border-radius:6px;font-size:0.6rem;padding:2px;cursor:pointer">？ Légende</button>
-      <button id="btn-bascule-gauche"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-staff"></use></svg> Staff · <svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-cible"></use></svg></button>
+      <button id="btn-bascule-gauche" aria-label="Basculer entre synergies et staff"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-staff"></use></svg> Staff · <svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-cible"></use></svg></button>
       <div id="page-synergies">
         <div id="synergies-club"></div>
         <div class="mini-adn" id="axes-adn"></div>
@@ -554,7 +554,7 @@
           <span id="nom-adversaire-match"></span>
           <span class="score-match"> <span id="score-a">0</span> – <span id="score-b">0</span> </span>
           <span id="chrono"></span>
-          <button class="btn-journal" id="btn-journal" title="Journal du match"><svg class="ic-sys" width="14" height="14" viewBox="0 0 48 48"><use href="#is-parchemin"></use></svg></button>
+          <button class="btn-journal" id="btn-journal" title="Journal du match" aria-label="Journal du match"><svg class="ic-sys" width="14" height="14" viewBox="0 0 48 48"><use href="#is-parchemin"></use></svg></button>
           <div class="jauge-domination"><div id="jauge-dom"></div></div>
         </div>
         <div class="journal" id="recit"></div>
@@ -565,7 +565,7 @@
     </div>
     <div class="col-classement" id="col-classement">
       <div id="classement-liste"></div>
-      <button class="principal" id="btn-match"><svg class="ic-sys" width="20" height="20" viewBox="0 0 48 48"><use href="#is-ballon"></use></svg></button>
+      <button class="principal" id="btn-match" aria-label="Lancer le match"><svg class="ic-sys" width="20" height="20" viewBox="0 0 48 48"><use href="#is-ballon"></use></svg></button>
     </div>
   </div>
 
@@ -581,9 +581,9 @@
     </div>
     <div class="rangee-boutique" id="boutique"></div>
     <div class="bloc-droite">
-      <button id="btn-refresh"><svg class="ic-sys" width="15" height="15" viewBox="0 0 48 48"><use href="#is-refresh"></use></svg><br>2M</button>
-      <button class="btn-verrou-carte" id="btn-verrou"><svg class="ic-sys" width="16" height="16" viewBox="0 0 48 48"><use href="#is-cadenas-ouvert"></use></svg></button>
-      <button class="btn-sac" id="btn-sac" title="Replier / déplier la boutique"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-piece"></use></svg></button>
+      <button id="btn-refresh" aria-label="Actualiser la boutique pour 2M"><svg class="ic-sys" width="15" height="15" viewBox="0 0 48 48"><use href="#is-refresh"></use></svg><br>2M</button>
+      <button class="btn-verrou-carte" id="btn-verrou" aria-label="Verrouiller la boutique"><svg class="ic-sys" width="16" height="16" viewBox="0 0 48 48"><use href="#is-cadenas-ouvert"></use></svg></button>
+      <button class="btn-sac" id="btn-sac" title="Replier / déplier la boutique" aria-label="Replier ou déplier la boutique"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-piece"></use></svg></button>
     </div>
   </div>
 
@@ -2288,9 +2288,9 @@
         const maxAxe = Math.max(...valeursAxes), minAxe = Math.min(...valeursAxes);
         voile.innerHTML = `<div class="fiche-joueur${adverse ? " visite" : ""}">
           <div class="nav-vestiaire">
-            <button class="fleche-vestiaire" data-nav="-1">◀</button>
+            <button class="fleche-vestiaire" data-nav="-1" aria-label="Club précédent">◀</button>
             <h3 style="margin:0">${ONZE_ICONES_SYS.ic("loupe", 14)} ${equipe.nom}${adverse ? ` <span class="tag-visite">🟡 tu visites</span>` : ""}</h3>
-            <button class="fleche-vestiaire" data-nav="1">▶</button>
+            <button class="fleche-vestiaire" data-nav="1" aria-label="Club suivant">▶</button>
           </div>
           <div class="sous-titre">${adverse ? "École " + c.ecole + " · 💚 " + c.prestige + " — swipe pour changer de club" : "ton propre vestiaire — swipe pour visiter les autres"}</div>
           <div class="synergies" style="margin-bottom:8px">${ONZE_UI.badges(equipe)}</div>
@@ -2922,13 +2922,16 @@
           <span class="signatures">${signatures}</span>
           <span class="sous-carte">${fiche.unique ? "✦ " + fiche.unique : ""}</span>
           <span class="pied-carte"><span class="ecussons">${ONZE_UI.glyphe(fiche.ecole)}${ONZE_UI.glyphe(fiche.archetype)}</span>
-            <button onclick="event.stopPropagation(); acheter(${i})" ${partie.or < fiche.cout ? "disabled" : ""}>${fiche.cout}M</button></span>
+            <button onclick="event.stopPropagation(); acheter(${i})" aria-label="Acheter ${fiche.nom.replace(/"/g, "&quot;")} pour ${fiche.cout}M" ${partie.or < fiche.cout ? "disabled" : ""}>${fiche.cout}M</button></span>
         </div>`;
       }).join("");
 
       el("btn-refresh").disabled = partie.or < COUT_REFRESH;
       el("btn-xp").disabled = partie.or < COUT_XP || partie.niveau >= 10;
       el("btn-verrou").innerHTML = ONZE_ICONES_SYS.ic(partie.verrou ? "cadenas" : "cadenas-ouvert", 16);
+      // le nom accessible suit l'état : il annonce ce que le clic VA faire
+      el("btn-verrou").setAttribute("aria-label",
+        partie.verrou ? "Déverrouiller la boutique" : "Verrouiller la boutique");
       // le bloc XP de la boutique (façon TFT) : niveau, jauge, odds du niveau
       el("niveau-boutique").textContent = partie.niveau;
       const xpRequis = XP_POUR_MONTER[partie.niveau];
@@ -3434,6 +3437,8 @@
         el("btn-vitesse").addEventListener("click", () => {
           const v = ONZE_UI.basculerVitesse();
           el("btn-vitesse").innerHTML = `${ONZE_ICONES_SYS.ic("vitesse", 13)} ` + (v === 2 ? "×1" : "×2");
+          el("btn-vitesse").setAttribute("aria-label",
+            v === 2 ? "Revenir à la vitesse normale" : "Accélérer le match");
         });
         if (!restaurer()) { nouvellePartie(); proposerTutoriel(); }
       })

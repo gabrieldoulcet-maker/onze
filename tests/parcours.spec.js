@@ -36,6 +36,7 @@ const verifier = (nom, ok) => {
     if (m) fautifs.push(`${f} → « ${m[0]} »`);
   }
   verifier("aucun texte placeholder/« bientôt » servi au joueur", fautifs.length === 0);
+
   for (const f of fautifs) console.log("   ⚠️ " + f);
 
   // ---- Anti-ancienne-palette (DA saison 1) : les tokens de design/da/
@@ -74,6 +75,36 @@ const verifier = (nom, ok) => {
   });
   verifier("achats en boutique (manche 1)", await page.evaluate(() => partie.terrain.length + partie.banc.length > 0));
 
+  /* ---- ACCESSIBILITÉ : tout bouton icône a un nom en français ----
+     Un bouton dont le contenu visible est une icône, un chiffre ou une
+     flèche n'a pas de nom : ni pour un lecteur d'écran, ni pour un test
+     par sélecteur stable. Chaque écran est passé au crible. ---- */
+  const sansNomAccessible = () => page.evaluate(() => {
+    const manquants = [];
+    for (const el of document.querySelectorAll("button")) {
+      if (!el.offsetParent && el.offsetWidth === 0) continue;   // masqué
+      const aria = (el.getAttribute("aria-label") || "").trim();
+      const titre = (el.getAttribute("title") || "").trim();
+      // un vrai nom = des LETTRES : « 2M », « ×2 » ou « ◀ » ne nomment rien
+      const lettres = (el.textContent || "").replace(/[^A-Za-zÀ-ÿ]/g, "");
+      if (aria || titre || lettres.length >= 3) continue;
+      manquants.push(`${el.id || el.className || "?"} « ${(el.textContent || "").trim().slice(0, 12)} »`);
+    }
+    return manquants;
+  });
+
+  const nomsA11y = await sansNomAccessible();
+  verifier(`accessibilité : tout bouton du mercato a un nom (${nomsA11y.length} sans nom)`, nomsA11y.length === 0);
+  for (const m of nomsA11y) console.log("   ⚠️ " + m);
+  // ⚙️ Paramètres matchs : l'écran le plus dense en boutons d'options
+  await page.evaluate(() => ouvrirParametresMatch());
+  await page.waitForSelector(".panneau-params");
+  const nomsParams = await sansNomAccessible();
+  verifier(`accessibilité : tout bouton des ⚙️ Paramètres matchs a un nom (${nomsParams.length} sans nom)`, nomsParams.length === 0);
+  for (const m of nomsParams) console.log("   ⚠️ " + m);
+  await page.evaluate(() => document.querySelectorAll(".volet").forEach((v) => v.remove()));
+
+
   // ---- Iconographie système (Lot 6) : le chrome n'affiche plus d'emojis ----
   verifier("icônes SVG : boutons de panneaux + pastilles de manche + monnaies", await page.evaluate(() => {
     const boutons = ["btn-calepin", "btn-plein-ecran", "btn-recap", "btn-journal", "btn-match",
@@ -105,6 +136,9 @@ const verifier = (nom, ok) => {
   });
   verifier(`calepin : filtre par École (${filtreOk.ecole} : ${filtreOk.montres}/${filtreOk.attendu})`,
     filtreOk.montres === filtreOk.attendu && filtreOk.attendu > 0 && filtreOk.memoire);
+  const nomsCalepin = await sansNomAccessible();
+  verifier(`accessibilité : tout bouton du calepin a un nom (${nomsCalepin.length} sans nom)`, nomsCalepin.length === 0);
+  for (const m of nomsCalepin) console.log("   ⚠️ " + m);
   await page.evaluate(() => document.querySelector('[data-action="fermer"]').click());
   verifier("calepin : 2 joueurs épinglés", epingles.length === 2);
   const brille = await page.evaluate((nom) => {
@@ -191,6 +225,9 @@ const verifier = (nom, ok) => {
       await page.waitForSelector(".voile-fiche .onglet-recap");
       verifier("recap ⚔️ ouvert pendant le match (2 onglets)",
         await page.evaluate(() => document.querySelectorAll(".onglet-recap").length === 2));
+      const nomsRecap = await sansNomAccessible();
+      verifier(`accessibilité : tout bouton du recap ⚔️ a un nom (${nomsRecap.length} sans nom)`, nomsRecap.length === 0);
+      for (const m of nomsRecap) console.log("   ⚠️ " + m);
       await page.evaluate(() => document.querySelector(".voile-fiche .fermer").click());
       // la scène canvas : disques des 2 camps, ballon focal, jauge, bandeau, 📜
       await page.waitForSelector(".scene-match canvas");
