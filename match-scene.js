@@ -1495,6 +1495,9 @@ const ONZE_SCENE = (() => {
     }
     requestAnimationFrame(boucle);
     repos();
+    // le cerveau tourne une fois AVANT la première frame : sans ça, la
+    // scène existe un instant sans que personne ait de raison d'être là
+    cerveauDePlacement();
 
     /* ============================================================
        7. L'API rendue à match-ui.js

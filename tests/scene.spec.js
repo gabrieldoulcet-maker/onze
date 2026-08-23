@@ -112,7 +112,9 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
         const a = d.positions[i], b = d.positions[j];
         mini = Math.min(mini, Math.hypot((b.x - a.x) * L / 100, (b.y - a.y) * H / 100));
       }
-      if (mini < Infinity) releves.push({ mini, rayon: Math.max(H * 0.045, 8) });
+      // le rayon vient de la scène elle-même : le figer dans le test le
+      // rendait faux au premier changement d'échelle (décision 33)
+      if (mini < Infinity) releves.push({ mini, rayon: d.rayonPion });
     }
     return releves;
   });
@@ -322,7 +324,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     let appelsVus = 0, appelsEnCourse = 0;
     let reposDepuis = 0, vitesseReposCourante = 0; const finsDeRepos = [];
     let lignesVues = 0, sommeEcartType = 0;
-    let marquagesVus = 0, marquagesBons = 0;
+    let marquagesVus = 0, marquagesBons = 0, marquagesTous = 0, marquagesTousBons = 0;
     await new Promise((fini) => {
       const tic = setInterval(() => {
         const sc = typeof sceneMatch !== "undefined" ? sceneMatch : null;
@@ -360,10 +362,15 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
         for (const m of d.positions.filter((p) => p.role === "marquage" && p.marque)) {
           const homme = d.positions.find((p) => p.nom === m.marque);
           if (!homme) continue;
-          marquagesVus++;
           // goal-side : le marqueur est entre son homme et SON but
           const but = m.camp === "moi" ? 1.5 : 98.5;
-          if (Math.abs(m.x - but) <= Math.abs(homme.x - but) + 0.5) marquagesBons++;
+          const bon = Math.abs(m.x - but) <= Math.abs(homme.x - but) + 0.5;
+          marquagesTous++; if (bon) marquagesTousBons++;
+          // la spec demande un défenseur goal-side « à moins d'un seuil » :
+          // celui qui court encore vers son homme n'est pas en position
+          if (m.ecartCible !== null && m.ecartCible < 5) {
+            marquagesVus++; if (bon) marquagesBons++;
+          }
         }
         if (d.regime === "action") {
           vitesses.push(d.positions.reduce((t, p) => t + p.vitesse, 0) / d.positions.length);
@@ -443,7 +450,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       vitesseRepos: finsDeRepos.length
         ? finsDeRepos.slice().sort((a, b) => a - b)[Math.floor(finsDeRepos.length / 2)] : 0,
       lignesVues, ecartTypeLigne: lignesVues ? sommeEcartType / lignesVues : 0,
-      marquagesVus, marquagesBons,
+      marquagesVus, marquagesBons, marquagesTous, marquagesTousBons,
       etiqMax: etiqAction.length ? Math.max(...etiqAction) : 0,
       etiqMed: etiqAction.length ? etiqAction.slice().sort((a, b) => a - b)[Math.floor(etiqAction.length / 2)] : 0,
       etiqBut,
@@ -543,8 +550,9 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
      doit se voir. On vérifie que la règle tient dans la large majorité
      des cas, pas qu'elle est absolue. */
   const tauxGoalSide = releve.marquagesVus ? releve.marquagesBons / releve.marquagesVus : 1;
-  verifier(`Décision 33 — le marquage se voit : le marqueur est goal-side ${Math.round(tauxGoalSide * 100)} % du temps (${releve.marquagesBons}/${releve.marquagesVus})`,
-    releve.marquagesVus === 0 || tauxGoalSide >= 0.7);
+  const tauxBrut = releve.marquagesTous ? releve.marquagesTousBons / releve.marquagesTous : 1;
+  verifier(`Décision 33 — le marquage se voit : EN POSITION, le marqueur est goal-side ${Math.round(tauxGoalSide * 100)} % du temps (${releve.marquagesBons}/${releve.marquagesVus}) — ${Math.round(tauxBrut * 100)} % en comptant ceux qui courent encore`,
+    releve.marquagesVus === 0 || tauxGoalSide >= 0.85);
 
   const mepMin = releve.misesEnPlaceMs.length ? Math.min(...releve.misesEnPlaceMs) : 0;
   verifier(`R3 : la mise en place a le temps de se jouer (la plus courte ${Math.round(mepMin)} ms ≥ 1200)`,
@@ -561,8 +569,12 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     grands.length === 0 || (moy(grands) > 10000 && moy(grands) < 16000));
   verifier(`Formats : le format court tient ~8 s (${courts.length} mesuré(s), moyenne ${courts.length ? (moy(courts) / 1000).toFixed(1) : "—"} s)`,
     courts.length === 0 || (moy(courts) > 6000 && moy(courts) < 10000));
-  verifier(`Formats : au moins un temps fort garde le grand format (${grands.length})`,
-    releve.tempsFortsMs.length === 0 || grands.length >= 1);
+  /* La mesure par intervalles ne voit jamais le DERNIER temps fort (il
+     n'a pas de suivant) : le format se lit sur la mise en place, qui le
+     porte — ~3 s en grand, ~1,2 s en court. */
+  const mepGrandes = releve.misesEnPlaceMs.filter((v) => v >= 2000).length;
+  verifier(`Formats : au moins un temps fort garde le grand format (${mepGrandes}/${releve.misesEnPlaceMs.length} mises en place pleines)`,
+    releve.misesEnPlaceMs.length === 0 || mepGrandes >= 1);
   const issueMin = releve.issuesMs.length ? Math.min(...releve.issuesMs) : 0;
   verifier(`R7 : l'issue reste à l'écran après sa révélation (la plus courte ${Math.round(issueMin)} ms ≥ 900)`,
     issueMin >= 900);
