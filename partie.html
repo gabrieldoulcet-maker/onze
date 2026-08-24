@@ -123,7 +123,8 @@
     .mini-adn .barre-mini > div.forte { background: var(--gazon-electrique); }
     .mini-adn .barre-mini > div.faible { background: var(--alerte-claire); }
 
-    .plateau { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; padding: 4px 2px; }
+    .plateau { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; padding: 4px 2px;
+      position: relative; }   /* le repère de TOUTE la mise en place peinte */
     .terrain {
       flex: 1; position: relative; min-height: 0;
       background:
@@ -165,6 +166,56 @@
     .jeton.cout-1 { --couleur-cout: var(--cout-1); } .jeton.cout-2 { --couleur-cout: var(--cout-2); }
     .jeton.cout-3 { --couleur-cout: var(--cout-3); } .jeton.cout-4 { --couleur-cout: var(--cout-4); }
     .jeton.cout-5 { --couleur-cout: var(--cout-5); background: var(--fond-carte-or); } .jeton.cout-0 { --couleur-cout: #5F7A64; }
+    /* ---- LE TERRAIN D'ENTRAÎNEMENT (DA S2) ----
+       Le décor est PEINT, en perspective. Le code ne pose donc plus ses
+       jetons dans une grille plate : il projette la grille dans le
+       quadrilatère du terrain dessiné, et cale ses neuf places de banc
+       sur les tuiles peintes (géométrie : design/terrains.json). */
+    .fond-terrain {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; object-position: bottom center;
+      border-radius: 10px; z-index: 0; pointer-events: none;
+    }
+    .plateau.terrain-peint .terrain { background: none; border-color: rgba(255, 255, 255, 0.10); }
+    .plateau.terrain-peint .ligne-terrain,
+    .plateau.terrain-peint .rangee-banc { position: absolute; }
+    .plateau.terrain-peint .rangee-banc { overflow: visible; }
+    .plateau.terrain-peint .jeton,
+    .plateau.terrain-peint .case-vide,
+    .plateau.terrain-peint .place-banc { position: absolute; }
+    /* LISIBILITÉ (brief) : un liseré et une ombre portée détachent le jeton
+       du décor — clair sur les terrains sombres, sombre sur les clairs.
+       Les couleurs SIGNIFIANTES (poste, coût) ne bougent jamais. */
+    .plateau.terrain-peint .jeton {
+      box-shadow: 0 0 0 1.5px rgba(237, 245, 236, 0.30), 0 5px 12px rgba(0, 0, 0, 0.65);
+    }
+    .plateau.terrain-peint.decor-clair .jeton {
+      box-shadow: 0 0 0 1.5px rgba(6, 13, 8, 0.70), 0 5px 12px rgba(0, 0, 0, 0.45);
+    }
+    .plateau.terrain-peint .case-vide {
+      border-color: rgba(237, 245, 236, 0.55); background: rgba(6, 13, 8, 0.30);
+      color: rgba(237, 245, 236, 0.75); text-shadow: 0 1px 2px #000;
+    }
+    .plateau.terrain-peint.decor-clair .case-vide {
+      border-color: rgba(6, 13, 8, 0.55); background: rgba(6, 13, 8, 0.18);
+    }
+    /* la place de banc VIDE : la tuile est déjà peinte, on ne fait que
+       la souligner — un liseré discret, franc pendant un glisser */
+    .plateau.terrain-peint .place-banc {
+      border: 1.5px solid rgba(237, 245, 236, 0.28); background: rgba(6, 13, 8, 0.18);
+      border-radius: 4px; min-height: 0;
+    }
+    .plateau.terrain-peint.decor-clair .place-banc { border-color: rgba(6, 13, 8, 0.42); }
+    .plateau.terrain-peint .rangee-banc.cible .place-banc { border-color: var(--gazon-electrique); }
+    /* sur le terrain peint les jetons rétrécissent : le nom suit */
+    .plateau.terrain-peint .jeton .nom-jeton { font-size: 0.46rem; letter-spacing: -0.2px; }
+    .plateau.terrain-peint .jeton.figurine .frontale { height: 76%; }
+    /* l'ombre au sol : ce qui POSE la silhouette sur le gazon */
+    .plateau.terrain-peint .jeton.figurine::before {
+      content: ""; position: absolute; left: 12%; right: 12%; bottom: -3px; height: 7px;
+      border-radius: 50%; background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+      pointer-events: none;
+    }
     .rangee-banc {
       flex: 0 0 auto; display: flex; gap: 4px; overflow-x: auto; overflow-y: hidden;
       padding: 3px 2px 0; min-height: 34px;
@@ -633,7 +684,8 @@
         <div id="quetes-liste" style="margin-top:6px;display:flex;flex-direction:column;gap:3px"></div>
       </div>
     </div>
-    <div class="plateau">
+    <div class="plateau" id="plateau">
+      <img class="fond-terrain masque" id="fond-terrain" alt="" decoding="async">
       <div class="terrain" id="terrain-scene">
         <div class="ligne-terrain" id="ligne-GAR"></div>
         <div class="ligne-terrain" id="ligne-DÉF"></div>
@@ -686,6 +738,7 @@
   <script src="synergies-data.js"></script>
   <script src="ecussons.js"></script>
   <script src="portraits.js"></script>
+  <script src="terrains.js"></script>
   <script src="icones-systeme.js"></script>
   <script>ONZE_ICONES_SYS.injecter();</script>
   <script src="ia-coach.js"></script>
@@ -2956,6 +3009,103 @@
         <span style="display:flex;align-items:center;gap:2px">${pastilleHTML(fiche)} <span class="note-jeton">${note}</span><span style="margin-left:auto">${etoiles}</span></span>
         <span class="glyphes-famille" style="display:flex;gap:2px;align-items:center">${ONZE_UI.glyphe(fiche.ecole)}${ONZE_UI.glyphe(fiche.archetype)}<span style="font-size:0.5rem">${staff}</span></span></div>`;
     }
+    /* ================= LA MISE EN PLACE SUR LE TERRAIN PEINT =================
+       Le décor est en perspective : on projette la grille dans le
+       quadrilatère du terrain dessiné (les pions sont POSÉS sur le gazon,
+       ils ne flottent pas au-dessus), et les neuf places de banc se calent
+       sur les tuiles peintes. Aucune coordonnée en dur : tout vient de
+       design/terrains.json via ONZE_TERRAINS. */
+    const LIGNES_U = { "GAR": [0.00, 0.155, 0.055], "DÉF": [0.155, 0.40, 0.27],
+      "MIL": [0.40, 0.655, 0.525], "ATT": [0.655, 1.00, 0.80] };  // [début, fin, centre]
+    // les joueurs se tiennent DANS le terrain, pas sur les lignes de touche :
+    // la bande utile s'arrête avant le fond (sinon la rangée du haut sort du cadre)
+    const V0 = 0.20, V1 = 0.88;
+    const profondeur = (k, n) => V0 + ((k + 0.5) / n) * (V1 - V0);
+    function stadeChoisi() {
+      try { return (ONZE_SCENE.reglages() || {}).stade; } catch (e) { return null; }
+    }
+    function disposerPlateau() {
+      const plateau = el("plateau");
+      const zoneL = plateau.clientWidth, zoneH = plateau.clientHeight;
+      if (!zoneL || !zoneH) return;
+      const terr = ONZE_TERRAINS.pour(stadeChoisi());
+      const peint = !!terr.image;
+      plateau.classList.toggle("terrain-peint", peint);
+      plateau.classList.toggle("decor-clair", peint && !!terr.clair);
+      const fond = el("fond-terrain");
+      if (peint) {
+        // jeu/ par défaut, hd/ sur les écrans à forte densité
+        if (fond.dataset.terrain !== terr.image.jeu) {
+          fond.dataset.terrain = terr.image.jeu;
+          fond.srcset = `${terr.image.jeu} 1x, ${terr.image.hd} 2x`;
+          fond.src = terr.image.jeu;
+        }
+        fond.classList.remove("masque");
+      } else { fond.classList.add("masque"); }
+      if (!peint) {   // décor dessiné : on rend la main au flux normal
+        for (const p of ["GAR", "DÉF", "MIL", "ATT"]) el("ligne-" + p).removeAttribute("style");
+        el("banc").removeAttribute("style");
+        for (const e of plateau.querySelectorAll(".jeton, .case-vide, .place-banc")) e.removeAttribute("style");
+        return;
+      }
+      const cadre = ONZE_TERRAINS.cadre(zoneL, zoneH);
+      // le banc commence au HAUT des tuiles peintes : le terrain prend le reste
+      const t0 = ONZE_TERRAINS.tuile(terr, cadre, 0);
+      const hautBanc = t0.y;
+      const banc = el("banc");
+      banc.style.left = "0px"; banc.style.right = "0px";
+      banc.style.top = hautBanc + "px";
+      banc.style.height = Math.max(12, zoneH - hautBanc) + "px";
+      const terrain = el("terrain-scene");
+      terrain.style.height = Math.max(40, hautBanc - 2) + "px";
+
+      // ---- les 4 lignes de jeu, projetées dans le terrain peint ----
+      for (const [poste, [u0, u1]] of Object.entries(LIGNES_U)) {
+        const zone = el("ligne-" + poste);
+        const coins = [[u0, V0], [u1, V0], [u0, V1], [u1, V1]].map(([u, v]) => ONZE_TERRAINS.projeter(terr, cadre, u, v));
+        const xs = coins.map((c) => c[0]), ys = coins.map((c) => c[1]);
+        zone.style.left = Math.min(...xs) + "px";
+        zone.style.top = Math.min(...ys) + "px";
+        zone.style.width = (Math.max(...xs) - Math.min(...xs)) + "px";
+        zone.style.height = (Math.max(...ys) - Math.min(...ys)) + "px";
+        const cases = [...zone.children];
+        const n = cases.length || 1;
+        cases.forEach((c, k) => {
+          const v = profondeur(k, n);
+          const [x, y] = ONZE_TERRAINS.projeter(terr, cadre, LIGNES_U[poste][2], v);
+          // la place disponible entre deux pions décide de leur taille
+          const pas = (Math.max(...ys) - Math.min(...ys)) / Math.max(n, 1);
+          const h = Math.max(26, Math.min(54, pas * 1.06)) * ONZE_TERRAINS.echelleProfondeur(v);
+          // un peu plus large que haut : le nom doit tenir sans se tronquer
+          const l = Math.min(h * 1.22, (Math.max(...xs) - Math.min(...xs)) * 0.86);
+          c.style.width = l + "px";
+          c.style.height = h + "px";
+          c.style.left = (x - zone.offsetLeft - l / 2) + "px";
+          c.style.top = (y - zone.offsetTop - h) + "px";   // les PIEDS sur le point projeté
+          c.style.minHeight = "0";
+        });
+      }
+
+      // ---- les 9 places de banc, calées sur les tuiles PEINTES ----
+      const places = [...banc.children];
+      places.forEach((c, n) => {
+        const t = ONZE_TERRAINS.tuile(terr, cadre, n);
+        if (!t) { c.style.display = "none"; return; }
+        c.style.display = "";
+        const estTuileVide = c.classList.contains("place-banc");
+        // la silhouette se tient SUR la tuile : la tuile est le sol
+        // la silhouette se dresse SUR la tuile sans empiéter sur le gazon :
+        // sa hauteur reste proportionnée au mat peint
+        const hauteur = estTuileVide ? t.hauteur : Math.max(26, Math.min(40, t.largeur * 1.05));
+        c.style.left = (t.x - banc.offsetLeft) + "px";
+        c.style.top = (t.y + t.hauteur - hauteur - banc.offsetTop) + "px";
+        c.style.width = t.largeur + "px";
+        c.style.height = hauteur + "px";
+        c.style.minHeight = "0";
+        c.style.flex = "none";
+      });
+    }
+
     function afficher() {
       const max = maxTitulaires();
       // le compteur permanent de titulaires, en alerte si un état illégal existe
@@ -3162,8 +3312,10 @@
         el("btn-match").innerHTML = verdict ? `${ONZE_ICONES_SYS.ic("ballon", 13)} ` + verdict
           : `${ONZE_ICONES_SYS.ic("ballon", 13)} Manche ${partie.manche}` + (formationIncomplete() ? " 😬" : "");
       }
+      disposerPlateau();
       sauvegarder();
     }
+    window.addEventListener("resize", () => { try { disposerPlateau(); } catch (e) { /* écran en cours de bascule */ } });
 
     function acheterIcone(indice) {
       const icone = ONZE_ICONES.parId(partie.boutique[indice].id);
@@ -3533,6 +3685,7 @@
     Promise.all([
       fetch("design/joueurs.json").then((rep) => rep.json()),
       ONZE_PORTRAITS.charger(),
+      ONZE_TERRAINS.charger(),
     ])
       .then(([donnees]) => {
         tousLesJoueurs = donnees;
