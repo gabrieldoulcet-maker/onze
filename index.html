@@ -40,14 +40,29 @@
     .cartouche-logo {
       position: relative; display: inline-flex; flex-direction: column; align-items: center; gap: 4px;
       transform: skewX(-8deg) rotate(-2deg);
-      background: linear-gradient(180deg, #14351D, #0A1B10);
+      /* matière PLAQUE : dégradé vertical, la lumière vient du haut */
+      background: linear-gradient(180deg, #1D4A28 0%, #14351D 46%, #071309 100%);
       border: 4px solid var(--gazon-electrique); border-radius: 20px;
       padding: 14px 30px;
-      box-shadow: 0 0 0 4px var(--nuit-profonde), 0 0 34px rgba(61, 226, 107, 0.45), inset 0 -8px 0 rgba(0, 0, 0, 0.4);
+      /* l'enseigne allumée : arête haute éclairée, le bas qui retombe dans
+         l'ombre, un halo serré DOUBLÉ d'un halo large (une lueur qui se
+         diffuse au lieu d'un aplat), et une vraie ombre portée */
+      box-shadow:
+        inset 0 2px 0 rgba(205, 255, 224, 0.45),
+        inset 0 -12px 20px rgba(0, 0, 0, 0.55),
+        0 0 0 4px var(--nuit-profonde),
+        0 0 16px rgba(61, 226, 107, 0.55),
+        0 0 46px rgba(61, 226, 107, 0.26),
+        0 16px 34px rgba(0, 0, 0, 0.7);
     }
     .cartouche-logo .nom-logo {
       font-family: var(--police-display); font-weight: 400; font-size: 2.6rem; line-height: 1;
-      color: var(--gazon-electrique); text-shadow: 0 4px 0 #04240E, 0 0 24px rgba(61, 226, 107, 0.6);
+      color: var(--gazon-electrique);
+      text-shadow:
+        0 -1px 0 rgba(214, 255, 230, 0.55),
+        0 4px 0 #04240E,
+        0 7px 12px rgba(0, 0, 0, 0.8),
+        0 0 24px rgba(61, 226, 107, 0.6);
     }
     .cartouche-logo .filet { display: flex; align-items: center; gap: 7px; }
     .cartouche-logo .filet i { display: block; width: 34px; height: 3px; background: var(--or-trophee); border-radius: 999px; }
@@ -57,19 +72,36 @@
     .trait-vitesse { position: fixed; height: 12px; border-radius: 999px; transform: skewX(-30deg);
       pointer-events: none; opacity: 0.4; mix-blend-mode: screen; }
     .menu { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 8px; }
+    /* matière JETON : dégradé vertical, arête haute claire, tranche
+       visible, ombre portée. Le bouton n'est plus un aplat posé sur la
+       photo, c'est un objet que les projecteurs du stade éclairent. */
     .bouton-jouer {
       display: block; text-decoration: none; text-align: center;
-      background: var(--gazon-electrique); color: #04240E;
+      background: linear-gradient(180deg, #7BF5A6 0%, var(--gazon-electrique) 44%, #2CBB60 100%);
+      color: #04240E;
       border-radius: 14px; padding: 16px; font-size: 1.2rem; font-weight: 800;
-      box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.25), 0 0 26px rgba(61, 226, 107, 0.4);
+      box-shadow:
+        inset 0 1px 0 rgba(240, 255, 246, 0.9),
+        inset 0 -6px 0 rgba(4, 36, 14, 0.28),
+        0 7px 18px rgba(0, 0, 0, 0.55),
+        0 0 26px rgba(61, 226, 107, 0.3);
+      transition: transform 0.08s, box-shadow 0.08s;
+    }
+    .bouton-jouer:active {
+      transform: translateY(3px);
+      box-shadow: inset 0 1px 0 rgba(240, 255, 246, 0.7), inset 0 -2px 0 rgba(4, 36, 14, 0.28),
+        0 3px 9px rgba(0, 0, 0, 0.5), 0 0 18px rgba(61, 226, 107, 0.3);
     }
     .reglages { display: flex; gap: 6px; }
     .reglages button {
-      flex: 1; background: rgba(14, 31, 18, 0.92); color: var(--craie-claire); border: 1px solid var(--ligne-forte);
+      flex: 1; color: var(--craie-claire); border: 1px solid var(--ligne-forte);
+      background: linear-gradient(180deg, rgba(26, 52, 32, 0.94), rgba(10, 24, 14, 0.94));
       border-radius: 9px; padding: 8px 3px; font-size: 0.62rem; font-weight: 700; cursor: pointer;
       white-space: nowrap;
       backdrop-filter: blur(3px);
+      box-shadow: inset 0 1px 0 rgba(190, 230, 200, 0.16), 0 4px 10px rgba(0, 0, 0, 0.5);
     }
+    .reglages button:active { transform: translateY(2px); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); }
     .palmares {
       background: rgba(14, 31, 18, 0.92); border: 1px solid var(--ligne-forte); border-radius: 12px;
       padding: 10px 12px; font-size: 0.74rem; color: #C9D6C9; backdrop-filter: blur(3px);
@@ -79,6 +111,9 @@
     .palmares .ligne > span:first-child { flex: 0 0 auto; }
     .palmares .ligne:last-child { border-bottom: none; }
     .palmares .place-1 { color: var(--or-trophee); font-weight: 800; }
+    /* la date reste au second plan, mais AU-DESSUS du seuil de lisibilité :
+       le vert éteint qu'elle portait tombait à 3,7:1 */
+    .palmares .date { color: #8FA292; }
     .palmares .place-top4 { color: var(--gazon-electrique); }
     /* EN PAYSAGE, chaque bloc va dans la zone que le décor lui laisse
        (luminances relevées sur l'image) :
@@ -111,21 +146,52 @@
           linear-gradient(90deg, rgba(6, 13, 8, 0.78) 0%, rgba(6, 13, 8, 0.18) 30%,
             rgba(6, 13, 8, 0) 45%, rgba(6, 13, 8, 0) 58%, rgba(6, 13, 8, 0.22) 74%, rgba(6, 13, 8, 0.78) 100%);
       }
-      /* l'invite d'installation, elle, doit passer par le bas du centre :
-         elle emporte donc sa propre plaque sombre */
-      .invite-a2hs {
-        position: absolute; left: 50%; bottom: 3%; transform: translateX(-50%);
-        width: min(42%, 380px); margin: 0 !important;
-      }
     }
     /* en PORTRAIT l'image se recadre fort : on descend le cadrage pour
        garder la pelouse éclairée dans le champ */
     @media (orientation: portrait) {
       .fond-accueil { object-position: center 58%; }
     }
+    /* les LIENS SECONDAIRES : même halo que les autres textes posés sur la
+       photo — le « match de démo » passait sous le seuil de contraste avec
+       son vert éteint, il prend la couleur des textes secondaires. */
     .labo { text-align: center; margin-top: 4px; }
     .labo a { color: var(--craie-sourde); font-size: 0.66rem; text-decoration: none;
-      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95); }
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.9); }
+    .labo .sep { color: var(--ligne-forte); }
+    /* LE RETRAIT : ce qui est destructeur ne pèse pas le poids d'un réglage.
+       « Réinitialiser » quitte la rangée des boutons pour cette ligne
+       discrète, plus petite, en dessous — et demande confirmation. */
+    .retrait { text-align: center; margin-top: 2px; }
+    .retrait button {
+      background: none; border: none; cursor: pointer; padding: 5px 8px;
+      color: #B9A09A; font-size: 0.58rem; font-weight: 600; letter-spacing: 0.4px;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.9);
+      opacity: 0.85;
+    }
+    .retrait button:hover, .retrait button:focus-visible { color: var(--alerte-claire); opacity: 1; }
+    /* L'INVITE D'INSTALLATION : une pastille, pas un panneau — et jamais
+       pour un joueur neuf (voir le script en bas de page). */
+    .invite-a2hs { margin-top: 2px; }
+    .pastille-a2hs {
+      display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%;
+      background: linear-gradient(180deg, rgba(26, 52, 32, 0.9), rgba(10, 24, 14, 0.9));
+      border: 1px solid var(--ligne-forte); border-radius: 999px;
+      color: var(--craie-sourde); font-size: 0.6rem; font-weight: 700; padding: 5px 10px; cursor: pointer;
+      backdrop-filter: blur(3px);
+      box-shadow: inset 0 1px 0 rgba(190, 230, 200, 0.14), 0 3px 9px rgba(0, 0, 0, 0.5);
+    }
+    .pastille-a2hs strong { color: var(--craie-claire); font-weight: 800; }
+    .mode-emploi {
+      margin-top: 5px; padding: 8px 10px; border-radius: 10px;
+      background: rgba(8, 18, 11, 0.94); border: 1px solid var(--ligne-forte);
+      font-size: 0.62rem; line-height: 1.35; color: var(--craie-claire);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6);
+    }
+    .mode-emploi button {
+      display: block; margin: 6px auto 0; background: none; border: none; cursor: pointer;
+      color: var(--craie-sourde); font-size: 0.58rem; text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -150,9 +216,9 @@
       <button id="btn-difficulte" style="color:var(--or-trophee);border-color:var(--or-trophee)"></button>
       <button id="btn-sons"></button>
       <button id="btn-detente"></button>
-      <button id="btn-reset" style="color:var(--alerte-claire);border-color:var(--vendre-fond)"><svg class="ic-sys" width="12" height="12" viewBox="0 0 48 48"><use href="#is-balai"></use></svg> Réinitialiser</button>
     </div>
-    <div class="labo"><a href="draft.html"><svg class="ic-sys" width="11" height="11" viewBox="0 0 48 48"><use href="#is-fiole"></use></svg> labo</a> · <a href="match.html" style="color:#5F7A64">match de démo</a></div>
+    <div class="labo"><a href="draft.html"><svg class="ic-sys" width="11" height="11" viewBox="0 0 48 48"><use href="#is-fiole"></use></svg> labo</a> <span class="sep">·</span> <a href="match.html">match de démo</a></div>
+    <div class="retrait"><button id="btn-reset" type="button" aria-label="Réinitialiser le jeu (efface la partie en cours)"><svg class="ic-sys" width="10" height="10" viewBox="0 0 48 48"><use href="#is-balai"></use></svg> Réinitialiser</button></div>
   </div>
   <div class="palmares" id="palmares" style="display:none"></div>
   <script src="icones-systeme.js"></script>
@@ -189,7 +255,9 @@
       majBoutons();
     });
     document.getElementById("btn-reset").addEventListener("click", () => {
-      if (!confirm("Effacer la partie en cours et repartir de zéro ? (le palmarès est conservé)")) return;
+      /* action destructrice : elle est en retrait ET elle demande
+         confirmation, en nommant ce qui est perdu et ce qui est gardé */
+      if (!confirm("Effacer la partie en cours et repartir de zéro ?\n\nCe qui est perdu : ton effectif, ton or, ta progression de la partie en cours. Ce qui est gardé : ton palmarès et tes réglages.")) return;
       try {
         const palmares = localStorage.getItem("onze-palmares");
         localStorage.clear();
@@ -209,26 +277,42 @@
         bloc.innerHTML = `<strong>${ic("parchemin", 12)} Ton palmarès</strong>` + palmares.slice(0, 3).map((p) =>
           `<div class="ligne"><span class="${p.place === 1 ? "place-1" : p.place <= 4 ? "place-top4" : ""}">${p.place === 1 ? ic("trophee", 11) + " Champion" : p.place + "ᵉ"} · M${p.manche}</span>` +
           `<span style="color:var(--craie-sourde)">${(p.compo || []).slice(0, 2).join(", ")}${p.icones && p.icones.length ? " · " + ic("cible", 10) + p.icones.length : ""}</span>` +
-          `<span style="color:#5F7A64">${p.date || ""}</span></div>`).join("");
+          `<span class="date">${p.date || ""}</span></div>`).join("");
       }
     } catch (e) {}
 
-    /* L'invite « Ajouter à l'écran d'accueil » : sur l'ACCUEIL uniquement,
-       une apparition par session, un tap pour fermer. Rien en mode installé. */
+    /* L'invite « Ajouter à l'écran d'accueil » : un joueur neuf doit voir
+       le stade et le bouton Jouer, pas une consigne d'installation. Elle
+       n'apparaît donc qu'une fois une PREMIÈRE PARTIE TERMINÉE (le palmarès
+       existe), sous forme de pastille discrète dans la colonne du menu —
+       plus jamais un panneau posé sur le ballon. Un tap déplie le mode
+       d'emploi, « ne plus proposer » la range définitivement. */
     (function () {
       try {
         const standalone = window.matchMedia("(display-mode: fullscreen)").matches ||
           window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
-        if (standalone || sessionStorage.getItem("onze-invite-a2hs")) return;
-        sessionStorage.setItem("onze-invite-a2hs", "1");
+        const dejaJoue = JSON.parse(localStorage.getItem("onze-palmares") || "[]").length > 0;
+        if (standalone || !dejaJoue || localStorage.getItem("onze-a2hs-range") === "1") return;
         const invite = document.createElement("div");
         invite.className = "invite-a2hs";
-        invite.style.cssText = "margin-top:10px;max-width:400px;background:rgba(14,31,18,0.94);border:1px solid var(--gazon-electrique);" +
-          "border-radius:12px;padding:9px 13px;font-size:0.74rem;color:#C9D6C9;cursor:pointer;text-align:center;" +
-          "backdrop-filter:blur(4px);box-shadow:0 8px 24px rgba(0,0,0,0.6)";
-        invite.innerHTML = `📲 <strong>Installe ONZE !</strong><br><small style="color:var(--craie-sourde)">« Ajouter à l'écran d'accueil » dans le menu du navigateur : plein écran sans barre, icône d'app — et l'orientation paysage se verrouille sur Android. Touche pour fermer.</small>`;
-        invite.addEventListener("click", () => invite.remove());
-        document.body.appendChild(invite);
+        invite.innerHTML =
+          `<button class="pastille-a2hs" type="button" aria-expanded="false" aria-label="Installer ONZE sur l'écran d'accueil">` +
+          ic("plein-ecran", 11) + ` <strong>Installer ONZE</strong></button>` +
+          `<div class="mode-emploi" hidden>« Ajouter à l'écran d'accueil » dans le menu du navigateur : plein écran sans barre, ` +
+          `icône d'app — et l'orientation paysage se verrouille sur Android.<button type="button">ne plus proposer</button></div>`;
+        const pastille = invite.querySelector(".pastille-a2hs");
+        const modeEmploi = invite.querySelector(".mode-emploi");
+        pastille.addEventListener("click", () => {
+          modeEmploi.hidden = !modeEmploi.hidden;
+          pastille.setAttribute("aria-expanded", String(!modeEmploi.hidden));
+        });
+        modeEmploi.querySelector("button").addEventListener("click", () => {
+          try { localStorage.setItem("onze-a2hs-range", "1"); } catch (e) {}
+          invite.remove();
+        });
+        // au-dessus du « Réinitialiser » : c'est lui qui reste la dernière
+        // ligne, la plus discrète de la colonne
+        document.querySelector(".menu").insertBefore(invite, document.querySelector(".retrait"));
       } catch (e) {}
     })();
   </script>

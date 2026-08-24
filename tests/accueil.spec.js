@@ -47,15 +47,17 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
     // ---- CONTRASTE de chaque texte, mesuré sur les pixels composités ----
     const textes = await page.evaluate(() => {
       const cibles = [".cartouche-logo .nom-logo", ".devise", ".bouton-jouer", "#btn-difficulte", "#btn-sons",
-        "#btn-detente", "#btn-reset", ".palmares strong", ".palmares .ligne span", ".labo a", ".invite-a2hs strong"];
+        "#btn-detente", "#btn-reset", ".palmares strong", ".palmares .ligne span", ".labo a", ".invite-a2hs strong", ".retrait button"];
       const sortie = [];
       for (const sel of cibles) {
-        const e = document.querySelector(sel);
-        if (!e) continue;
-        const r = e.getBoundingClientRect();
-        if (r.width < 4 || r.height < 4) continue;
-        sortie.push({ sel, couleur: getComputedStyle(e).color,
-          rect: { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) } });
+        // TOUS les éléments du sélecteur, pas seulement le premier : c'est
+        // ce qui laissait passer le « match de démo » et son vert éteint.
+        [...document.querySelectorAll(sel)].forEach((e, i) => {
+          const r = e.getBoundingClientRect();
+          if (r.width < 4 || r.height < 4) return;
+          sortie.push({ sel: sel + (i ? `[${i}]` : ""), couleur: getComputedStyle(e).color,
+            rect: { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) } });
+        });
       }
       return sortie;
     });
@@ -109,7 +111,75 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
       verifier(`${taille.nom} : rien du menu ne déborde sur la pelouse éclairée du bas-centre`,
         !chevauche(zones.menu), JSON.stringify(zones.menu));
     }
+    /* ---- LA GRAMMAIRE DE MATIÈRE (brief d'habillage, phase 4) : aucun
+       aplat sur l'accueil. Un objet éclairé par le stade a un dégradé
+       vertical, une arête haute claire et une ombre portée. ---- */
+    const matiere = await page.evaluate(() => {
+      const lire = (sel) => {
+        const e = document.querySelector(sel);
+        if (!e) return null;
+        const st = getComputedStyle(e);
+        return { degrade: /gradient/.test(st.backgroundImage), ombre: st.boxShadow,
+          portee: /rgba?\([^)]*\)\s+\d+px\s+\d+px/.test(st.boxShadow.replace(/inset[^,]*/g, "")),
+          arete: /inset/.test(st.boxShadow) };
+      };
+      return { jouer: lire(".bouton-jouer"), logo: lire(".cartouche-logo"), reglage: lire("#btn-sons") };
+    });
+    for (const [nom, m] of Object.entries(matiere)) {
+      verifier(`${taille.nom} : ${nom} — dégradé vertical, arête haute et ombre portée (plus d'aplat)`,
+        !!m && m.degrade && m.arete && m.portee, JSON.stringify(m));
+    }
+
+    /* ---- L'ACTION DESTRUCTRICE EST EN RETRAIT : « Réinitialiser » ne
+       partage plus la rangée des réglages, et pèse moins qu'eux. ---- */
+    const reset = await page.evaluate(() => {
+      const b = document.getElementById("btn-reset");
+      if (!b) return null;
+      const taille = (sel) => parseFloat(getComputedStyle(document.querySelector(sel)).fontSize);
+      return { dansLesReglages: !!b.closest(".reglages"), corps: taille("#btn-reset"), reglage: taille("#btn-sons"),
+        etiquette: b.getAttribute("aria-label") || "" };
+    });
+    verifier(`${taille.nom} : « Réinitialiser » est hors de la rangée des réglages et plus discret (${reset && reset.corps}px < ${reset && reset.reglage}px)`,
+      reset && !reset.dansLesReglages && reset.corps < reset.reglage && reset.etiquette.length > 6, JSON.stringify(reset));
+
+    /* ---- L'INVITE D'INSTALLATION : ici le palmarès est rempli, donc la
+       pastille est là — mais dans la colonne du menu, jamais sur le
+       ballon. Le cas du joueur neuf est testé plus bas. ---- */
+    const invite = await page.evaluate(() => {
+      const e = document.querySelector(".invite-a2hs");
+      if (!e) return null;
+      const r = e.getBoundingClientRect();
+      return { dansLeMenu: !!e.closest(".menu"), hauteur: Math.round(r.height),
+        g: r.left / window.innerWidth, d: r.right / window.innerWidth,
+        h: r.top / window.innerHeight, b: r.bottom / window.innerHeight,
+        deplie: !document.querySelector(".mode-emploi").hidden };
+    });
+    // la zone du ballon n'a été relevée qu'en PAYSAGE : en portrait l'image
+    // se recadre, ces coordonnées n'y veulent rien dire.
+    const surLeBallon = taille.nom !== "portrait" && invite &&
+      !(invite.d < 0.68 || invite.g > 0.82 || invite.b < 0.70 || invite.h > 0.98);
+    verifier(`${taille.nom} : l'invite est une pastille dans la colonne du menu, repliée, loin du ballon (${invite && invite.hauteur}px)`,
+      invite && invite.dansLeMenu && !invite.deplie && invite.hauteur <= 34 && !surLeBallon, JSON.stringify(invite));
+
     verifier(`${taille.nom} : zéro erreur JS`, erreursJS.length === 0, erreursJS.slice(0, 2).join(" | "));
+    await page.close();
+  }
+  /* ---- LE JOUEUR NEUF : stockage vierge. Il doit voir le stade et le
+     bouton Jouer — aucune consigne d'installation avant sa première
+     partie terminée. ---- */
+  {
+    const page = await (await browser.newContext({ viewport: { width: 844, height: 390 } })).newPage();
+    await page.goto("http://localhost:8123/index.html");
+    await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await page.reload();
+    await page.waitForTimeout(600);
+    const neuf = await page.evaluate(() => ({
+      invite: !!document.querySelector(".invite-a2hs"),
+      jouer: !!document.querySelector(".bouton-jouer"),
+      palmares: getComputedStyle(document.getElementById("palmares")).display !== "none",
+    }));
+    verifier("joueur neuf : pas d'invite d'installation, le bouton Jouer est là",
+      !neuf.invite && neuf.jouer, JSON.stringify(neuf));
     await page.close();
   }
   await browser.close();
