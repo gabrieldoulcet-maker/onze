@@ -14,7 +14,27 @@
   <link rel="apple-touch-icon" href="icons/icone-180.png">
   <link rel="stylesheet" href="onze.css">
   <style>
-    body { justify-content: center; gap: 8px; background: var(--fond-ecran); }
+    /* ---- LA HOME (DA S2) : le tunnel des joueurs ----
+       Le décor est une photo : le logo vit dans la nuit du haut, le menu
+       dans l'ombre du tunnel en bas, et le stade respire entre les deux. */
+    body {
+      justify-content: flex-start; gap: 8px; background: var(--nuit-profonde);
+      min-height: 100dvh; padding: 14px 12px 20px;
+    }
+    header { margin-bottom: auto; }   /* le menu descend au ras du tunnel */
+    .fond-accueil {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; object-position: center 42%;
+      z-index: -2; pointer-events: none;
+    }
+    /* le voile de lisibilité : sombre en haut et en bas, transparent au
+       milieu pour laisser voir la pelouse et les projecteurs */
+    .voile-accueil {
+      position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background: linear-gradient(180deg,
+        rgba(6, 13, 8, 0.88) 0%, rgba(6, 13, 8, 0.42) 24%, rgba(6, 13, 8, 0.10) 44%,
+        rgba(6, 13, 8, 0.55) 70%, rgba(6, 13, 8, 0.93) 100%);
+    }
     /* Le logo ARCADE (DA S1, Lot 1 · 1b) : le badge de borne — cartouche
        vert électrique, ONZE penché, O-ballon, traits de vitesse. */
     .cartouche-logo {
@@ -26,14 +46,16 @@
       box-shadow: 0 0 0 4px var(--nuit-profonde), 0 0 34px rgba(61, 226, 107, 0.45), inset 0 -8px 0 rgba(0, 0, 0, 0.4);
     }
     .cartouche-logo .nom-logo {
-      font-family: var(--police-display); font-weight: 400; font-size: 3rem; line-height: 1;
+      font-family: var(--police-display); font-weight: 400; font-size: 2.6rem; line-height: 1;
       color: var(--gazon-electrique); text-shadow: 0 4px 0 #04240E, 0 0 24px rgba(61, 226, 107, 0.6);
     }
     .cartouche-logo .filet { display: flex; align-items: center; gap: 7px; }
     .cartouche-logo .filet i { display: block; width: 34px; height: 3px; background: var(--or-trophee); border-radius: 999px; }
     header .devise { font-family: var(--police-texte); font-weight: 800; font-size: 0.7rem;
-      letter-spacing: 4px; color: var(--or-trophee); margin-top: 10px; }
-    .trait-vitesse { position: fixed; height: 12px; border-radius: 999px; transform: skewX(-30deg); pointer-events: none; }
+      letter-spacing: 4px; color: var(--or-trophee); margin-top: 10px;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9); }
+    .trait-vitesse { position: fixed; height: 12px; border-radius: 999px; transform: skewX(-30deg);
+      pointer-events: none; opacity: 0.4; mix-blend-mode: screen; }
     .menu { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 8px; }
     .bouton-jouer {
       display: block; text-decoration: none; text-align: center;
@@ -43,22 +65,53 @@
     }
     .reglages { display: flex; gap: 6px; }
     .reglages button {
-      flex: 1; background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
-      border-radius: 9px; padding: 9px 4px; font-size: 0.7rem; font-weight: 700; cursor: pointer;
+      flex: 1; background: rgba(14, 31, 18, 0.92); color: var(--craie-claire); border: 1px solid var(--ligne-forte);
+      border-radius: 9px; padding: 8px 3px; font-size: 0.62rem; font-weight: 700; cursor: pointer;
+      white-space: nowrap;
+      backdrop-filter: blur(3px);
     }
     .palmares {
-      background: var(--surface-1); border: 1px solid var(--ligne); border-radius: 12px;
-      padding: 10px 12px; font-size: 0.74rem; color: #C9D6C9;
+      background: rgba(14, 31, 18, 0.92); border: 1px solid var(--ligne-forte); border-radius: 12px;
+      padding: 10px 12px; font-size: 0.74rem; color: #C9D6C9; backdrop-filter: blur(3px);
     }
     .palmares .ligne { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--ligne); }
     .palmares .ligne:last-child { border-bottom: none; }
     .palmares .place-1 { color: var(--or-trophee); font-weight: 800; }
     .palmares .place-top4 { color: var(--gazon-electrique); }
+    /* En PAYSAGE, le décor commande la mise en page : le logo à gauche, le
+       menu à droite, et le tunnel — projecteurs et pelouse — respire au
+       milieu. En portrait, tout s'empile comme avant. */
+    @media (orientation: landscape) {
+      body {
+        flex-direction: row; align-items: center; justify-content: space-between;
+        gap: 18px; padding: 12px 4vw;
+      }
+      header { margin: 0 0 0 0; flex: 0 0 auto; }
+      .cartouche-logo { padding: 12px 26px; }
+      .cartouche-logo .nom-logo { font-size: 2.2rem; }
+      .menu { flex: 0 1 330px; max-width: 330px; }
+      .voile-accueil {
+        background:
+          radial-gradient(ellipse 46% 62% at 50% 62%, rgba(6, 13, 8, 0) 0%, rgba(6, 13, 8, 0.30) 100%),
+          linear-gradient(90deg, rgba(6, 13, 8, 0.92) 0%, rgba(6, 13, 8, 0.35) 26%,
+            rgba(6, 13, 8, 0.05) 50%, rgba(6, 13, 8, 0.35) 74%, rgba(6, 13, 8, 0.92) 100%);
+      }
+    }
+    /* en PORTRAIT l'image se recadre fort : on descend le cadrage pour
+       garder la pelouse éclairée dans le champ */
+    @media (orientation: portrait) {
+      .fond-accueil { object-position: center 58%; }
+    }
     .labo { text-align: center; margin-top: 4px; }
-    .labo a { color: #5F7A64; font-size: 0.66rem; text-decoration: none; }
+    .labo a { color: var(--craie-sourde); font-size: 0.66rem; text-decoration: none;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95); }
   </style>
 </head>
 <body>
+  <img class="fond-accueil" alt="" decoding="async"
+    src="da/accueil/jeu/tunnel.webp"
+    srcset="da/accueil/jeu/tunnel.webp 1x, da/accueil/hd/tunnel.webp 2x">
+  <div class="voile-accueil"></div>
   <div class="trait-vitesse" style="left:-40px; top:22%; width:280px; background:linear-gradient(90deg, rgba(61,226,107,0), #3DE26B); opacity:0.55"></div>
   <div class="trait-vitesse" style="left:-40px; top:calc(22% + 22px); width:190px; height:8px; background:linear-gradient(90deg, rgba(61,226,107,0), #3DE26B); opacity:0.35"></div>
   <div class="trait-vitesse" style="right:-40px; top:64%; width:280px; background:linear-gradient(270deg, rgba(242,193,78,0), #F2C14E); opacity:0.45"></div>
@@ -132,7 +185,7 @@
       if (palmares.length) {
         const bloc = document.getElementById("palmares");
         bloc.style.display = "block";
-        bloc.innerHTML = `<strong>${ic("parchemin", 12)} Ton palmarès</strong>` + palmares.slice(0, 6).map((p) =>
+        bloc.innerHTML = `<strong>${ic("parchemin", 12)} Ton palmarès</strong>` + palmares.slice(0, 3).map((p) =>
           `<div class="ligne"><span class="${p.place === 1 ? "place-1" : p.place <= 4 ? "place-top4" : ""}">${p.place === 1 ? ic("trophee", 11) + " Champion" : p.place + "ᵉ"} · M${p.manche}</span>` +
           `<span style="color:var(--craie-sourde)">${(p.compo || []).slice(0, 3).join(", ")}${p.icones && p.icones.length ? " · " + ic("cible", 10) + p.icones.length : ""}</span>` +
           `<span style="color:#5F7A64">${p.date || ""}</span></div>`).join("");
@@ -152,7 +205,7 @@
           "border-radius:12px;padding:10px 14px;font-size:0.8rem;color:#C9D6C9;cursor:pointer;text-align:center";
         invite.innerHTML = `📲 <strong>Installe ONZE !</strong><br><small style="color:var(--craie-sourde)">« Ajouter à l'écran d'accueil » dans le menu du navigateur : plein écran sans barre, icône d'app — et l'orientation paysage se verrouille sur Android. Touche pour fermer.</small>`;
         invite.addEventListener("click", () => invite.remove());
-        document.body.appendChild(invite);
+        (document.querySelector('.menu') || document.body).appendChild(invite);
       } catch (e) {}
     })();
   </script>

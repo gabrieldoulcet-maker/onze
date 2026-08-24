@@ -223,3 +223,9 @@ Trois lignes par session : **fait / bloqué / prochaine tâche**. C'est ce qui p
 - **Bloqué :** rien. Un piège de mise en page a coûté un aller-retour : sans `position: relative` sur le plateau, l'image de fond se calait sur tout l'écran et recouvrait la barre du haut et les deux colonnes.
 - **Poids à l'ouverture :** ~1,10 Mo en densité 1, ~1,35 Mo en forte densité (plafonds annoncés et testés : 1,2 et 1,45 Mo). 60 fps tenus (p95 16,8 ms).
 - **Prochaine tâche :** playtest de Gabriel sur téléphone — le placement en perspective se juge au doigt.
+
+## Session 23 (suite) — 24 août 2026 : la nouvelle home
+
+- **Fait :** l'accueil prend pour décor **le tunnel des joueurs** — la sortie des vestiaires sur un stade en nocturne (`da/accueil/`, servi en `jeu/` 900 px et `hd/` 1844 px par `srcset` : 49 et 156 Ko). La mise en page suit le décor au lieu de le recouvrir : **en paysage, deux colonnes** — le cartouche ONZE à gauche, le menu à droite, et le tunnel qui respire au milieu, projecteurs et pelouse dans l'axe ; **en portrait**, tout s'empile comme avant, avec un cadrage descendu pour garder la pelouse éclairée dans le champ. Un voile en dégradé assombrit les deux bords en paysage (les tranches où vit l'interface) et laisse le centre intact ; les panneaux du menu passent en fond quasi opaque avec flou d'arrière-plan, les textes secondaires gagnent une ombre portée. Les traits de vitesse de la DA S1 restent, en fondu écran, comme des reflets de projecteurs. Le palmarès se limite à trois lignes et l'invite d'installation rejoint la colonne du menu — sans quoi elle devenait une troisième colonne en paysage.
+- **Bloqué :** rien. Garde-fou ajouté à `tests/da.spec.js` : sur trois formats (paysage, pire cas 667×320, portrait), le décor est chargé et « Jouer » comme les réglages tiennent entiers à l'écran.
+- **Prochaine tâche :** playtest de Gabriel sur téléphone.

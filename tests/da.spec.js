@@ -213,6 +213,32 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
     JSON.stringify(serre));
   await petit.close();
 
+  // ---- l'ACCUEIL : le décor du tunnel, et rien qui déborde ----
+  for (const [nom, l, h] of [["paysage", 844, 390], ["pire cas", 667, 320], ["portrait", 390, 844]]) {
+    const acc = await (await browser.newContext({ viewport: { width: l, height: h } })).newPage();
+    const errAcc = [];
+    acc.on("pageerror", (e) => errAcc.push(e.message));
+    await acc.goto("http://localhost:8123/index.html");
+    await acc.waitForTimeout(900);
+    const etat = await acc.evaluate(() => {
+      const im = document.querySelector(".fond-accueil");
+      const dansLecran = (sel) => {
+        const e = document.querySelector(sel);
+        if (!e) return false;
+        const r = e.getBoundingClientRect();
+        return r.width > 0 && r.left >= -1 && r.top >= -1 &&
+          r.right <= window.innerWidth + 1 && r.bottom <= window.innerHeight + 1;
+      };
+      return { fond: !!im && im.complete && im.naturalWidth > 0,
+        source: im ? (im.currentSrc || "").split("/accueil/")[1] : null,
+        jouer: dansLecran(".bouton-jouer"), reglages: dansLecran(".reglages") };
+    });
+    verifier(`accueil · ${nom} : décor chargé (${etat.source}), « Jouer » et les réglages entiers à l'écran`,
+      etat.fond && etat.jouer && etat.reglages && errAcc.length === 0,
+      JSON.stringify(etat) + errAcc.slice(0, 2).join(" | "));
+    await acc.close();
+  }
+
   verifier(`zéro erreur JS (${erreursJS.length})`, erreursJS.length === 0, erreursJS.slice(0, 3).join(" | "));
   await browser.close();
   console.log(echecs ? `\n${echecs} échec(s)` : "\nRecette DA ✅");
