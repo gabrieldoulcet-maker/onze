@@ -1262,6 +1262,11 @@ const ONZE_SCENE = (() => {
       const gf = fond.getContext("2d");
       gf.setTransform(dpr, 0, 0, dpr, 0, 0);
       ONZE_STADE.dessiner(gf, geo, theme, 0);
+      // l'image d'arène peut arriver APRÈS ce premier jet : on repeint le
+      // décor une fois qu'elle est là (le jeu ne l'attend jamais)
+      if (theme.fond) ONZE_STADE.precharger(theme).then((prete) => {
+        if (prete && fond && !detruit) ONZE_STADE.dessiner(fond.getContext("2d"), geo, theme, 0);
+      });
     }
     dimensionner();
     const surResize = () => dimensionner();
@@ -1378,9 +1383,14 @@ const ONZE_SCENE = (() => {
         ctx.arc(geo.px(t.x), geo.py(t.y) - geo.uy(t.z || 0), r * 0.62, 0, 6.283);
         ctx.fillStyle = `rgba(255,255,255,${((i + 1) / trainee.length) * 0.34})`; ctx.fill();
       }
-      ctx.shadowColor = "rgba(255,255,255,0.9)"; ctx.shadowBlur = 7;
+      // le ballon est un JETON DE THÈME : halo et contour viennent du stade,
+      // pour rester lisible aussi bien sur bitume sombre que sur gazon clair
+      const jeton = ONZE_STADE.ballon(theme);
+      ctx.shadowColor = jeton.halo; ctx.shadowBlur = 7;
       ctx.beginPath(); ctx.arc(X, Y, r * (1 + z * 0.02), 0, 6.283);
-      ctx.fillStyle = "#FFFFFF"; ctx.fill();
+      ctx.fillStyle = jeton.corps; ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = Math.max(0.9, r * 0.26); ctx.strokeStyle = jeton.contour; ctx.stroke();
       ctx.restore();
     }
 

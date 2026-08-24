@@ -74,7 +74,108 @@ const ONZE_STADE = (() => {
       cages: { montant: "rgba(253,248,234,0.85)", filet: "rgba(253,248,234,0.22)", maille: 6, profondeur: 0.018 },
       ambiance: { vignette: 0.34, lumiere: "rgba(255,236,190,0.045)", brume: 0 },
     },
+
+    /* ---- LES ARÈNES (DA S2) : trois skins photographiques ----
+       CHOIX D'INTÉGRATION (brief §6) : l'image donne l'AMBIANCE — tribunes,
+       projecteurs, ville, sièges — et le CODE dessine la surface de jeu
+       par-dessus, à sa taille lisible. L'autre option (caler la géométrie
+       sur le terrain peint) a été mesurée puis écartée : le cliché est en
+       perspective, le rectangle inscrit dans le terrain peint ne fait que
+       60 % × 53 % du cadre, soit des pions à ~10 px au lieu de ~14 —
+       sous le seuil de lisibilité, non négociable au brief.
+       Le rectangle de jeu recouvre entièrement le terrain peint (aucun
+       reste de gazon photographique ne dépasse) ; les tours d'éclairage
+       d'angle, la tribune haute et les sièges bas restent visibles :
+       c'est là que vit l'identité de chaque arène. */
+    bitumeNeon: {
+      nom: "Bitume Néon",
+      description: "Le city-stade sous les néons : bitume mouillé, métro aérien, façades roses et bleues.",
+      fond: "da/arenes/A02.webp",
+      terrain: { gauche: 0.088, droite: 0.912, haut: 0.152, bas: 0.848 },
+      marge: 0.152,
+      gazon: { clair: "#243330", sombre: "#1C2A27", bandes: 12, usure: "rgba(0,0,0,0.20)" },
+      lignes: { couleur: "rgba(240,248,255,0.80)", epaisseur: 1.6 },
+      tribunes: {
+        fond: "#0A0B12", gradin: "#141726", foule: ["#2A2F45", "#3A2F4E", "#1E2233"],
+        densite: 0.6, flou: 3, bache: "rgba(255,64,160,0.14)",
+      },
+      projecteurs: { nb: 0, halo: "rgba(255,255,255,0)", rayon: 0.5, mat: "rgba(0,0,0,0)" },
+      cages: { montant: "rgba(253,248,234,0.92)", filet: "rgba(240,248,255,0.30)", maille: 5, profondeur: 0.022 },
+      ambiance: { vignette: 0.24, lumiere: "rgba(190,120,255,0.035)", brume: 0 },
+      ballon: { corps: "#FFFFFF", contour: "rgba(6,8,14,0.85)", halo: "rgba(215,235,255,0.85)" },
+    },
+
+    theatre: {
+      nom: "Le Chaudron",
+      description: "Grande enceinte en nocturne, tribunes pleines et halos chauds — le stade des grands soirs.",
+      fond: "da/arenes/A12.webp",
+      terrain: { gauche: 0.088, droite: 0.912, haut: 0.152, bas: 0.848 },
+      marge: 0.152,
+      gazon: { clair: "#1F5C33", sombre: "#194E2B", bandes: 14, usure: "rgba(0,0,0,0.16)" },
+      lignes: { couleur: "rgba(253,248,234,0.74)", epaisseur: 1.7 },
+      tribunes: {
+        fond: "#070C12", gradin: "#101822", foule: ["#28323F", "#36424F", "#1C242E"],
+        densite: 0.66, flou: 3, bache: "rgba(242,193,78,0.12)",
+      },
+      projecteurs: { nb: 0, halo: "rgba(255,255,255,0)", rayon: 0.5, mat: "rgba(0,0,0,0)" },
+      cages: { montant: "rgba(253,248,234,0.95)", filet: "rgba(253,248,234,0.32)", maille: 5, profondeur: 0.022 },
+      ambiance: { vignette: 0.28, lumiere: "rgba(220,238,255,0.045)", brume: 0.03 },
+      ballon: { corps: "#FFFFFF", contour: "rgba(6,13,8,0.85)", halo: "rgba(255,246,216,0.9)" },
+    },
+
+    emeraude: {
+      nom: "L'Émeraude",
+      description: "Pelouse éclatante sous les projecteurs bleus, sièges cerclés de vert — la carte postale.",
+      fond: "da/arenes/A13.webp",
+      terrain: { gauche: 0.088, droite: 0.912, haut: 0.152, bas: 0.848 },
+      marge: 0.152,
+      gazon: { clair: "#2C8A3A", sombre: "#227430", bandes: 14, usure: "rgba(0,0,0,0.14)" },
+      lignes: { couleur: "rgba(253,248,234,0.88)", epaisseur: 1.8 },
+      tribunes: {
+        fond: "#050A08", gradin: "#0C1512", foule: ["#22322A", "#2E4136", "#182420"],
+        densite: 0.66, flou: 3, bache: "rgba(61,226,107,0.14)",
+      },
+      projecteurs: { nb: 0, halo: "rgba(255,255,255,0)", rayon: 0.5, mat: "rgba(0,0,0,0)" },
+      cages: { montant: "rgba(255,255,255,0.96)", filet: "rgba(253,248,234,0.34)", maille: 5, profondeur: 0.022 },
+      ambiance: { vignette: 0.26, lumiere: "rgba(200,230,255,0.04)", brume: 0 },
+      // gazon CLAIR → le ballon prend un contour sombre franc pour rester lisible
+      ballon: { corps: "#FFFFFF", contour: "rgba(4,26,12,0.95)", halo: "rgba(255,255,255,0.75)" },
+    },
   };
+
+  /* Le ballon est un JETON DE THÈME (brief §6) : sur un gazon clair il
+     lui faut un contour sombre franc, sur un gazon sombre un halo clair.
+     Les thèmes dessinés qui n'en déclarent pas gardent l'ancien rendu. */
+  const BALLON_DEFAUT = { corps: "#FFFFFF", contour: "rgba(6,13,8,0.75)", halo: "rgba(255,255,255,0.9)" };
+  const ballon = (t) => (t && t.ballon) || BALLON_DEFAUT;
+
+  /* Les images d'arène : chargées à la demande, jamais bloquantes.
+     Tant qu'une image n'est pas prête (ou si elle échoue), le thème se
+     dessine entièrement en code — le jeu ne montre jamais un trou. */
+  const images = new Map();
+  function image(src) {
+    if (!src || typeof Image === "undefined") return null;
+    if (!images.has(src)) {
+      const im = new Image();
+      im.decoding = "async";
+      im.src = src;
+      images.set(src, im);
+    }
+    const im = images.get(src);
+    return im.complete && im.naturalWidth > 0 ? im : null;
+  }
+  /* Résout quand le décor du thème est prêt à être peint (ou tout de
+     suite s'il n'y a pas d'image). Ne rejette jamais. */
+  function precharger(t) {
+    const src = t && t.fond;
+    if (!src || typeof Image === "undefined") return Promise.resolve(false);
+    if (image(src)) return Promise.resolve(true);
+    return new Promise((resoudre) => {
+      const im = images.get(src);
+      im.addEventListener("load", () => resoudre(true), { once: true });
+      im.addEventListener("error", () => resoudre(false), { once: true });
+    });
+  }
 
   const DEFAUT = "municipal";
   const theme = (id) => THEMES[id] || THEMES[DEFAUT];
@@ -85,15 +186,22 @@ const ONZE_STADE = (() => {
      les tribunes prennent la marge haute et basse. Aucun zoom, jamais. */
   function geometrie(largeur, hauteur, t) {
     const marge = Math.round(hauteur * (t ? t.marge : 0.10));
+    // `terrain` (thèmes à image) resserre le rectangle de jeu pour laisser
+    // voir les angles de l'arène ; sans lui, comportement d'origine exact.
+    const cadre = t && t.terrain;
+    const x = cadre ? Math.round(largeur * cadre.gauche) : 0;
+    const y = cadre ? Math.round(hauteur * cadre.haut) : marge;
+    const w = Math.max((cadre ? Math.round(largeur * cadre.droite) : largeur) - x, 20);
+    const h = Math.max((cadre ? Math.round(hauteur * cadre.bas) : hauteur - marge) - y, 20);
     return {
       largeur, hauteur, marge,
-      x: 0, y: marge, w: largeur, h: Math.max(hauteur - marge * 2, 20),
+      x, y, w, h,
       // conversion pourcentage de terrain → pixels du canvas
-      px: (xPct) => (xPct / 100) * largeur,
-      py: (yPct) => marge + (yPct / 100) * Math.max(hauteur - marge * 2, 20),
+      px: (xPct) => x + (xPct / 100) * w,
+      py: (yPct) => y + (yPct / 100) * h,
       // une longueur en % de terrain → px (utile pour les rayons)
-      ux: (v) => (v / 100) * largeur,
-      uy: (v) => (v / 100) * Math.max(hauteur - marge * 2, 20),
+      ux: (v) => (v / 100) * w,
+      uy: (v) => (v / 100) * h,
     };
   }
 
@@ -145,12 +253,17 @@ const ONZE_STADE = (() => {
   /* ---- Le décor complet, sous les pions ---- */
   function dessiner(ctx, geo, t, temps) {
     const { x, y, w, h } = geo;
-    // 1. le fond (ce qui dépasse du terrain)
-    ctx.fillStyle = t.tribunes.fond;
-    ctx.fillRect(0, 0, geo.largeur, geo.hauteur);
+    // 1. le fond (ce qui dépasse du terrain) — une ARÈNE le remplace
+    const arene = image(t.fond);
+    if (arene) {
+      ctx.drawImage(arene, 0, 0, geo.largeur, geo.hauteur);
+    } else {
+      ctx.fillStyle = t.tribunes.fond;
+      ctx.fillRect(0, 0, geo.largeur, geo.hauteur);
+    }
 
-    // 2. les tribunes, en haut (retournées) et en bas
-    if (geo.marge > 3) {
+    // 2. les tribunes dessinées, en haut (retournées) et en bas
+    if (!arene && geo.marge > 3) {
       const trib = tribunes(geo, t);
       ctx.save();
       ctx.translate(0, geo.marge); ctx.scale(1, -1);
@@ -280,7 +393,8 @@ const ONZE_STADE = (() => {
     }
   }
 
-  return { liste, theme, geometrie, dessiner, dessinerCages, dessinerAmbiance, DEFAUT, THEMES };
+  return { liste, theme, geometrie, dessiner, dessinerCages, dessinerAmbiance,
+    precharger, ballon, DEFAUT, THEMES };
 })();
 
 if (typeof module !== "undefined") module.exports = ONZE_STADE;

@@ -10,7 +10,7 @@ export default [
         setTimeout: "readonly", clearTimeout: "readonly", setInterval: "readonly", clearInterval: "readonly",
         module: "writable", require: "readonly", process: "readonly", console: "readonly",
         AudioContext: "readonly", webkitAudioContext: "readonly", screen: "readonly", confirm: "readonly", alert: "readonly",
-        __dirname: "readonly",
+        __dirname: "readonly", fetch: "readonly", Image: "readonly", Promise: "readonly",
         // les modules ONZE_* se définissent chacun dans leur fichier et se
         // consomment dans le navigateur — pas des globales de lint
         ONZE: "readonly", ONZE_UI: "readonly", ONZE_SCENE: "readonly", ONZE_JUICE: "readonly", ONZE_ECUSSONS: "readonly", ONZE_IA: "readonly", ONZE_ICONES_SYS: "readonly",

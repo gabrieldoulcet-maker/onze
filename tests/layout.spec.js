@@ -53,7 +53,7 @@ const TAILLES = [
       const ctx = toile.getContext("2d");
       const dpr = toile.width / toile.clientWidth;
       const geo = d.cadre, r = d.rayonPion;
-      const px = (p) => ({ X: (p.x / 100) * geo.w, Y: geo.y + (p.y / 100) * geo.h });
+      const px = (p) => ({ X: geo.x + (p.x / 100) * geo.w, Y: geo.y + (p.y / 100) * geo.h });
       /* La scène bouge entre la lecture du diagnostic et celle des
          pixels : on ne cherche donc pas UN pixel, on balaie le
          voisinage du joueur. La question posée reste la bonne — « à

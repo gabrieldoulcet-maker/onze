@@ -329,6 +329,92 @@
     .carte-boutique .tag-etat { position: absolute; top: -8px; left: 6px; font-weight: 800; font-size: 0.5rem;
       padding: 1px 6px; border-radius: var(--r-pilule); background: var(--calepin); color: #04121F; z-index: 1; }
     .carte-boutique .tag-etat.or { background: var(--or-trophee); color: #1A1405; }
+    /* ---- LA CARTE-ILLUSTRATION (DA S2) : l'anatomie TFT ----
+       1. l'illustration bord à bord (le personnage vit dans les 55 %
+          droits du key art → on cadre à droite en CSS, jamais au ciseau)
+       2. le cadre coloré par le coût (hérité de .carte-boutique)
+       3. les familles en colonne, écusson + nom sur plaque sombre
+       4. la barre basse teintée du coût : nom à gauche, prix à droite
+       Les ÉTATS (fusion proche, 3★, calepin, Icône, grisé) restent des
+       couches par-dessus : la silhouette de la carte ne bouge jamais. */
+    .carte-boutique.illustree {
+      padding: 0; overflow: hidden; justify-content: flex-end;
+      background: var(--nuit-profonde);
+    }
+    .carte-boutique .art-carte {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; object-position: 72% 20%;
+      /* LE CADRAGE BUSTE : le key art est un plan large (personnage entier
+         dans les 55 % droits) — à 90 px de haut, un corps entier rend le
+         visage illisible. On zoome donc sur le buste, ancré EN HAUT :
+         le sommet de l'image ne bouge pas, aucune tête ne sort du cadre
+         quelle que soit la pose (debout, accroupi, plongeon). */
+      transform: scale(1.5); transform-origin: 72% 2%;
+      z-index: 0; pointer-events: none;
+    }
+    .carte-boutique.art-absent { background: var(--fond-carte); }
+    .carte-boutique .familles {
+      position: absolute; top: 3px; left: 3px; z-index: 2;
+      display: flex; flex-direction: column; gap: 2px;
+      max-width: calc(100% - 6px); align-items: flex-start;
+    }
+    .carte-boutique .fam {
+      display: flex; align-items: center; gap: 3px; max-width: 100%;
+      background: rgba(6, 13, 8, 0.74); border-radius: var(--r-pilule);
+      padding: 1px 6px 1px 1px; font-size: 0.46rem; font-weight: 700;
+      color: #FFFFFF; line-height: 1.25;
+    }
+    .carte-boutique .fam span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .carte-boutique .barre-nom {
+      position: relative; z-index: 2; margin-top: auto;
+      display: flex; align-items: center; gap: 4px; padding: 3px 4px;
+      border-top: 1.5px solid var(--couleur-cout, var(--cout-1));
+      background: linear-gradient(180deg, rgba(6, 13, 8, 0) 0%, rgba(6, 13, 8, 0.86) 42%, rgba(6, 13, 8, 0.96) 100%);
+    }
+    /* la teinte de coût de la barre : une couche, pas une couleur en dur */
+    .carte-boutique .barre-nom::before {
+      content: ""; position: absolute; inset: 0; z-index: -1;
+      background: var(--couleur-cout, var(--cout-1)); opacity: 0.18;
+    }
+    .carte-boutique .barre-nom .nom-carte { flex: 1; min-width: 0; font-size: 0.62rem; }
+    .carte-boutique .barre-nom .marque-unique { color: var(--or-trophee); margin-right: 2px; }
+    .carte-boutique .barre-nom button { flex: 0 0 auto; display: flex; align-items: center; gap: 1px; }
+    /* la silhouette FRONTALE sur les jetons (banc + terrain hors match) */
+    .jeton.figurine {
+      position: relative; display: flex; flex-direction: column; justify-content: flex-end;
+      align-items: center; padding: 0; overflow: hidden; min-height: 52px;
+      background: linear-gradient(180deg, rgba(6, 13, 8, 0.15), rgba(6, 13, 8, 0.72));
+    }
+    /* Sur le TERRAIN, une ligne peut empiler jusqu'à 4 joueurs : la
+       figurine doit pouvoir se comprimer sur un petit écran (667×320)
+       plutôt que déborder. Au banc — une seule rangée — elle garde sa
+       taille pleine. La silhouette suit (hauteur en %), donc la ligne de
+       sol et la hauteur canonique restent communes dans chaque zone. */
+    .ligne-terrain .jeton.figurine { min-height: 0; height: 52px; flex: 0 1 52px; }
+    .jeton.figurine .frontale {
+      position: absolute; left: 50%; transform: translateX(-50%);
+      bottom: 2px;              /* LA LIGNE DE SOL, commune à tous */
+      height: 82%;              /* LA HAUTEUR CANONIQUE, commune à tous */
+      width: auto; max-width: 100%; object-fit: contain; object-position: bottom center;
+      pointer-events: none; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
+    }
+    .jeton.figurine .etoiles-tete {
+      position: absolute; top: 0; left: 0; right: 0; text-align: center; z-index: 3;
+      font-size: 0.5rem; color: var(--or-trophee); line-height: 1;
+      text-shadow: 0 0 5px rgba(242, 193, 78, 0.9), 0 1px 2px #000;
+    }
+    .jeton.figurine .pastille-coin { position: absolute; top: 1px; left: 1px; z-index: 2; }
+    .jeton.figurine .staff-coin { position: absolute; top: 1px; right: 1px; z-index: 2; font-size: 0.42rem; }
+    .jeton.figurine .nom-jeton {
+      position: relative; z-index: 2; width: 100%; text-align: center; font-size: 0.5rem;
+      background: linear-gradient(180deg, rgba(6, 13, 8, 0), rgba(6, 13, 8, 0.9) 55%);
+      padding: 3px 2px 1px;
+    }
+    /* l'emplacement de banc VIDE : une tuile en creux, visiblement libre */
+    .place-banc {
+      flex: 0 0 56px; min-height: 52px; border: 2px dashed var(--ligne);
+      border-radius: var(--r-carte-banc); background: rgba(6, 13, 8, 0.3);
+    }
     .btn-verrou-carte { font-size: 0.85rem; }
 
     /* ---- Boutique escamotable (toggle sur le sac d'or, façon TFT) ----
@@ -596,6 +682,7 @@
   <script src="icones.js"></script>
   <script src="synergies-data.js"></script>
   <script src="ecussons.js"></script>
+  <script src="portraits.js"></script>
   <script src="icones-systeme.js"></script>
   <script>ONZE_ICONES_SYS.injecter();</script>
   <script src="ia-coach.js"></script>
@@ -2831,6 +2918,15 @@
       const panique = ligne === "GAR" && fiche.poste !== "GAR";
       return `<span class="pastille p-${ligne}${horsPoste ? " alerte" : ""}">${panique ? "😱" : ONZE_UI.GLYPHES.postes[ligne]}</span>`;
     }
+    /* La ligne de famille d'une carte-illustration : écusson SVG + nom,
+       en blanc sur plaque sombre — lisible sur n'importe quelle image. */
+    function ligneFamille(nom) {
+      if (!nom) return "";
+      const ecusson = ONZE_ECUSSONS.idDe(nom) ? ONZE_ECUSSONS.mini(nom, 11) : "";
+      return `<span class="fam">${ecusson}<span>${nom}</span></span>`;
+    }
+    const prixHTML = (cout) => `${cout}${ONZE_ICONES_SYS.ic("piece", 9)}`;
+
     function jetonHTML(fiche, nomListe, indice) {
       const stats = ONZE.genererStats(fiche);
       const note = ONZE.noteGlobale(stats);
@@ -2839,7 +2935,20 @@
       const nbCartes = (fiche.staffCartes || []).length;
       const staff = `${"🧪".repeat(nbSpecs)}${"🧰".repeat(nbCartes)}${fiche.ecoleBonus ? "🛂" : ""}${fiche.relique ? "🏺" : ""}${(fiche.specsIconiques || []).length ? "🌟" : ""}`;
       const choisi = selection && selection.nomListe === nomListe && selection.indice === indice;
-      return `<div class="jeton cout-${fiche.cout}${choisi ? " choisi" : ""}" data-liste="${nomListe}" data-indice="${indice}" onclick="tapJeton('${nomListe}', ${indice})">
+      const ouverture = (extra = "") => `class="jeton cout-${fiche.cout}${extra}${choisi ? " choisi" : ""}" data-liste="${nomListe}" data-indice="${indice}" onclick="tapJeton('${nomListe}', ${indice})"`;
+      /* HORS MATCH : le joueur se tient DEBOUT sur son emplacement (DA S2).
+         Pendant le match, on garde les pastilles actuelles — elles sont
+         lisibles à petite taille et la scène en dépend (brief §4). */
+      const frontale = partie.matchEnCours ? null : ONZE_PORTRAITS.frontale(fiche.nom);
+      if (frontale) {
+        return `<div ${ouverture(" figurine")}>
+          <img class="frontale" src="${frontale}" alt="" loading="lazy" decoding="async" onerror="this.remove()">
+          ${(fiche.etoiles || 1) >= 2 ? `<span class="etoiles-tete">${"★".repeat(fiche.etoiles)}</span>` : ""}
+          <span class="pastille-coin">${pastilleHTML(fiche)}</span>
+          ${staff ? `<span class="staff-coin">${staff}</span>` : ""}
+          <span class="nom-jeton">${fiche.nom}</span></div>`;
+      }
+      return `<div ${ouverture()}>
         <span class="nom-jeton">${fiche.nom}</span>
         <span style="display:flex;align-items:center;gap:2px">${pastilleHTML(fiche)} <span class="note-jeton">${note}</span><span style="margin-left:auto">${etoiles}</span></span>
         <span class="glyphes-famille" style="display:flex;gap:2px;align-items:center">${ONZE_UI.glyphe(fiche.ecole)}${ONZE_UI.glyphe(fiche.archetype)}<span style="font-size:0.5rem">${staff}</span></span></div>`;
@@ -2885,9 +2994,11 @@
       }
 
       // Banc et boutique dans le tiroir
-      el("banc").innerHTML = partie.banc.length
-        ? partie.banc.map((fiche, i) => jetonHTML(fiche, "banc", i)).join("")
-        : `<div class="jeton vide" style="flex:1">Banc vide (${TAILLE_BANC} places)</div>`;
+      // Le banc : une rangée d'EMPLACEMENTS, les vides compris — c'est ce
+      // qui rend le glisser-déposer lisible (DA S2, brief §4).
+      el("banc").innerHTML = partie.banc.map((fiche, i) => jetonHTML(fiche, "banc", i)).join("") +
+        Array.from({ length: Math.max(0, TAILLE_BANC - partie.banc.length) },
+          () => `<div class="place-banc"></div>`).join("");
       const copiesPossedees = (nom) => [...partie.terrain, ...partie.banc]
         .filter((j) => j.nom === nom && (j.etoiles || 1) === 1 && !j.icone).length;
       const aDeuxEtoiles = (nom) => [...partie.terrain, ...partie.banc]
@@ -2898,12 +3009,23 @@
           // la carte ICÔNE : or + rayons tournants (état légendaire, Lot 3)
           const icone = ONZE_ICONES.parId(fiche.id);
           const grisee = partie.or < icone.cout ? " grisee" : "";
+          const artIcone = ONZE_PORTRAITS.carte(icone.nom);
+          const boutonIcone = `<button onclick="event.stopPropagation(); acheter(${i})" ${partie.or < icone.cout ? "disabled" : ""} aria-label="Signer ${icone.nom} (${icone.cout}M)">Signer · ${prixHTML(icone.cout)}</button>`;
+          if (artIcone) {
+            return `<div class="carte-boutique cout-5 carte-icone illustree${grisee}">
+              <img class="art-carte" src="${artIcone}" alt="" loading="lazy" decoding="async"
+                onerror="this.closest('.carte-boutique').classList.add('art-absent'); this.remove()">
+              <span class="tag-etat or">ICÔNE</span>
+              <span class="familles">${ligneFamille(icone.ecole)}${ligneFamille(icone.archetype)}</span>
+              <span class="barre-nom"><span class="nom-carte">${icone.nom}</span>${boutonIcone}</span>
+            </div>`;
+          }
           return `<div class="carte-boutique cout-5 carte-icone${grisee}">
             <span class="tag-etat or">ICÔNE</span>
             <span class="gemme"></span><span class="gemme-chiffre">${icone.cout}</span>
             <span class="ligne-identite"><span class="nom-carte">${icone.nom}</span></span>
             <span class="sous-carte">${icone.ecole || "Sans École"}${icone.archetype ? " · " + icone.archetype : ""}</span>
-            <span class="pied-carte"><button onclick="event.stopPropagation(); acheter(${i})" ${partie.or < icone.cout ? "disabled" : ""}>Signer · ${icone.cout}M</button></span>
+            <span class="pied-carte">${boutonIcone}</span>
           </div>`;
         }
         const stats = ONZE.genererStats(fiche);
@@ -2916,13 +3038,28 @@
         const grisee = partie.or < fiche.cout && !eclat ? " grisee" : "";
         const badgeEclat = copies >= 2 ? `<span class="badge-eclat">${eclatOr ? "★★★" : "★★"}</span>` : (copies === 1 ? `<span class="badge-eclat" style="color:var(--craie-sourde);text-shadow:none">•2/3</span>` : "");
         const tag = planifie ? `<span class="tag-etat">CALEPIN</span>` : "";
+        const ouvrirFiche = `onclick="ONZE_UI.ouvrirFiche(tousLesJoueurs.find((j) => j.nom === '${fiche.nom.replace(/'/g, "\\'")}'))"`;
+        const bouton = `<button onclick="event.stopPropagation(); acheter(${i})" ${partie.or < fiche.cout ? "disabled" : ""} aria-label="Recruter ${fiche.nom} (${fiche.cout}M)">${prixHTML(fiche.cout)}</button>`;
+        const art = ONZE_PORTRAITS.carte(fiche.nom);
+        if (art) {
+          // la carte-illustration : hiérarchie coût → famille → nom → prix
+          return `<div class="carte-boutique illustree cout-${fiche.cout} ${eclat} ${planifie}${grisee}" ${ouvrirFiche}>${badgeEclat}${tag}
+            <img class="art-carte" src="${art}" alt="" loading="lazy" decoding="async"
+              onerror="this.closest('.carte-boutique').classList.add('art-absent'); this.remove()">
+            <span class="familles">${ligneFamille(fiche.ecole)}${ligneFamille(fiche.archetype)}</span>
+            <span class="barre-nom">
+              <span class="nom-carte">${fiche.unique ? `<span class="marque-unique" title="${fiche.unique}">✦</span>` : ""}${fiche.nom}</span>
+              ${bouton}
+            </span>
+          </div>`;
+        }
         return `<div class="carte-boutique cout-${fiche.cout} ${eclat} ${planifie}${grisee}" onclick="ONZE_UI.ouvrirFiche(tousLesJoueurs.find((j) => j.nom === '${fiche.nom.replace(/'/g, "\\'")}'))">${badgeEclat}${tag}
           <span class="gemme"></span><span class="gemme-chiffre">${fiche.cout}</span>
           <span class="ligne-identite"><span class="note-ecusson">${note}</span><span class="nom-carte">${fiche.nom}</span>${pastilleHTML(fiche)}</span>
           <span class="signatures">${signatures}</span>
           <span class="sous-carte">${fiche.unique ? "✦ " + fiche.unique : ""}</span>
           <span class="pied-carte"><span class="ecussons">${ONZE_UI.glyphe(fiche.ecole)}${ONZE_UI.glyphe(fiche.archetype)}</span>
-            <button onclick="event.stopPropagation(); acheter(${i})" ${partie.or < fiche.cout ? "disabled" : ""} aria-label="Recruter ${fiche.nom} (${fiche.cout}M)">${fiche.cout}M</button></span>
+            ${bouton}</span>
         </div>`;
       }).join("");
 
@@ -3379,9 +3516,13 @@
     }
 
     /* ================= Mise en place ================= */
-    fetch("design/joueurs.json")
-      .then((rep) => rep.json())
-      .then((donnees) => {
+    // la table des portraits se charge en parallèle du roster ; si elle
+    // manque ou est illisible, le jeu démarre quand même (cartes Blason)
+    Promise.all([
+      fetch("design/joueurs.json").then((rep) => rep.json()),
+      ONZE_PORTRAITS.charger(),
+    ])
+      .then(([donnees]) => {
         tousLesJoueurs = donnees;
         el("btn-match").addEventListener("click", jouerManche);
         el("btn-refresh").addEventListener("click", refresh);
