@@ -353,6 +353,9 @@
       z-index: 0; pointer-events: none;
     }
     .carte-boutique.art-absent { background: var(--fond-carte); }
+    /* l'Icône DUO : deux visages, une moitié de carte chacun */
+    .carte-boutique.duo .art-carte { width: 50%; right: auto; transform: scale(1.15); transform-origin: 68% 4%; }
+    .carte-boutique.duo .art-carte + .art-carte { left: 50%; box-shadow: -1px 0 0 rgba(242, 193, 78, 0.55); }
     .carte-boutique .familles {
       position: absolute; top: 3px; left: 3px; z-index: 2;
       display: flex; flex-direction: column; gap: 2px;
@@ -3009,15 +3012,24 @@
           // la carte ICÔNE : or + rayons tournants (état légendaire, Lot 3)
           const icone = ONZE_ICONES.parId(fiche.id);
           const grisee = partie.or < icone.cout ? " grisee" : "";
-          const artIcone = ONZE_PORTRAITS.carte(icone.nom);
-          const boutonIcone = `<button onclick="event.stopPropagation(); acheter(${i})" ${partie.or < icone.cout ? "disabled" : ""} aria-label="Signer ${icone.nom} (${icone.cout}M)">Signer · ${prixHTML(icone.cout)}</button>`;
+          // Une Icône DUO (Gus & Titi) porte les deux visages, côte à côte :
+          // c'est la seule carte où le key art de chaque moitié s'affiche.
+          const artsDuo = (icone.duo || []).map((m) => ONZE_PORTRAITS.carte(m.nom));
+          const duoComplet = artsDuo.length === 2 && artsDuo.every(Boolean);
+          const artIcone = duoComplet ? artsDuo[0] : ONZE_PORTRAITS.carte(icone.nom);
+          const btnIcone = (libelle) => `<button onclick="event.stopPropagation(); acheter(${i})" ${partie.or < icone.cout ? "disabled" : ""} aria-label="Signer ${icone.nom} (${icone.cout}M)">${libelle}</button>`;
+          // sur la carte illustrée, le prix SEUL (même anatomie que les autres
+          // cartes) : le nom d'une Icône est long, il lui faut la place
+          const boutonIcone = btnIcone(`Signer · ${prixHTML(icone.cout)}`);
           if (artIcone) {
-            return `<div class="carte-boutique cout-5 carte-icone illustree${grisee}">
-              <img class="art-carte" src="${artIcone}" alt="" loading="lazy" decoding="async"
-                onerror="this.closest('.carte-boutique').classList.add('art-absent'); this.remove()">
+            const images = (duoComplet ? artsDuo : [artIcone]).map((src) =>
+              `<img class="art-carte" src="${src}" alt="" loading="lazy" decoding="async"
+                onerror="this.closest('.carte-boutique').classList.add('art-absent'); this.remove()">`).join("");
+            return `<div class="carte-boutique cout-5 carte-icone illustree${duoComplet ? " duo" : ""}${grisee}">
+              ${images}
               <span class="tag-etat or">ICÔNE</span>
               <span class="familles">${ligneFamille(icone.ecole)}${ligneFamille(icone.archetype)}</span>
-              <span class="barre-nom"><span class="nom-carte">${icone.nom}</span>${boutonIcone}</span>
+              <span class="barre-nom"><span class="nom-carte" title="${icone.nom}">${icone.nom.split(" — ")[0]}</span>${btnIcone(prixHTML(icone.cout))}</span>
             </div>`;
           }
           return `<div class="carte-boutique cout-5 carte-icone${grisee}">

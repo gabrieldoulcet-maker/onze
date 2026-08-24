@@ -49,7 +49,11 @@ indexRoster = new Map(roster.map((j, i) => [plier(j.nom), i + 1]));
 const entreeDe = (nom) => indexRoster.get(plier(nom));
 
 const entrees = Object.entries(table);
-verifier(`la table couvre les 73 visages (${entrees.length})`, entrees.length === 73, String(entrees.length));
+// pas de nombre magique : la table grandit quand Gabriel produit un visuel.
+// Ce qui doit tenir, c'est que chaque entrée soit COMPLÈTE (les deux visuels).
+const incompletes = entrees.filter(([, v]) => !v.carte || !v.frontale).map(([nom]) => nom);
+verifier(`les ${entrees.length} entrées de la table ont leurs deux visuels`,
+  incompletes.length === 0, "sans les deux : " + incompletes.join(", "));
 
 // ---- 1. chaque chemin référencé existe sur le disque ----
 const introuvables = [];

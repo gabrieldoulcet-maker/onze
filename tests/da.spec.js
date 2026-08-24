@@ -60,8 +60,15 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
   verifier(`poids à l'ouverture : ${ko} Ko ≤ ${PLAFOND_OUVERTURE_KO} Ko (plafond annoncé)`,
     ko <= PLAFOND_OUVERTURE_KO, `${ko} Ko`);
 
-  verifier("la table des portraits est chargée (73 entrées)",
-    await page.evaluate(() => ONZE_PORTRAITS.nombre()) === 73);
+  // pas de compte figé : ce qui doit tenir, c'est que TOUT le roster ait un visage
+  const couverture = await page.evaluate(() => ({
+    entrees: ONZE_PORTRAITS.nombre(),
+    sansCarte: tousLesJoueurs.filter((j) => !ONZE_PORTRAITS.carte(j.nom)).map((j) => j.nom),
+    sansFrontale: tousLesJoueurs.filter((j) => !ONZE_PORTRAITS.frontale(j.nom)).map((j) => j.nom),
+  }));
+  verifier(`la table couvre les ${71} joueurs du roster (${couverture.entrees} entrées en tout)`,
+    couverture.sansCarte.length === 0 && couverture.sansFrontale.length === 0,
+    "sans visuel : " + [...new Set([...couverture.sansCarte, ...couverture.sansFrontale])].join(", "));
 
   // ---- 3. le cadre de coût : présent, et de la couleur du coût ----
   const cadres = await page.evaluate(() => {
