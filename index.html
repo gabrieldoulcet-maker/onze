@@ -75,26 +75,47 @@
       padding: 10px 12px; font-size: 0.74rem; color: #C9D6C9; backdrop-filter: blur(3px);
     }
     .palmares .ligne { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--ligne); }
+    .palmares .ligne > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .palmares .ligne > span:first-child { flex: 0 0 auto; }
     .palmares .ligne:last-child { border-bottom: none; }
     .palmares .place-1 { color: var(--or-trophee); font-weight: 800; }
     .palmares .place-top4 { color: var(--gazon-electrique); }
-    /* En PAYSAGE, le décor commande la mise en page : le logo à gauche, le
-       menu à droite, et le tunnel — projecteurs et pelouse — respire au
-       milieu. En portrait, tout s'empile comme avant. */
+    /* EN PAYSAGE, chaque bloc va dans la zone que le décor lui laisse
+       (luminances relevées sur l'image) :
+         · le logo EN HAUT AU CENTRE — la nuit du tunnel y est quasi noire
+         · les boutons EN BAS À GAUCHE, autour du tableau tactique
+         · le palmarès dans le TIERS DROIT, au-dessus du ballon
+       Le ballon (à droite) et le tableau tactique (à gauche) sont les deux
+       points d'accroche de l'image : rien ne les recouvre. Et surtout rien
+       au bas du centre — c'est la pelouse éclairée, la seule zone claire. */
     @media (orientation: landscape) {
-      body {
-        flex-direction: row; align-items: center; justify-content: space-between;
-        gap: 18px; padding: 12px 4vw;
+      body { display: block; padding: 0; }
+      header {
+        position: absolute; top: 3%; left: 50%; transform: translateX(-50%);
+        margin: 0; text-align: center;
       }
-      header { margin: 0 0 0 0; flex: 0 0 auto; }
-      .cartouche-logo { padding: 12px 26px; }
-      .cartouche-logo .nom-logo { font-size: 2.2rem; }
-      .menu { flex: 0 1 330px; max-width: 330px; }
+      .cartouche-logo { padding: 10px 24px; }
+      .cartouche-logo .nom-logo { font-size: 2rem; }
+      header .devise { margin-top: 6px; font-size: 0.62rem; letter-spacing: 3px; }
+      .menu {
+        position: absolute; left: 3.5%; bottom: 5%;
+        width: min(31%, 290px); max-width: none; gap: 6px;
+      }
+      .palmares {
+        position: absolute; right: 3%; top: 21%;
+        width: min(29%, 268px); max-height: 46%; overflow: hidden;
+      }
       .voile-accueil {
         background:
-          radial-gradient(ellipse 46% 62% at 50% 62%, rgba(6, 13, 8, 0) 0%, rgba(6, 13, 8, 0.30) 100%),
-          linear-gradient(90deg, rgba(6, 13, 8, 0.92) 0%, rgba(6, 13, 8, 0.35) 26%,
-            rgba(6, 13, 8, 0.05) 50%, rgba(6, 13, 8, 0.35) 74%, rgba(6, 13, 8, 0.92) 100%);
+          linear-gradient(180deg, rgba(6, 13, 8, 0.80) 0%, rgba(6, 13, 8, 0.22) 22%, rgba(6, 13, 8, 0) 40%),
+          linear-gradient(90deg, rgba(6, 13, 8, 0.78) 0%, rgba(6, 13, 8, 0.18) 30%,
+            rgba(6, 13, 8, 0) 45%, rgba(6, 13, 8, 0) 58%, rgba(6, 13, 8, 0.22) 74%, rgba(6, 13, 8, 0.78) 100%);
+      }
+      /* l'invite d'installation, elle, doit passer par le bas du centre :
+         elle emporte donc sa propre plaque sombre */
+      .invite-a2hs {
+        position: absolute; left: 50%; bottom: 3%; transform: translateX(-50%);
+        width: min(42%, 380px); margin: 0 !important;
       }
     }
     /* en PORTRAIT l'image se recadre fort : on descend le cadrage pour
@@ -131,9 +152,9 @@
       <button id="btn-detente"></button>
       <button id="btn-reset" style="color:var(--alerte-claire);border-color:var(--vendre-fond)"><svg class="ic-sys" width="12" height="12" viewBox="0 0 48 48"><use href="#is-balai"></use></svg> Réinitialiser</button>
     </div>
-    <div class="palmares" id="palmares" style="display:none"></div>
     <div class="labo"><a href="draft.html"><svg class="ic-sys" width="11" height="11" viewBox="0 0 48 48"><use href="#is-fiole"></use></svg> labo</a> · <a href="match.html" style="color:#5F7A64">match de démo</a></div>
   </div>
+  <div class="palmares" id="palmares" style="display:none"></div>
   <script src="icones-systeme.js"></script>
   <script>
     /* Les réglages écrivent les mêmes clés que le jeu */
@@ -187,7 +208,7 @@
         bloc.style.display = "block";
         bloc.innerHTML = `<strong>${ic("parchemin", 12)} Ton palmarès</strong>` + palmares.slice(0, 3).map((p) =>
           `<div class="ligne"><span class="${p.place === 1 ? "place-1" : p.place <= 4 ? "place-top4" : ""}">${p.place === 1 ? ic("trophee", 11) + " Champion" : p.place + "ᵉ"} · M${p.manche}</span>` +
-          `<span style="color:var(--craie-sourde)">${(p.compo || []).slice(0, 3).join(", ")}${p.icones && p.icones.length ? " · " + ic("cible", 10) + p.icones.length : ""}</span>` +
+          `<span style="color:var(--craie-sourde)">${(p.compo || []).slice(0, 2).join(", ")}${p.icones && p.icones.length ? " · " + ic("cible", 10) + p.icones.length : ""}</span>` +
           `<span style="color:#5F7A64">${p.date || ""}</span></div>`).join("");
       }
     } catch (e) {}
@@ -201,11 +222,13 @@
         if (standalone || sessionStorage.getItem("onze-invite-a2hs")) return;
         sessionStorage.setItem("onze-invite-a2hs", "1");
         const invite = document.createElement("div");
-        invite.style.cssText = "margin-top:10px;max-width:400px;background:var(--surface-2);border:1px solid var(--gazon-electrique);" +
-          "border-radius:12px;padding:10px 14px;font-size:0.8rem;color:#C9D6C9;cursor:pointer;text-align:center";
+        invite.className = "invite-a2hs";
+        invite.style.cssText = "margin-top:10px;max-width:400px;background:rgba(14,31,18,0.94);border:1px solid var(--gazon-electrique);" +
+          "border-radius:12px;padding:9px 13px;font-size:0.74rem;color:#C9D6C9;cursor:pointer;text-align:center;" +
+          "backdrop-filter:blur(4px);box-shadow:0 8px 24px rgba(0,0,0,0.6)";
         invite.innerHTML = `📲 <strong>Installe ONZE !</strong><br><small style="color:var(--craie-sourde)">« Ajouter à l'écran d'accueil » dans le menu du navigateur : plein écran sans barre, icône d'app — et l'orientation paysage se verrouille sur Android. Touche pour fermer.</small>`;
         invite.addEventListener("click", () => invite.remove());
-        (document.querySelector('.menu') || document.body).appendChild(invite);
+        document.body.appendChild(invite);
       } catch (e) {}
     })();
   </script>

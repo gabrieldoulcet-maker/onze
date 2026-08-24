@@ -88,7 +88,8 @@ const ONZE_SCENE = (() => {
     replay: true,         // « Revoir les buts »
     etiquettes: true,     // les noms sur les protagonistes
     trainee: true,        // « Ballon animé » : la traînée
-    stade: "municipal",   // le thème de stade (R13)
+    stade: "emeraude",    // le thème de stade (R13) — un décor PEINT par défaut :
+                          // un joueur neuf voit le Grand Soir sans rien régler
   };
   let _reglages = null;
   function reglages() {

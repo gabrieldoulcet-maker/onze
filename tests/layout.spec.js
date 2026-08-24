@@ -26,7 +26,7 @@ const TAILLES = [
     await page.waitForSelector(".carte-boutique");
     await page.evaluate(() => typeof arreterChrono === "function" && arreterChrono());
     const controles = [
-      ...(await page.$$(".carte-boutique button")),
+      ...(await page.$$(".carte-boutique[data-boutique]")),   // la carte ENTIÈRE est la cible d'achat
       await page.$("#btn-refresh"), await page.$("#btn-xp"), await page.$("#btn-verrou"), await page.$("#btn-match"),
     ];
     let rognes = 0;

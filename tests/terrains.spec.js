@@ -138,6 +138,28 @@ const config = JSON.parse(fs.readFileSync(path.join(racine, "design/terrains.jso
       await page.close();
     }
   }
+  /* ---------- 2 bis. sur un stockage VIERGE, le décor est PEINT ---------- */
+  {
+    const neuf = await (await browser.newContext({ viewport: { width: 844, height: 390 } })).newPage();
+    neuf.on("pageerror", (e) => erreursJS.push(e.message));
+    // aucun localStorage : exactement ce que voit un joueur qui arrive
+    await neuf.goto("http://localhost:8123/partie.html");
+    await neuf.waitForSelector("#boutique .carte-boutique", { timeout: 15000 });
+    const vu = await neuf.evaluate(async () => {
+      arreterChrono();
+      const im = document.getElementById("fond-terrain");
+      if (im && !im.complete) await new Promise((r) => { im.onload = r; im.onerror = r; });
+      return { stade: (ONZE_SCENE.reglages() || {}).stade,
+        peint: document.getElementById("plateau").classList.contains("terrain-peint"),
+        decor: im && !im.classList.contains("masque") && im.complete && im.naturalWidth > 0
+          ? im.currentSrc.split("/").slice(-1)[0] : null,
+        tuiles: document.querySelectorAll("#banc .place-banc, #banc .jeton").length };
+    });
+    verifier(`stockage vierge : le décor peint s'affiche d'emblée (${vu.stade} → ${vu.decor})`,
+      vu.peint && !!vu.decor && vu.tuiles === 9, JSON.stringify(vu));
+    await neuf.close();
+  }
+
   /* ---------- 3. la densité : jeu/ en 1×, hd/ en 2×, et le poids ---------- */
   /* PLAFOND ANNONCÉ pour l'écran de mercato, terrain d'entraînement compris :
        1,2 Mo en densité 1 · 1,45 Mo en forte densité.

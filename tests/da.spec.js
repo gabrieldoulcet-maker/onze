@@ -14,13 +14,14 @@
    ============================================================ */
 const { chromium } = require("playwright-core");
 const EXECUTABLE = process.env.CHROME || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-/* LE PLAFOND ANNONCÉ : 1,1 Mo à l'ouverture de l'écran de mercato.
-   Calcul du pire cas : ~520 Ko de socle (polices auto-hébergées, scripts,
-   CSS, roster + table) + les 5 key arts les plus lourds de la boutique
-   (372 Ko) + une silhouette de titulaire (~100 Ko) ≈ 990 Ko.
+/* LE PLAFOND ANNONCÉ : 1,2 Mo à l'ouverture de l'écran de mercato, décor
+   d'entraînement compris (il est désormais peint par DÉFAUT).
+   Pire cas : ~520 Ko de socle (polices auto-hébergées, scripts, CSS,
+   roster + tables) + les 5 key arts les plus lourds (372 Ko) + le terrain
+   d'entraînement (93 Ko en jeu/) + une silhouette (~100 Ko) ≈ 1085 Ko.
    Le reste des 8 Mo de visuels ne se charge QUE quand il s'affiche
    (loading="lazy" sur chaque illustration et chaque silhouette). */
-const PLAFOND_OUVERTURE_KO = 1100;
+const PLAFOND_OUVERTURE_KO = 1200;
 
 let echecs = 0;
 const verifier = (nom, ok, detail) => {
@@ -114,20 +115,121 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
   const ratio = contraste(texte, fond);
   verifier(`contraste du nom sur la barre basse : ${ratio.toFixed(1)}:1 ≥ 4.5:1`, ratio >= 4.5, ratio.toFixed(2));
 
-  // ---- 5. les silhouettes du banc : même hauteur, même ligne de sol ----
-  const silhouettes = await page.evaluate(() => {
-    partie.banc = ["Sékou", "Rodrigo", "Billy", "Gorka"].map((n, i) => ({
-      ...tousLesJoueurs.find((j) => j.nom === n), etoiles: i === 2 ? 2 : 1, uid: "t" + i }));
+  // ---- 4 bis. l'illustration garde sa LUMIÈRE (brief habillage v2) ----
+  // Le voile ne doit vivre que sous les textes : la zone illustrée doit
+  // rester à au moins 80 % de la luminance de la même région du fichier
+  // source — et dans TOUS les états, grisé compris (sinon le personnage
+  // devient une silhouette noire, ce que la carte-illustration doit éviter).
+  const avantLumiere = await page.evaluate(() => ({ or: partie.or, boutique: partie.boutique.map((f) => f && f.nom) }));
+  for (const [etat, or, plancher] of [["achetable", 40, 0.80], ["grisée", 0, 0.80]]) {
+    const info = await page.evaluate(async (or) => {
+      arreterChrono(); partie.or = or;
+      partie.boutique = Array(5).fill(0).map(() => tousLesJoueurs.find((j) => j.nom === "Facundo"));
+      afficher();
+      await new Promise((r) => setTimeout(r, 700));
+      const c = document.querySelector(".carte-boutique.illustree");
+      const img = c.querySelector(".art-carte");
+      const rc = c.getBoundingClientRect(), ri = img.getBoundingClientRect();
+      return { carte: { x: Math.round(rc.x), y: Math.round(rc.y), width: Math.round(rc.width), height: Math.round(rc.height) },
+        boite: { l: ri.width, h: ri.height }, barre: Math.round(c.querySelector(".barre-nom").getBoundingClientRect().height),
+        grisee: c.classList.contains("grisee"), nat: [img.naturalWidth, img.naturalHeight],
+        objPos: getComputedStyle(img).objectPosition, source: img.currentSrc.split("/").slice(-3).join("/") };
+    }, or);
+    const pngCarte = (await page.screenshot({ clip: info.carte })).toString("base64");
+    const lumiere = await page.evaluate(async ([b64, info]) => {
+      const lire = async (src) => {
+        const im = new Image(); im.src = src; await im.decode();
+        const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight;
+        const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(im, 0, 0);
+        return { g, L: c.width, H: c.height };
+      };
+      const moyenne = (o, x0, y0, x1, y1) => {
+        const d = o.g.getImageData(Math.round(x0), Math.round(y0), Math.round(x1 - x0), Math.round(y1 - y0)).data;
+        let t = 0, n = 0;
+        for (let i = 0; i < d.length; i += 4) { t += (d[i] + d[i + 1] + d[i + 2]) / 3; n++; }
+        return t / n;
+      };
+      // la région du fichier source RÉELLEMENT affichée : cover, puis le
+      // zoom « buste » (scale 1,5 autour de 72 % 2 %)
+      const [NL, NH] = info.nat, BL = info.boite.l, BH = info.boite.h;
+      const s = Math.max(BL / NL, BH / NH);
+      const decX = (BL - NL * s) * ((parseFloat(info.objPos) / 100) || 0.72);
+      const decY = (BH - NH * s) * 0.20;
+      const k = 1.5, ox = BL * 0.72, oy = BH * 0.02;
+      const versSource = (bx, by) => [(bx - decX) / s, (by - decY) / s];
+      const [sx0, sy0] = versSource(ox + (0 - ox) / k, oy + (0 - oy) / k);
+      const [sx1, sy1] = versSource(ox + (BL - ox) / k, oy + (BH - oy) / k);
+      const src = await lire(info.source);
+      const zoneSrc = moyenne(src, Math.max(0, sx0), Math.max(0, sy0), Math.min(NL, sx1), Math.min(NH, sy1));
+      const ecran = await lire("data:image/png;base64," + b64);
+      const zoneEcran = moyenne(ecran, 2, 2, ecran.L - 2, ecran.H - info.barre - 2);
+      return { ecran: +zoneEcran.toFixed(1), source: +zoneSrc.toFixed(1), rapport: +(zoneEcran / zoneSrc).toFixed(3) };
+    }, [pngCarte, info]);
+    verifier(`illustration ${etat} : luminance ${lumiere.ecran} ≥ ${Math.round(plancher * 100)} % de la source ` +
+      `(${lumiere.source}) → ${Math.round(lumiere.rapport * 100)} %`,
+      info.grisee === (or === 0) && lumiere.rapport >= plancher, JSON.stringify(lumiere));
+  }
+  // on rend la boutique et l'or tels qu'on les a trouvés : les recettes
+  // suivantes comptent dessus
+  await page.evaluate((avant) => {
+    partie.or = avant.or;
+    partie.boutique = avant.boutique.map((n) => (n ? tousLesJoueurs.find((j) => j.nom === n) : null));
     afficher();
-    return [...document.querySelectorAll("#banc .jeton.figurine .frontale")].map((im) => {
-      const r = im.getBoundingClientRect();
-      return { h: Math.round(r.height * 10) / 10, sol: Math.round(r.bottom * 10) / 10 };
+  }, avantLumiere);
+
+  // ---- 5. l'ÉPURATION (brief habillage v2) : silhouettes nues, dalles de
+  //         poste, et le niveau d'étoiles lu dans la TAILLE ----
+  const scene = await page.evaluate(() => {
+    const parPoste = (p, n = 0) => tousLesJoueurs.filter((j) => j.poste === p && ONZE_PORTRAITS.frontale(j.nom))[n];
+    partie.banc = [
+      { ...parPoste("GAR"), etoiles: 1, uid: "e1" }, { ...parPoste("DÉF"), etoiles: 1, uid: "e2" },
+      { ...parPoste("MIL"), etoiles: 1, uid: "e3" }, { ...parPoste("ATT"), etoiles: 2, uid: "e4" },
+      { ...parPoste("DÉF", 1), etoiles: 3, uid: "e5" },
+    ];
+    partie.niveau = 8;
+    partie.terrain = [{ ...parPoste("GAR", 1), ligne: "GAR", etoiles: 1, uid: "t1" },
+      { ...parPoste("MIL", 1), ligne: "MIL", etoiles: 2, uid: "t2" }];
+    afficher();
+    const teinte = (j) => getComputedStyle(j).getPropertyValue("--teinte-poste").trim();
+    const jetons = [...document.querySelectorAll("#banc .jeton.figurine")];
+    const mesure = (j) => {
+      const im = j.querySelector(".frontale").getBoundingClientRect();
+      return { h: Math.round(im.height * 10) / 10, sol: Math.round(im.bottom * 10) / 10 };
+    };
+    const m = jetons.map(mesure);
+    const parEtoile = partie.banc.map((f, i) => ({ etoiles: f.etoiles, ...m[i], poste: f.poste, teinte: teinte(jetons[i]),
+      legende: jetons[i].classList.contains("legende") }));
+    const surGazon = [...document.querySelectorAll(".ligne-terrain .jeton.figurine")];
+    const habillage = surGazon.map((j) => {
+      const cs = getComputedStyle(j);
+      return { bordure: parseFloat(cs.borderTopWidth), fond: cs.backgroundImage, ombre: cs.boxShadow,
+        nom: !!j.querySelector(".nom-jeton"), pastille: !!j.querySelector(".pastille"),
+        etoiles: !!j.querySelector(".etoiles, .etoiles-tete") };
     });
+    return { banc: parEtoile, terrain: habillage, nbGazon: surGazon.length };
   });
-  verifier(`banc : ${silhouettes.length} silhouettes à hauteur et ligne de sol communes`,
-    silhouettes.length === 4 &&
-    new Set(silhouettes.map((s) => s.h)).size === 1 &&
-    new Set(silhouettes.map((s) => s.sol)).size === 1, JSON.stringify(silhouettes));
+
+  const un = scene.banc.filter((b) => b.etoiles === 1);
+  const deux = scene.banc.find((b) => b.etoiles === 2);
+  const trois = scene.banc.find((b) => b.etoiles === 3);
+  verifier(`banc : hauteur commune à niveau d'étoile égal (${un.length} joueurs 1★ à ${un[0].h} px)`,
+    new Set(un.map((b) => b.h)).size === 1, JSON.stringify(un.map((b) => b.h)));
+  verifier(`banc : la ligne de sol est la même pour tous (étoiles comprises)`,
+    new Set(scene.banc.map((b) => b.sol)).size === 1, JSON.stringify(scene.banc.map((b) => b.sol)));
+  const r2 = deux.h / un[0].h, r3 = trois.h / un[0].h;
+  verifier(`étoiles dans la taille : 1★ 100 % · 2★ ${Math.round(r2 * 100)} % · 3★ ${Math.round(r3 * 100)} %`,
+    Math.abs(r2 - 1.18) < 0.02 && Math.abs(r3 - 1.38) < 0.02, `${r2.toFixed(3)} / ${r3.toFixed(3)}`);
+  verifier("le 3★ allume le sol en or, et lui seul",
+    trois.legende && !deux.legende && un.every((b) => !b.legende));
+  const COULEUR = { GAR: "245, 197, 49", "DÉF": "62, 155, 224", MIL: "61, 204, 110", ATT: "232, 80, 63" };
+  const dallesJustes = scene.banc.every((b) => b.teinte.includes(COULEUR[b.poste]));
+  verifier("banc : chaque dalle porte la couleur de son poste",
+    dallesJustes, JSON.stringify(scene.banc.map((b) => [b.poste, b.teinte])));
+  verifier(`terrain : plus aucun habillage sur les ${scene.nbGazon} silhouettes ` +
+    `(ni cadre, ni fond, ni nom, ni étoiles, ni pastille)`,
+    scene.nbGazon > 0 && scene.terrain.every((t) => t.bordure === 0 && t.fond === "none" &&
+      t.ombre === "none" && !t.nom && !t.pastille && !t.etoiles),
+    JSON.stringify(scene.terrain[0]));
   verifier("banc : les emplacements vides restent visibles",
     await page.evaluate(() => document.querySelectorAll("#banc .place-banc").length > 0));
 
@@ -148,7 +250,8 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
     return { cartes: document.querySelectorAll("#boutique .carte-boutique").length,
       illustrees: document.querySelectorAll(".carte-boutique.illustree").length,
       figurines: document.querySelectorAll(".jeton.figurine").length,
-      boutons: document.querySelectorAll("#boutique .carte-boutique button").length };
+      // la carte ENTIÈRE est la cible d'achat : plus de bouton à compter
+      boutons: document.querySelectorAll("#boutique .carte-boutique[data-boutique]").length };
   });
   verifier("table VIDE : les 5 cartes Blason s'affichent, achat toujours possible",
     vide.cartes === 5 && vide.illustrees === 0 && vide.figurines === 0 && vide.boutons === 5,
