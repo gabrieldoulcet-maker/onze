@@ -336,8 +336,20 @@ button.principal:disabled {
 /* ---- Le butin façon TFT (décision n°17, post-playtest 5) : les orbes
    TOMBENT sur le terrain en fin de manche et se ramassent toutes seules ;
    leur contenu défile en petites bannières en haut de l'écran. ---- */
+/* LE VOILE DE LA CÉRÉMONIE DE BUTIN (décision 64 · P3). Il était plein
+   écran et TOTALEMENT TRANSPARENT : il avalait les touches jusqu'à 2,7 s
+   sans que rien à l'écran n'explique pourquoi. Il se voit maintenant — un
+   assombrissement léger, comme un volet — et un tap le traverse en
+   ramassant tout de suite. */
+.voile-butin {
+  position: fixed; inset: 0; z-index: 55; cursor: pointer;
+  background: rgba(4, 10, 6, 0.34);
+  animation: apparait 0.25s ease;
+}
 .orbe-terrain {
-  position: absolute; width: 42px; height: 42px; border-radius: 50%;
+  /* la taille est écrite au rendu, en part d'une figurine : une orbe ne
+     doit jamais être plus grosse que le joueur qui vient de la gagner */
+  position: absolute; width: 22px; height: 22px; border-radius: 50%;
   z-index: 30; pointer-events: none;
   background: var(--orbe-or);
   box-shadow: 0 0 22px rgba(242, 193, 78, 0.55), inset 0 -8px 12px rgba(0, 0, 0, 0.35);

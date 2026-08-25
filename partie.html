@@ -1836,17 +1836,50 @@
     function ramasserOrbes(apresButin) {
       const orbes = partie.orbesEnAttente;
       if (!orbes.length) return apresButin();
-      // un voile invisible fige l'interface le temps du ramassage (~2-4 s)
+      /* LE VOILE SE VOIT, ET UN TAP L'ACCÉLÈRE (décision 64 · P3).
+         C'était un rectangle plein écran TOTALEMENT TRANSPARENT qui
+         avalait les touches 900 + n × 900 ms — 2 700 ms en coupe. Un
+         blocage qu'on ne voit pas est ressenti comme un bug, pas comme
+         une cérémonie ; et TFT laisse toujours avancer. Les deux sont
+         faits : le voile s'assombrit légèrement, et un tap ramasse tout
+         de suite. */
       const bouclier = document.createElement("div");
-      bouclier.style.cssText = "position:fixed;inset:0;z-index:55";
+      bouclier.className = "voile-butin";
       document.body.appendChild(bouclier);
       const terrain = el("terrain-scene");
+      /* LA TAILLE D'UNE ORBE SUIT CELLE D'UN JOUEUR, elle n'est plus une
+         constante : 42 px contre ~20 px pour une figurine, c'était un lot
+         quatre fois plus gros en surface que le footballeur qui venait de
+         le gagner. La lisibilité vient de la lueur et de l'animation. */
+      const figurines = [...terrain.querySelectorAll(".ligne-terrain .jeton")]
+        .map((j) => { const v = j.querySelector("img.frontale, svg.frontale");
+          return (v || j).getBoundingClientRect().width; })
+        .filter((w) => w > 2).sort((a, b) => a - b);
+      const diametre = figurines.length
+        ? Math.max(14, Math.min(34, figurines[figurines.length >> 1] * 0.9)) : 22;
+      /* LA BANDE OÙ ELLES TOMBENT évite les colonnes flottantes. La
+         position était un pourcentage tiré au sort qui les ignorait
+         totalement — et comme il y a un `Math.random()`, le défaut était
+         INTERMITTENT, donc invisible pour qui teste trois fois. */
+      const rt = terrain.getBoundingClientRect();
+      const bord = (sel) => { const e = document.querySelector(sel); if (!e) return null;
+        const st = getComputedStyle(e);
+        if (st.display === "none" || st.visibility === "hidden") return null;
+        const q = e.getBoundingClientRect(); return q.width > 1 ? q : null; };
+      const cg = bord(".col-synergies"), cd = bord(".col-classement");
+      const marge = diametre / 2 + 4;
+      const xMin = Math.max(0, (cg ? cg.right - rt.left : 0) + marge);
+      const xMax = Math.min(rt.width, (cd ? cd.left - rt.left : rt.width) - marge);
+      const large = Math.max(diametre, xMax - xMin);
       const pastilles = orbes.map((orbe, i) => {
         const p = document.createElement("div");
         p.className = "orbe-terrain " + orbe.rarete;
-        // étalées en travers du terrain, avec un peu de dispersion
-        p.style.left = (orbes.length === 1 ? 48 : 16 + (66 * i) / (orbes.length - 1) + (Math.random() * 8 - 4)) + "%";
-        p.style.top = 32 + Math.random() * 34 + "%";
+        p.style.width = diametre + "px"; p.style.height = diametre + "px";
+        // étalées en travers de la BANDE LIBRE, avec un peu de dispersion
+        const part = orbes.length === 1 ? 0.5 : 0.12 + (0.76 * i) / (orbes.length - 1);
+        const jitter = (Math.random() * 0.06 - 0.03) * large;
+        p.style.left = Math.max(xMin, Math.min(xMax - diametre, xMin + part * large + jitter - diametre / 2)) + "px";
+        p.style.top = (0.32 + Math.random() * 0.34) * rt.height + "px";
         p.style.animationDelay = `${i * 0.12}s, ${0.5 + i * 0.12}s`;
         terrain.appendChild(p);
         return p;
@@ -1854,21 +1887,37 @@
       tutoNotifier("etat"); // la bulle du tuto « butin » se réveille ici
       let banc = document.getElementById("bannieres-butin");
       if (!banc) { banc = document.createElement("div"); banc.id = "bannieres-butin"; document.body.appendChild(banc); }
+      const minuteurs = [];
+      let fini = false;
+      const ramasser = (orbe, i) => {
+        if (!pastilles[i] || pastilles[i].dataset.pris) return;
+        pastilles[i].dataset.pris = "1";
+        pastilles[i].classList.add("ramassee");
+        setTimeout(() => pastilles[i].remove(), 450);
+        ONZE_JUICE.jouer("achat");
+        const banniere = document.createElement("div");
+        banniere.className = "banniere-orbe " + orbe.rarete;
+        banniere.innerHTML = resoudreOrbe(orbe);
+        banc.appendChild(banniere);
+        setTimeout(() => banniere.remove(), 3600);
+        afficher();
+        tutoNotifier("orbe");
+      };
+      const terminer = () => {
+        if (fini) return;
+        fini = true;
+        minuteurs.forEach(clearTimeout);
+        orbes.forEach((orbe, i) => ramasser(orbe, i));   // rien n'est perdu
+        partie.orbesEnAttente = [];
+        bouclier.remove();
+        apresButin();
+      };
       orbes.forEach((orbe, i) => {
-        setTimeout(() => {
-          pastilles[i].classList.add("ramassee");
-          setTimeout(() => pastilles[i].remove(), 450);
-          ONZE_JUICE.jouer("achat");
-          const banniere = document.createElement("div");
-          banniere.className = "banniere-orbe " + orbe.rarete;
-          banniere.innerHTML = resoudreOrbe(orbe);
-          banc.appendChild(banniere);
-          setTimeout(() => banniere.remove(), 3600);
-          afficher();
-          tutoNotifier("orbe");
-        }, 900 + i * 900);
+        minuteurs.push(setTimeout(() => ramasser(orbe, i), 900 + i * 900));
       });
-      setTimeout(() => { partie.orbesEnAttente = []; bouclier.remove(); apresButin(); }, 900 + orbes.length * 900);
+      minuteurs.push(setTimeout(terminer, 900 + orbes.length * 900));
+      // un tap ramasse tout de suite : on peut toujours avancer
+      bouclier.addEventListener("pointerdown", terminer);
     }
 
     /* ================= Adversaires ================= */
@@ -2264,6 +2313,10 @@
         document.getElementById("btn-continuer").addEventListener("click", () => { arreterChrono(); volet.remove(); continuer(); });
         demarrerChrono(30, () => { volet.remove(); continuer(); }); // ~30 s puis on continue
       };
+      /* L'ORDRE : le match se range, PUIS les orbes tombent sur un terrain
+         propre, PUIS le bilan s'ouvre. L'ordre d'avant — orbes, bilan,
+         rangement — mettait deux moments du jeu sur le même écran. */
+      rangerLeMatch();
       ramasserOrbes(montrerBilan);
 
       // ---- les stats de SAISON par joueur (l'homme de ta partie) ----
@@ -2319,15 +2372,30 @@
       el("onglet-droite").classList.add("masque");
     }
 
-    function continuer() {
-      partie.matchEnCours = false;
+    /* UN MOMENT, UN ÉCRAN (décision 64 · P2). Le rangement VISUEL du match
+       — scène détruite, tableau masqué, pions retirés — était fait par
+       `continuer()`, donc APRÈS que le joueur ait refermé le bilan. La
+       cérémonie de butin se jouait par-dessus un match qu'on n'avait pas
+       rangé : le score encore affiché, les pions encore sur la pelouse,
+       l'arbitre encore là, et deux grosses billes au milieu.
+       Il est donc séparé de `continuer()`, qui garde ce qui relève de la
+       PARTIE (le drapeau, la suite de la manche). Attention : ce
+       rangement ne touche PAS `matchEnCours`, qui couvre le match ET le
+       bilan (décision 55). */
+    function rangerLeMatch() {
       if (sceneMatch) { sceneMatch.detruire(); sceneMatch = null; }
       rangerCoucheMatch();
-      el("recit").classList.remove("replie");
       el("bandeau-recit").innerHTML = "";
       el("terrain-scene").style.paddingTop = "";
       el("tableau-match").classList.add("masque");
       el("btn-vitesse").classList.add("masque");
+      afficher();
+    }
+
+    function continuer() {
+      partie.matchEnCours = false;
+      rangerLeMatch();
+      el("recit").classList.remove("replie");
       el("recit").innerHTML = "";
       const je = moi();
       const vivants = partie.coachs.filter((c) => c.vivant);
