@@ -1226,10 +1226,18 @@ const dette = (nom, ok, quand) => {
      réel), puis une mission de 2 s donnait 2,0 m (entre le p10 et la
      médiane). Les deux se réglaient par un seul nombre : la mission à
      1,6 s, la médiane réelle. */
-  const PU2 = e3.pressings.map((p) => p.duree), PMin = e3.pressings.map((p) => p.mini);
-  const PDep = e3.pressings.map((p) => p.depart);
-  verifier(`Étape 3 — le pressing tient ses trois grandeurs : départ ${q(PDep, 0.5).toFixed(1)} m · minimum ${q(PMin, 0.5).toFixed(1)} · durée ${q(PU2, 0.5).toFixed(1)} s (réel 5,9 · 2,6 · 1,6 ; ${PU2.length} pressings)`,
-    PU2.length >= 30 && ecart(q(PU2, 0.5), 1.6) <= 0.35
+  const PU2 = e3.pressings.map((p) => p.duree), PDep = e3.pressings.map((p) => p.depart);
+  /* SOUS-POPULATION DÉCLARÉE (règle M2). La distance minimale se mesure
+     sur les pressings qui ont EU LIEU : au moins une seconde. Un
+     défenseur qui s'élance et voit le ballon partir au bout de 0,3 s n'a
+     pas raté sa fermeture, il n'a pas pressé — et ces épisodes-là
+     faisaient sauter la médiane de 1,7 à 4,1 d'une exécution à l'autre.
+     Le football réel mesure des épisodes de pressing (durée médiane
+     1,6 s), pas des amorces. La transformation est déclarée ici et dans
+     le libellé, elle ne se cache pas dans le seuil. */
+  const PMin = e3.pressings.filter((p) => p.duree >= 1).map((p) => p.mini);
+  verifier(`Étape 3 — le pressing tient ses trois grandeurs : départ ${q(PDep, 0.5).toFixed(1)} m · durée ${q(PU2, 0.5).toFixed(1)} s (${PU2.length} pressings) · minimum ${q(PMin, 0.5).toFixed(1)} m sur les ${PMin.length} qui ont duré ≥ 1 s — réel 5,9 · 1,6 · 2,6`,
+    PU2.length >= 30 && PMin.length >= 15 && ecart(q(PU2, 0.5), 1.6) <= 0.35
     && ecart(q(PDep, 0.5), 5.9) <= 0.35 && ecart(q(PMin, 0.5), 2.61) <= 0.40);
   /* 6. UNE OPTION EST UN ÉVÉNEMENT COURT. C'est la propriété qui
      distingue la bonne définition de la mauvaise : « un coéquipier à
