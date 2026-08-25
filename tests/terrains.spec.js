@@ -378,6 +378,41 @@ const config = JSON.parse(fs.readFileSync(path.join(racine, "design/terrains.jso
           filet: contraste2(r.filet, r.sol), arete: contraste2(r.arete, r.sol) };
         return { poste: r.poste, ...c, meilleur: Math.max(c.fond, c.lisere, c.filet, c.arete) };
       });
+      /* SECOND CONTRÔLE, distinct du premier : les quatre postes doivent
+         rester distincts ENTRE EUX, pas seulement visibles contre le sol.
+         Le contour porte la présence de la dalle, la COULEUR porte
+         l'information — un correctif qui sauverait le contour en écrasant
+         la teinte passerait le premier contrôle sans que le joueur puisse
+         encore lire un poste. On mesure donc l'écart ΔE (CIE76, dans
+         l'espace Lab) entre les couleurs dominantes de bord des quatre
+         dalles, sur les six paires. Seuil : 15. */
+      const SEUIL_DELTAE = 15;
+      const versLab = ([r, g, b]) => {
+        const f = (v) => { v /= 255; v = v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); return v; };
+        const [R, G, B] = [f(r), f(g), f(b)];
+        const X = (R * 0.4124 + G * 0.3576 + B * 0.1805) / 0.95047;
+        const Y = (R * 0.2126 + G * 0.7152 + B * 0.0722);
+        const Z = (R * 0.0193 + G * 0.1192 + B * 0.9505) / 1.08883;
+        const h = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+        return [116 * h(Y) - 16, 500 * (h(X) - h(Y)), 200 * (h(Y) - h(Z))];
+      };
+      const deltaE = (a, b) => {
+        const [l1, a1, b1] = versLab(a), [l2, a2, b2] = versLab(b);
+        return Math.sqrt((l1 - l2) ** 2 + (a1 - a2) ** 2 + (b1 - b2) ** 2);
+      };
+      const paires = [];
+      for (let i = 0; i < releve.length; i++) {
+        for (let j = i + 1; j < releve.length; j++) {
+          paires.push({ paire: `${releve[i].poste}/${releve[j].poste}`,
+            dE: deltaE(releve[i].lisere, releve[j].lisere) });
+        }
+      }
+      const troppProches = paires.filter((p) => p.dE < SEUIL_DELTAE);
+      verifier(`${terrain.nom} : les quatre postes restent distincts entre eux ` +
+        `(ΔE ${Math.round(Math.min(...paires.map((p) => p.dE)))} à ${Math.round(Math.max(...paires.map((p) => p.dE)))} sur les six paires — seuil ${SEUIL_DELTAE})`,
+        paires.length === 6 && troppProches.length === 0,
+        JSON.stringify(troppProches.map((p) => [p.paire, Math.round(p.dE)])));
+
       const faibles = lignes.filter((l) => l.meilleur < SEUIL_DALLE);
       verifier(`${terrain.nom} : la dalle se détache du sol pour les quatre postes ` +
         `(${lignes.map((l) => `${l.poste} ${l.meilleur.toFixed(1)}:1`).join(" · ")} — seuil ${SEUIL_DALLE}:1)`,
@@ -443,17 +478,18 @@ const config = JSON.parse(fs.readFileSync(path.join(racine, "design/terrains.jso
 
   /* ---------- 3. la densité : jeu/ en 1×, hd/ en 2×, et le poids ---------- */
   /* PLAFOND ANNONCÉ pour l'écran de mercato, terrain d'entraînement compris :
-       1,3 Mo en densité 1 · 1,55 Mo en forte densité.
-     Relevé après l'arrivée des cinq de départ, dont les silhouettes
-     s'affichent d'emblée sur le gazon (+199 Ko). Le poids DÉPEND du tirage
-     de la boutique : mesuré sur six ouvertures, 1088-1216 Ko en densité 1
-     et 1383-1486 en densité 2 — le plafond borne le pire tirage.
+       1,5 Mo en densité 1 · 1,7 Mo en forte densité.
+     Relevé après l'arrivée des 79 figurines de trois quarts : chaque
+     titulaire pèse maintenant son unité (60 Ko) ET son ombre (11 Ko), là
+     où une silhouette frontale coûtait ~50 Ko. Le poids DÉPEND du tirage
+     de la boutique : mesuré sur six ouvertures, 1276-1412 Ko en densité 1
+     et 1407-1532 en densité 2 — le plafond borne le pire tirage.
      Pire cas : ~520 Ko de socle (polices, scripts, CSS, roster, tables)
      + les 5 key arts les plus lourds de la boutique (372 Ko)
      + le décor (93 Ko en jeu/, 354 Ko en hd/)
      + une silhouette de titulaire (~100 Ko).
      Le reste des 8 Mo de visuels ne se charge QUE quand il s'affiche. */
-  for (const [dpr, attendu, plafondKo] of [[1, "jeu/", 1300], [2, "hd/", 1550]]) {
+  for (const [dpr, attendu, plafondKo] of [[1, "jeu/", 1500], [2, "hd/", 1700]]) {
     const page = await (await browser.newContext({
       viewport: { width: 844, height: 390 }, deviceScaleFactor: dpr })).newPage();
     let octets = 0; const decors = [];

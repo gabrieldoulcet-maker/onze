@@ -263,5 +263,82 @@ console.log(`   poids : banque ${(total / 1024).toFixed(1)} Mo + arènes ${Math.
   `le plus lourd ${pire.nom} (${Math.round(pire.ko)} Ko)`);
 verifier("aucun visuel ne dépasse 150 Ko (budget mobile)", pire.ko <= 150, `${pire.nom} : ${Math.round(pire.ko)} Ko`);
 
+/* ============================================================
+   LES 79 FIGURINES DE TERRAIN (brief « Poser les 79 figurines »).
+   Contrôles STATIQUES : le manifeste, les ancrages, les chemins, le pont
+   de nommage. Le rendu, lui, est vérifié dans tests/rendu.spec.js.
+   ============================================================ */
+{
+  const manifeste = fs.readFileSync(path.join(racine, "design/unites-manifest.tsv"), "utf8");
+  const table = lire("design/ancrages.json");
+  const mesures = table.ancrages || {};
+  const lignes = manifeste.trim().split(/\r?\n/).slice(1).map((l) => l.split("\t"));
+  verifier(`le manifeste liste 79 unités (${lignes.length})`, lignes.length === 79, String(lignes.length));
+
+  // ---- 1. chaque unité et chaque ombre existent sur le disque ----
+  const versJeu = (c) => String(c || "").replace(/^units\//, "da/unites/")
+    .replace(/^shadows\//, "da/ombres/").replace(/\.(png|jpg)$/i, ".webp");
+  const absents = [];
+  for (const [, , joueur, unite, ombre] of lignes) {
+    for (const c of [unite, ombre]) {
+      if (!fs.existsSync(path.join(racine, versJeu(c)))) absents.push(`${joueur} → ${versJeu(c)}`);
+    }
+  }
+  verifier("chaque unité et chaque ombre du manifeste existent sur le disque",
+    absents.length === 0, absents.slice(0, 5).join(" | "));
+
+  // ---- 2. LE PONT DE NOMMAGE : aucune ligne ne reste sans preneur ----
+  const roster2 = new Set(roster.map((j) => plier(j.nom)));
+  const starters2 = new Set(starters.map(plier));
+  const iconesSrc = fs.readFileSync(path.join(racine, "icones.js"), "utf8");
+  const PONT = { "Le Fidele": "Le Fidèle", "Gus": "Gus · Le Douzième Homme", "Titi": "Titi · Le Douzième Homme",
+    "Gus Club": "Gus", "Titi Club": "Titi", "Marcel": "Marcel", "Rachid": "Rachid", "Momo": "Momo" };
+  const orphelines = [];
+  for (const [, , joueur] of lignes) {
+    const cle = (mesures[joueur] || {}).jeu || PONT[joueur];
+    if (!cle) { orphelines.push(`${joueur} : ni clé « jeu », ni pont`); continue; }
+    const p2 = plier(cle.split(" · ")[0]);
+    const connu = roster2.has(p2) || starters2.has(p2) || iconesSrc.includes(`"${cle.split(" · ")[0]}"`);
+    if (!connu) orphelines.push(`${joueur} → « ${cle} », inconnu du jeu`);
+  }
+  verifier("chaque figurine trouve preneur dans le jeu (roster, cinq de départ ou Icône)",
+    orphelines.length === 0, orphelines.slice(0, 6).join(" | "));
+
+  // ---- 3. aucun joueur du roster ne reste sans figurine ----
+  const servis = new Set();
+  for (const [, , joueur] of lignes) {
+    const cle = (mesures[joueur] || {}).jeu || PONT[joueur];
+    if (cle) servis.add(plier(cle));
+  }
+  const sansFigurine = roster.filter((j) => !servis.has(plier(j.nom))).map((j) => j.nom);
+  verifier(`les ${roster.length} joueurs du roster ont leur figurine`,
+    sansFigurine.length === 0, "sans figurine : " + sansFigurine.join(", "));
+  const departSansFigurine = starters.filter((n) => !servis.has(plier(n)));
+  verifier(`les ${starters.length} joueurs de la formation de départ ont leur figurine`,
+    departSansFigurine.length === 0, departSansFigurine.join(", "));
+
+  // ---- 4. les ancrages sont plausibles, et le repli est là ----
+  const hors = Object.entries(mesures).filter(([, v]) =>
+    !(typeof v.x === "number" && v.x >= 0.2 && v.x <= 0.8 && typeof v.y === "number" && v.y >= 0.5 && v.y <= 1));
+  verifier(`les ${Object.keys(mesures).length} ancrages mesurés sont plausibles (x 0,2-0,8 · y 0,5-1)`,
+    hors.length === 0, hors.slice(0, 5).map(([n, v]) => `${n} ${JSON.stringify([v.x, v.y])}`).join(" | "));
+  verifier(`la valeur de repli est déclarée dans le fichier (${JSON.stringify([table._defaut.x, table._defaut.y])})`,
+    typeof table._defaut.x === "number" && typeof table._defaut.y === "number");
+
+  // ---- 5. les entrées à CONTRÔLER, rendues telles quelles ----
+  const controles = Object.entries(mesures).filter(([, v]) => v.controle);
+  console.log(`   à regarder (champ « controle », ${controles.length} entrées, valeurs utilisées TELLES QUELLES) :`);
+  for (const [nom, v] of controles) console.log(`      ${nom} — ${v.controle} (x ${v.x}, y ${v.y})`);
+
+  // ---- 6. le poids du lot ----
+  let poidsU = 0, poidsO = 0;
+  for (const [, , , unite, ombre] of lignes) {
+    poidsU += fs.statSync(path.join(racine, versJeu(unite))).size / 1024;
+    poidsO += fs.statSync(path.join(racine, versJeu(ombre))).size / 1024;
+  }
+  console.log(`   lot des figurines : ${(poidsU / 1024).toFixed(2)} Mo d'unités + ${(poidsO / 1024).toFixed(2)} Mo d'ombres · ` +
+    `${Math.round(poidsU / lignes.length)} Ko par unité, ${Math.round(poidsO / lignes.length)} Ko par ombre`);
+}
+
 console.log(echecs ? `\n${echecs} échec(s)` : "\nIntégrité des portraits ✅");
 process.exit(echecs ? 1 : 0);
