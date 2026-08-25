@@ -687,3 +687,29 @@ button.principal:disabled { background: #0C130D; color: #4A5A4C; box-shadow: non
   0% { background: rgba(242, 193, 78, 0.22); }
   100% { background: transparent; }
 }
+
+/* Annexe FM — les stats du match dans le carton de coupe (temps mort) */
+.scene-match .carton-cut .cut-stats {
+  display: flex; flex-direction: column; gap: 3px;
+  margin-top: 6px; min-width: 62%; max-width: 78%;
+}
+.scene-match .carton-cut .cut-stat {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 0.6rem; font-weight: 700; color: var(--craie-sourde);
+}
+.scene-match .carton-cut .cut-val {
+  min-width: 30px; color: var(--craie-claire); font-variant-numeric: tabular-nums;
+}
+.scene-match .carton-cut .cut-stat .cut-val:last-child { text-align: right; }
+.scene-match .carton-cut .cut-nom {
+  min-width: 68px; text-align: center; letter-spacing: 0.5px;
+}
+.scene-match .carton-cut .cut-jauge {
+  flex: 1; height: 3px; border-radius: 2px; overflow: hidden;
+  background: rgba(253, 248, 234, 0.12); display: flex; justify-content: flex-end;
+}
+.scene-match .carton-cut .cut-jauge.droite { justify-content: flex-start; }
+.scene-match .carton-cut .cut-jauge i {
+  display: block; height: 100%; background: var(--gazon-electrique);
+}
+.scene-match .carton-cut .cut-jauge.droite i { background: var(--alerte, #E8503F); }

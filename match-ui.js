@@ -391,6 +391,23 @@ const ONZE_UI = (() => {
         options.scene.majPossession(comptePossession);
       };
 
+      /* Annexe FM — les stats des temps morts, comptées sur les seuls
+         événements DÉJÀ JOUÉS : le carton ne peut pas spoiler la suite.
+         Un arrêt ou un blocage appartient au défenseur : l'occasion,
+         elle, est à l'équipe qui attaquait. */
+      const statsEnCours = () => {
+        const t = { moi: { occasions: 0, buts: 0 }, eux: { occasions: 0, buts: 0 } };
+        for (const ev of evenementsJoues) {
+          const camp = ev.equipe === equipeA.nom ? "moi" : "eux";
+          if (ev.but) { t[camp].buts++; t[camp].occasions++; }
+          else if (ev.type === "arret" || ev.type === "blocage") t[camp === "moi" ? "eux" : "moi"].occasions++;
+        }
+        const total = (comptePossession.moi + comptePossession.eux) || 1;
+        t.possession = { moi: Math.round((comptePossession.moi / total) * 100) };
+        t.possession.eux = 100 - t.possession.moi;
+        return t;
+      };
+
       /* La file d'étapes attend AVANT d'agir : le délai d'une étape est
          donc la durée de la PRÉCÉDENTE. `pousser` tient ce décalage —
          sans lui, une mise en place annoncée à 3 s ne durait que le
@@ -430,7 +447,7 @@ const ONZE_UI = (() => {
           blocCourant = blocPhase(elements.recit, phase.minute, phase.numero);
           // la carte se retire à la vitesse réelle du temps mort (×2, réglage)
           options.scene.cut({ minute: phase.minute, scoreA: scores.a, scoreB: scores.b,
-            nomA: equipeA.nom, nomB: equipeB.nom }, CUT_MS / facteurMort());
+            nomA: equipeA.nom, nomB: equipeB.nom, stats: statsEnCours() }, CUT_MS / facteurMort());
           options.scene.majJaugeCible(phase);
           compter(phase);
           // le lobby vit pendant ton match : les autres scores tombent

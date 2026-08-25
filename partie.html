@@ -2287,6 +2287,8 @@
           ${choix("filtre", "moments", "⚡ Moments-clés")}${choix("filtre", "resume", "📼 Résumé complet")}</div></div>
         ${curseur("vitesseFort", "Vitesse temps forts")}
         ${curseur("vitesseMort", "Vitesse temps morts")}
+        <div class="ligne-param"><span class="param-nom">Temps morts</span><div class="groupe-opt">
+          ${choix("tempsMorts", "scores", "Derniers scores")}${choix("tempsMorts", "stats", "Stats du match")}${choix("tempsMorts", "les-deux", "Les deux")}</div></div>
         <div class="ligne-param"><span class="param-nom">Stade</span><div class="groupe-opt">
           ${ONZE_STADE.liste().map((t) => choix("stade", t.id, t.nom)).join("")}</div></div>
         <div class="ligne-param"><span class="param-nom">Affichage</span><div class="groupe-opt colonne">

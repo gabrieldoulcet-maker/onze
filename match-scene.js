@@ -88,6 +88,7 @@ const ONZE_SCENE = (() => {
     replay: true,         // « Revoir les buts »
     etiquettes: true,     // les noms sur les protagonistes
     trainee: true,        // « Ballon animé » : la traînée
+    tempsMorts: "scores", // « Affichage des temps morts » : scores | stats | les-deux
     stade: "emeraude",    // le thème de stade (R13) — un décor PEINT par défaut :
                           // un joueur neuf voit le Grand Soir sans rien régler
   };
@@ -936,13 +937,32 @@ const ONZE_SCENE = (() => {
       avancerTimeline();        // le cut ouvre un temps fort : le point s'allume
       bande.classList.remove("visible");
       barrePossession.classList.remove("visible");
+      /* Annexe FM — L'AFFICHAGE DES TEMPS MORTS. Le carton de coupe est
+         le temps mort d'ONZE : selon le réglage, il porte les stats du
+         match en plus de la minute et du score. Les chiffres viennent
+         des événements DÉJÀ JOUÉS — zéro spoiler. */
+      const avecStats = (reg.tempsMorts === "stats" || reg.tempsMorts === "les-deux") && info.stats;
+      const barre = (libelle, a, b, suffixe) => {
+        const total = (a + b) || 1;
+        return `<div class="cut-stat">
+          <span class="cut-val">${a}${suffixe || ""}</span>
+          <span class="cut-jauge"><i style="width:${Math.round((a / total) * 100)}%"></i></span>
+          <span class="cut-nom">${libelle}</span>
+          <span class="cut-jauge droite"><i style="width:${Math.round((b / total) * 100)}%"></i></span>
+          <span class="cut-val">${b}${suffixe || ""}</span></div>`;
+      };
       const carte = document.createElement("div");
       carte.className = "carton-cut";
       carte.innerHTML =
         `<div class="cut-minute">${info.minute}ᵉ</div>` +
         `<div class="cut-score"><span>${info.nomA || eqA.nom}</span>` +
         `<strong>${info.scoreA} – ${info.scoreB}</strong>` +
-        `<span>${info.nomB || eqB.nom}</span></div>`;
+        `<span>${info.nomB || eqB.nom}</span></div>` +
+        (avecStats ? `<div class="cut-stats">
+          ${barre("possession", info.stats.possession.moi, info.stats.possession.eux, " %")}
+          ${barre("occasions", info.stats.moi.occasions, info.stats.eux.occasions)}
+          ${barre("buts", info.stats.moi.buts, info.stats.eux.buts)}
+        </div>` : "");
       couche.appendChild(carte);
       cartonCut = carte;
       requestAnimationFrame(() => carte.classList.add("visible"));
@@ -1653,6 +1673,8 @@ const ONZE_SCENE = (() => {
       /* Les autres scores du lobby, en toast discret pendant les temps
          morts (le lobby vit pendant ton match). */
       notifierLobby: (texte) => {
+        // « Affichage des temps morts » : les derniers scores du lobby
+        if (reg.tempsMorts !== "scores" && reg.tempsMorts !== "les-deux") return;
         const toast = document.createElement("div");
         toast.className = "toast-lobby";
         toast.textContent = texte;
