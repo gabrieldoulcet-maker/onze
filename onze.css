@@ -657,3 +657,77 @@ button.principal:disabled { background: #0C130D; color: #4A5A4C; box-shadow: non
 .panneau-params .opt-match.active, .panneau-params .opt-bascule.active {
   background: var(--ligne-forte); border-color: var(--gazon-electrique); color: #FDF8EA;
 }
+
+/* ============================================================
+   RÈGLE 12 — LA TIMELINE DES TEMPS FORTS (design/scene-fm.md).
+   Une rangée de points : un par temps fort rendu, le courant en
+   surbrillance. Dans la scène, elle donne le fil du match d'un coup
+   d'œil ; dans le recap ⚔️, elle devient navigable.
+   ============================================================ */
+.scene-match .timeline-tf {
+  position: absolute; top: 6px; right: 10px; z-index: 8;
+  display: none; align-items: center; gap: 5px; pointer-events: none;
+}
+.scene-match .timeline-tf.visible { display: flex; }
+.scene-match .timeline-tf .point-tf {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(253, 248, 234, 0.22);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.scene-match .timeline-tf .point-tf.passe { background: rgba(253, 248, 234, 0.55); }
+.scene-match .timeline-tf .point-tf.courant {
+  background: var(--or-trophee); transform: scale(1.5);
+  box-shadow: 0 0 8px rgba(242, 193, 78, 0.8);
+}
+
+/* La timeline du recap ⚔️ : les mêmes temps forts, mais cliquables */
+.timeline-recap {
+  display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
+  margin: 6px 0 2px;
+}
+.timeline-recap .point-recap {
+  width: auto; padding: 3px 9px; cursor: pointer;
+  background: var(--surface-1); color: var(--craie-sourde);
+  border: 1px solid var(--ligne); border-radius: var(--r-pilule, 999px);
+  font-size: 0.66rem; font-weight: 700; line-height: 1;
+}
+.timeline-recap .point-recap.but {
+  border-color: var(--or-trophee); color: var(--or-trophee);
+}
+.timeline-recap .point-recap.presque { border-color: var(--gazon-electrique); }
+/* le bloc du journal visé par la timeline s'allume brièvement */
+.journal .phase.vise {
+  outline: 2px solid var(--or-trophee); border-radius: 6px;
+  animation: viseJournal 1.6s ease;
+}
+@keyframes viseJournal {
+  0% { background: rgba(242, 193, 78, 0.22); }
+  100% { background: transparent; }
+}
+
+/* Annexe FM — les stats du match dans le carton de coupe (temps mort) */
+.scene-match .carton-cut .cut-stats {
+  display: flex; flex-direction: column; gap: 3px;
+  margin-top: 6px; min-width: 62%; max-width: 78%;
+}
+.scene-match .carton-cut .cut-stat {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 0.6rem; font-weight: 700; color: var(--craie-sourde);
+}
+.scene-match .carton-cut .cut-val {
+  min-width: 30px; color: var(--craie-claire); font-variant-numeric: tabular-nums;
+}
+.scene-match .carton-cut .cut-stat .cut-val:last-child { text-align: right; }
+.scene-match .carton-cut .cut-nom {
+  min-width: 68px; text-align: center; letter-spacing: 0.5px;
+}
+.scene-match .carton-cut .cut-jauge {
+  flex: 1; height: 3px; border-radius: 2px; overflow: hidden;
+  background: rgba(253, 248, 234, 0.12); display: flex; justify-content: flex-end;
+}
+.scene-match .carton-cut .cut-jauge.droite { justify-content: flex-start; }
+.scene-match .carton-cut .cut-jauge i {
+  display: block; height: 100%; background: var(--gazon-electrique);
+}
+.scene-match .carton-cut .cut-jauge.droite i { background: var(--alerte, #E8503F); }

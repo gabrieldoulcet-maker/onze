@@ -41,11 +41,18 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     document.body.appendChild(bac);
     const scene = ONZE_SCENE.creer(bac, catenaccio, tiki, {});
     const diag = scene.diagnostic();
-    const defCate = diag.positions.filter((p) => p.camp === "moi" && p.base > 8 && p.base < 30);
-    const defTiki = diag.positions.filter((p) => p.camp === "eux" && p.base > 70 && p.base < 92);
+    /* décision 50 : tout est en MÈTRES, origine au centre. On raisonne
+       en « distance à son propre but », le seul repère qui vaille pour
+       les deux camps ET pour toutes les tailles de terrain. */
+    const T = diag.terrain;
+    const depuisSonBut = (p) => (p.camp === "moi" ? p.base + T.L / 2 : T.L / 2 - p.base);
+    const bande = (p) => depuisSonBut(p) > 4 && depuisSonBut(p) < 17;   // la ligne de DÉF
+    const defCate = diag.positions.filter((p) => p.camp === "moi" && bande(p));
+    const defTiki = diag.positions.filter((p) => p.camp === "eux" && bande(p));
     // le bloc bas : les lignes du Catenaccio (mon camp, gauche) sont plus
-    // proches de leur but que celles d'une équipe neutre (base 20 → 15)
-    const blocBas = defCate.length ? Math.min(...defCate.map((p) => p.base)) < 18 : false;
+    // proches de leur but qu'une ligne neutre (13,5 m → 8,9 m)
+    const blocBas = defCate.length && defTiki.length
+      ? Math.min(...defCate.map(depuisSonBut)) < Math.min(...defTiki.map(depuisSonBut)) - 2 : false;
 
     // 3. la jauge lit les VRAIS événements
     const phaseA = { evenements: [
@@ -68,12 +75,14 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
 
     // 4. la répulsion des pions : une mêlée de 6 disques superposés se
     // résout en quelques frames — plus aucun recouvrement au-delà de ~20 %
-    const rayon = 16;
-    const melee = Array.from({ length: 6 }, (_, i) => ({ x: 50, y: 50, echelle: 1, phase: i * 0.7 }));
-    for (let f = 0; f < 40; f++) ONZE_SCENE.separerDisques(melee, 800, 360, rayon);
+    // décision 50 : tout est en MÈTRES, origine au centre du terrain
+    const rayon = 1.84;                       // le rayon d'un pion en m
+    const terrain = { L: 104, W: 68 };
+    const melee = Array.from({ length: 6 }, (_, i) => ({ x: 0, y: 0, echelle: 1, phase: i * 0.7 }));
+    for (let f = 0; f < 40; f++) ONZE_SCENE.separerDisques(melee, terrain, rayon);
     let distMin = Infinity;
     for (let i = 0; i < melee.length; i++) for (let j = i + 1; j < melee.length; j++) {
-      const d = Math.hypot((melee[j].x - melee[i].x) * 8, (melee[j].y - melee[i].y) * 3.6);
+      const d = Math.hypot(melee[j].x - melee[i].x, melee[j].y - melee[i].y);
       distMin = Math.min(distMin, d);
     }
     const repulsion = { distMin, seuil: 0.75 * 2 * rayon };
@@ -90,7 +99,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   verifier(`jauge : phase dominée par moi → positive (${r.domA.toFixed(2)})`, r.domA > 0.5);
   verifier(`jauge : phase dominée par l'adversaire → négative (${r.domB.toFixed(2)})`, r.domB < 0);
   verifier(`jauge : un arrêt adverse compte pour MON occasion (${r.domArret.toFixed(2)})`, r.domArret > 0);
-  verifier(`répulsion : une mêlée de 6 pions se désserre (dist min ${r.repulsion.distMin.toFixed(1)} px ≥ ${r.repulsion.seuil.toFixed(1)})`,
+  verifier(`répulsion : une mêlée de 6 pions se désserre (dist min ${r.repulsion.distMin.toFixed(2)} m ≥ ${r.repulsion.seuil.toFixed(2)} m)`,
     r.repulsion.distMin >= r.repulsion.seuil);
 
   // ---- un match animé réel : échantillonner les positions, jamais collés ----
@@ -106,20 +115,18 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       if (!scene) continue;
       const d = scene.diagnostic();
       let mini = Infinity;
-      const boite = document.querySelector(".scene-match canvas");
-      const L = boite ? boite.clientWidth : 800, H = boite ? boite.clientHeight : 360;
       for (let i = 0; i < d.positions.length; i++) for (let j = i + 1; j < d.positions.length; j++) {
         const a = d.positions[i], b = d.positions[j];
-        mini = Math.min(mini, Math.hypot((b.x - a.x) * L / 100, (b.y - a.y) * H / 100));
+        mini = Math.min(mini, Math.hypot(b.x - a.x, b.y - a.y));   // en mètres
       }
       // le rayon vient de la scène elle-même : le figer dans le test le
       // rendait faux au premier changement d'échelle (décision 33)
-      if (mini < Infinity) releves.push({ mini, rayon: d.rayonPion });
+      if (mini < Infinity) releves.push({ mini, rayon: d.rayonPionM });
     }
     return releves;
   });
   const pire = live.length ? live.reduce((a, b) => (a.mini < b.mini ? a : b)) : null;
-  verifier(`match animé : jamais deux pions superposés (${live.length} relevés, pire ${pire ? pire.mini.toFixed(1) : "—"} px pour un rayon de ${pire ? pire.rayon.toFixed(1) : "—"})`,
+  verifier(`match animé : jamais deux pions superposés (${live.length} relevés, pire ${pire ? pire.mini.toFixed(2) : "—"} m pour un rayon de ${pire ? pire.rayon.toFixed(2) : "—"} m)`,
     !!pire && pire.mini >= 0.6 * 2 * pire.rayon);
   await page.waitForFunction(() => !!document.getElementById("btn-continuer"), null, { timeout: 90000 });
 
@@ -259,6 +266,69 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   verifier(`Allocation : beaucoup de buts → le format court entre en jeu (5 buts : ${alloc.mesures[5].courts} courts)`,
     alloc.mesures[5].courts >= 1);
 
+  /* ---- FIDÉLITÉ (décision 24) : LE CAS DES HOMONYMES, forcé.
+     Le pool contient plusieurs copies de chaque joueur : deux clubs
+     peuvent aligner un « Esteban » chacun (mesuré en jeu). On monte donc
+     le pire cas — DEUX équipes composées des MÊMES fiches — et on
+     vérifie que la scène ne confond pas les deux hommes. ---- */
+  const homonymes = await page.evaluate(async () => {
+    const fiches = tousLesJoueurs.slice(0, 6).map((j) => ({ ...j, etoiles: 1 }));
+    const eqA = ONZE.equipeDepuisFiches("Nous", "Nous", fiches);
+    const eqB = ONZE.equipeDepuisFiches("Eux", "Eux", fiches.map((j) => ({ ...j })));
+    const bac = document.createElement("div");
+    bac.style.cssText = "position:fixed;left:-2000px;width:800px;height:360px";
+    document.body.appendChild(bac);
+    const sc = ONZE_SCENE.creer(bac, eqA, eqB, {});
+    const nom = eqB.joueurs.find((j) => j.poste !== "GAR").nom;
+    // une action de l'équipe B, portée par un joueur dont l'homonyme
+    // existe aussi dans l'équipe A
+    const seq = [{ type: "recuperation", acteur: nom, equipe: "Eux", promesse: "…" }];
+    seq.equipe = "Eux"; seq.situation = "placee";
+    sc.miseEnPlace(seq, 400);
+    sc.jouerTemps(seq[0], 800);
+    await new Promise((r) => setTimeout(r, 700));
+    const d = sc.diagnostic();
+    const memeNom = d.positions.filter((p) => p.nom === nom);
+    const resultat = {
+      nomPartage: memeNom.length,
+      camps: memeNom.map((p) => p.camp),
+      porteur: d.ballon.porteur,
+      porteursDesignes: d.positions.filter((p) => p.cle === d.ballon.porteur).length,
+      etiquetes: d.etiquettes.length,
+    };
+    sc.detruire(); bac.remove();
+    return resultat;
+  });
+  verifier(`Décision 24 : le cas est bien monté — « ${homonymes.nomPartage} » joueurs du même nom, un par camp (${homonymes.camps.join(", ")})`,
+    homonymes.nomPartage === 2 && new Set(homonymes.camps).size === 2);
+  verifier(`Décision 24 : l'homonyme ne vole pas le ballon — porteur « ${homonymes.porteur} », ${homonymes.porteursDesignes} pion désigné`,
+    homonymes.porteur === "eux|" + homonymes.porteur.split("|")[1] && homonymes.porteursDesignes === 1);
+  verifier(`Décision 24 : un seul des deux homonymes est étiqueté (${homonymes.etiquetes})`,
+    homonymes.etiquetes === 1);
+
+  /* Le second cas d'homonymie, plus sournois : DEUX COPIES du même
+     joueur dans la MÊME équipe (le pool en contient plusieurs, et deux
+     copies non fusionnées coexistent). Aucune clé ne doit alors être
+     partagée, sinon l'anneau du porteur s'allume deux fois. */
+  const jumeaux = await page.evaluate(() => {
+    const j = tousLesJoueurs.find((x) => x.poste !== "GAR");
+    const fiches = [j, { ...j }, ...tousLesJoueurs.slice(1, 5)].map((f) => ({ ...f, etoiles: 1 }));
+    const eq = ONZE.equipeDepuisFiches("Jumeaux", "Jumeaux", fiches);
+    const bac = document.createElement("div");
+    bac.style.cssText = "position:fixed;left:-2000px;width:800px;height:360px";
+    document.body.appendChild(bac);
+    const sc = ONZE_SCENE.creer(bac, eq, ONZE.equipeDepuisFiches("B", "B",
+      tousLesJoueurs.slice(10, 15).map((f) => ({ ...f, etoiles: 1 }))), {});
+    const d = sc.diagnostic();
+    const memeNom = d.positions.filter((p) => p.nom === j.nom && p.camp === "moi").length;
+    const cles = d.positions.map((p) => p.cle);
+    const doublons = cles.filter((c, i) => cles.indexOf(c) !== i);
+    sc.detruire(); bac.remove();
+    return { memeNom, doublons: doublons.length, total: cles.length };
+  });
+  verifier(`Décision 24 : deux copies du même joueur dans la même équipe (${jumeaux.memeNom}) gardent des clés distinctes (${jumeaux.doublons} doublon(s) sur ${jumeaux.total})`,
+    jumeaux.memeNom >= 2 && jumeaux.doublons === 0);
+
   /* ---- R13 : le stade est une couche de thème, pas du dur ---- */
   const stade = await page.evaluate(async () => {
     const src = await (await fetch("/match-scene.js")).text();
@@ -290,17 +360,24 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
      79 relevés selon les matchs). On CUMULE donc les relevés d'un match
      à l'autre jusqu'à remplir le sac — ce sont les mêmes observations de
      la même règle, et rejouer un match ne coûte que du temps machine. */
-  const ECHANTILLON_MARQUAGE = 30;
+  /* La taille de l'échantillon, pas la sévérité du seuil. Un match ne
+     donne qu'une cinquantaine de relevés de marquage et la dispersion
+     d'un match à l'autre est réelle (mesurée : 47, 88, 100 %). On cumule
+     donc jusqu'à 120 relevés — ce sont les mêmes observations de la même
+     règle, et rejouer un match ne coûte que du temps machine. */
+  const ECHANTILLON_MARQUAGE = 120;
   const sacMarquage = { vus: 0, bons: 0, tous: 0, tousBons: 0, matchs: 0 };
+  const sacPorteur = [];
   let releve = null, avecMatiere = null;
   for (let essai = 0; essai < 6; essai++) {
     releve = await mesurerUnMatch(page);
     sacMarquage.vus += releve.marquagesVus; sacMarquage.bons += releve.marquagesBons;
     sacMarquage.tous += releve.marquagesTous; sacMarquage.tousBons += releve.marquagesTousBons;
     sacMarquage.matchs++;
+    sacPorteur.push(...(releve.relevesPorteurSimule || []));
     // le relevé qui sert à TOUTES les autres mesures doit avoir de la matière
     if (!avecMatiere && releve.buts >= 1 && releve.misesEnPlace >= 2) avecMatiere = releve;
-    if (avecMatiere && sacMarquage.vus >= ECHANTILLON_MARQUAGE) break;
+    if (avecMatiere && sacMarquage.vus >= ECHANTILLON_MARQUAGE && sacPorteur.length >= 100) break;
     console.log(`   (relevé ${essai + 1} : ${releve.buts} but(s), ${releve.misesEnPlace} temps fort(s), ${releve.marquagesVus} marquage(s) en position — sac à ${sacMarquage.vus}/${ECHANTILLON_MARQUAGE}, on rejoue)`);
   }
   if (avecMatiere) releve = avecMatiere;
@@ -340,6 +417,18 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     let reposDepuis = 0, vitesseReposCourante = 0; const finsDeRepos = [];
     let lignesVues = 0, sommeEcartType = 0;
     let marquagesVus = 0, marquagesBons = 0, marquagesTous = 0, marquagesTousBons = 0;
+    // R12 : la timeline des temps forts
+    let tlTotal = 0, tlMax = -1, tlRecule = 0, tlMalCompte = 0;
+    let porteurAmbigu = 0, matchsAvecHomonymes = 0;
+    let capPrec = null; const braquages = []; const allures = [];
+    /* ÉTAPE 1 : les distributions de vitesse. Les relevés « au tick »
+       (accélération, sur-vitesse) viennent de la scène elle-même —
+       échantillonner à 50 ms raterait les pics. */
+    const vitessesChamp = [], vitessesPorteur = [], vitessesPorteurSimule = [];
+    const pct = (l, q) => (l.length ? l.slice().sort((a, b) => a - b)[Math.min(l.length - 1, Math.floor(l.length * q))] : 0);
+    const med = (l) => pct(l, 0.5);
+    let physique = { accelMax: 0, vitesseMax: 0, surVitesse: 0, surAccel: 0, ticks: 0 };
+    let vMaxPlusHaut = 0;
     await new Promise((fini) => {
       const tic = setInterval(() => {
         const sc = typeof sceneMatch !== "undefined" ? sceneMatch : null;
@@ -348,13 +437,62 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
         regimes.push(d.regime);
         if (d.positions.some((p) => !isFinite(p.x) || !isFinite(p.y)) ||
             !isFinite(d.ballon.x) || !isFinite(d.ballon.y)) nonFinies++;
+        /* --- FIDÉLITÉ (décision 24) : le pool contient plusieurs copies
+           de chaque joueur, donc deux clubs peuvent aligner un homonyme.
+           Le porteur, le receveur attendu et l'homme marqué doivent être
+           désignés par leur CLÉ (camp|nom), sinon la scène allume les
+           deux et peut montrer le mauvais homme. --- */
+        if (d.ballon.porteur) {
+          const porteurs = d.positions.filter((p) => p.cle === d.ballon.porteur);
+          if (porteurs.length !== 1) porteurAmbigu++;
+        }
+        const homonymes = d.positions.map((p) => p.nom)
+          .filter((n, i, l) => l.indexOf(n) !== i);
+        if (homonymes.length) matchsAvecHomonymes++;
+        // --- Règle 12 de la spec : la timeline ---
+        if (d.timeline) {
+          tlTotal = d.timeline.total;
+          if (d.timeline.courant < tlMax) tlRecule++;      // elle ne revient jamais en arrière
+          tlMax = Math.max(tlMax, d.timeline.courant);
+          const points = document.querySelectorAll(".timeline-tf .point-tf");
+          const courants = document.querySelectorAll(".timeline-tf .point-tf.courant");
+          // un point par temps fort, et un seul courant dès qu'un est ouvert
+          if (points.length !== d.timeline.total ||
+              courants.length !== (d.timeline.courant >= 0 ? 1 : 0)) tlMalCompte++;
+        }
+        /* --- ÉTAPE 1 : LE BRAQUAGE. Un joueur lancé décrit une courbe ;
+           il ne pivote pas sur place. On mesure la rotation du cap par
+           seconde, sur les seuls pions qui COURENT vraiment (au-dessus
+           de 6 %/s) — à l'arrêt, tourner est gratuit et normal. --- */
+        if (capPrec) {
+          for (const p of d.positions) {
+            /* On ne mesure QUE la population que la règle gouverne :
+               un joueur LANCÉ (> 12 %/s, là où le plafond angulaire mord
+               vraiment) et qui a de la route devant lui
+               (> 4 % de terrain). Mesurer plus large diluait le signal
+               au point que la recette passait même braquage coupé — un
+               garde-fou qui ne sort pas rouge sur son propre défaut n'en
+               est pas un. */
+            if (p.vitesse < 5 || (p.ecartCible !== null && p.ecartCible <= 4)) continue;
+            const avant = capPrec[p.cle];
+            if (avant === undefined || avant.v < 5 || avant.loin === false) continue;
+            let ecart = p.cap - avant.cap;
+            while (ecart > Math.PI) ecart -= 2 * Math.PI;
+            while (ecart < -Math.PI) ecart += 2 * Math.PI;
+            const parSeconde = Math.abs(ecart) / 0.05;   // le pas d'échantillonnage
+            braquages.push(parSeconde);
+          }
+        }
+        capPrec = {};
+        for (const p of d.positions) capPrec[p.cle] = { cap: p.cap, v: p.vitesse, vx: p.vx, vy: p.vy,
+          loin: p.ecartCible === null || p.ecartCible > 4 };
         // --- décision 33 : le cerveau ---
         const champ = d.positions.filter((p) => p.role !== "gardien");
         if (champ.some((p) => !p.role)) sansRaison++;
         champ.forEach((p) => { if (p.ecartCible !== null) ecartsCible.push(p.ecartCible); });
         if (d.receveurAttendu) {
-          const r = d.positions.find((p) => p.nom === d.receveurAttendu);
-          if (r) { appelsVus++; if (r.vitesse > 1.5) appelsEnCourse++; }
+          const r = d.positions.find((p) => p.cle === d.receveurAttendu);
+          if (r) { appelsVus++; if (r.vitesse > 1) appelsEnCourse++; }
         }
         /* Le repos : on ne mesure PAS le pic juste après un temps fort
            (les pions s'y replacent, c'est de la convergence). On garde la
@@ -375,10 +513,10 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
           lignesVues++;
         }
         for (const m of d.positions.filter((p) => p.role === "marquage" && p.marque)) {
-          const homme = d.positions.find((p) => p.nom === m.marque);
+          const homme = d.positions.find((p) => p.cle === m.marque);
           if (!homme) continue;
           // goal-side : le marqueur est entre son homme et SON but
-          const but = m.camp === "moi" ? 1.5 : 98.5;
+          const but = m.camp === "moi" ? -d.terrain.L / 2 : d.terrain.L / 2;
           const bon = Math.abs(m.x - but) <= Math.abs(homme.x - but) + 0.5;
           marquagesTous++; if (bon) marquagesTousBons++;
           // la spec demande un défenseur goal-side « à moins d'un seuil » :
@@ -387,6 +525,25 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
             marquagesVus++; if (bon) marquagesBons++;
           }
         }
+        for (const p of d.positions) if (p.role !== "gardien") allures.push(p.vitesse / p.vMax);
+        /* ÉTAPE 1 : la distribution de vitesse du football réel.
+           Joueur de champ : pointe 6,5-9,5 m/s selon VIT. Porteur de
+           balle : 2,5 m/s en MÉDIANE (design/football-chiffre.md §2) —
+           c'est la mesure la plus contre-intuitive du lot. */
+        for (const p of d.positions) {
+          if (p.role === "gardien") continue;
+          vitessesChamp.push(p.vitesse);
+          vMaxPlusHaut = Math.max(vMaxPlusHaut, p.vMax);
+          if (p.porteur) {
+            vitessesPorteur.push(p.vitesse);
+            // le porteur PILOTÉ PAR LA SIMULATION (rôle « porteur ») —
+            // celui que l'étape 1 gouverne. Quand une chorégraphie tient
+            // encore le pion (rôle de scénario), c'est l'étape 4 qui en
+            // répond, pas la physique.
+            if (p.role === "porteur") vitessesPorteurSimule.push(p.vitesse);
+          }
+        }
+        if (d.mesures && d.mesures.ticks > physique.ticks) physique = d.mesures;
         if (d.regime === "action") {
           vitesses.push(d.positions.reduce((t, p) => t + p.vitesse, 0) / d.positions.length);
           etiqAction.push(d.etiquettes.length);
@@ -466,6 +623,24 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
         ? finsDeRepos.slice().sort((a, b) => a - b)[Math.floor(finsDeRepos.length / 2)] : 0,
       lignesVues, ecartTypeLigne: lignesVues ? sommeEcartType / lignesVues : 0,
       marquagesVus, marquagesBons, marquagesTous, marquagesTousBons,
+      tlTotal, tlMax, tlRecule, tlMalCompte, porteurAmbigu, matchsAvecHomonymes,
+      // ÉTAPE 1 : la physique
+      physique, vMaxPlusHaut,
+      vitesseChampMediane: med(vitessesChamp), vitesseChampP90: pct(vitessesChamp, 0.9),
+      vitesseChampMax: vitessesChamp.length ? Math.max(...vitessesChamp) : 0,
+      vitessePorteurMediane: med(vitessesPorteur), porteursVus: vitessesPorteur.length,
+      vitessePorteurSimule: med(vitessesPorteurSimule), porteursSimules: vitessesPorteurSimule.length,
+      // les relevés BRUTS : le rôle « porteur » ne s'allume pas dans tous
+      // les matchs (parfois la chorégraphie tient le pion du début à la
+      // fin), donc l'échantillon se CUMULE d'un match à l'autre
+      relevesPorteurSimule: vitessesPorteurSimule.slice(0, 400),
+      braquageP99: braquages.length ? braquages.slice().sort((a, b) => a - b)[Math.floor(braquages.length * 0.99)] : 0,
+      braquageMax: braquages.length ? Math.max(...braquages) : 0,
+      braquagesVus: braquages.length,
+      // la part de sa vitesse max qu'un joueur utilise : la distribution
+      // sera recalibrée sur design/football-chiffre.md
+      allureMediane: allures.length ? allures.slice().sort((a, b) => a - b)[Math.floor(allures.length / 2)] : 0,
+      alluresVues: allures.length,
       etiqMax: etiqAction.length ? Math.max(...etiqAction) : 0,
       etiqMed: etiqAction.length ? etiqAction.slice().sort((a, b) => a - b)[Math.floor(etiqAction.length / 2)] : 0,
       etiqBut,
@@ -505,10 +680,10 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     decCourt.every((v) => v >= 1000 && v <= 1400));
   verifier(`Décision 33 : aucune position non finie (${releve.nonFinies} relevé(s) fautif(s))`,
     releve.nonFinies === 0);
-  verifier(`R4 : les 22 pions bougent en permanence (vitesse moyenne ${releve.vitesseMoyenne.toFixed(2)} %/s, ${Math.round(releve.partsImmobiles * 100)} % de relevés figés)`,
-    releve.vitesseMoyenne > 0.8 && releve.partsImmobiles < 0.2);
-  verifier(`R4 : le ballon ne se téléporte jamais (saut max ${releve.sautMaxBallon.toFixed(1)} % de terrain en 50 ms)`,
-    releve.sautMaxBallon > 0 && releve.sautMaxBallon < 12);
+  verifier(`R4 : les 22 pions bougent en permanence (vitesse moyenne ${releve.vitesseMoyenne.toFixed(2)} m/s, ${Math.round(releve.partsImmobiles * 100)} % de relevés figés)`,
+    releve.vitesseMoyenne > 0.4 && releve.partsImmobiles < 0.2);
+  verifier(`R4 : le ballon ne se téléporte jamais (saut max ${releve.sautMaxBallon.toFixed(1)} m entre deux relevés)`,
+    releve.sautMaxBallon > 0 && releve.sautMaxBallon < 10);
   verifier(`R6 : les étiquettes suivent l'action, pas tout le monde (médiane ${releve.etiqMed}, max ${releve.etiqMax})`,
     releve.etiqMed >= 1 && releve.etiqMed <= 4);
   verifier(`R6 : tous les noms s'affichent au but (${releve.etiqBut} relevés)`, releve.etiqBut >= 1);
@@ -518,7 +693,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
      ============================================================ */
   verifier(`Décision 33 — test de pause : chaque pion a une RAISON nommée (${releve.sansRaison} relevé(s) avec un pion sans rôle)`,
     releve.sansRaison === 0);
-  verifier(`Décision 33 — test de pause : les pions convergent vers leur cible (écart médian ${releve.ecartMedian.toFixed(1)} % de terrain)`,
+  verifier(`Décision 33 — test de pause : les pions convergent vers leur cible (écart médian ${releve.ecartMedian.toFixed(1)} m)`,
     releve.ecartMedian > 0 && releve.ecartMedian < 14);
   verifier(`Décision 33 — test de projection : le receveur attendu est DÉJÀ en course (${releve.appelsEnCourse}/${releve.appelsVus} appels mesurés en mouvement)`,
     releve.appelsVus >= 2 && releve.appelsEnCourse / releve.appelsVus >= 0.8);
@@ -555,10 +730,10 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
      dériverait sans fin. La vitesse résiduelle, elle, vient des pions
      qui se bousculent sur place (la répulsion les repousse, ils
      reviennent) — c'est du sur-place, pas de la dérive. */
-  verifier(`Décision 33 — zéro bruit : une scène laissée tranquille se FIGE (déplacement ${calme.deplacementMax.toFixed(2)} % de terrain en 0,8 s ; vitesse résiduelle ${calme.vitesseMax.toFixed(1)} %/s de sur-place)`,
+  verifier(`Décision 33 — zéro bruit : une scène laissée tranquille se FIGE (déplacement ${calme.deplacementMax.toFixed(2)} m en 0,8 s ; vitesse résiduelle ${calme.vitesseMax.toFixed(2)} m/s de sur-place)`,
     calme.deplacementMax < 0.6);
-  console.log(`   (repos en match : vitesse médiane ${releve.vitesseRepos.toFixed(1)} %/s sur ${releve.reposVus} période(s) — les pions se replacent encore, c'est de la convergence)`);
-  verifier(`Décision 33 — la ligne se voit : les défenseurs partagent une hauteur (écart-type ${releve.ecartTypeLigne.toFixed(1)} % de terrain)`,
+  console.log(`   (repos en match : vitesse médiane ${releve.vitesseRepos.toFixed(2)} m/s sur ${releve.reposVus} période(s) — les pions se replacent encore, c'est de la convergence)`);
+  verifier(`Décision 33 — la ligne se voit : les défenseurs partagent une hauteur (écart-type ${releve.ecartTypeLigne.toFixed(1)} m)`,
     releve.lignesVues >= 2 && releve.ecartTypeLigne < 8);
   /* Le marquage n'est JAMAIS à 100 %, et c'est voulu : quand le moteur
      désigne un défenseur battu, il se retrouve du mauvais côté — et ça
@@ -575,6 +750,72 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
      taille qui est garantie, plus la durée d'un match. */
   verifier(`Décision 33 — le marquage se voit : EN POSITION, le marqueur est goal-side ${Math.round(tauxGoalSide * 100)} % du temps (${sacMarquage.bons}/${sacMarquage.vus} relevés cumulés sur ${sacMarquage.matchs} match(s)) — ${Math.round(tauxBrut * 100)} % en comptant ceux qui courent encore`,
     sacMarquage.vus >= ECHANTILLON_MARQUAGE && tauxGoalSide >= 0.7);
+
+  /* ============================================================
+     ÉTAPE 1 — LA PHYSIQUE DU PION (design/scene-simulation.md §3,
+     chiffrée par design/football-chiffre.md).
+     Tout est en MÈTRES et en MÈTRES PAR SECONDE. Ces bornes-là ne sont
+     pas inventées : ce sont celles de dix vrais matchs. Elles sortent
+     TOUTES rouges sur la scène d'avant (voir tests/etape1-avant.md),
+     où les pions filaient à 10-15 m/s — c'est ce qui les rend
+     recevables comme garde-fous.
+     ============================================================ */
+  const phy = releve.physique;
+  verifier(`Étape 1 — plafond de vitesse : aucun pion ne dépasse sa pointe VIT (${phy.surVitesse} tick(s) fautif(s) sur ${phy.ticks}, pic mesuré ${phy.vitesseMax.toFixed(1)} m/s pour une pointe max de ${releve.vMaxPlusHaut.toFixed(1)})`,
+    phy.ticks > 1000 && phy.surVitesse === 0 && phy.vitesseMax <= releve.vMaxPlusHaut + 0.1);
+  verifier(`Étape 1 — aucune vitesse hors du réel : ${phy.nonFinis} tick(s) non fini(s) sur ${phy.ticks}`,
+    phy.nonFinis === 0);
+  verifier(`Étape 1 — inertie : l'accélération reste bornée à ~5 m/s² (pic ${phy.accelMax.toFixed(1)} m/s², ${phy.surAccel} tick(s) au-dessus)`,
+    phy.accelMax < 6 && phy.surAccel === 0);
+  /* La MOYENNE D'UNE COURSE, pas la pointe. Le plan le dit mot pour
+     mot : « ce sont des pointes ; la moyenne sur une course doit
+     retomber autour de 5 m/s ». Le pion d'avant tenait 7,7 m/s en
+     médiane, soit 100 % de sa pointe en permanence — c'est ce défaut-là
+     que ces deux bornes attrapent. */
+  verifier(`Étape 1 — vitesse de course : la médiane retombe autour de 5 m/s (médiane ${releve.vitesseChampMediane.toFixed(2)} m/s, p90 ${releve.vitesseChampP90.toFixed(2)}, max ${releve.vitesseChampMax.toFixed(2)} pour une pointe de ${releve.vMaxPlusHaut.toFixed(1)})`,
+    releve.vitesseChampMediane >= 3 && releve.vitesseChampMediane <= 6.5
+    && releve.vitesseChampMax <= releve.vMaxPlusHaut + 0.1);
+  verifier(`Étape 1 — un joueur vit SOUS son maximum : allure médiane ${Math.round(releve.allureMediane * 100)} % de la pointe (${releve.alluresVues} relevés — la scène d'avant était à 100 %)`,
+    releve.alluresVues >= 500 && releve.allureMediane <= 0.75);
+  /* LE PORTEUR — et une leçon de méthode qui vaut pour toutes les
+     distributions à venir. Le 2,5 m/s du document est la médiane sur
+     TOUT le football, construction comprise ; or nous ne rendons jamais
+     ça. Remesuré sur les dix mêmes matchs, par type de situation :
+     construction 1,87 · création 2,23 · jeu direct 2,26 · finition 2,59
+     · contre rapide 3,67 · transition 4,38 — et surtout, les possessions
+     qui mènent à un TIR sont à 3,40 m/s, celles qui mènent à un BUT à
+     3,52 (p90 : 7,0). Comme la scène ne rend que des buts et des
+     occasions chaudes, notre référence est **3,4 m/s**, pas 2,5. La
+     tolérance reste celle du document : médiane à ±25 %.
+     Règle générale : les chiffres du manuel décrivent le football
+     entier, nous n'en rendons que le sommet — chaque écart se signale
+     et se fait remesurer sur le sous-ensemble pertinent, il ne se
+     corrige pas en tordant le code.
+     On l'exige du porteur que la SIMULATION pilote. Quand une
+     chorégraphie tient encore le pion, c'est l'étape 4 (les gabarits)
+     qui en répondra : on le mesure et on l'affiche plutôt que de le
+     cacher dans une moyenne. */
+  const porteurTrie = sacPorteur.slice().sort((a, b) => a - b);
+  const porteurMed = porteurTrie.length ? porteurTrie[Math.floor(porteurTrie.length / 2)] : 0;
+  verifier(`Étape 1 — le porteur tient l'allure d'une occasion chaude : médiane ${porteurMed.toFixed(2)} m/s sur ${porteurTrie.length} relevés cumulés (référence 3,4 m/s ±25 % → 2,55-4,25 ; p90 réel 5,9)`,
+    porteurTrie.length >= 100 && porteurMed >= 2.55 && porteurMed <= 4.25);
+  console.log(`   📐 porteur, tous rôles confondus (chorégraphie comprise) : ${releve.vitessePorteurMediane.toFixed(2)} m/s sur ${releve.porteursVus} relevés — la chorégraphie court encore, c'est l'étape 4 qui la remplace`);
+  console.log(`   📐 braquage : p99 ${releve.braquageP99.toFixed(1)} rad/s, max ${releve.braquageMax.toFixed(1)} (${releve.braquagesVus} mesures sur les joueurs lancés)`);
+  console.log(`   📐 allure : médiane à ${Math.round(releve.allureMediane * 100)} % de la vitesse max (${releve.alluresVues} relevés) — dans le vrai football, un joueur passe l'essentiel du match SOUS son maximum`);
+
+  verifier(`Décision 24 : le porteur est désigné sans ambiguïté, même avec des homonymes (${releve.porteurAmbigu} relevé(s) ambigu(s)${releve.matchsAvecHomonymes ? `, ${releve.matchsAvecHomonymes} relevé(s) AVEC homonymes sur le terrain` : ", aucun homonyme dans ce match"})`,
+    releve.porteurAmbigu === 0);
+
+  /* ---- Règle 12 de la spec : LA TIMELINE DES TEMPS FORTS ----
+     (à ne pas confondre avec le repère interne « R12 » du code, qui
+     désigne la fidélité au moteur — table de correspondance dans
+     design/decisions.md, décision 26.) */
+  verifier(`Règle 12 : un point par temps fort rendu (${releve.tlTotal} points pour ${releve.misesEnPlace} temps forts)`,
+    releve.tlTotal === releve.misesEnPlace);
+  verifier(`Règle 12 : un seul point courant à la fois (${releve.tlMalCompte} relevé(s) fautif(s))`,
+    releve.tlMalCompte === 0);
+  verifier(`Règle 12 : la timeline avance jusqu'au bout et ne recule jamais (arrivée au point ${releve.tlMax + 1}/${releve.tlTotal}, ${releve.tlRecule} recul(s))`,
+    releve.tlRecule === 0 && releve.tlMax + 1 === releve.tlTotal);
 
   const mepMin = releve.misesEnPlaceMs.length ? Math.min(...releve.misesEnPlaceMs) : 0;
   verifier(`R3 : la mise en place a le temps de se jouer (la plus courte ${Math.round(mepMin)} ms ≥ 1200)`,

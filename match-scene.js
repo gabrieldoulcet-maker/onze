@@ -88,6 +88,7 @@ const ONZE_SCENE = (() => {
     replay: true,         // « Revoir les buts »
     etiquettes: true,     // les noms sur les protagonistes
     trainee: true,        // « Ballon animé » : la traînée
+    tempsMorts: "scores", // « Affichage des temps morts » : scores | stats | les-deux
     stade: "emeraude",    // le thème de stade (R13) — un décor PEINT par défaut :
                           // un joueur neuf voit le Grand Soir sans rien régler
   };
@@ -108,6 +109,27 @@ const ONZE_SCENE = (() => {
     Object.assign(r, patch);
     try { localStorage.setItem(CLE_REGLAGES, JSON.stringify(r)); } catch (e) { /* ignoré */ }
     return r;
+  }
+
+  /* ============================================================
+     LE TERRAIN, EN MÈTRES (design/football-chiffre.md §1).
+     Densité constante du football réel : 324 m² par joueur, comptés
+     sur le TOTAL des deux équipes, en gardant le rapport
+     longueur/largeur du football (1,53). Au-delà de 22 joueurs on ne
+     dépasse pas le rectangle peint.
+     Tout le reste de la scène calcule en MÈTRES — jamais en pourcents,
+     jamais en pixels. C'est ce qui rend les chiffres du football
+     directement utilisables, et le mouvement identique à toute taille
+     d'écran et à tout effectif.
+     ============================================================ */
+  const M2_PAR_JOUEUR = 324;
+  const RAPPORT_TERRAIN = 1.53;
+  function dimensionsTerrain(nbJoueurs) {
+    const n = Math.max(2, nbJoueurs || 22);
+    if (n >= 22) return { L: 104, W: 68 };
+    const surface = n * M2_PAR_JOUEUR;
+    const W = Math.sqrt(surface / RAPPORT_TERRAIN);
+    return { L: Math.round(W * RAPPORT_TERRAIN), W: Math.round(W) };
   }
 
   const ligneDuJoueur = (j) => j.ligne || j.poste;
@@ -258,6 +280,14 @@ const ONZE_SCENE = (() => {
     bande.innerHTML = `<span class="texte-commentaire"></span>`;
     racine.appendChild(bande);
     const texteCommentaire = bande.querySelector(".texte-commentaire");
+    /* RÈGLE 12 de design/scene-fm.md : LA TIMELINE DES TEMPS FORTS —
+       une rangée de points en haut,
+       un par temps fort rendu du match, le courant en surbrillance.
+       C'est le fil du match d'un coup d'œil : combien de moments, où on
+       en est. Placée à droite du tableau de score, comme chez FM. */
+    const timeline = document.createElement("div");
+    timeline.className = "timeline-tf";
+    racine.appendChild(timeline);
     // la barre de possession, qui prend la place du commentaire au repos
     const barrePossession = document.createElement("div");
     barrePossession.className = "barre-possession";
@@ -274,22 +304,41 @@ const ONZE_SCENE = (() => {
        En pourcentage de terrain, camp « moi » à gauche. Le style de
        l'École déforme le bloc : Catenaccio recule, Kick & Rush pousse
        son pivot, La Grinta monte d'un cran (R11/R12). */
-    const xLigne = (camp, ligne) => {
-      const base = { "GAR": 5, "DÉF": 22, "MIL": 38, "ATT": 50 }[ligne] || 40;
-      const st = styles[camp];
-      let x = base;
-      if (st.style === "catenaccio" && ligne !== "GAR") x -= 6;
-      if (st.style === "kickrush" && ligne === "ATT") x += 5;
-      if (st.style === "grinta" && ligne !== "GAR") x += 3;
-      if (st.style === "tiki" && ligne === "MIL") x += 2;
-      return camp === "moi" ? x : 100 - x;
-    };
-    const BUTS = { moi: { x: 1.5, y: 50 }, eux: { x: 98.5, y: 50 } };
+    /* Le terrain de CE match, en mètres : la densité de 324 m² par
+       joueur commande ses dimensions (décision 50). */
+    const TERRAIN = dimensionsTerrain(eqA.joueurs.length + eqB.joueurs.length);
+    const DEMI_L = TERRAIN.L / 2, DEMI_W = TERRAIN.W / 2;
+    /* Le repère du football réel : origine au CENTRE, x vers le but de
+       « eux » (positif), y latéral. C'est le repère des données de
+       design/football-chiffre.md, donc leurs chiffres s'appliquent sans
+       conversion. */
+    const BUTS = { moi: { x: -DEMI_L, y: 0 }, eux: { x: DEMI_L, y: 0 } };
+    /* L'encombrement d'un pion, EN MÈTRES : c'est ce rayon qui sert à
+       l'espacement (R4) comme au dessin. 2,7 % de la largeur du terrain
+       → ~1,8 m de rayon, soit un diamètre de ~5 % de la hauteur affichée,
+       l'échelle FM (décision 33). Un seul chiffre, deux usages : le pion
+       dessiné et le pion qui pousse son voisin ne peuvent plus diverger. */
+    const RAYON_PION_M = TERRAIN.W * 0.027;
     const sensDe = (camp) => (camp === "moi" ? 1 : -1);   // vers quel but on attaque
+    /* Les lignes d'une formation, en fraction de la demi-longueur
+       depuis son propre but. La dernière ligne à 0,35 donne les 18 m du
+       football réel sur un terrain complet. */
+    const FRACTION_LIGNE = { "GAR": 0.05, "DÉF": 0.35, "MIL": 0.62, "ATT": 0.85 };
+    const xLigne = (camp, ligne) => {
+      let f = FRACTION_LIGNE[ligne] !== undefined ? FRACTION_LIGNE[ligne] : 0.62;
+      const st = styles[camp];
+      if (st.style === "catenaccio" && ligne !== "GAR") f -= 0.12;
+      if (st.style === "kickrush" && ligne === "ATT") f += 0.10;
+      if (st.style === "grinta" && ligne !== "GAR") f += 0.06;
+      if (st.style === "tiki" && ligne === "MIL") f += 0.04;
+      const depuisSonBut = f * DEMI_L;
+      return camp === "moi" ? -DEMI_L + depuisSonBut : DEMI_L - depuisSonBut;
+    };
     /* Un joueur de champ ne va JAMAIS au fond du terrain : sans cette
        borne, une percée « course » finit le tireur sur le poteau de
        corner et la frappe n'a plus de sens. */
-    const dansLeJeu = (x) => borne(x, 11, 89);
+    const dansLeJeu = (x) => borne(x, -DEMI_L + 8, DEMI_L - 8);
+    const dansLaLargeur = (y) => borne(y, -DEMI_W + 1.5, DEMI_W - 1.5);
 
     const pions = {};
     const listePions = [];
@@ -302,8 +351,9 @@ const ONZE_SCENE = (() => {
           const j = parLigne[ligne][i];
           const n = parLigne[ligne].length;
           const st = styles[camp];
-          let y = n === 1 ? 50 : 16 + (68 * i) / (n - 1);
-          if (st.couloirs && n >= 2 && (i === 0 || i === n - 1)) y = i === 0 ? 10 : 90;
+          // étalés sur 68 % de la largeur ; les Pistons collent aux couloirs
+          let y = n === 1 ? 0 : (-0.34 + (0.68 * i) / (n - 1)) * TERRAIN.W;
+          if (st.couloirs && n >= 2 && (i === 0 || i === n - 1)) y = (i === 0 ? -0.40 : 0.40) * TERRAIN.W;
           const stats = j.stats || {};
           // R12 : la VITESSE de la fiche pilote la vitesse VISIBLE du pion
           const vit = stats.vitesse || 50;
@@ -314,12 +364,28 @@ const ONZE_SCENE = (() => {
             baseX: xLigne(camp, ligne), baseY: y,
             x: xLigne(camp, ligne), y, vx: 0, vy: 0,
             cx: null, cy: null,           // cible imposée par un temps (sinon ambiante)
-            vMax: 11 + (vit / 100) * 13,   // 11 à 24 % de terrain / seconde
-            accel: 26 + (vit / 100) * 22,  // % de terrain / s² : de 0 à pleine vitesse en ~0,5 s
+            /* LES CHIFFRES DU FOOTBALL RÉEL (design/football-chiffre.md
+               §3 du plan) : pointe de 6,5 m/s pour un lent à 9,5 pour un
+               rapide, accélération 3,5 m/s², décélération 5 m/s². Un
+               joueur ne démarre ni ne s'arrête d'un coup — c'est
+               l'inertie qui sépare un footballeur d'un curseur. */
+            vMax: 6.5 + (vit / 100) * 3,   // m/s de pointe
+            accel: 3.5,                     // m/s²
+            decel: 5,                       // m/s²
+            braquage: Math.PI,              // rad/s à pleine vitesse (180°/s)
             role: null, etiquette: false, aura: 0, auraCouleur: null, flash: 0,
             echelle: 1, phase: Math.random() * 6.28, plonge: 0,
           };
-          pions[j.nom] = p;
+          /* Une clé DOIT désigner un seul pion. « camp|nom » ne suffit
+             pas : un club peut aligner deux copies non fusionnées du
+             même joueur (le pool en contient plusieurs). Le second
+             reçoit donc un suffixe, et c'est le PREMIER que la
+             résolution par nom renvoie — le moteur, lui, ne connaît que
+             les noms, on ne peut pas être plus fin que lui. */
+          let cle = camp + "|" + j.nom;
+          for (let n = 2; pions[cle]; n++) cle = camp + "|" + j.nom + "#" + n;
+          p.cle = cle;
+          pions[cle] = p;
           listePions.push(p);
         }
       }
@@ -333,15 +399,104 @@ const ONZE_SCENE = (() => {
        - en vol   : trajet à durée réelle, avec cloche et ombre au sol
        - libre    : il roule et ralentit (ballon qui traîne dans la surface) */
     const ballon = {
-      x: 50, y: 50, z: 0, vx: 0, vy: 0,
+      x: 0, y: 0, z: 0, vx: 0, vy: 0,
       porteur: null,   // nom du pion qui conduit
       vol: null,       // { x0,y0,x1,y1, t, duree, hauteur, versNom, apres }
       trainee: [],
     };
     const campDe = (nomEquipe) => (nomEquipe === eqA.nom ? "moi" : "eux");
     const adverse = (camp) => (camp === "moi" ? "eux" : "moi");
-    const pionDe = (nom) => pions[nom] || null;
+    /* FIDÉLITÉ (décision 24) : le pool contient plusieurs copies de chaque
+       joueur, donc DEUX CLUBS peuvent aligner un « Esteban » chacun. Un
+       pion s'identifie donc par CAMP + NOM, jamais par le nom seul —
+       sinon la scène met l'anneau du porteur sur les deux, et peut
+       montrer le mauvais homme en train de faire l'action du moteur.
+       `camp` omis = on cherche dans les deux (cas où le moteur ne dit
+       pas de quel côté vient l'acteur). */
+    const pionDe = (nom, camp) => {
+      if (!nom) return null;
+      if (camp) return pions[camp + "|" + nom] || null;
+      return pions["moi|" + nom] || pions["eux|" + nom] || null;
+    };
     const gardienDe = (camp) => listePions.find((p) => p.camp === camp && p.gardien) || null;
+
+    /* ============================================================
+       RÈGLE 11 — LES PERSONNAGES DU DÉCOR.
+       L'arbitre (disque noir « A ») suit le jeu près du ballon, les
+       assistants tiennent leur touche à la hauteur de l'avant-dernier
+       défenseur (la ligne de hors-jeu, comme dans la vraie vie).
+       Ils ne sont PAS des joueurs : hors de `listePions`, donc hors du
+       cerveau de placement, hors de la répulsion, hors des recettes de
+       rôles. Ce sont des figurants, et ils se comportent comme tels —
+       ils ne gênent jamais la lecture du jeu.
+       ============================================================ */
+    const arbitre = { x: 0, y: 6, vx: 0, vy: 0, vMax: 7, accel: 3.5 };
+    const assistants = [
+      { x: 0, y: 0, vx: 0, vy: 0, vMax: 8, accel: 4, cote: "haut" },
+      { x: 0, y: 0, vx: 0, vy: 0, vMax: 8, accel: 4, cote: "bas" },
+    ];
+    /* L'arbitre se tient EN DIAGONALE du ballon, jamais dessus : il suit
+       à distance, du côté où il ne coupe pas la ligne de jeu. */
+    function cibleArbitre() {
+      const cote = ballon.y > 0 ? -1 : 1;       // il se décale côté opposé
+      return { x: dansLeJeu(ballon.x - 5), y: borne(ballon.y + cote * 8, -DEMI_W + 4, DEMI_W - 4) };
+    }
+    /* Un assistant tient sa touche et se cale sur la ligne de hors-jeu
+       de la moitié qu'il couvre : l'avant-dernier défenseur. */
+    function cibleAssistant(a) {
+      const camp = ballon.x < 0 ? "moi" : "eux";
+      const arriere = listePions
+        .filter((p) => p.camp === camp && !p.gardien)
+        .sort((q, w) => Math.abs(q.x - BUTS[camp].x) - Math.abs(w.x - BUTS[camp].x));
+      const ligne = arriere.length >= 2 ? arriere[1].x : ballon.x;
+      return { x: borne(lerp(ligne, ballon.x, 0.25), -DEMI_L + 2, DEMI_L - 2), y: a.y };
+    }
+    function majFigurants(dt, dtBrut) {
+      const bouger = (f, cible) => {
+        const dx = cible.x - f.x, dy = cible.y - f.y;
+        const d = Math.hypot(dx, dy);
+        const v = Math.min(f.vMax, d * 3.4);
+        const vx = d > 0.02 ? (dx / d) * v : 0, vy = d > 0.02 ? (dy / d) * v : 0;
+        const ax = vx - f.vx, ay = vy - f.vy;
+        const norme = Math.hypot(ax, ay);
+        const budget = f.accel * dtBrut;
+        const k = norme > budget ? budget / norme : 1;
+        f.vx += ax * k; f.vy += ay * k;
+        f.x = borne(f.x + f.vx * dt, -DEMI_L, DEMI_L);
+        f.y = borne(f.y + f.vy * dt, -DEMI_W - 1, DEMI_W + 1);
+      };
+      bouger(arbitre, cibleArbitre());
+      for (const a of assistants) bouger(a, cibleAssistant(a));
+    }
+    function dessinerFigurants() {
+      const r = rayonPion() * 0.82;            // un peu plus petits qu'un joueur
+      ctx.save();
+      // les assistants : un trait sur la touche, discret
+      for (const a of assistants) {
+        const Xa = X(a.x), Ya = Y(a.y);
+        ctx.beginPath();
+        ctx.ellipse(Xa, Ya, r * 0.72, r * 0.5, 0, 0, 6.283);
+        ctx.fillStyle = "rgba(18,22,20,0.9)"; ctx.fill();
+        ctx.lineWidth = Math.max(r * 0.2, 0.6);
+        ctx.strokeStyle = "rgba(242,193,78,0.75)"; ctx.stroke();   // le drapeau
+      }
+      // l'arbitre : disque noir marqué « A »
+      const Xa = X(arbitre.x), Ya = Y(arbitre.y);
+      ctx.beginPath();
+      ctx.ellipse(Xa + r * 0.16, Ya + r * 0.55, r * 0.9, r * 0.36, 0, 0, 6.283);
+      ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fill();
+      ctx.beginPath(); ctx.arc(Xa, Ya, r, 0, 6.283);
+      ctx.fillStyle = "#14181A"; ctx.fill();
+      ctx.lineWidth = Math.max(r * 0.16, 0.6);
+      ctx.strokeStyle = "rgba(253,248,234,0.5)"; ctx.stroke();
+      if (r >= 4) {
+        ctx.fillStyle = "rgba(253,248,234,0.9)";
+        ctx.font = `800 ${(r * 1.05).toFixed(1)}px Archivo, system-ui, sans-serif`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("A", Xa, Ya + 0.3);
+      }
+      ctx.restore();
+    }
 
     /* ---- État de la scène ---- */
     let regime = "repos";       // repos | miseEnPlace | action | ralenti | cut | replay
@@ -385,12 +540,13 @@ const ONZE_SCENE = (() => {
        ============================================================ */
 
     /* --- Outils de géométrie de terrain --- */
-    const distance = (a, b) => Math.hypot(a.x - b.x, (a.y - b.y) * 0.62);
+    // en mètres, x et y ont la même échelle : plus de facteur correctif
+    const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
     /* La distance d'un pion au segment de passe : c'est elle qui dit si
        une ligne de passe est ouverte ou fermée. */
     function distanceAuSegment(q, a, b) {
-      const vx = b.x - a.x, vy = (b.y - a.y) * 0.62;
-      const wx = q.x - a.x, wy = (q.y - a.y) * 0.62;
+      const vx = b.x - a.x, vy = b.y - a.y;
+      const wx = q.x - a.x, wy = q.y - a.y;
       const l2 = vx * vx + vy * vy;
       const t = l2 ? borne((wx * vx + wy * vy) / l2, 0, 1) : 0;
       return Math.hypot(wx - vx * t, wy - vy * t);
@@ -399,7 +555,7 @@ const ONZE_SCENE = (() => {
     function ligneOuverte(de, vers, camp) {
       for (const q of listePions) {
         if (q.camp === camp || q.gardien) continue;
-        if (distanceAuSegment(q, de, vers) < 3.4) return false;
+        if (distanceAuSegment(q, de, vers) < 2) return false;   // 2 m : la ligne est coupée
       }
       return true;
     }
@@ -409,20 +565,62 @@ const ONZE_SCENE = (() => {
     function hauteurLigne(camp) {
       const sens = sensDe(camp);
       const but = BUTS[camp].x;
-      const ecart = Math.abs(ballon.x - but);
-      const bas = styles[camp].style === "catenaccio" ? 6 : 10;   // le bloc bas est une identité
-      const haut = styles[camp].style === "grinta" ? 50 : 42;     // La Grinta presse haut
-      return but + sens * borne(ecart * 0.62, bas, haut);
+      const ecart = Math.abs(refBloc.x - but);
+      // mesures réelles : dernière ligne à 17,7 m du but en médiane,
+      // p10 0,3 m (bloc écrasé) et p90 39,5 m (bloc haut)
+      const bas = styles[camp].style === "catenaccio" ? 4 : 7;
+      const haut = styles[camp].style === "grinta" ? 44 : 38;
+      return but + sens * borne(ecart * 0.35, bas, haut);
+    }
+
+    /* ============================================================
+       LA RÉFÉRENCE DU BLOC — un bloc ne se téléporte pas.
+       Un ballon frappé file à 27 m/s ; une équipe coulisse à quelques
+       mètres par seconde. Faire suivre la FORME au ballon lui-même
+       donnait aux 22 pions une cible plus rapide qu'eux : ils
+       couraient à fond en permanence sans jamais arriver. La forme
+       suit donc une référence RETARDÉE, bornée à 4,5 m/s.
+       Ce n'est pas un lissage cosmétique : c'est ce que fait un vrai
+       bloc, et c'est un ÉTAT, pas une fonction du temps.
+       ============================================================ */
+    const VITESSE_BLOC = 4.5;                    // m/s
+    const refBloc = { x: 0, y: 0 };
+    function majReferenceBloc(dtBrut) {
+      const dx = ballon.x - refBloc.x, dy = ballon.y - refBloc.y;
+      const d = Math.hypot(dx, dy);
+      const pas = VITESSE_BLOC * dtBrut;
+      if (!isFinite(d)) return;                      // ballon hors du réel : on ne bouge pas
+      if (!(d > pas) || d < 1e-6) { refBloc.x = ballon.x; refBloc.y = ballon.y; return; }
+      refBloc.x += (dx / d) * pas; refBloc.y += (dy / d) * pas;
+    }
+
+    /* UNE CIBLE EST UN POINT, PAS UNE DIRECTION.
+       « Trois mètres devant moi », recalculé à chaque frame, est une
+       carotte au bout d'un bâton : le pion ne l'atteint jamais, l'arrivée
+       douce ne s'enclenche jamais, et il court à fond du début à la fin.
+       On ANCRE donc le point une fois pour toutes ; on n'en donne un
+       nouveau qu'une fois celui-là ATTEINT (ou le rôle changé). C'est ce
+       qui produit le rythme d'arrêts et de relances du vrai football —
+       un porteur qui avance de 1,75 m en 1 s, un appel de 10,7 m en
+       2,1 s (design/football-chiffre.md §2 et §4). */
+    function ancrer(p, cle, calcul, arrive) {
+      const a = p.ancre;
+      if (!a || a.cle !== cle || Math.hypot(a.x - p.x, a.y - p.y) < arrive) {
+        const c = calcul();
+        p.ancre = { cle, x: c.x, y: c.y };
+      }
+      return { x: p.ancre.x, y: p.ancre.y };
     }
 
     /* --- 8. LE GARDIEN : sur l'axe ballon-but, il sort quand ça chauffe --- */
     function cibleGardien(g) {
       const sens = sensDe(g.camp);
       const but = BUTS[g.camp];
-      const proche = Math.abs(ballon.x - but.x) < 22;
-      const sortie = proche ? borne((22 - Math.abs(ballon.x - but.x)) * 0.35, 0, 7) : 0;
-      return { x: but.x + sens * (2.5 + sortie),
-        y: 50 + (ballon.y - 50) * (proche ? 0.55 : 0.3) };
+      const ecart = Math.abs(refBloc.x - but.x);
+      const proche = ecart < 20;
+      const sortie = proche ? borne((20 - ecart) * 0.30, 0, 6) : 0;
+      return { x: but.x + sens * (1.5 + sortie),
+        y: refBloc.y * (proche ? 0.55 : 0.3) };
     }
 
     /* --- 1. LE PORTEUR : il conduit vers l'avant, vers l'espace libre.
@@ -431,18 +629,20 @@ const ONZE_SCENE = (() => {
     function cibleConduite(p) {
       const sens = sensDe(p.camp);
       const but = BUTS[adverse(p.camp)];
-      let x = p.x + sens * 13;
-      let y = lerp(p.y, but.y, 0.22);
+      /* Mesure réelle : un porteur garde le ballon 1 s et parcourt
+         1,75 m en médiane, à 2,5 m/s. Il ne part pas en cavalcade — il
+         avance de deux ou trois mètres et cherche une solution. */
+      let x = p.x + sens * 2;
+      let y = lerp(p.y, but.y, 0.08);
       const presseur = listePions
         .filter((q) => q.camp !== p.camp && !q.gardien)
         .sort((a, b) => distance(a, p) - distance(b, p))[0];
-      if (presseur && distance(presseur, p) < 12) {
-        // l'esquive : on s'écarte du côté opposé au presseur
+      if (presseur && distance(presseur, p) < 6) {   // il ferme à 2,6 m
         const cote = presseur.y > p.y ? -1 : 1;
-        y = borne(p.y + cote * 10, 8, 92);
-        x = p.x + sens * 7;
+        y = p.y + cote * 4;
+        x = p.x + sens * 2;
       }
-      return { x: dansLeJeu(x), y: borne(y, 6, 94) };
+      return { x: dansLeJeu(x), y: dansLaLargeur(y) };
     }
 
     /* --- 2. L'APPEL EN PROFONDEUR — la règle reine de la projection.
@@ -456,23 +656,27 @@ const ONZE_SCENE = (() => {
       const suivant = sequenceCourante[indexCourant + 1];
       if (!suivant) return null;
       const nom = suivant.vers || suivant.tireur || suivant.acteur;
-      const p = nom && pionDe(nom);
-      if (!p || p.nom === ballon.porteur) return null;
+      const campSuivant = suivant.equipe ? campDe(suivant.equipe)
+        : sequenceCourante.equipe ? campDe(sequenceCourante.equipe) : null;
+      const p = nom && pionDe(nom, campSuivant);
+      if (!p || p.cle === ballon.porteur) return null;
       return p;
     }
     function cibleAppel(p) {
       const sens = sensDe(p.camp);
       const but = BUTS[adverse(p.camp)];
       const ligne = hauteurLigne(adverse(p.camp));
-      let x = p.x + sens * 16;
-      let y = lerp(p.y, but.y, 0.18);
+      // longueur d'appel réelle : 10,7 m en médiane (8,3 pour un
+      // décrochage, 19,4 pour un débordement extérieur)
+      let x = p.x + sens * 10;
+      let y = lerp(p.y, but.y, 0.12);
       // s'il s'apprête à traverser la ligne de face, il l'élargit d'abord
       const traverse = sens > 0 ? (p.x < ligne && x > ligne) : (p.x > ligne && x < ligne);
       if (traverse) {
-        const cote = p.y < 50 ? -1 : 1;
-        y = borne(p.y + cote * 9, 8, 92);
+        const cote = p.y < 0 ? -1 : 1;
+        y = p.y + cote * 6;
       }
-      return { x: dansLeJeu(x), y: borne(y, 6, 94) };
+      return { x: dansLeJeu(x), y: dansLaLargeur(y) };
     }
 
     /* --- 3. LES SOUTIENS : le triangle permanent du football.
@@ -480,7 +684,8 @@ const ONZE_SCENE = (() => {
        distance de passe, dans un angle OUVERT. Si un défenseur ferme la
        ligne, ils se déplacent pour la rouvrir — et c'est ce
        réajustement continu qui remplace la sinusoïde. --- */
-    const DISTANCE_SOUTIEN = { tiki: 12, catenaccio: 16, kickrush: 19, rue: 13, total: 15, grinta: 15 };
+    // distance de passe réelle : p10 6 m, médiane 12,9, p90 23,3
+    const DISTANCE_SOUTIEN = { tiki: 9, catenaccio: 13, kickrush: 18, rue: 10, total: 13, grinta: 13 };
     function cibleSoutien(p, porteur) {
       const sens = sensDe(p.camp);
       const d = DISTANCE_SOUTIEN[styles[p.camp].style] || 15;
@@ -488,15 +693,15 @@ const ONZE_SCENE = (() => {
       for (let k = 0; k < 12; k++) {
         const angle = (k / 12) * 6.283;
         const c = { x: porteur.x + Math.cos(angle) * d,
-                    y: porteur.y + Math.sin(angle) * d * 1.35, camp: p.camp };
-        if (c.x < 7 || c.x > 93 || c.y < 7 || c.y > 93) continue;
+                    y: porteur.y + Math.sin(angle) * d, camp: p.camp };
+        if (Math.abs(c.x) > DEMI_L - 5 || Math.abs(c.y) > DEMI_W - 3) continue;
         let score = ligneOuverte(porteur, c, p.camp) ? 12 : 0;   // l'angle ouvert d'abord
         score += (c.x - porteur.x) * sens * 0.35;                // on préfère l'avant
         score -= distance(c, p) * 0.30;                          // sans courir à l'autre bout
         // INERTIE DE DÉCISION : on ne change pas d'idée pour un cheveu.
         // Sans ça, le meilleur angle bascule à chaque frame et le joueur
         // fait des allers-retours — un bruit pire que la sinusoïde.
-        if (p.soutienMemo) score += 6 - Math.min(6, distance(c, p.soutienMemo));
+        if (p.soutienMemo) score += 6 - Math.min(6, distance(c, p.soutienMemo));   // 6 m d'inertie
         if (score > meilleurScore) { meilleurScore = score; meilleure = c; }
       }
       if (meilleure) p.soutienMemo = { x: meilleure.x, y: meilleure.y };
@@ -514,8 +719,8 @@ const ONZE_SCENE = (() => {
                      y: homme.y + (homme.vy || 0) * 0.35 };
       const dx = but.x - vise.x, dy = but.y - vise.y;
       const n = Math.hypot(dx, dy) || 1;
-      return { x: borne(vise.x + (dx / n) * 3.2, 2, 98),
-               y: borne(vise.y + (dy / n) * 3.2, 3, 97) };
+      return { x: borne(vise.x + (dx / n) * 2.5, -DEMI_L + 1, DEMI_L - 1),
+               y: dansLaLargeur(vise.y + (dy / n) * 2.5) };
     }
 
     /* --- 7. L'ÉQUILIBRE : la forme du bloc (coulissement, compression,
@@ -524,14 +729,14 @@ const ONZE_SCENE = (() => {
     function cibleEquilibre(p) {
       const sens = sensDe(p.camp);
       const attaque = possession === p.camp;
-      const glisse = (ballon.x - 50) * (attaque ? 0.62 : 0.66);
+      const glisse = refBloc.x * (attaque ? 0.62 : 0.66);
       const resserre = attaque ? 0.94 : 0.80;
-      const glisseY = (ballon.y - 50) * (attaque ? 0.20 : 0.34);
+      const glisseY = refBloc.y * (attaque ? 0.20 : 0.34);
       let x = p.baseX + glisse;
-      let y = 50 + (p.baseY - 50) * resserre + glisseY;
-      if (attaque && p.ligne === "ATT") x += sens * 5;
-      if (!attaque && p.ligne === "ATT") x -= sens * 3;
-      return { x: borne(x, 2, 98), y: borne(y, 4, 96) };
+      let y = p.baseY * resserre + glisseY;
+      if (attaque && p.ligne === "ATT") x += sens * 4;
+      if (!attaque && p.ligne === "ATT") x -= sens * 2.5;
+      return { x: borne(x, -DEMI_L + 1, DEMI_L - 1), y: dansLaLargeur(y) };
     }
 
     /* ============================================================
@@ -550,6 +755,7 @@ const ONZE_SCENE = (() => {
       for (const p of listePions) {
         // la mémoire d'une décision ne survit pas au changement de rôle
         if (p.role !== "soutien") p.soutienMemo = null;
+        if (p.role !== "porteur" && p.role !== "appel") p.ancre = null;
         if (p.role !== "marquage") p.marque = null;
         p.role = null; p.cible = null;
       }
@@ -572,12 +778,19 @@ const ONZE_SCENE = (() => {
       }
       // 1. le porteur
       if (jeuVivant && porteur && !porteur.cible) {
-        porteur.role = "porteur"; porteur.cible = cibleConduite(porteur);
+        porteur.role = "porteur";
+        /* Il va VRAIMENT au bout de ses deux mètres avant d'en demander
+           deux autres : c'est ce qui le fait ralentir, s'arrêter presque,
+           et chercher une solution — 1 s de possession, 1,75 m parcourus.
+           Un seuil d'arrivée large relançait la course avant l'arrêt et
+           le porteur cavalcadait à 4 m/s. */
+        porteur.cible = ancrer(porteur, "porteur", () => cibleConduite(porteur), 0.5);
       }
       // 2. l'appel en profondeur — un seul appel tranchant à la fois
       const receveur = jeuVivant ? receveurAttendu() : null;
       if (receveur && !receveur.cible && !receveur.gardien) {
-        receveur.role = "appel"; receveur.cible = cibleAppel(receveur);
+        receveur.role = "appel";
+        receveur.cible = ancrer(receveur, "appel", () => cibleAppel(receveur), 1.5);
       }
       // 3. les soutiens : les 2 plus proches du porteur
       if (jeuVivant && porteur) {
@@ -596,17 +809,21 @@ const ONZE_SCENE = (() => {
         const zoneBasse = Math.abs(ballon.x - BUTS[campDef].x) < 30;
         const candidatsPress = listePions
           .filter((q) => q.camp === campDef && !q.gardien && !q.cible &&
+            // presser, c'est partir de PRÈS : 5,9 m en médiane, 9,5 au
+            // p90 (design/football-chiffre.md §5). Celui qui est à
+            // trente mètres ne presse pas, il tient son bloc.
+            distance(q, ballon) < 16 &&
             !(zoneBasse && q.ligne === "ATT"));  // le point haut ne redescend pas presser
-        // INERTIE : celui qui pressait déjà garde la mission (bonus de 6 %
-        // de terrain) — sinon les deux plus proches changent chaque frame
+        // INERTIE : celui qui pressait déjà garde la mission (6 m de
+        // bonus) — sinon les deux plus proches changent chaque frame
         candidatsPress
           .sort((a, b) => (distance(a, ballon) - (a.pressait ? 6 : 0)) -
                           (distance(b, ballon) - (b.pressait ? 6 : 0)))
           .slice(0, 2)
           .forEach((q) => {
             q.role = "pressing";
-            q.cible = { x: borne(ballon.x - sens * 2.5, 2, 98),
-                        y: borne(ballon.y + (q.y > ballon.y ? 1.4 : -1.4), 3, 97) };
+            q.cible = { x: borne(ballon.x - sens * 2.6, -DEMI_L + 1, DEMI_L - 1),
+                        y: dansLaLargeur(ballon.y + (q.y > ballon.y ? 1 : -1)) };
           });
       }
       // 5. le marquage : dans NOTRE tiers, chaque danger a son homme
@@ -627,7 +844,7 @@ const ONZE_SCENE = (() => {
           const libres = [];
           // on GARDE son homme tant qu'il reste dangereux
           for (const d of candidats) {
-            const homme = d.marque && aMarquer.find((h) => h.nom === d.marque);
+            const homme = d.marque && aMarquer.find((h) => h.cle === d.marque);
             if (homme && !pris.has(homme.nom)) {
               pris.add(homme.nom);
               d.role = "marquage"; d.cible = cibleMarquage(d, homme);
@@ -639,7 +856,7 @@ const ONZE_SCENE = (() => {
             libres.sort((a, b) => distance(a, homme) - distance(b, homme));
             const d = libres.shift();
             pris.add(homme.nom);
-            d.role = "marquage"; d.marque = homme.nom; d.cible = cibleMarquage(d, homme);
+            d.role = "marquage"; d.marque = homme.cle; d.cible = cibleMarquage(d, homme);
           }
           for (const d of libres) d.marque = null;   // il a lâché son homme
         }
@@ -653,7 +870,7 @@ const ONZE_SCENE = (() => {
           .forEach((q) => {
             q.role = "ligne";
             const eq = cibleEquilibre(q);
-            q.cible = { x: borne(h, 2, 98), y: eq.y };
+            q.cible = { x: borne(h, -DEMI_L + 1, DEMI_L - 1), y: eq.y };
           });
       }
       // 7. l'équilibre : tous les autres tiennent la forme
@@ -670,19 +887,20 @@ const ONZE_SCENE = (() => {
     /* Le ballon part TOUJOURS d'où il est (jamais du passeur théorique :
        ce serait une téléportation) et vise le receveur, devant sa course. */
     function passer(deNom, versNom, opts = {}) {
-      const vers = pionDe(versNom);
+      const vers = pionDe(versNom, opts.camp);
       // R4 : la passe est donnée DEVANT la course du receveur
       const avance = opts.devantLaCourse === false ? 0 : 0.28;
-      const x1 = vers ? borne(vers.x + vers.vx * avance, 2, 98) : (opts.x1 !== undefined ? opts.x1 : ballon.x);
-      const y1 = vers ? borne(vers.y + vers.vy * avance, 3, 97) : (opts.y1 !== undefined ? opts.y1 : ballon.y);
+      const x1 = vers ? borne(vers.x + vers.vx * avance, -DEMI_L, DEMI_L) : (opts.x1 !== undefined ? opts.x1 : ballon.x);
+      const y1 = vers ? borne(vers.y + vers.vy * avance, -DEMI_W, DEMI_W) : (opts.y1 !== undefined ? opts.y1 : ballon.y);
       const dist = Math.hypot(x1 - ballon.x, y1 - ballon.y);
-      const vitesse = opts.vitesse || 62;                       // % de terrain / seconde
+      // vitesses réelles : passe au sol 15-20 m/s, frappe 25-30
+      const vitesse = opts.vitesse || 17;                       // m/s
       ballon.porteur = null;
       ballon.vol = {
         x0: ballon.x, y0: ballon.y, x1, y1, t: 0,
-        duree: Math.max(0.14, dist / vitesse),
-        hauteur: opts.cloche ? Math.min(dist * 0.11, 9) : (opts.hauteur || 0),
-        versNom: vers ? vers.nom : null,
+        duree: Math.max(0.12, dist / vitesse),
+        hauteur: opts.cloche ? Math.min(dist * 0.16, 8) : (opts.hauteur || 0),   // mètres
+        versNom: vers ? vers.cle : null,
         apres: opts.apres || null,
       };
       return ballon.vol.duree;
@@ -691,19 +909,19 @@ const ONZE_SCENE = (() => {
       const but = BUTS[adverse(campAttaque)];
       const cible = {
         x1: but.x + sensDe(campAttaque) * -0.5,
-        y1: borne(50 + (opts.cote || 0) * 6, 41, 59),
+        y1: borne((opts.cote || 0) * 2.8, -3.5, 3.5),   // la cage fait 7,32 m
       };
-      return passer(deNom, null, { ...cible, vitesse: opts.vitesse || 105, hauteur: opts.hauteur || 2.5, apres: opts.apres });
+      return passer(deNom, null, { ...cible, vitesse: opts.vitesse || 27, hauteur: opts.hauteur || 1.2, apres: opts.apres, camp: campAttaque });
     }
     /* Donner le ballon à un joueur : s'il est loin, le ballon y VOYAGE
        (R4 — aucune téléportation, jamais, même sur un changement de
        porteur). S'il est déjà dans ses pieds, on l'accroche. */
-    function donnerLeBallon(nom, vitesse) {
-      const p = pionDe(nom);
+    function donnerLeBallon(nom, vitesse, camp) {
+      const p = pionDe(nom, camp);
       if (!p) return 0;
       const dist = Math.hypot(p.x - ballon.x, p.y - ballon.y);
-      if (dist < 3.5 && !ballon.vol) { ballon.vol = null; ballon.porteur = p.nom; return 0; }
-      return passer(null, nom, { vitesse: vitesse || 64, devantLaCourse: false });
+      if (dist < 2 && !ballon.vol) { ballon.vol = null; ballon.porteur = p.cle; return 0; }
+      return passer(null, nom, { vitesse: vitesse || 17, devantLaCourse: false, camp });
     }
 
     function majBallon(dt) {
@@ -728,20 +946,22 @@ const ONZE_SCENE = (() => {
         const v = Math.hypot(p.vx, p.vy);
         const ux = v > 0.5 ? p.vx / v : sensDe(p.camp);
         const uy = v > 0.5 ? p.vy / v : 0;
-        const devant = 1.6 + Math.min(v / 14, 1) * 2.2;
+        // le ballon reste devant le pied : 0,8 m à l'arrêt, 2 m lancé
+        const devant = 0.8 + Math.min(v / 7, 1) * 1.2;
         const cibleX = p.x + ux * devant, cibleY = p.y + uy * devant;
         const dx = cibleX - ballon.x, dy = cibleY - ballon.y;
         const d = Math.hypot(dx, dy);
         // le ballon roule vers le pied, à vitesse de course + marge
-        const vBallon = Math.max(v * 1.6, 26);
+        const vBallon = Math.max(v * 1.6, 6);   // m/s : il roule au pied
         const pas = Math.min(d, vBallon * dt);
         if (d > 0.001) { ballon.x += (dx / d) * pas; ballon.y += (dy / d) * pas; }
         ballon.z = 0;
       } else {
         // ballon libre : il roule et s'arrête
         ballon.x += ballon.vx * dt; ballon.y += ballon.vy * dt;
-        ballon.vx *= 0.94; ballon.vy *= 0.94;
-        ballon.x = borne(ballon.x, 1, 99); ballon.y = borne(ballon.y, 2, 98);
+        const amorti = Math.pow(0.25, dt);        // par SECONDE, pas par frame
+        ballon.vx *= amorti; ballon.vy *= amorti;
+        ballon.x = borne(ballon.x, -DEMI_L, DEMI_L); ballon.y = borne(ballon.y, -DEMI_W, DEMI_W);
       }
       if (reg.trainee) {
         ballon.trainee.push({ x: ballon.x, y: ballon.y, z: ballon.z });
@@ -806,18 +1026,62 @@ const ONZE_SCENE = (() => {
       possessionPct.eux = 100 - possessionPct.moi;
     }
 
+    /* Règle 12 : la timeline. `programmer` pose les points au coup d'envoi
+       (on connaît le nombre de temps forts dès la planification),
+       `avancer` allume le courant et éteint les précédents. */
+    let tfCourant = -1, tfTotal = 0;
+    function programmerTimeline(nb) {
+      tfTotal = Math.max(0, nb | 0);
+      tfCourant = -1;
+      timeline.innerHTML = "";
+      for (let i = 0; i < tfTotal; i++) {
+        const point = document.createElement("span");
+        point.className = "point-tf";
+        point.dataset.tf = String(i);
+        timeline.appendChild(point);
+      }
+      timeline.classList.toggle("visible", tfTotal > 0);
+    }
+    function avancerTimeline() {
+      tfCourant = Math.min(tfCourant + 1, tfTotal - 1);
+      timeline.querySelectorAll(".point-tf").forEach((p, i) => {
+        p.classList.toggle("passe", i < tfCourant);
+        p.classList.toggle("courant", i === tfCourant);
+      });
+    }
+
     /* ---- LE CUT (R2) : carton sec minute + score entre deux temps forts ---- */
     function cut(info, duree = 900) {
       regime = "cut";
+      avancerTimeline();        // le cut ouvre un temps fort : le point s'allume
       bande.classList.remove("visible");
       barrePossession.classList.remove("visible");
+      /* Annexe FM — L'AFFICHAGE DES TEMPS MORTS. Le carton de coupe est
+         le temps mort d'ONZE : selon le réglage, il porte les stats du
+         match en plus de la minute et du score. Les chiffres viennent
+         des événements DÉJÀ JOUÉS — zéro spoiler. */
+      const avecStats = (reg.tempsMorts === "stats" || reg.tempsMorts === "les-deux") && info.stats;
+      const barre = (libelle, a, b, suffixe) => {
+        const total = (a + b) || 1;
+        return `<div class="cut-stat">
+          <span class="cut-val">${a}${suffixe || ""}</span>
+          <span class="cut-jauge"><i style="width:${Math.round((a / total) * 100)}%"></i></span>
+          <span class="cut-nom">${libelle}</span>
+          <span class="cut-jauge droite"><i style="width:${Math.round((b / total) * 100)}%"></i></span>
+          <span class="cut-val">${b}${suffixe || ""}</span></div>`;
+      };
       const carte = document.createElement("div");
       carte.className = "carton-cut";
       carte.innerHTML =
         `<div class="cut-minute">${info.minute}ᵉ</div>` +
         `<div class="cut-score"><span>${info.nomA || eqA.nom}</span>` +
         `<strong>${info.scoreA} – ${info.scoreB}</strong>` +
-        `<span>${info.nomB || eqB.nom}</span></div>`;
+        `<span>${info.nomB || eqB.nom}</span></div>` +
+        (avecStats ? `<div class="cut-stats">
+          ${barre("possession", info.stats.possession.moi, info.stats.possession.eux, " %")}
+          ${barre("occasions", info.stats.moi.occasions, info.stats.eux.occasions)}
+          ${barre("buts", info.stats.moi.buts, info.stats.eux.buts)}
+        </div>` : "");
       couche.appendChild(carte);
       cartonCut = carte;
       requestAnimationFrame(() => carte.classList.add("visible"));
@@ -849,32 +1113,32 @@ const ONZE_SCENE = (() => {
       const sens = sensDe(camp);
       // où naît l'action, selon la situation (données du moteur)
       const zone = {
-        placee: { x: 50 + sens * 6, y: 50 },
-        contre: { x: 50 - sens * 12, y: 50 },
-        aile: { x: 50 + sens * 22, y: Math.random() < 0.5 ? 14 : 86 },
-        aerien: { x: 50 + sens * 26, y: 50 },
-        long: { x: 50 - sens * 14, y: 50 },
-      }[situation] || { x: 50, y: 50 };
+        placee: { x: sens * 4, y: 0 },
+        contre: { x: -sens * 9, y: 0 },
+        aile: { x: sens * 16, y: (Math.random() < 0.5 ? -1 : 1) * DEMI_W * 0.72 },
+        aerien: { x: sens * 19, y: 0 },
+        long: { x: -sens * 10, y: 0 },
+      }[situation] || { x: 0, y: 0 };
 
       for (const p of listePions) {
         p.cx = null; p.cy = null; p.role = null; p.etiquette = false;
         if (p.gardien) continue;
         const attaque = p.camp === camp;
         // le bloc se pose autour de la zone de naissance de l'action
-        const glisse = (zone.x - 50) * (attaque ? 0.62 : 0.66);
-        p.cx = borne(p.baseX + glisse + (attaque && p.ligne === "ATT" ? sensDe(p.camp) * 5 : 0), 4, 96);
-        p.cy = borne(50 + (p.baseY - 50) * (attaque ? 0.94 : 0.80) + (zone.y - 50) * (attaque ? 0.24 : 0.38), 5, 95);
+        const glisse = zone.x * (attaque ? 0.62 : 0.66);
+        p.cx = borne(p.baseX + glisse + (attaque && p.ligne === "ATT" ? sensDe(p.camp) * 4 : 0), -DEMI_L + 1, DEMI_L - 1);
+        p.cy = dansLaLargeur(p.baseY * (attaque ? 0.94 : 0.80) + zone.y * (attaque ? 0.24 : 0.38));
       }
       // le ballon rejoint le premier acteur de la séquence
       const premier = sequence.find && sequence.find((t) => t.acteur || t.de);
       const nomPremier = premier ? (premier.acteur || premier.de) : null;
-      const porteur = nomPremier && pionDe(nomPremier);
+      const porteur = nomPremier && pionDe(nomPremier, camp);
       if (porteur) {
-        porteur.cx = borne(zone.x, 5, 95); porteur.cy = borne(zone.y, 6, 94);
+        porteur.cx = dansLeJeu(zone.x); porteur.cy = dansLaLargeur(zone.y);
         // le ballon est à SES pieds tout de suite : il l'emmène en glissant
         // la mise en place suit un CUT : c'est le seul endroit où le
         // ballon peut se reposer d'un coup — la coupe le justifie.
-        ballon.vol = null; ballon.porteur = porteur.nom;
+        ballon.vol = null; ballon.porteur = porteur.cle;
         ballon.x = porteur.x; ballon.y = porteur.y; ballon.z = 0;
         if (reg.etiquettes) porteur.etiquette = true;
       } else {
@@ -888,7 +1152,7 @@ const ONZE_SCENE = (() => {
       const engages = (c) => listePions.filter((p) => {
         if (p.camp !== c || p.gardien) return false;
         const x = p.cx !== null ? p.cx : p.x, y = p.cy !== null ? p.cy : p.y;
-        return Math.hypot(x - zone.x, (y - zone.y) * 0.55) < 30;
+        return Math.hypot(x - zone.x, y - zone.y) < 22;   // 22 m autour de la zone
       }).length;
       const att = Math.max(1, engages(camp));
       const def = Math.max(1, engages(adverse(camp)));
@@ -916,10 +1180,12 @@ const ONZE_SCENE = (() => {
        ============================================================ */
 
     /* R6 : les noms suivent l'action — 2 ou 3 protagonistes étiquetés */
-    function etiqueter(noms) {
+    /* On étiquette des PIONS, plus des noms : deux joueurs homonymes
+       dans les deux camps ne doivent pas s'allumer ensemble. */
+    function etiqueter(cibles) {
       if (!reg.etiquettes) return;
-      const set = new Set((noms || []).filter(Boolean));
-      for (const p of listePions) p.etiquette = set.has(p.nom);
+      const set = new Set((cibles || []).filter(Boolean).map((c) => (typeof c === "string" ? c : c.cle)));
+      for (const p of listePions) p.etiquette = set.has(p.cle);
     }
     function etiqueterTous() {
       if (!reg.etiquettes) return;
@@ -945,32 +1211,32 @@ const ONZE_SCENE = (() => {
       switch (t.type) {
 
         case "recuperation": {
-          const p = pionDe(t.acteur);
+          const p = pionDe(t.acteur, camp);
           possession = camp;
           if (p) {
             p.flash = 420;
-            donnerLeBallon(p.nom, 70);
-            p.cx = borne(p.x + sens * 5, 5, 95); p.cy = p.y;
-            etiqueter([p.nom]);
+            donnerLeBallon(p.nom, 17, camp);
+            p.cx = dansLeJeu(p.x + sens * 2.5); p.cy = p.y;
+            etiqueter([p]);
           }
           break;
         }
 
         case "contre": {
           possession = camp;
-          const p = pionDe(t.acteur);
-          if (p) { donnerLeBallon(p.nom, 80); p.flash = 400; etiqueter([p.nom]); }
+          const p = pionDe(t.acteur, camp);
+          if (p) { donnerLeBallon(p.nom, 19, camp); p.flash = 400; etiqueter([p]); }
           // tout le bloc part vers l'avant : c'est CE mouvement qui dit « contre »
           for (const q of listePions) {
             if (q.camp !== camp || q.gardien) continue;
-            q.cx = borne(q.x + sens * (14 + (q.ligne === "ATT" ? 10 : 0)), 5, 95);
-            q.cy = borne(lerp(q.y, q.baseY, 0.35) + (q.baseY - 50) * 0.12, 6, 94);
+            q.cx = dansLeJeu(q.x + sens * (10 + (q.ligne === "ATT" ? 7 : 0)));
+            q.cy = dansLaLargeur(lerp(q.y, q.baseY, 0.35) + q.baseY * 0.12);
             q.roleScenario = "contre";
           }
           // la défense adverse est prise à revers : elle se replie en courant
           for (const q of listePions) {
             if (q.camp === camp || q.gardien) continue;
-            q.cx = borne(q.x - sens * 12, 5, 95);
+            q.cx = dansLeJeu(q.x - sens * 9);
             q.roleScenario = "repli";
           }
           chipEtSynergie(t.ev, ballon, ms);
@@ -979,65 +1245,66 @@ const ONZE_SCENE = (() => {
 
         case "relais": {
           possession = camp;
-          const de = pionDe(t.de), vers = pionDe(t.vers);
+          const de = pionDe(t.de, camp), vers = pionDe(t.vers, camp);
           if (vers) {
-            const cadence = { tiki: 78, kickrush: 95, catenaccio: 58, rue: 62, total: 74, grinta: 80 };
-            passer(t.de, t.vers, { vitesse: cadence[styles[camp].style] || 70 });
-            if (de) { de.cx = borne(de.x + sens * 4, 5, 95); de.roleScenario = "suit"; }   // il suit sa passe
-            vers.cx = borne(vers.x + sens * 4, 5, 95);
-            etiqueter([t.de, t.vers]);
+            // m/s : le Tiki joue vite et court, le Catenaccio pose
+            const cadence = { tiki: 19, kickrush: 21, catenaccio: 15, rue: 16, total: 18, grinta: 19 };
+            passer(t.de, t.vers, { vitesse: cadence[styles[camp].style] || 17, camp });
+            if (de) { de.cx = dansLeJeu(de.x + sens * 2); de.roleScenario = "suit"; }   // il suit sa passe
+            vers.cx = dansLeJeu(vers.x + sens * 2);
+            etiqueter([de, vers]);
           }
           break;
         }
 
         case "relais_long": {
           possession = camp;
-          const vers = pionDe(t.vers);
+          const vers = pionDe(t.vers, camp);
           if (vers) {
             // la cloche : le ballon monte, l'ombre au sol le trahit
-            vers.cx = borne(vers.x + sens * 12, 5, 95);
-            vers.cy = borne(lerp(vers.y, vers.baseY, 0.4), 6, 94);
-            passer(t.de, t.vers, { vitesse: 52, cloche: true });
+            vers.cx = dansLeJeu(vers.x + sens * 9);
+            vers.cy = dansLaLargeur(lerp(vers.y, vers.baseY, 0.4));
+            passer(t.de, t.vers, { vitesse: 16, cloche: true, camp });
           } else {
-            passer(t.de, null, { x1: borne(50 + sens * 30, 5, 95), y1: 30 + Math.random() * 40, vitesse: 52, cloche: true });
+            passer(t.de, null, { x1: dansLeJeu(ballon.x + sens * 22), y1: dansLaLargeur((Math.random() - 0.5) * TERRAIN.W * 0.6), vitesse: 16, cloche: true });
           }
-          etiqueter([t.de, t.vers]);
+          etiqueter([pionDe(t.de, camp), vers]);
           chipEtSynergie(t.ev, ballon, ms);
           break;
         }
 
         case "conduite": {
           possession = camp;
-          const p = pionDe(t.acteur);
+          const p = pionDe(t.acteur, camp);
           if (p) {
-            donnerLeBallon(p.nom, 66);
+            donnerLeBallon(p.nom, 16, camp);
             // la Rue : conduite en crochets, le pion serpente vers le but
             // le crochet part du CÔTÉ OPPOSÉ au défenseur le plus proche :
             // une décision de football, pas une fonction du temps
             const genant = listePions.filter((q) => q.camp !== p.camp && !q.gardien)
               .sort((a, b) => distance(a, p) - distance(b, p))[0];
-            const cote = genant ? (genant.y > p.y ? -1 : 1) : (p.y > 50 ? -1 : 1);
-            p.cx = borne(p.x + sens * 13, 5, 95);
-            p.cy = borne(p.y + cote * 10, 6, 94);
+            const cote = genant ? (genant.y > p.y ? -1 : 1) : (p.y > 0 ? -1 : 1);
+            p.cx = dansLeJeu(p.x + sens * 5);
+            p.cy = dansLaLargeur(p.y + cote * 4);
             p.roleScenario = "conduite";
-            etiqueter([p.nom]);
+            etiqueter([p]);
           }
           break;
         }
 
         case "geste": {
           possession = camp;
-          const p = pionDe(t.acteur);
+          const p = pionDe(t.acteur, camp);
           if (p) {
-            donnerLeBallon(p.nom, 66);
-            p.cx = borne(p.x + sens * 7, 5, 95);
-            p.cy = borne(p.y + 6 * (Math.random() < 0.5 ? 1 : -1), 6, 94);
+            donnerLeBallon(p.nom, 16, camp);
+            p.cx = dansLeJeu(p.x + sens * 3);
+            p.cy = dansLaLargeur(p.y + 3 * (Math.random() < 0.5 ? 1 : -1));
             ephemere("eclat-geste", p.x, p.y, "✨", ms);
-            etiqueter([p.nom]);
+            etiqueter([p]);
             // le défenseur le plus proche part dans le décor
             const battu = listePions.filter((q) => q.camp !== camp && !q.gardien)
               .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
-            if (battu) { battu.plonge = 420; battu.cx = borne(battu.x - sens * 4, 5, 95); battu.cy = borne(battu.y + 6, 6, 94); }
+            if (battu) { battu.plonge = 420; battu.cx = dansLeJeu(battu.x - sens * 2); battu.cy = dansLaLargeur(battu.y + 3); }
           }
           chipEtSynergie(t.ev, p || ballon, ms);
           break;
@@ -1045,40 +1312,40 @@ const ONZE_SCENE = (() => {
 
         case "percee": {
           possession = camp;
-          const p = pionDe(t.acteur), battu = pionDe(t.battu);
-          etiqueter([t.acteur, t.battu]);
+          const p = pionDe(t.acteur, camp), battu = pionDe(t.battu, adverse(camp));
+          etiqueter([p, battu]);
           if (p) {
             p.roleScenario = "percee";
             if (t.sousType === "course") {
               // le sprint dans le couloir : il prend la profondeur, plein axe
-              const couloir = p.y < 50 ? Math.max(10, p.y - 8) : Math.min(90, p.y + 8);
+              const couloir = dansLaLargeur(p.y + (p.y < 0 ? -8 : 8));
               p.cx = dansLeJeu(p.x + sens * 22); p.cy = couloir;
-              donnerLeBallon(p.nom, 76);
+              donnerLeBallon(p.nom, 18, camp);
             } else if (t.sousType === "dribble") {
               // le crochet sec : un décalage latéral franc devant le défenseur
               p.cx = dansLeJeu(p.x + sens * 12);
-              p.cy = borne(p.y + (battu && battu.y > p.y ? -9 : 9), 8, 92);
-              donnerLeBallon(p.nom, 70);
+              p.cy = dansLaLargeur(p.y + (battu && battu.y > p.y ? -5 : 5));
+              donnerLeBallon(p.nom, 17, camp);
               ephemere("eclat-geste", p.x, p.y, "⚡", ms * 0.8);
             } else if (t.sousType === "aerien") {
               // le duel aérien : cloche vers lui, il saute (l'échelle grandit)
               const cible = { x: dansLeJeu(p.x + sens * 10), y: p.y };
               p.cx = cible.x; p.cy = cible.y;
-              passer(null, null, { x1: cible.x, y1: cible.y, vitesse: 48, cloche: true,
+              passer(null, null, { x1: cible.x, y1: cible.y, vitesse: 15, cloche: true,
                 apres: () => { p.echelle = 1.35; setTimeout(() => { if (!detruit) p.echelle = 1; }, 320); } });
             } else { // centre
               // le centre traverse la surface, devant la course des attaquants
               const cibleAtt = listePions.filter((q) => q.camp === camp && !q.gardien && q !== p)
                 .sort((a, b) => Math.abs(b.x - BUTS[adverse(camp)].x) * -1 - Math.abs(a.x - BUTS[adverse(camp)].x) * -1)[0];
-              if (cibleAtt) { cibleAtt.cx = dansLeJeu(BUTS[adverse(camp)].x - sens * 12); cibleAtt.cy = borne(45 + Math.random() * 10, 25, 75); }
-              passer(p.nom, cibleAtt ? cibleAtt.nom : null, { vitesse: 74, cloche: true });
+              if (cibleAtt) { cibleAtt.cx = dansLeJeu(BUTS[adverse(camp)].x - sens * 10); cibleAtt.cy = borne((Math.random() - 0.5) * 12, -8, 8); }
+              passer(p.nom, cibleAtt ? cibleAtt.nom : null, { vitesse: 20, cloche: true, camp });
             }
           }
           if (battu) {
             // le défenseur battu se JETTE — et se retrouve à contretemps
             battu.plonge = 520;
-            battu.cx = borne(battu.x - sens * 3, 4, 96);
-            battu.cy = borne(battu.y + (p && p.cy !== null ? (battu.y - p.cy) * 0.4 : 4), 5, 95);
+            battu.cx = borne(battu.x - sens * 2, -DEMI_L + 1, DEMI_L - 1);
+            battu.cy = dansLaLargeur(battu.y + (p && p.cy !== null ? (battu.y - p.cy) * 0.4 : 2));
             battu.roleScenario = "battu";
           }
           chipEtSynergie(t.ev, p || ballon, ms);
@@ -1086,12 +1353,12 @@ const ONZE_SCENE = (() => {
         }
 
         case "stop": {
-          const p = pionDe(t.acteur);
+          const p = pionDe(t.acteur, camp);
           possession = camp;
           if (p) {
             p.flash = 480; p.plonge = 320;
-            donnerLeBallon(p.nom, 72);
-            etiqueter([t.acteur]);
+            donnerLeBallon(p.nom, 17, camp);
+            etiqueter([p]);
           }
           chipEtSynergie(t.ev, p || ballon, ms);
           break;
@@ -1099,21 +1366,21 @@ const ONZE_SCENE = (() => {
 
         case "hors_jeu": {
           const attaquant = listePions.filter((q) => q.camp !== camp && !q.gardien)
-            .sort((a, b) => Math.abs(b.x - 50) - Math.abs(a.x - 50))[0];
-          if (attaquant) { attaquant.cx = borne(attaquant.x + sensDe(attaquant.camp) * 10, 5, 95); etiqueter([attaquant.nom]); }
+            .sort((a, b) => Math.abs(b.x) - Math.abs(a.x))[0];
+          if (attaquant) { attaquant.cx = dansLeJeu(attaquant.x + sensDe(attaquant.camp) * 7); etiqueter([attaquant]); }
           ephemere("chip-arbitre", ballon.x, ballon.y, "🚩 Hors-jeu", ms);
           chipEtSynergie(t.ev, ballon, ms);
           break;
         }
 
         case "rebond": {
-          const p = pionDe(t.acteur);
+          const p = pionDe(t.acteur, camp);
           possession = camp;
           if (p) {
-            p.cx = borne(ballon.x, 5, 95); p.cy = borne(ballon.y, 6, 94);
+            p.cx = dansLeJeu(ballon.x); p.cy = dansLaLargeur(ballon.y);
             p.roleScenario = "rebond";
-            etiqueter([t.acteur]);
-            setTimeout(() => { if (!detruit) donnerLeBallon(p.nom, 60); }, ms * 0.5);
+            etiqueter([p]);
+            setTimeout(() => { if (!detruit) donnerLeBallon(p.nom, 15, camp); }, ms * 0.5);
           }
           chipEtSynergie(t.ev, p || ballon, ms);
           break;
@@ -1124,24 +1391,24 @@ const ONZE_SCENE = (() => {
            défenseurs se jettent. Personne ne peut deviner l'issue. --- */
         case "frappe": {
           possession = camp;
-          const tireur = pionDe(t.tireur);
+          const tireur = pionDe(t.tireur, camp);
           const gk = gardienDe(adverse(camp));
-          etiqueter([t.tireur, t.passeur, gk && gk.nom]);
+          etiqueter([tireur, pionDe(t.passeur, camp), gk]);
           if (tireur) {
-            donnerLeBallon(tireur.nom, 74);
+            donnerLeBallon(tireur.nom, 18, camp);
             // il se replace dans un angle jouable : ni sur la ligne de but,
             // ni dans le couloir — entre 12 et 26 % du fond, axe resserré
             const but = BUTS[adverse(camp)];
-            const distanceBut = borne(Math.abs(tireur.x - but.x), 12, 26);
-            tireur.cx = borne(but.x - sens * distanceBut, 11, 89);
-            tireur.cy = borne(lerp(tireur.y, 50, 0.45), 24, 76);
+            const distanceBut = borne(Math.abs(tireur.x - but.x), 8, 20);   // mètres
+            tireur.cx = dansLeJeu(but.x - sens * distanceBut);
+            tireur.cy = borne(tireur.y * 0.55, -14, 14);
             tireur.roleScenario = "tireur";
           }
-          if (gk) { gk.cx = borne(BUTS[gk.camp].x + sensDe(gk.camp) * 4, 2, 98); gk.cy = borne(lerp(50, ballon.y, 0.6), 40, 60); }
+          if (gk) { gk.cx = borne(BUTS[gk.camp].x + sensDe(gk.camp) * 2.5, -DEMI_L, DEMI_L); gk.cy = borne(ballon.y * 0.6, -4, 4); }
           // deux défenseurs se jettent dans la trajectoire (mêlée permise)
           listePions.filter((q) => q.camp !== camp && !q.gardien)
             .sort((a, b) => Math.hypot(a.x - ballon.x, a.y - ballon.y) - Math.hypot(b.x - ballon.x, b.y - ballon.y))
-            .slice(0, 2).forEach((q) => { q.cx = borne(ballon.x - sens * 2, 4, 96); q.cy = borne(ballon.y + (q.y > ballon.y ? 2 : -2), 5, 95); });
+            .slice(0, 2).forEach((q) => { q.cx = borne(ballon.x - sens * 1.5, -DEMI_L + 1, DEMI_L - 1); q.cy = dansLaLargeur(ballon.y + (q.y > ballon.y ? 1.2 : -1.2)); });
           break;
         }
 
@@ -1151,9 +1418,9 @@ const ONZE_SCENE = (() => {
         case "issue_arret":
         case "issue_blocage": {
           possession = camp;
-          const tireur = pionDe(t.tireur);
-          const gk = pionDe(t.gardien) || gardienDe(adverse(camp));
-          const cote = (Math.abs((tireur ? tireur.y : 50) - 50) > 8 ? ((tireur.y < 50) ? -1 : 1) : (Math.random() < 0.5 ? -1 : 1));
+          const tireur = pionDe(t.tireur, camp);
+          const gk = pionDe(t.gardien, adverse(camp)) || gardienDe(adverse(camp));
+          const cote = (tireur && Math.abs(tireur.y) > 5) ? (tireur.y < 0 ? -1 : 1) : (Math.random() < 0.5 ? -1 : 1);
           const revele = () => {
             if (detruit) return;
             if (t.type === "issue_but") {
@@ -1167,16 +1434,16 @@ const ONZE_SCENE = (() => {
               setTimeout(() => { facteurTemps = 1; }, 500);
               if (reg.replay) armerReplay();
             } else if (t.type === "issue_arret") {
-              if (gk) { gk.plonge = 640; gk.flash = 500; gk.cy = borne(50 + cote * 7, 40, 60); }
+              if (gk) { gk.plonge = 640; gk.flash = 500; gk.cy = borne(cote * 3, -4, 4); }
               ballon.vol = null; ballon.porteur = null;
-              ballon.vx = sensDe(adverse(camp)) * 22; ballon.vy = cote * 12;
+              ballon.vx = sensDe(adverse(camp)) * 9; ballon.vy = cote * 5;
               if (t.pres) ephemere("chip-arbitre", 50, 22, "OHHH !", 900);
             } else {
               const mur = listePions.filter((q) => q.camp !== camp && !q.gardien)
                 .sort((a, b) => Math.hypot(a.x - ballon.x, a.y - ballon.y) - Math.hypot(b.x - ballon.x, b.y - ballon.y))[0];
               if (mur) { mur.plonge = 520; mur.flash = 480; }
               ballon.vol = null; ballon.porteur = null;
-              ballon.vx = sensDe(adverse(camp)) * 16; ballon.vy = cote * 10;
+              ballon.vx = sensDe(adverse(camp)) * 7; ballon.vy = cote * 4;
             }
             // le constat : pour un but, le CRI du moteur ferme la phrase
             const texteIssue = !t.ev ? ""
@@ -1194,7 +1461,7 @@ const ONZE_SCENE = (() => {
           const distance = Math.hypot(but.x - ballon.x, but.y - ballon.y);
           const volMs = (distance / 105) * 1000;
           const attente = Math.max(0, ms * 0.55 - volMs);
-          if (gk) { gk.cx = borne(BUTS[gk.camp].x + sensDe(gk.camp) * 2.5, 1, 99); }
+          if (gk) { gk.cx = borne(BUTS[gk.camp].x + sensDe(gk.camp) * 1.5, -DEMI_L, DEMI_L); }
           setTimeout(() => { if (!detruit) frapper(t.tireur, camp, { cote, apres: revele }); }, attente);
           return attente + volMs;
         }
@@ -1271,6 +1538,14 @@ const ONZE_SCENE = (() => {
     }
     dimensionner();
     const surResize = () => dimensionner();
+    /* La conversion MÈTRES → PIXELS, le seul endroit où elle a lieu.
+       Le terrain de ce match (TERRAIN.L × TERRAIN.W) est étiré dans le
+       rectangle peint : le mouvement reste identique à toute taille
+       d'écran, et les chiffres du football restent lisibles dans le
+       code. (Le cadrage du décor sur la portion utile est l'étape 2.) */
+    const X = (xm) => geo.x + ((xm + DEMI_L) / TERRAIN.L) * geo.w;
+    const Y = (ym) => geo.y + ((ym + DEMI_W) / TERRAIN.W) * geo.h;
+    const enPixels = (m) => (m / TERRAIN.W) * geo.h;   // une longueur verticale
     window.addEventListener("resize", surResize);
     /* L'ÉCHELLE DES PIONS (décision 33, campagne de mesures FM n°2).
        FM affiche des disques d'un diamètre ≈ 5 % de la hauteur du
@@ -1278,7 +1553,7 @@ const ONZE_SCENE = (() => {
        à cette taille on ne lit plus ni les blocs ni les courses.
        Cible : diamètre 5-6 % → rayon = 2,7 % de la hauteur, avec un
        plancher de lisibilité pour les très petits écrans. */
-    const rayonPion = () => Math.max(geo.h * 0.027, 2.4);
+    const rayonPion = () => Math.max(enPixels(RAYON_PION_M), 2.4);
 
     /* Le pion de scène, habillage ALLÉGÉ (décision 33) : à 5 % de la
        hauteur du terrain, un jeton en relief avec étoiles n'a plus de
@@ -1288,42 +1563,46 @@ const ONZE_SCENE = (() => {
        taille : la COULEUR du camp, l'OR du gardien, l'ANNEAU du porteur. */
     function dessinerPion(p, temps) {
       const r = rayonPion() * p.echelle;
-      const X = geo.px(p.x), Y = geo.py(p.y);
+      const Xp = X(p.x), Yp = Y(p.y);
       const numeroLisible = r >= 4;      // en dessous, le chiffre ne rentre plus
       ctx.save();
       // l'ombre portée : elle décolle le pion du gazon
       ctx.beginPath();
-      ctx.ellipse(X + r * 0.16, Y + r * 0.55, r * 0.95, r * 0.38, 0, 0, 6.283);
+      ctx.ellipse(Xp + r * 0.16, Yp + r * 0.55, r * 0.95, r * 0.38, 0, 0, 6.283);
       ctx.fillStyle = "rgba(0,0,0,0.34)"; ctx.fill();
       if (p.aura > 0) { ctx.shadowColor = p.auraCouleur; ctx.shadowBlur = 10; }
       else if (p.flash > 0) { ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 8; }
       // le disque : aplat franc + liseré sombre, pour trancher sur le vert
-      ctx.beginPath(); ctx.arc(X, Y, r, 0, 6.283);
-      ctx.fillStyle = p.gardien ? "#F0C64B" : p.camp === "moi" ? "#3DE26B" : "#E8503F";
+      ctx.beginPath(); ctx.arc(Xp, Yp, r, 0, 6.283);
+      // Règle 11 : les gardiens portent des couleurs À PART — jaune d'un
+      // côté, grenat de l'autre — et jamais celles de leur équipe.
+      ctx.fillStyle = p.gardien ? (p.camp === "moi" ? "#F0C64B" : "#8E2F45")
+        : p.camp === "moi" ? "#3DE26B" : "#E8503F";
       ctx.fill();
       ctx.shadowBlur = 0;
       ctx.lineWidth = Math.max(r * 0.16, 0.7);
       ctx.strokeStyle = "rgba(6,12,8,0.55)";
       ctx.stroke();
       // l'anneau du porteur de balle : le point focal unique
-      if (ballon.porteur === p.nom) {
-        ctx.beginPath(); ctx.arc(X, Y, r + Math.max(r * 0.7, 2.6), 0, 6.283);
+      if (ballon.porteur === p.cle) {
+        ctx.beginPath(); ctx.arc(Xp, Yp, r + Math.max(r * 0.7, 2.6), 0, 6.283);
         ctx.strokeStyle = "rgba(253,248,234,0.95)";
         ctx.lineWidth = Math.max(r * 0.34, 1.3); ctx.stroke();
       }
       // le pion qui se jette : un trait de glissade derrière lui
       if (p.plonge > 0) {
         ctx.beginPath();
-        ctx.moveTo(X - p.vx * 0.7, Y - p.vy * 0.7);
-        ctx.lineTo(X, Y);
+        ctx.moveTo(Xp - p.vx * 0.7, Yp - p.vy * 0.7);
+        ctx.lineTo(Xp, Yp);
         ctx.strokeStyle = "rgba(253,248,234,0.35)"; ctx.lineWidth = r * 0.7; ctx.lineCap = "round";
         ctx.stroke();
       }
       if (numeroLisible) {
-        ctx.fillStyle = p.gardien ? "#1A1405" : p.camp === "moi" ? "#04240E" : "#2A0A05";
+        ctx.fillStyle = p.gardien ? (p.camp === "moi" ? "#1A1405" : "#FBE9EE")
+          : p.camp === "moi" ? "#04240E" : "#2A0A05";
         ctx.font = `800 ${(r * 1.15).toFixed(1)}px Archivo, system-ui, sans-serif`;
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText(String(p.num), X, Y + 0.3);
+        ctx.fillText(String(p.num), Xp, Yp + 0.3);
       }
       ctx.restore();
     }
@@ -1350,21 +1629,21 @@ const ONZE_SCENE = (() => {
         const etoiles = p.etoiles >= 2 ? " " + "★".repeat(Math.min(p.etoiles, 3)) : "";
         const nom = `${p.num} ${court}${etoiles}`;
         const l = ctx.measureText(nom).width + 8;
-        const X = geo.px(p.x);
-        let yb = geo.py(p.y) + r + 2.5;
+        const Xe = X(p.x);
+        let yb = Y(p.y) + r + 2.5;
         // évitement : on descend tant que ça recouvre une étiquette posée
         for (let essai = 0; essai < 4; essai++) {
-          const gene = posees.some((q) => Math.abs(q.X - X) < (q.l + l) / 2 && Math.abs(q.yb - yb) < hb + 1);
+          const gene = posees.some((q) => Math.abs(q.X - Xe) < (q.l + l) / 2 && Math.abs(q.yb - yb) < hb + 1);
           if (!gene) break;
           yb += hb + 2;
         }
-        posees.push({ X, yb, l });
+        posees.push({ X: Xe, yb, l });
         ctx.fillStyle = "rgba(8,14,10,0.78)";
         ctx.beginPath();
-        if (ctx.roundRect) { ctx.roundRect(X - l / 2, yb, l, hb, 3); ctx.fill(); }
-        else ctx.fillRect(X - l / 2, yb, l, hb);
+        if (ctx.roundRect) { ctx.roundRect(Xe - l / 2, yb, l, hb, 3); ctx.fill(); }
+        else ctx.fillRect(Xe - l / 2, yb, l, hb);
         ctx.fillStyle = p.etoiles >= 2 ? "#F2C14E" : "rgba(253,248,234,0.96)";
-        ctx.fillText(nom, X, yb + hb * 0.16);
+        ctx.fillText(nom, Xe, yb + hb * 0.16);
       }
       ctx.restore();
     }
@@ -1372,23 +1651,23 @@ const ONZE_SCENE = (() => {
     function dessinerBallon(x, y, z, trainee) {
       const r = Math.max(geo.h * 0.013, 2.2);   // ~la moitié d'un pion
       // l'ombre au sol : c'est elle qui donne la hauteur (le long ballon)
-      const X = geo.px(x), Ysol = geo.py(y), Y = Ysol - geo.uy(z);
+      const Xb = X(x), Ysol = Y(y), Yb = Ysol - enPixels(z);
       ctx.save();
       ctx.beginPath();
       const ec = 1 + z * 0.05;
-      ctx.ellipse(X, Ysol + r * 0.5, r * 0.95 * ec, r * 0.42 * ec, 0, 0, 6.283);
+      ctx.ellipse(Xb, Ysol + r * 0.5, r * 0.95 * ec, r * 0.42 * ec, 0, 0, 6.283);
       ctx.fillStyle = `rgba(0,0,0,${borne(0.34 - z * 0.012, 0.1, 0.34)})`; ctx.fill();
       for (let i = 0; i < trainee.length; i++) {
         const t = trainee[i];
         ctx.beginPath();
-        ctx.arc(geo.px(t.x), geo.py(t.y) - geo.uy(t.z || 0), r * 0.62, 0, 6.283);
+        ctx.arc(X(t.x), Y(t.y) - enPixels(t.z || 0), r * 0.62, 0, 6.283);
         ctx.fillStyle = `rgba(255,255,255,${((i + 1) / trainee.length) * 0.34})`; ctx.fill();
       }
       // le ballon est un JETON DE THÈME : halo et contour viennent du stade,
       // pour rester lisible aussi bien sur bitume sombre que sur gazon clair
       const jeton = ONZE_STADE.ballon(theme);
       ctx.shadowColor = jeton.halo; ctx.shadowBlur = 7;
-      ctx.beginPath(); ctx.arc(X, Y, r * (1 + z * 0.02), 0, 6.283);
+      ctx.beginPath(); ctx.arc(Xb, Yb, r * (1 + z * 0.02), 0, 6.283);
       ctx.fillStyle = jeton.corps; ctx.fill();
       ctx.shadowBlur = 0;
       ctx.lineWidth = Math.max(0.9, r * 0.26); ctx.strokeStyle = jeton.contour; ctx.stroke();
@@ -1422,45 +1701,108 @@ const ONZE_SCENE = (() => {
        chaque pion poursuit sa cible avec inertie, jamais en
        téléportation, et le ballon suit sa physique.
        ============================================================ */
+    /* INSTRUMENTATION (étape 1, design/scene-simulation.md §10). La
+       scène relève ses propres chiffres AU TICK PHYSIQUE : un test qui
+       échantillonne toutes les 50 ms ne verrait jamais le vrai pic
+       d'accélération, il verrait la moyenne d'un intervalle inconnu.
+       Coût : trois comparaisons par pion et par frame. */
+    const mesures = { accelMax: 0, vitesseMax: 0, surVitesse: 0, surAccel: 0, nonFinis: 0, ticks: 0 };
+
     let precedent = performance.now();
     function boucle(temps) {
       if (detruit) return;
-      const dtBrut = Math.min((temps - precedent) / 1000, 0.05);
+      /* Le pas de temps ne peut être ni négatif ni énorme. L'horodatage
+         de requestAnimationFrame peut PRÉCÉDER le performance.now() qui a
+         initialisé `precedent` : un dt négatif retournait toute la
+         physique et fabriquait des NaN. */
+      const dtBrut = Math.min(Math.max((temps - precedent) / 1000, 0), 0.05);
       precedent = temps;
       const dt = dtBrut * facteurTemps;
 
       /* Le CERVEAU décide, la PHYSIQUE exécute (décision 33). Une passe
          par frame sur 22 pions : quelques microsecondes. */
+      majReferenceBloc(dtBrut);
       cerveauDePlacement();
 
       for (const p of listePions) {
         const cible = p.cible || { x: p.x, y: p.y };
         const dx = cible.x - p.x, dy = cible.y - p.y;
         const dist = Math.hypot(dx, dy);
-        /* LA PHYSIQUE DE COURSE : il court, il ne glisse pas. Vitesse
-           voulue plein régime tant qu'il est loin, freinage à
-           l'approche — et l'accélération est BORNÉE, donc il ne change
-           jamais de direction d'un coup : il tourne avec de l'inertie. */
-        const vVoulue = Math.min(p.vMax, dist * 4.2);
-        const vxVoulu = dist > 0.02 ? (dx / dist) * vVoulue : 0;
-        const vyVoulu = dist > 0.02 ? (dy / dist) * vVoulue : 0;
+        /* LA PHYSIQUE DE COURSE (design/football-chiffre.md).
+           ARRIVÉE DOUCE, physiquement juste : la vitesse qu'on peut
+           encore tenir sans dépasser la cible, sachant qu'on freine à
+           `decel`. Le joueur ralentit en approchant au lieu de piler. */
+        let vVoulue = Math.min(p.vMax, Math.sqrt(2 * p.decel * Math.max(dist, 0)));
+        /* LE BRAQUAGE (mesure : ~180°/s à pleine vitesse, davantage à
+           l'arrêt). Un joueur lancé ne pivote pas sur place : il décrit
+           une courbe. Le plafond se desserre quand il ralentit.
+           LE POINT CLÉ, et l'erreur d'une première version : on ne
+           tourne pas à pleine vitesse. Faire pivoter la vitesse VOULUE
+           en lui gardant sa norme, c'est demander à un joueur qui doit
+           faire demi-tour d'ACCÉLÉRER dans le mauvais sens — il partait
+           alors à fond vers le poteau de corner et n'en revenait jamais
+           (le gardien filait à 7 m/s le long de sa ligne de touche).
+           Un virage serré se paie donc en vitesse : on freine d'abord,
+           on tourne ensuite. C'est ça, l'inertie. */
+        const allure = Math.hypot(p.vx, p.vy);
+        let ecart = 0;
+        if (allure > 0.5 && dist > 0.05) {
+          const cap = Math.atan2(p.vy, p.vx);
+          ecart = Math.atan2(dy, dx) - cap;
+          while (ecart > Math.PI) ecart -= 2 * Math.PI;
+          while (ecart < -Math.PI) ecart += 2 * Math.PI;
+          // plus le virage est serré, moins on peut le prendre vite
+          vVoulue *= Math.max(0.12, 1 - Math.abs(ecart) / Math.PI);
+        }
+        let vxVoulu = dist > 0.05 ? (dx / dist) * vVoulue : 0;
+        let vyVoulu = dist > 0.05 ? (dy / dist) * vVoulue : 0;
+        if (allure > 0.5 && (vxVoulu || vyVoulu)) {
+          const cap = Math.atan2(p.vy, p.vx);
+          const plafond = p.braquage * (1 + 2 * (1 - Math.min(1, allure / p.vMax))) * dtBrut;
+          if (Math.abs(ecart) > plafond) {
+            const nouveau = cap + Math.sign(ecart) * plafond;
+            const norme = Math.hypot(vxVoulu, vyVoulu);
+            vxVoulu = Math.cos(nouveau) * norme;
+            vyVoulu = Math.sin(nouveau) * norme;
+          }
+        }
+        /* ACCÉLÉRER et FREINER n'ont pas le même budget : 3,5 m/s²
+           pour lancer la machine, 5 m/s² pour l'arrêter. */
         const ax = vxVoulu - p.vx, ay = vyVoulu - p.vy;
         const norme = Math.hypot(ax, ay);
-        const budget = p.accel * dtBrut;            // ce qu'il peut gagner cette frame
+        const budget = (Math.hypot(vxVoulu, vyVoulu) >= allure ? p.accel : p.decel) * dtBrut;
         const k = norme > budget ? budget / norme : 1;
+        const vxAvant = p.vx, vyAvant = p.vy;
         p.vx += ax * k; p.vy += ay * k;
-        p.x = borne(p.x + p.vx * dt, 1, 99);
-        p.y = borne(p.y + p.vy * dt, 2, 98);
+        /* Le relevé, pris AU TICK. Une vitesse non finie n'est pas une
+           mesure : c'est un défaut, et on le compte comme tel plutôt que
+           de laisser un NaN contaminer les maxima. */
+        const allureApres = Math.hypot(p.vx, p.vy);
+        if (!isFinite(allureApres)) { mesures.nonFinis++; } else {
+          if (dtBrut > 0.001) {
+            const acc = Math.hypot(p.vx - vxAvant, p.vy - vyAvant) / dtBrut;
+            if (isFinite(acc)) {
+              mesures.accelMax = Math.max(mesures.accelMax, acc);
+              if (acc > p.decel + 0.5) mesures.surAccel++;
+            }
+          }
+          mesures.vitesseMax = Math.max(mesures.vitesseMax, allureApres);
+          if (allureApres > p.vMax + 0.05) mesures.surVitesse++;
+        }
+        mesures.ticks++;
+        p.x = borne(p.x + p.vx * dt, -DEMI_L, DEMI_L);
+        p.y = borne(p.y + p.vy * dt, -DEMI_W, DEMI_W);
         // filet : un pion ne peut pas sortir de la réalité (voir `borne`)
         if (!isFinite(p.vx) || !isFinite(p.vy)) { p.vx = 0; p.vy = 0; }
         // une cible SCÉNARISÉE atteinte se relâche : le cerveau reprend la main
-        if ((p.cx !== null || p.cy !== null) && dist < 1.2) { p.cx = null; p.cy = null; p.roleScenario = null; }
+        if ((p.cx !== null || p.cy !== null) && dist < 1) { p.cx = null; p.cy = null; p.roleScenario = null; }
         if (p.aura > 0) p.aura -= dtBrut * 1000;
         if (p.flash > 0) p.flash -= dtBrut * 1000;
         if (p.plonge > 0) p.plonge -= dtBrut * 1000;
       }
       // R4 : espacement en jeu ouvert, mêlées permises dans la surface
-      separerDisques(listePions, geo.w, geo.h, rayonPion());
+      separerDisques(listePions, TERRAIN, RAYON_PION_M);
+      majFigurants(dt, dtBrut);      // règle 11 : arbitre et assistants
       majBallon(dt);
 
       // le tampon du replay (~3 s à 30 états/s)
@@ -1488,6 +1830,7 @@ const ONZE_SCENE = (() => {
           ctx.fillRect(0, 0, largeur, hauteur);
         }
       } else {
+        dessinerFigurants();          // sous les joueurs : ils ne masquent rien
         for (const p of listePions) dessinerPion(p, temps);
         dessinerEtiquettes();
         dessinerBallon(ballon.x, ballon.y, ballon.z, ballon.trainee);
@@ -1515,10 +1858,13 @@ const ONZE_SCENE = (() => {
        ============================================================ */
     return {
       racine, cut, miseEnPlace, jouerTemps, repos, commentaire, majPossession,
+      timeline: programmerTimeline,
       majJaugeCible, reglerMinute, dominationDe,
       /* Les autres scores du lobby, en toast discret pendant les temps
          morts (le lobby vit pendant ton match). */
       notifierLobby: (texte) => {
+        // « Affichage des temps morts » : les derniers scores du lobby
+        if (reg.tempsMorts !== "scores" && reg.tempsMorts !== "les-deux") return;
         const toast = document.createElement("div");
         toast.className = "toast-lobby";
         toast.textContent = texte;
@@ -1540,8 +1886,15 @@ const ONZE_SCENE = (() => {
         styles, regime, possession, situation: situationCourante,
         // R1 : le cadre du terrain — il ne doit JAMAIS bouger (caméra fixe)
         cadre: geo ? { x: geo.x, y: geo.y, w: geo.w, h: geo.h } : null,
+        // décision 50 : le terrain en MÈTRES (densité 324 m²/joueur) —
+        // tout le diagnostic parle mètres, la conversion en pixels ne
+        // sert qu'au dessin
+        terrain: { L: TERRAIN.L, W: TERRAIN.W },
+        // étape 1 : les relevés de physique, pris au tick
+        mesures: { ...mesures },
         // décision 33 : l'échelle des pions, mesurée par la recette
         rayonPion: geo ? rayonPion() : null,
+        rayonPionM: RAYON_PION_M,
         ratioPion: geo ? (2 * rayonPion()) / geo.h : null,
         jauge: { affichee: jauge.affichee, cible: jauge.cible },
         possessionPct: { moi: possessionPct.moi, eux: possessionPct.eux },
@@ -1550,14 +1903,24 @@ const ONZE_SCENE = (() => {
         minute: minute.affichee, porteur: ballon.porteur,
         etiquettes: listePions.filter((p) => p.etiquette).map((p) => p.nom),
         theme: theme.nom, replayEnCours: !!replay,
-        positions: listePions.map((p) => ({ nom: p.nom, camp: p.camp, x: p.x, y: p.y, base: p.baseX,
-          vitesse: Math.hypot(p.vx, p.vy),
+        timeline: { total: tfTotal, courant: tfCourant },
+        // règle 11 : les personnages du décor
+        figurants: { arbitre: { x: arbitre.x, y: arbitre.y },
+          assistants: assistants.map((a) => ({ x: a.x, y: a.y })) },
+        positions: listePions.map((p) => ({ nom: p.nom, cle: p.cle, camp: p.camp, x: p.x, y: p.y, base: p.baseX,
+          vitesse: Math.hypot(p.vx, p.vy),          // m/s
+          vx: p.vx, vy: p.vy,                       // pour mesurer l'accélération
+          cap: Math.atan2(p.vy, p.vx),   // pour mesurer le braquage
+          vMax: p.vMax, accel: p.accel, decel: p.decel,
+          porteur: ballon.porteur === p.cle,
           // décision 33 : « pourquoi es-tu là ? » — la raison, et la cible
           role: p.role, marque: p.marque || null,
           cible: p.cible ? { x: p.cible.x, y: p.cible.y } : null,
           ecartCible: p.cible ? Math.hypot(p.cible.x - p.x, p.cible.y - p.y) : null })),
         ligneDefensive: { moi: hauteurLigne("moi"), eux: hauteurLigne("eux") },
-        receveurAttendu: (() => { const r = receveurAttendu(); return r ? r.nom : null; })(),
+        // la clé (camp|nom) : un homonyme dans l'autre camp ne doit pas
+        // pouvoir se faire passer pour lui
+        receveurAttendu: (() => { const r = receveurAttendu(); return r ? r.cle : null; })(),
       }),
       detruire: () => {
         detruit = true;
@@ -1574,27 +1937,32 @@ const ONZE_SCENE = (() => {
      se relâche — une mêlée qui se bouscule est une INFORMATION,
      pas un défaut. Fonction pure, appelée à chaque frame.
      ============================================================ */
-  function separerDisques(disques, largeur, hauteur, rayonPx) {
-    const dansLaSurface = (d) => (d.x < 16 || d.x > 84) && d.y > 20 && d.y < 80;
+  function separerDisques(disques, terrain, rayonM) {
+    const L = (terrain && terrain.L) || 104, W = (terrain && terrain.W) || 68;
+    const demiL = L / 2, demiW = W / 2;
+    // la surface de réparation : 16,5 m de la ligne de but, 40,3 m de large
+    const dansLaSurface = (d) => Math.abs(d.x) > demiL - 16.5 && Math.abs(d.y) < 20.15;
     for (let i = 0; i < disques.length; i++) {
       for (let j = i + 1; j < disques.length; j++) {
         const a = disques[i], b = disques[j];
         const melee = dansLaSurface(a) && dansLaSurface(b);
         const facteur = melee ? 0.62 : 0.8;
-        const minDist = facteur * (rayonPx * (a.echelle || 1) + rayonPx * (b.echelle || 1));
-        let dxPx = (b.x - a.x) * largeur / 100, dyPx = (b.y - a.y) * hauteur / 100;
-        const dist = Math.hypot(dxPx, dyPx);
+        const minDist = facteur * (rayonM * (a.echelle || 1) + rayonM * (b.echelle || 1));
+        let dx = b.x - a.x, dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy);
         if (dist >= minDist) continue;
-        if (dist < 0.01) { dxPx = Math.cos((a.phase || 0) + i); dyPx = Math.sin((a.phase || 0) + i); }
-        const norme = Math.hypot(dxPx, dyPx);
+        if (dist < 0.001) { dx = Math.cos(i * 2.4); dy = Math.sin(i * 2.4); }
+        const norme = Math.hypot(dx, dy);
         const pousse = (minDist - dist) / 2;
-        const uxPct = (dxPx / norme) * pousse * 100 / largeur;
-        const uyPct = (dyPx / norme) * pousse * 100 / hauteur;
-        a.x -= uxPct; a.y -= uyPct;
-        b.x += uxPct; b.y += uyPct;
+        const ux = (dx / norme) * pousse, uy = (dy / norme) * pousse;
+        a.x -= ux; a.y -= uy;
+        b.x += ux; b.y += uy;
       }
     }
-    for (const d of disques) { d.x = Math.max(1, Math.min(99, d.x)); d.y = Math.max(2, Math.min(98, d.y)); }
+    for (const d of disques) {
+      d.x = Math.max(-demiL, Math.min(demiL, d.x));
+      d.y = Math.max(-demiW, Math.min(demiW, d.y));
+    }
   }
 
   return { creer, couleurFamille, styleDe, construireAction, separerDisques,

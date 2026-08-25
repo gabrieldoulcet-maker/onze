@@ -53,7 +53,10 @@ const TAILLES = [
       const ctx = toile.getContext("2d");
       const dpr = toile.width / toile.clientWidth;
       const geo = d.cadre, r = d.rayonPion;
-      const px = (p) => ({ X: geo.x + (p.x / 100) * geo.w, Y: geo.y + (p.y / 100) * geo.h });
+      // décision 50 : le diagnostic parle MÈTRES, origine au centre
+      const T = d.terrain;
+      const px = (p) => ({ X: geo.x + ((p.x + T.L / 2) / T.L) * geo.w,
+                           Y: geo.y + ((p.y + T.W / 2) / T.W) * geo.h });
       /* La scène bouge entre la lecture du diagnostic et celle des
          pixels : on ne cherche donc pas UN pixel, on balaie le
          voisinage du joueur. La question posée reste la bonne — « à
@@ -74,7 +77,7 @@ const TAILLES = [
       const gardienOr = g ? balayer(px(g), (r + 6) * dpr,
         (R, V, B) => R > 170 && V > 130 && B < 140) : null;
       // le porteur : un anneau clair autour de lui
-      const po = d.ballon.porteur && d.positions.find((p) => p.nom === d.ballon.porteur);
+      const po = d.ballon.porteur && d.positions.find((p) => p.cle === d.ballon.porteur);
       const anneau = po ? balayer(px(po), (r * 2 + 8) * dpr,
         (R, V, B) => R > 205 && V > 205 && B > 195) : null;
       return { ratio: d.ratioPion, rayon: r, hauteur: geo.h, gardienOr, anneau };
