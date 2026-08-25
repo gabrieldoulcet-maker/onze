@@ -74,10 +74,22 @@
     .volet, .voile-fiche, .fusion-banniere, .message-flottant { position: absolute; }
 
     /* ---- Barre du haut : manche + annonce + vitesses ---- */
+    /* PHASE 1 DE L'HABILLAGE — le décor prend tout le cadre, l'information
+       flotte par-dessus, aux bords. Plus de colonnes opaques qui mangent la
+       moitié de la surface : des DÉGRADÉS, pas des boîtes. */
     .haut {
       flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
       gap: 8px; padding: 4px 10px; background: var(--nuit-profonde); border-bottom: 1px solid var(--ligne);
       font-size: 0.72rem; color: var(--craie-sourde);
+    }
+    /* sur un décor peint, le bandeau devient une PLAQUE fine et translucide
+       posée sur le ciel, pleine largeur, sans bordure ni fond opaque */
+    #app.scene-pleine .haut {
+      position: absolute; top: 0; left: 0; right: 0; z-index: 30;
+      background: linear-gradient(180deg, rgba(4, 10, 6, 0.86) 0%, rgba(4, 10, 6, 0.55) 62%, rgba(4, 10, 6, 0) 100%);
+      border-bottom: none; padding-bottom: 10px;
+      padding-left: max(10px, env(safe-area-inset-left));
+      padding-right: max(10px, env(safe-area-inset-right));
     }
     .haut .manche-info { cursor: pointer; white-space: nowrap; }
     /* La ligne de progression des manches (la barre de stage de TFT) :
@@ -106,10 +118,77 @@
 
     /* ---- Le centre : synergies | plateau | classement ---- */
     .centre { flex: 1 1 0; display: flex; min-height: 90px; }
+    #app.scene-pleine .centre { position: relative; }
     .col-synergies {
       flex: 0 0 112px; overflow-y: auto; padding: 6px 4px 6px 8px;
       display: flex; flex-direction: column; gap: 3px;
     }
+    /* LES DEUX COLONNES FLOTTENT sur les abords du décor — aucun panneau
+       conteneur, aucun fond : ce sont des pastilles posées sur l'image.
+       Elles commencent SOUS le bandeau et s'arrêtent AU-DESSUS du banc. */
+    #app.scene-pleine .col-synergies,
+    #app.scene-pleine .col-classement {
+      position: absolute; top: var(--haut-bandeau, 30px); bottom: 4px; z-index: 20;
+      background: none; border: none; padding: 0;
+      /* quand les familles s'accumulent, la colonne DÉFILE au lieu de
+         déborder du cadre — sans barre visible, on est sur un décor */
+      overflow-y: auto; overflow-x: visible; scrollbar-width: none;
+      display: flex; flex-direction: column; gap: 3px;
+      pointer-events: none;                 /* le décor reste attrapable dessous */
+    }
+    #app.scene-pleine .col-synergies { left: max(6px, env(safe-area-inset-left)); width: 108px; }
+    #app.scene-pleine .col-synergies::-webkit-scrollbar,
+    #app.scene-pleine .col-classement::-webkit-scrollbar { width: 0; height: 0; }
+    #app.scene-pleine .col-classement { right: max(6px, env(safe-area-inset-right)); width: 104px; }
+    #app.scene-pleine .col-synergies > *,
+    #app.scene-pleine .col-classement > * { pointer-events: auto; }
+    /* LES PASTILLES FLOTTANTES : chacune porte sa propre plaque de verre —
+       c'est ce qui remplace le panneau conteneur. Fond sombre translucide,
+       flou léger, arête haute claire : la matière VERRE du brief. */
+    #app.scene-pleine .col-synergies .badge,
+    #app.scene-pleine .col-classement .coach-ligne {
+      background: linear-gradient(180deg, rgba(9, 20, 12, 0.86), rgba(5, 12, 7, 0.90));
+      border: 1px solid rgba(160, 200, 168, 0.22); border-radius: 8px;
+      box-shadow: inset 0 1px 0 rgba(200, 240, 210, 0.14), 0 4px 12px rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(4px);
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+    }
+    #app.scene-pleine .col-classement { display: flex; flex-direction: column; gap: 3px; }
+    #app.scene-pleine .col-classement .coach-ligne { padding: 2px 6px; }
+    /* le bouton de manche reste l'action principale : il flotte en bas à droite */
+    #app.scene-pleine .col-classement .principal {
+      margin-top: auto; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6), 0 0 22px rgba(61, 226, 107, 0.28);
+    }
+    /* les deux chips du haut de colonne (légende, bascule staff) : plus
+       petites, en verre, elles ouvrent des volets escamotables */
+    #app.scene-pleine .col-synergies > button {
+      background: linear-gradient(180deg, rgba(9, 20, 12, 0.88), rgba(5, 12, 7, 0.92)) !important;
+      border: 1px solid rgba(160, 200, 168, 0.22) !important; border-radius: 999px !important;
+      box-shadow: inset 0 1px 0 rgba(200, 240, 210, 0.14), 0 3px 10px rgba(0, 0, 0, 0.5);
+      color: var(--craie-claire) !important; backdrop-filter: blur(4px);
+    }
+    .indice-synergies { color: var(--craie-sourde); font-size: 0.62rem; display: block; line-height: 1.35; }
+    #app.scene-pleine .indice-synergies {
+      background: linear-gradient(180deg, rgba(9, 20, 12, 0.86), rgba(5, 12, 7, 0.90));
+      border: 1px solid rgba(160, 200, 168, 0.20); border-radius: 8px; padding: 5px 7px;
+      box-shadow: inset 0 1px 0 rgba(200, 240, 210, 0.12), 0 4px 12px rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(4px); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+    }
+    #app.scene-pleine #page-staff {
+      background: linear-gradient(180deg, rgba(9, 20, 12, 0.90), rgba(5, 12, 7, 0.93));
+      border: 1px solid rgba(160, 200, 168, 0.20); border-radius: 10px; padding: 6px 7px;
+      box-shadow: inset 0 1px 0 rgba(200, 240, 210, 0.12), 0 6px 16px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(5px); max-height: 100%; overflow-y: auto;
+    }
+    /* le voile du bas : la boutique et le banc se détachent du gazon sans
+       qu'aucune boîte ne soit dessinée — un dégradé, pas un rectangle */
+    #app.scene-pleine .centre::after {
+      content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 34%;
+      background: linear-gradient(180deg, rgba(4, 10, 6, 0) 0%, rgba(4, 10, 6, 0.35) 55%, rgba(4, 10, 6, 0.72) 100%);
+      pointer-events: none; z-index: 5;
+    }
+    /* le plateau prend TOUTE la largeur : le décor n'a plus de fenêtre */
+    #app.scene-pleine .plateau { flex: 1 1 100%; padding: 0; }
     .col-synergies .badge { display: block; text-align: left; font-size: 0.6rem; padding: 3px 5px; }
     .col-synergies .mini-adn { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
     /* La bascule du panneau gauche (façon hexagone TFT) : synergies+ADN
@@ -211,13 +290,34 @@
     }
     .ligne-terrain .jeton.figurine { min-height: 0; flex: 0 0 auto; }
     .jeton.figurine .frontale {
-      position: absolute; left: 50%; transform: translateX(-50%);
+      position: absolute; left: 50%;
+      /* LE POINT D'APPUI SUR LA LIGNE DE SOL. Les pourcentages d'une
+         translation se comptent sur l'élément lui-même : décaler de
+         (1 − ancrage-y) de sa hauteur revient exactement à poser le point
+         d'appui de l'image là où le bas de l'image se posait avant. Une
+         silhouette de trois quarts, ou recadrée autrement, garde donc les
+         pieds au même endroit — il suffit de déclarer son ancrage. */
+      transform: translate(calc(var(--ancrage-x, 0.5) * -100%),
+        calc((1 - var(--ancrage-y, 1)) * 100%));
       height: var(--h-figurine, 82%);   /* la TAILLE dit le niveau d'étoiles */
       bottom: var(--sol, 2px);          /* la LIGNE DE SOL ne bouge jamais */
       width: auto; max-width: none; object-fit: contain; object-position: bottom center;
       pointer-events: none; z-index: 1;
       filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.55));
     }
+    /* L'OMBRE AU SOL SERVIE EN FICHIER : elle se cale sur le même point
+       d'appui et grandit avec la silhouette (donc avec les étoiles). Sa
+       largeur est une part de la HAUTEUR de la figurine, pas de la boîte :
+       c'est ce qui la garde juste quand la boîte change. */
+    .jeton.figurine .ombre-sol {
+      position: absolute; left: 50%; bottom: var(--sol, 2px);
+      width: calc(var(--h-figurine, 40px) * var(--ratio-ombre, 0.95));
+      height: auto; transform: translate(-50%, 50%);
+      pointer-events: none; z-index: 0; opacity: var(--opacite-ombre, 0.9);
+    }
+    /* dès qu'une ombre de fichier est là, l'ombre DESSINÉE s'efface :
+       jamais les deux, sinon le joueur porte deux ombres */
+    .jeton.figurine.avec-ombre::before { content: none; }
     /* la SILHOUETTE NEUTRE : même gabarit, même ligne de sol qu'une
        illustration — teintée du poste pour qu'elle reste informative */
     .jeton.figurine .frontale.silhouette {
@@ -751,11 +851,13 @@
       <button id="btn-bascule-gauche" aria-label="Basculer entre synergies et staff"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-staff"></use></svg> Staff · <svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-cible"></use></svg></button>
       <div id="page-synergies">
         <div id="synergies-club"></div>
-        <div class="mini-adn" id="axes-adn"></div>
       </div>
       <div id="page-staff" class="masque">
         <div id="inventaire-staff" style="display:flex;flex-direction:column;gap:3px"></div>
         <div id="quetes-liste" style="margin-top:6px;display:flex;flex-direction:column;gap:3px"></div>
+        <!-- l'ADN du club rejoint la page escamotable : la colonne
+             flottante ne porte QUE les synergies (phase 1 du brief) -->
+        <div class="mini-adn" id="axes-adn"></div>
       </div>
     </div>
     <div class="plateau" id="plateau">
@@ -1244,6 +1346,9 @@
       const erreurs = [];
       const max = maxTitulaires();
       if (partie.terrain.length > max) erreurs.push(`terrain ${partie.terrain.length} > limite ${max}`);
+      // le banc a exactement autant de places que le décor a de mats peints :
+      // un joueur de plus n'aurait nulle part où se tenir
+      if (partie.banc.length > TAILLE_BANC) erreurs.push(`banc ${partie.banc.length} > limite ${TAILLE_BANC}`);
       const vus = new Set();
       for (const j of [...partie.terrain, ...partie.banc]) {
         if (!j.uid) erreurs.push(`${j.nom} sans identifiant d'instance`);
@@ -3086,7 +3191,7 @@
          milieu du gazon. Il reçoit une silhouette NEUTRE, teintée de son
          poste, posée sur la même ligne de sol. */
       if (!partie.matchEnCours) {
-        const frontale = ONZE_PORTRAITS.frontale(fiche.nom);
+        const frontale = ONZE_PORTRAITS.frontale(fiche);   // la fiche, pas le nom : elle porte la variante d'École
         /* PLUS AUCUN HABILLAGE (brief habillage v2) : ni cadre, ni nom, ni
            étoiles, ni pastille. Sur le gazon il ne reste que la silhouette
            et son ombre ; au banc, une dalle teintée du poste. Le niveau
@@ -3103,8 +3208,25 @@
           ? `<img class="frontale" src="${frontale}" alt="" loading="lazy" decoding="async"
                onerror="this.closest('.jeton').classList.add('sans-portrait'); this.remove()">`
           : SILHOUETTE_NEUTRE;
-        return `<div ${ouverture(` figurine ${decor}${frontale ? "" : " sans-portrait"}${etoiles >= 3 ? " legende" : ""}`)}
-          aria-label="${fiche.nom}, ${poste}${etoiles > 1 ? ", " + etoiles + " étoiles" : ""}">${corps}</div>`;
+        /* L'OMBRE AU SOL EN FICHIER (silhouettes de trois quarts) : quand
+           la table en fournit une, c'est elle qui pose le joueur, et
+           l'ombre dessinée en CSS s'efface. Elle grandit avec la
+           silhouette, donc avec le niveau d'étoiles. Si le fichier
+           manque à l'appel, on retombe sur l'ombre dessinée sans qu'il
+           n'arrive rien. */
+        const ombre = frontale ? ONZE_PORTRAITS.ombre(fiche) : null;
+        const solOmbre = ombre
+          ? `<img class="ombre-sol" src="${ombre}" alt="" aria-hidden="true" loading="lazy" decoding="async"
+               onerror="this.closest('.jeton').classList.remove('avec-ombre'); this.remove()">`
+          : "";
+        /* LE POINT D'APPUI : c'est lui qu'on cale sur la ligne de sol, pas
+           le bas de l'image. Une silhouette de trois quarts, ou recadrée
+           autrement, garde donc les pieds au même endroit. */
+        const ancrage = frontale ? ONZE_PORTRAITS.ancrage(fiche) : ONZE_PORTRAITS.ANCRAGE_DEFAUT;
+        const repere = ` style="--ancrage-x:${ancrage.x};--ancrage-y:${ancrage.y}"`;
+        return `<div ${ouverture(` figurine ${decor}${frontale ? "" : " sans-portrait"}` +
+          `${ombre ? " avec-ombre" : ""}${etoiles >= 3 ? " legende" : ""}`)}${repere}
+          aria-label="${fiche.nom}, ${poste}${etoiles > 1 ? ", " + etoiles + " étoiles" : ""}">${solOmbre}${corps}</div>`;
       }
       return `<div ${ouverture()}>
         <span class="nom-jeton">${fiche.nom}</span>
@@ -3119,25 +3241,69 @@
        design/terrains.json via ONZE_TERRAINS. */
     const LIGNES_U = { "GAR": [0.00, 0.155, 0.055], "DÉF": [0.155, 0.40, 0.27],
       "MIL": [0.40, 0.655, 0.525], "ATT": [0.655, 1.00, 0.80] };  // [début, fin, centre]
-    // les joueurs se tiennent DANS le terrain, pas sur les lignes de touche :
-    // la bande utile s'arrête avant le fond (sinon la rangée du haut sort du cadre)
-    const V0 = 0.20, V1 = 0.88;
-    const profondeur = (k, n) => V0 + ((k + 0.5) / n) * (V1 - V0);
-    /* Le niveau d'étoiles se lit dans la TAILLE (façon TFT) : la ligne de
-       sol ne bouge pas, le joueur grandit vers le haut. Le 3★ allume en
-       plus le sol en or (l'or reste réservé au légendaire). */
-    const TAILLE_ETOILE = { 1: 1, 2: 1.18, 3: 1.38 };
+    // les joueurs se tiennent DANS la zone de jeu déclarée (ECHELLE.zone),
+    // pas sur les lignes de touche ni sous les panneaux flottants
+    const profondeur = (k, n) => ECHELLE.zone.v0 + ((k + 0.5) / n) * (ECHELLE.zone.v1 - ECHELLE.zone.v0);
+    // u de la ligne → u du terrain peint, rentré dans la zone de jeu
+    const enZone = (u) => ECHELLE.zone.u0 + u * (ECHELLE.zone.u1 - ECHELLE.zone.u0);
+    /* ================= L'ÉCHELLE DES SILHOUETTES =================
+       Un JETON DE CONFIGURATION, pas des nombres semés dans le code : à
+       onze titulaires et neuf remplaçants, la scène se resserre, et la
+       phase 1 de l'habillage (décor plein écran) va encore changer les
+       proportions. Tout se règle ici, en PARTS DE LA PLACE DISPONIBLE —
+       jamais en pixels absolus, sauf les deux bornes de lisibilité.
+         part          : la hauteur d'une silhouette, en part du pas entre
+                         deux joueurs d'une même ligne
+         recouvrement  : ce qu'elle a le droit de mordre sur sa voisine
+                         (1 = jamais ; 1,45 = les épaules se touchent, ce
+                         qui fait une foule et non une file)
+         minLisible    : en dessous, on préfère un léger chevauchement à
+                         une silhouette illisible — c'est un arbitrage
+                         assumé, pas un oubli
+         max           : au-delà, le joueur mange le terrain
+         largeur       : la largeur de sa boîte, en part de sa hauteur
+       ============================================================ */
+    const ECHELLE = {
+      /* LA ZONE DE JEU dans le terrain peint, en parts du quadrilatère :
+         depuis la phase 1, la scène occupe tout le cadre et l'information
+         FLOTTE par-dessus, aux bords. Les joueurs se tiennent donc dans un
+         rectangle rentré : sous le bandeau du haut (sinon les silhouettes
+         du fond, qui grandissent vers le haut, sortent du cadre), et entre
+         les deux colonnes flottantes (sinon une pastille recouvre un
+         joueur). C'est ce rentré qui fait la promesse du brief : « la zone
+         de jeu reste centrée et dégagée ». */
+      zone: { u0: 0.15, u1: 0.90, v0: 0.26, v1: 0.93 },
+      terrain: { part: 1.28, recouvrement: 1.45, minLisible: 26, max: 72, largeur: 0.88, bande: 0.9, vide: 0.8 },
+      banc: { part: 1.5, minLisible: 30, max: 58 },
+      // le niveau d'étoiles se lit dans la TAILLE (façon TFT) : la ligne de
+      // sol ne bouge pas, le joueur grandit vers le haut ; le 3★ allume en
+      // plus le sol en or (l'or reste réservé au légendaire)
+      etoiles: { 1: 1, 2: 1.18, 3: 1.38 },
+      /* ombre.fichier : la largeur d'une ombre SERVIE EN FICHIER, en part
+         de la hauteur de la silhouette — elle suit donc le niveau
+         d'étoiles sans réglage supplémentaire. Les autres valeurs pilotent
+         l'ombre dessinée, qui reste le repli. */
+      ombre: { terrain: "72%", banc: "70%", hauteurBanc: 0.42, solBanc: 0.18, fichier: 0.95, opacite: 0.9 },
+    };
+    const TAILLE_ETOILE = ECHELLE.etoiles;
     const facteurEtoile = (f) => TAILLE_ETOILE[Math.min(3, (f && f.etoiles) || 1)] || 1;
     function stadeChoisi() {
       try { return (ONZE_SCENE.reglages() || {}).stade; } catch (e) { return null; }
     }
     function disposerPlateau() {
       const plateau = el("plateau");
-      const zoneL = plateau.clientWidth, zoneH = plateau.clientHeight;
-      if (!zoneL || !zoneH) return;
       const terr = ONZE_TERRAINS.pour(stadeChoisi());
       const peint = !!terr.image;
+      /* PHASE 1 : sur un décor peint, la scène occupe TOUT le cadre et
+         l'information flotte par-dessus. La classe se pose AVANT toute
+         mesure — c'est elle qui redonne au plateau sa pleine largeur. */
+      el("app").classList.toggle("scene-pleine", peint);
       plateau.classList.toggle("terrain-peint", peint);
+      // la hauteur réelle du bandeau flottant : les colonnes s'y calent
+      const haut = document.querySelector(".haut");
+      if (haut) el("app").style.setProperty("--haut-bandeau", Math.round(haut.offsetHeight) + "px");
+      const zoneL = plateau.clientWidth, zoneH = plateau.clientHeight;
+      if (!zoneL || !zoneH) return;
       plateau.classList.toggle("decor-clair", peint && !!terr.clair);
       const fond = el("fond-terrain");
       if (peint) {
@@ -3147,6 +3313,9 @@
           fond.srcset = `${terr.image.jeu} 1x, ${terr.image.hd} 2x`;
           fond.src = terr.image.jeu;
         }
+        /* L'IMAGE ET LA GÉOMÉTRIE PARTAGENT LE MÊME ANCRAGE : sinon les
+           mats peints et les mats calculés se décalent en silence. */
+        fond.style.objectPosition = "center " + (ONZE_TERRAINS.ANCRAGE_DEFAUT * 100).toFixed(1) + "%";
         fond.classList.remove("masque");
       } else { fond.classList.add("masque"); }
       if (!peint) {   // décor dessiné : on rend la main au flux normal
@@ -3166,29 +3335,76 @@
       const terrain = el("terrain-scene");
       terrain.style.height = Math.max(40, hautBanc - 2) + "px";
 
+      // les réglages d'ombre-fichier, posés une fois sur le plateau
+      plateau.style.setProperty("--ratio-ombre", ECHELLE.ombre.fichier);
+      plateau.style.setProperty("--opacite-ombre", ECHELLE.ombre.opacite);
+      // la marge du haut : sous le bandeau flottant, avec un filet d'air
+      const margeHaut = (haut ? haut.offsetHeight : 26) + 4;
       // ---- les 4 lignes de jeu, projetées dans le terrain peint ----
       for (const [poste, [u0, u1]] of Object.entries(LIGNES_U)) {
         const zone = el("ligne-" + poste);
-        const coins = [[u0, V0], [u1, V0], [u0, V1], [u1, V1]].map(([u, v]) => ONZE_TERRAINS.projeter(terr, cadre, u, v));
+        const coins = [[u0, ECHELLE.zone.v0], [u1, ECHELLE.zone.v0], [u0, ECHELLE.zone.v1], [u1, ECHELLE.zone.v1]]
+          .map(([u, v]) => ONZE_TERRAINS.projeter(terr, cadre, enZone(u), v));
         const xs = coins.map((c) => c[0]), ys = coins.map((c) => c[1]);
+        /* Le PLAFOND de la scène : le bandeau flotte en haut du décor, donc
+           rien ne doit pousser au-dessus de lui. On borne le haut de la
+           zone en pixels (et non en parts du terrain peint) parce que le
+           cadrage du décor change avec la taille de l'écran : une valeur
+           en parts serait juste sur un format et fausse sur un autre. */
+        /* On ne rabote plus la SILHOUETTE pour tenir sous le bandeau : on
+           remonte le PLANCHER des pieds. La rangée la plus profonde pose
+           les pieds assez bas pour qu'une silhouette lisible tienne
+           au-dessus d'elle — c'est la bande de jeu qui se resserre, pas
+           les joueurs qui deviennent des miettes (mesuré : sans ça, un
+           défenseur tombait à 6 px de haut à onze titulaires). */
+        const minSilhouette = ECHELLE.terrain.minLisible * ECHELLE.etoiles[3];
+        const basBande = Math.max(...ys);
+        const hautPieds = Math.min(basBande - 4, Math.max(Math.min(...ys), margeHaut + minSilhouette));
+        const hautUtile = Math.max(margeHaut, hautPieds - minSilhouette);
         zone.style.left = Math.min(...xs) + "px";
-        zone.style.top = Math.min(...ys) + "px";
+        zone.style.top = hautUtile + "px";
         zone.style.width = (Math.max(...xs) - Math.min(...xs)) + "px";
-        zone.style.height = (Math.max(...ys) - Math.min(...ys)) + "px";
+        zone.style.height = Math.max(20, basBande - hautUtile) + "px";
         const cases = [...zone.children];
         const n = cases.length || 1;
+        // le v du terrain peint qui correspond à une hauteur de pieds : on
+        // garde la perspective (le x suit le v) tout en pilotant le y
+        const vDeY = (yCible) => {
+          const y0 = Math.min(...ys), y1 = basBande;
+          const t = y1 === y0 ? 0 : (yCible - y0) / (y1 - y0);
+          return ECHELLE.zone.v0 + Math.min(1, Math.max(0, t)) * (ECHELLE.zone.v1 - ECHELLE.zone.v0);
+        };
         cases.forEach((c, k) => {
-          const v = profondeur(k, n);
-          const [x, y] = ONZE_TERRAINS.projeter(terr, cadre, LIGNES_U[poste][2], v);
-          // la place disponible entre deux pions décide de leur taille
-          const pas = (Math.max(...ys) - Math.min(...ys)) / Math.max(n, 1);
-          // sans cadre ni nom, la silhouette respire : c'est sa présence
-          // qui remplace les étiquettes
-          const base = Math.max(30, Math.min(72, pas * 1.28)) * ONZE_TERRAINS.echelleProfondeur(v);
+          const yPieds = hautPieds + ((k + 0.5) / n) * (basBande - hautPieds);
+          const v = vDeY(yPieds);
+          const [x] = ONZE_TERRAINS.projeter(terr, cadre, enZone(LIGNES_U[poste][2]), v);
+          const y = yPieds;
+          // (x, y) = le point où le joueur POSE LES PIEDS
+          /* La place disponible entre deux joueurs de la ligne décide de
+             leur taille : plus ils sont nombreux, plus ils rétrécissent —
+             c'est ce qui tient à onze titulaires. Le budget de
+             recouvrement borne ce qu'une silhouette mord sur sa voisine,
+             et le 3★ (le plus grand) est compté dans ce budget. */
+          const pas = (basBande - hautPieds) / Math.max(n, 1);
+          const budget = (pas * ECHELLE.terrain.recouvrement) / ECHELLE.etoiles[3];
+          /* Une silhouette grandit VERS LE HAUT depuis ses pieds : elle ne
+             doit jamais dépasser le haut de la zone de jeu, sinon elle
+             sort du cadre (le gardien, seul dans sa ligne, avait tout le
+             pas pour lui et montait au-dessus du bandeau). */
+          const plafondHaut = (y - hautUtile) / ECHELLE.etoiles[3];
+          const voulu = Math.min(pas * ECHELLE.terrain.part, budget, plafondHaut);
+          /* Le facteur de profondeur s'applique AVANT le plafond, sinon il
+             remet la silhouette au-dessus du bandeau qu'on venait de lui
+             interdire (elle dépassait de 2 px, ce qui suffit à faire
+             échouer la recette — et à faire tache à l'écran). */
+          const base = Math.min(plafondHaut,
+            Math.max(ECHELLE.terrain.minLisible, Math.min(ECHELLE.terrain.max, voulu))
+              * ONZE_TERRAINS.echelleProfondeur(v));
           const vide = c.classList.contains("case-vide");
           const fiche = vide ? null : partie.terrain[Number(c.dataset.indice)];
-          const boite = vide ? base * 0.8 : base * TAILLE_ETOILE[3];   // la boîte tient le plus grand
-          const l = Math.min(base * 0.88, (Math.max(...xs) - Math.min(...xs)) * 0.9);
+          const boite = vide ? base * ECHELLE.terrain.vide : base * ECHELLE.etoiles[3];   // la boîte tient le plus grand
+          const l = Math.min(base * ECHELLE.terrain.largeur,
+            (Math.max(...xs) - Math.min(...xs)) * ECHELLE.terrain.bande);
           c.style.width = l + "px";
           c.style.height = boite + "px";
           c.style.left = (x - zone.offsetLeft - l / 2) + "px";
@@ -3196,7 +3412,7 @@
           c.style.minHeight = "0";
           c.style.setProperty("--h-figurine", (base * facteurEtoile(fiche)) + "px");
           c.style.setProperty("--sol", "0px");                 // ligne de sol commune
-          c.style.setProperty("--l-ombre", "72%");
+          c.style.setProperty("--l-ombre", ECHELLE.ombre.terrain);
           c.style.setProperty("--h-ombre", Math.max(4, base * 0.16) + "px");
         });
       }
@@ -3206,20 +3422,35 @@
       // LA HAUTEUR CANONIQUE du banc : une seule pour tout le monde, tirée
       // de la largeur MÉDIANE des tuiles peintes — sinon les silhouettes
       // dansent d'une tuile à l'autre. Les étoiles la multiplient ensuite.
-      const largeurs = [];
+      const largeurs = [], hauteurs = [];
       for (let n = 0; n < ONZE_TERRAINS.NB_TUILES; n++) {
         const t = ONZE_TERRAINS.tuile(terr, cadre, n);
-        if (t) largeurs.push(t.largeur);
+        if (t) { largeurs.push(t.largeur); hauteurs.push(t.hauteur); }
       }
       largeurs.sort((a, b) => a - b);
-      const baseBanc = Math.max(30, Math.min(58, (largeurs[largeurs.length >> 1] || 34) * 1.5));
+      hauteurs.sort((a, b) => a - b);
+      const hauteurMediane = hauteurs[hauteurs.length >> 1] || 16;
+      const baseBanc = Math.max(ECHELLE.banc.minLisible,
+        Math.min(ECHELLE.banc.max, (largeurs[largeurs.length >> 1] || 34) * ECHELLE.banc.part));
       places.forEach((c, n) => {
-        const t = ONZE_TERRAINS.tuile(terr, cadre, n);
+        /* Plus de joueurs que de mats peints ne devrait jamais arriver
+           (le banc et les mats font tous les deux 9, et l'invariant du
+           club le vérifie) — mais si ça arrivait, un joueur du club ne
+           doit JAMAIS devenir invisible : il se pose sur le mat suivant
+           dans le tour, décalé, et l'invariant le signalera. */
+        const t = ONZE_TERRAINS.tuile(terr, cadre, n % ONZE_TERRAINS.NB_TUILES);
         if (!t) { c.style.display = "none"; return; }
+        const debord = Math.floor(n / ONZE_TERRAINS.NB_TUILES) * 6;
         c.style.display = "";
+        /* La position est écrite EN DUR sur l'élément, pas héritée d'une
+           classe : un emplacement calculé ne doit pas dépendre de la
+           présence de « terrain-peint » au moment du rendu — sans quoi un
+           left/top posé sur un élément resté « relative » décalerait le
+           joueur de sa place au lieu de l'y poser. */
+        c.style.position = "absolute";
         // la DALLE occupe la tuile peinte ; la silhouette la dépasse vers
         // le haut (débordement visible), sa ligne de sol ne bouge pas
-        c.style.left = (t.x - banc.offsetLeft) + "px";
+        c.style.left = (t.x - banc.offsetLeft + debord) + "px";
         c.style.top = (t.y - banc.offsetTop) + "px";
         c.style.width = t.largeur + "px";
         c.style.height = t.hauteur + "px";
@@ -3227,9 +3458,11 @@
         c.style.flex = "none";
         const fiche = c.classList.contains("place-banc") ? null : partie.banc[Number(c.dataset.indice)];
         c.style.setProperty("--h-figurine", (baseBanc * facteurEtoile(fiche)) + "px");
-        c.style.setProperty("--sol", (t.hauteur * 0.18) + "px");
-        c.style.setProperty("--l-ombre", "70%");
-        c.style.setProperty("--h-ombre", Math.max(4, t.hauteur * 0.42) + "px");
+        // une SEULE ligne de sol pour tout le banc (la hauteur médiane des
+        // mats) : une valeur par mat la ferait onduler d'un pixel
+        c.style.setProperty("--sol", (hauteurMediane * ECHELLE.ombre.solBanc) + "px");
+        c.style.setProperty("--l-ombre", ECHELLE.ombre.banc);
+        c.style.setProperty("--h-ombre", Math.max(4, t.hauteur * ECHELLE.ombre.hauteurBanc) + "px");
       });
     }
 
@@ -3291,9 +3524,9 @@
           const grisee = partie.or < icone.cout ? " grisee" : "";
           // Une Icône DUO (Gus & Titi) porte les deux visages, côte à côte :
           // c'est la seule carte où le key art de chaque moitié s'affiche.
-          const artsDuo = (icone.duo || []).map((m) => ONZE_PORTRAITS.carte(m.nom));
+          const artsDuo = (icone.duo || []).map((m) => ONZE_PORTRAITS.carte(m));   // les moitiés d'Icône : maillot violet
           const duoComplet = artsDuo.length === 2 && artsDuo.every(Boolean);
-          const artIcone = duoComplet ? artsDuo[0] : ONZE_PORTRAITS.carte(icone.nom);
+          const artIcone = duoComplet ? artsDuo[0] : ONZE_PORTRAITS.carte(icone);
           // LA CARTE ENTIÈRE est le bouton d'achat : le prix n'est plus
           // qu'une information posée dans la barre basse
           const btnIcone = (libelle) => `<span class="prix-carte">${libelle}</span>`;
@@ -3330,7 +3563,7 @@
         const tag = planifie ? `<span class="tag-etat">CALEPIN</span>` : "";
         const ouvrirFiche = "";
         const bouton = `<span class="prix-carte">${prixHTML(fiche.cout)}</span>`;
-        const art = ONZE_PORTRAITS.carte(fiche.nom);
+        const art = ONZE_PORTRAITS.carte(fiche);
         if (art) {
           // la carte-illustration : hiérarchie coût → famille → nom → prix
           return `<div class="carte-boutique illustree cout-${fiche.cout} ${eclat} ${planifie}${grisee}" ${ouvrirFiche} data-boutique="${i}" role="button" tabindex="0" aria-label="Recruter ${fiche.nom} (${fiche.cout}M)">${badgeEclat}${tag}
@@ -3370,7 +3603,7 @@
       // Synergies + mini ADN
       const apercu = equipeDuClub();
       el("synergies-club").innerHTML = ONZE_UI.badges(apercu) ||
-        `<span style="color:#5F7A64;font-size:0.68rem">Réunis des joueurs d'une même École ou d'un même archétype.</span>`;
+        `<span class="indice-synergies">Réunis des joueurs d'une même École ou d'un même archétype.</span>`;
       // Le son de palier : une famille vient de s'allumer ou de monter
       const clesSynergies = new Set(apercu.synergies.map((sy) => sy.nom + "|" + sy.s));
       if (synergiesConnues) {

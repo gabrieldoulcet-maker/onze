@@ -305,7 +305,7 @@ const ONZE_SCENE = (() => {
        l'École déforme le bloc : Catenaccio recule, Kick & Rush pousse
        son pivot, La Grinta monte d'un cran (R11/R12). */
     /* Le terrain de CE match, en mètres : la densité de 324 m² par
-       joueur commande ses dimensions (décision 44). */
+       joueur commande ses dimensions (décision 50). */
     const TERRAIN = dimensionsTerrain(eqA.joueurs.length + eqB.joueurs.length);
     const DEMI_L = TERRAIN.L / 2, DEMI_W = TERRAIN.W / 2;
     /* Le repère du football réel : origine au CENTRE, x vers le but de
@@ -1886,7 +1886,7 @@ const ONZE_SCENE = (() => {
         styles, regime, possession, situation: situationCourante,
         // R1 : le cadre du terrain — il ne doit JAMAIS bouger (caméra fixe)
         cadre: geo ? { x: geo.x, y: geo.y, w: geo.w, h: geo.h } : null,
-        // décision 44 : le terrain en MÈTRES (densité 324 m²/joueur) —
+        // décision 50 : le terrain en MÈTRES (densité 324 m²/joueur) —
         // tout le diagnostic parle mètres, la conversion en pixels ne
         // sert qu'au dessin
         terrain: { L: TERRAIN.L, W: TERRAIN.W },

@@ -6,7 +6,12 @@
    entière — config → cadre de l'image → positionnement réel —
    en relisant les PIXELS affichés : les neuf tuiles calculées
    doivent tomber dans les neuf rectangles peints, sur les trois
-   terrains et aux cinq tailles d'écran de référence.
+   terrains et aux cinq tailles d'écran de référence — ET chaque
+   REMPLAÇANT RENDU doit être posé dans le mat qui lui est attribué
+   (centre de la silhouette et ligne de sol dedans). Les deux
+   contrôles sont distincts : le premier valide la géométrie, le
+   second le rendu — un emplacement juste n'a jamais garanti qu'un
+   joueur s'y tienne.
    Plus : la géométrie statique, et la correspondance arène ↔ terrain.
    Usage : NODE_PATH=<scratchpad>/node_modules node tests/terrains.spec.js
    ============================================================ */
@@ -88,56 +93,204 @@ const config = JSON.parse(fs.readFileSync(path.join(racine, "design/terrains.jso
       verifier(`${terrain.nom} · ${taille.nom} : neuf emplacements rendus`, cadre.places.length === 9,
         String(cadre.places.length));
 
-      // on relit les PIXELS du plateau et on y cherche les mats peints
+      /* On relit les PIXELS du plateau. Détection directe et robuste : un
+         mat peint est un CREUX SOMBRE, donc le centre de chaque
+         emplacement calculé doit être nettement plus sombre que les
+         intervalles qui l'encadrent. (La première version comptait des
+         « segments sombres » sur toute la bande ; depuis que la scène
+         occupe tout le cadre, le balayage attrape d'autres ombres du
+         décor et le compte devenait faux alors que la géométrie était
+         juste — vérifié à l'œil, repères magenta sur les mats peints.)
+         Écart mesuré sur les 3 décors × 5 tailles : 45 à 91 unités de
+         luminance. Le seuil est posé à 25 : large sous le pire cas réel,
+         très au-dessus d'un alignement raté. */
+      const ECART_MIN = 25;
       const png = (await page.screenshot({ clip: cadre.plateau })).toString("base64");
-      const verdict = await page.evaluate(async ([b64, places]) => {
+      const verdict = await page.evaluate(async ([b64, places, zoneL]) => {
         const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode();
         const c = document.createElement("canvas"); c.width = im.width; c.height = im.height;
         const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(im, 0, 0);
-        const d = g.getImageData(0, 0, c.width, c.height).data;
-        const lum = (x, y) => { const i = ((y | 0) * c.width + (x | 0)) * 4; return (d[i] + d[i + 1] + d[i + 2]) / 3; };
-        // la bande des mats = celle des emplacements rendus
-        const yBande = places.reduce((t, p) => t + p.y + p.h / 2, 0) / places.length;
-        // on ne balaie QUE la bande des emplacements : hors d'elle, une ombre
-        // du décor ferait un faux mat sans rien dire de l'alignement
-        const x0 = Math.max(0, Math.round(places[0].x - places[0].l * 0.4));
-        const dernier = places[places.length - 1];
-        const x1 = Math.min(c.width - 1, Math.round(dernier.x + dernier.l * 1.4));
-        const ligne = [];
-        for (let x = x0; x <= x1; x++) ligne.push(lum(x, yBande));
-        const trie = [...ligne].sort((a, b) => a - b);
-        const seuil = (trie[(trie.length * 0.25) | 0] + trie[(trie.length * 0.75) | 0]) / 2;
-        const runs = []; let deb = -1;
-        for (let i = 0; i < ligne.length; i++) {
-          const sombre = ligne[i] < seuil;
-          if (sombre && deb < 0) deb = i;
-          if ((!sombre || i === ligne.length - 1) && deb >= 0) {
-            if (i - deb > (x1 - x0) * 0.03) runs.push([x0 + deb, x0 + i]);
-            deb = -1;
-          }
-        }
-        // 1. chaque emplacement calculé tombe DANS un rectangle peint
-        const dedans = places.map((p) => {
-          const cx = p.x + p.l / 2;
-          return runs.some(([a, b]) => cx >= a - 1 && cx <= b + 1);
-        });
-        // 2. et l'intervalle entre deux emplacements retombe sur le tablier
-        //    (sinon un mat unique et large passerait pour neuf)
-        let intervallesClairs = 0;
+        const dpr = im.width / zoneL;
+        const lum = (x, y) => {
+          const d = g.getImageData(Math.round(x * dpr), Math.round(y * dpr), 1, 1).data;
+          return (d[0] + d[1] + d[2]) / 3;
+        };
+        const y = places.reduce((t, p) => t + p.y + p.h / 2, 0) / places.length;
+        const centres = places.map((p) => lum(p.x + p.l / 2, y));
+        const trous = [];
         for (let i = 1; i < places.length; i++) {
-          const milieu = (places[i - 1].x + places[i - 1].l + places[i].x) / 2;
-          if (lum(milieu, yBande) > seuil) intervallesClairs++;
+          trous.push(lum((places[i - 1].x + places[i - 1].l + places[i].x) / 2, y));
         }
-        return { runs: runs.length, dedans: dedans.filter(Boolean).length, intervallesClairs,
-          fautifs: places.map((p, i) => (dedans[i] ? null : i)).filter((v) => v !== null) };
-      }, [png, cadre.places]);
+        const ecarts = centres.map((v, i) => {
+          const voisins = [trous[i - 1], trous[i]].filter((t) => t !== undefined);
+          return voisins.length ? Math.min(...voisins.map((t) => t - v)) : 0;
+        });
+        return { ecarts: ecarts.map((v) => Math.round(v)),
+          fautifs: ecarts.map((v, i) => (v < 25 ? i : null)).filter((v) => v !== null) };
+      }, [png, cadre.places, cadre.plateau.width]);
+      const pireEcart = Math.min(...verdict.ecarts);
       verifier(`${terrain.nom} · ${taille.nom} : les 9 emplacements tombent dans les rectangles peints ` +
-        `(${verdict.dedans}/9 · ${verdict.runs} mats · ${verdict.intervallesClairs}/8 intervalles sur le tablier)`,
-        verdict.dedans === 9 && verdict.runs === 9 && verdict.intervallesClairs === 8,
+        `(chaque mat est plus sombre que ses intervalles de ${pireEcart} unités au minimum, seuil ${ECART_MIN})`,
+        verdict.fautifs.length === 0 && pireEcart >= ECART_MIN,
         "emplacements hors mat : " + verdict.fautifs.join(", "));
+
+      /* ---- LE JOUEUR RENDU EST-IL SUR SON MAT ? ----
+         La vérification ci-dessus prouve que les EMPLACEMENTS calculés
+         tombent sur les rectangles peints. Elle ne dit rien du JOUEUR :
+         une silhouette peut très bien se retrouver à côté de son
+         emplacement. On peuple donc le banc — étoiles mêlées (1★, 2★, 3★
+         n'ont pas la même taille) et un joueur SANS illustration (donc en
+         silhouette neutre) — et on exige, pour chacun, que le centre de sa
+         silhouette ET sa ligne de sol tombent dans le mat qui lui est
+         attribué. Testé avec un banc PLEIN, puis avec un SEUL remplaçant :
+         c'est le cas courant en début de partie. */
+      for (const [etiquette, nb] of [["banc plein", 9], ["un seul remplaçant", 1]]) {
+        const pose = await page.evaluate(async (nb) => {
+          const prendre = (i) => tousLesJoueurs[i % tousLesJoueurs.length];
+          partie.banc = Array.from({ length: nb }, (_, i) => ({ ...prendre(i), etoiles: (i % 3) + 1, uid: "t" + i }));
+          if (nb > 1) {   // un joueur sans visuel : il se rend en silhouette neutre
+            partie.banc[nb - 1] = { nom: "Gilbert", cout: 0, poste: "DÉF", ligne: "DÉF",
+              ecole: "", archetype: "", etoiles: 1, uid: "tx" };
+          }
+          afficher();
+          await new Promise((r) => setTimeout(r, 260));
+          const plateau = document.getElementById("plateau");
+          const terr = ONZE_TERRAINS.pour((ONZE_SCENE.reglages() || {}).stade);
+          const cadre = ONZE_TERRAINS.cadre(plateau.clientWidth, plateau.clientHeight);
+          const rp = plateau.getBoundingClientRect();
+          const hors = [], invisibles = [];
+          [...document.getElementById("banc").children].forEach((c, n) => {
+            if (!c.classList.contains("jeton")) return;         // une dalle vide
+            if (getComputedStyle(c).display === "none" || getComputedStyle(c).visibility === "hidden") {
+              invisibles.push(n); return;                        // un joueur du club JAMAIS invisible
+            }
+            const visuel = c.querySelector("img.frontale, svg.frontale");
+            const mat = ONZE_TERRAINS.tuile(terr, cadre, n % ONZE_TERRAINS.NB_TUILES);
+            if (!visuel || !mat) { hors.push({ n, quoi: visuel ? "sans mat" : "sans silhouette" }); return; }
+            const r = visuel.getBoundingClientRect();
+            const centre = r.x + r.width / 2 - rp.x;             // le centre de la silhouette
+            const sol = r.bottom - rp.y;                         // sa ligne de sol
+            const dansX = centre >= mat.x - 1 && centre <= mat.x + mat.largeur + 1;
+            const dansY = sol >= mat.y - 1 && sol <= mat.y + mat.hauteur + 1;
+            if (!dansX || !dansY) {
+              hors.push({ n, centre: Math.round(centre), sol: Math.round(sol),
+                mat: [Math.round(mat.x), Math.round(mat.y), Math.round(mat.largeur), Math.round(mat.hauteur)],
+                dansX, dansY });
+            }
+          });
+          return { joueurs: partie.banc.length, hors, invisibles };
+        }, nb);
+        verifier(`${terrain.nom} · ${taille.nom} · ${etiquette} : chaque remplaçant est POSÉ sur son mat ` +
+          `(centre et ligne de sol dedans, ${pose.joueurs} joueur(s))`,
+          pose.hors.length === 0 && pose.invisibles.length === 0,
+          JSON.stringify(pose).slice(0, 300));
+      }
       await page.close();
     }
   }
+  /* ---------- 2 ter. PHASE 1 : l'information flotte SUR le décor, et
+     elle doit rester lisible — sur le City Stade très sombre comme sur le
+     Boxing Day très clair. Même méthode que sur l'accueil : on mesure les
+     PIXELS composités derrière chaque texte, pas la couleur déclarée. ---------- */
+  {
+    const canal = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    const lumRel = ([r, g, b]) => 0.2126 * canal(r) + 0.7152 * canal(g) + 0.0722 * canal(b);
+    const contraste = (a, b) => { const [x, y] = [lumRel(a), lumRel(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+    for (const [id, terrain] of Object.entries(config)) {
+      const page = await (await browser.newContext({ viewport: { width: 844, height: 390 } })).newPage();
+      page.on("pageerror", (e) => erreursJS.push(e.message));
+      await page.addInitScript((s2) => { try {
+        localStorage.setItem("onze-tutoriel-vu", "1");
+        localStorage.setItem("onze-reglages-match", JSON.stringify({ stade: s2 }));
+      } catch (e) {} }, id);
+      await page.goto("http://localhost:8123/partie.html");
+      await page.waitForSelector("#boutique .carte-boutique", { timeout: 15000 });
+      await page.evaluate(async () => {
+        arreterChrono();
+        // un club qui vit : des synergies allumées, des remplaçants
+        partie.terrain = tousLesJoueurs.slice(0, 5).map((f, i) => ({ ...f, etoiles: 1, uid: "c" + i,
+          ligne: ["GAR", "DÉF", "DÉF", "MIL", "ATT"][i] }));
+        partie.banc = tousLesJoueurs.slice(5, 8).map((f, i) => ({ ...f, etoiles: 1, uid: "d" + i }));
+        afficher();
+        const im = document.getElementById("fond-terrain");
+        if (im && !im.complete) await new Promise((r) => { im.onload = r; im.onerror = r; });
+        await new Promise((r) => setTimeout(r, 320));
+      });
+      const cibles = await page.evaluate(() => {
+        const sels = [".haut .manche-info", "#btn-legende", "#btn-bascule-gauche", ".indice-synergies",
+          ".col-synergies .badge", ".col-classement .coach-ligne", "#compteur-titulaires", "#btn-match"];
+        const sortie = [];
+        for (const sel of sels) {
+          for (const e of document.querySelectorAll(sel)) {
+            const r = e.getBoundingClientRect();
+            if (r.width < 6 || r.height < 6) continue;
+            sortie.push({ sel, couleur: getComputedStyle(e).color,
+              rect: { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) } });
+            break;    // un exemplaire par sélecteur suffit : ils partagent leur matière
+          }
+        }
+        return sortie;
+      });
+      let pire = { sel: "", ratio: 99 };
+      for (const t of cibles) {
+        const clip = { x: Math.max(0, t.rect.x), y: Math.max(0, t.rect.y),
+          width: Math.min(t.rect.width, 844 - t.rect.x), height: Math.min(t.rect.height, 390 - t.rect.y) };
+        if (clip.width < 6 || clip.height < 6) continue;
+        const png = (await page.screenshot({ clip })).toString("base64");
+        const fond = await page.evaluate(async (b64) => {
+          const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode();
+          const c = document.createElement("canvas"); c.width = im.width; c.height = im.height;
+          const g = c.getContext("2d"); g.drawImage(im, 0, 0);
+          const d = g.getImageData(0, 0, c.width, c.height).data;
+          const px = [];
+          for (let i = 0; i < d.length; i += 4) px.push([d[i], d[i + 1], d[i + 2]]);
+          const clair = (p2) => 0.2126 * p2[0] + 0.7152 * p2[1] + 0.0722 * p2[2];
+          px.sort((a, b) => clair(a) - clair(b));
+          return px[Math.floor(px.length * 0.35)];
+        }, png);
+        const couleur = t.couleur.match(/\d+/g).map(Number).slice(0, 3);
+        const ratio = contraste(couleur, fond);
+        if (ratio < pire.ratio) pire = { sel: t.sel, ratio };
+      }
+      verifier(`${terrain.nom} : l'information flottante reste lisible sur le décor ` +
+        `(le pire : ${pire.sel} à ${pire.ratio.toFixed(1)}:1 ≥ 4.5:1, ${cibles.length} éléments mesurés)`,
+        pire.ratio >= 4.5 && cibles.length >= 5, `${pire.sel} ${pire.ratio.toFixed(2)}`);
+      await page.close();
+    }
+  }
+
+  /* ---------- 2 quater. LE REPLI : un thème DESSINÉ n'a pas de mats
+     peints — la scène pleine se désactive et la mise en page revient au
+     flux normal, tous les contrôles à l'écran. ---------- */
+  {
+    const page = await (await browser.newContext({ viewport: { width: 844, height: 390 } })).newPage();
+    page.on("pageerror", (e) => erreursJS.push(e.message));
+    await page.addInitScript(() => { try {
+      localStorage.setItem("onze-tutoriel-vu", "1");
+      localStorage.setItem("onze-reglages-match", JSON.stringify({ stade: "municipal" }));
+    } catch (e) {} });
+    await page.goto("http://localhost:8123/partie.html");
+    await page.waitForSelector("#boutique .carte-boutique", { timeout: 15000 });
+    await page.evaluate(() => { arreterChrono(); afficher(); });
+    await page.waitForTimeout(300);
+    const repli = await page.evaluate(() => {
+      const dans = (sel) => {
+        const e = document.querySelector(sel);
+        if (!e) return false;
+        const r = e.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && r.top >= -1 && r.left >= -1 &&
+          r.bottom <= window.innerHeight + 1 && r.right <= window.innerWidth + 1;
+      };
+      return { scenePleine: document.getElementById("app").classList.contains("scene-pleine"),
+        peint: document.getElementById("plateau").classList.contains("terrain-peint"),
+        controles: ["#btn-match", "#btn-refresh", "#btn-xp", "#btn-verrou"].every(dans),
+        jetons: document.querySelectorAll("#terrain-scene .jeton").length };
+    });
+    verifier("thème dessiné : la scène pleine se désactive et la mise en page revient au flux",
+      !repli.scenePleine && !repli.peint && repli.controles && repli.jetons > 0, JSON.stringify(repli));
+    await page.close();
+  }
+
   /* ---------- 2 bis. sur un stockage VIERGE, le décor est PEINT ---------- */
   {
     const neuf = await (await browser.newContext({ viewport: { width: 844, height: 390 } })).newPage();
@@ -162,13 +315,17 @@ const config = JSON.parse(fs.readFileSync(path.join(racine, "design/terrains.jso
 
   /* ---------- 3. la densité : jeu/ en 1×, hd/ en 2×, et le poids ---------- */
   /* PLAFOND ANNONCÉ pour l'écran de mercato, terrain d'entraînement compris :
-       1,2 Mo en densité 1 · 1,45 Mo en forte densité.
+       1,3 Mo en densité 1 · 1,55 Mo en forte densité.
+     Relevé après l'arrivée des cinq de départ, dont les silhouettes
+     s'affichent d'emblée sur le gazon (+199 Ko). Le poids DÉPEND du tirage
+     de la boutique : mesuré sur six ouvertures, 1088-1216 Ko en densité 1
+     et 1383-1486 en densité 2 — le plafond borne le pire tirage.
      Pire cas : ~520 Ko de socle (polices, scripts, CSS, roster, tables)
      + les 5 key arts les plus lourds de la boutique (372 Ko)
      + le décor (93 Ko en jeu/, 354 Ko en hd/)
      + une silhouette de titulaire (~100 Ko).
      Le reste des 8 Mo de visuels ne se charge QUE quand il s'affiche. */
-  for (const [dpr, attendu, plafondKo] of [[1, "jeu/", 1200], [2, "hd/", 1450]]) {
+  for (const [dpr, attendu, plafondKo] of [[1, "jeu/", 1300], [2, "hd/", 1550]]) {
     const page = await (await browser.newContext({
       viewport: { width: 844, height: 390 }, deviceScaleFactor: dpr })).newPage();
     let octets = 0; const decors = [];

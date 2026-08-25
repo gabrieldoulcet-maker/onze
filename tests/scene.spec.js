@@ -41,7 +41,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     document.body.appendChild(bac);
     const scene = ONZE_SCENE.creer(bac, catenaccio, tiki, {});
     const diag = scene.diagnostic();
-    /* décision 44 : tout est en MÈTRES, origine au centre. On raisonne
+    /* décision 50 : tout est en MÈTRES, origine au centre. On raisonne
        en « distance à son propre but », le seul repère qui vaille pour
        les deux camps ET pour toutes les tailles de terrain. */
     const T = diag.terrain;
@@ -75,7 +75,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
 
     // 4. la répulsion des pions : une mêlée de 6 disques superposés se
     // résout en quelques frames — plus aucun recouvrement au-delà de ~20 %
-    // décision 44 : tout est en MÈTRES, origine au centre du terrain
+    // décision 50 : tout est en MÈTRES, origine au centre du terrain
     const rayon = 1.84;                       // le rayon d'un pion en m
     const terrain = { L: 104, W: 68 };
     const melee = Array.from({ length: 6 }, (_, i) => ({ x: 0, y: 0, echelle: 1, phase: i * 0.7 }));

@@ -1,298 +1,318 @@
 {
- "Abdou": {
-  "carte": "da/keyarts/ONZE_35_Abdou.webp",
-  "frontale": "da/frontales/ONZE_35_Abdou_frontale.webp"
- },
- "Adama": {
-  "carte": "da/keyarts/ONZE_28_Adama.webp",
-  "frontale": "da/frontales/ONZE_28_Adama_frontale.webp"
- },
- "Aitor": {
-  "carte": "da/keyarts/ONZE_56_Aitor.webp",
-  "frontale": "da/frontales/ONZE_56_Aitor_frontale.webp"
- },
- "Andoni": {
-  "carte": "da/keyarts/ONZE_09_Andoni.webp",
-  "frontale": "da/frontales/ONZE_09_Andoni_frontale.webp"
- },
- "Aurelio": {
-  "carte": "da/keyarts/ONZE_47_Aurelio.webp",
-  "frontale": "da/frontales/ONZE_47_Aurelio_frontale.webp"
- },
- "Bakary": {
-  "carte": "da/keyarts/ONZE_02_Bakary.webp",
-  "frontale": "da/frontales/ONZE_02_Bakary_frontale.webp"
- },
- "Billy": {
-  "carte": "da/keyarts/ONZE_13_Billy.webp",
-  "frontale": "da/frontales/ONZE_13_Billy_frontale.webp"
- },
- "Brahim": {
-  "frontale": "da/frontales/ONZE_08_Brahim_frontale.webp",
-  "carte": "da/keyarts/ONZE_8_Brahim.webp"
- },
- "Bram": {
-  "carte": "da/keyarts/ONZE_45_Bram.webp",
-  "frontale": "da/frontales/ONZE_45_Bram_frontale.webp"
- },
- "Caio": {
-  "frontale": "da/frontales/ONZE_52_Caio_frontale.webp",
-  "carte": "da/keyarts/ONZE_52_Caio.webp"
- },
- "Callum": {
-  "carte": "da/keyarts/ONZE_20_Callum.webp",
-  "frontale": "da/frontales/ONZE_20_Callum_frontale.webp"
- },
- "Ciro": {
-  "carte": "da/keyarts/ONZE_30_Ciro.webp",
-  "frontale": "da/frontales/ONZE_30_Ciro_frontale.webp"
- },
- "Denilson": {
-  "frontale": "da/frontales/ONZE_12_Denilson_frontale.webp",
-  "carte": "da/keyarts/ONZE_12_Denilson.webp"
- },
- "Dennis": {
-  "carte": "da/keyarts/ONZE_24_Dennis.webp",
-  "frontale": "da/frontales/ONZE_24_Dennis_frontale.webp"
- },
- "Didico": {
-  "frontale": "da/frontales/ONZE_68_Didico_frontale.webp",
-  "carte": "da/keyarts/ONZE_68_Didico.webp"
- },
- "Dino": {
-  "carte": "da/keyarts/ONZE_17_Dino.webp",
-  "frontale": "da/frontales/ONZE_17_Dino_frontale.webp"
- },
- "Djibril": {
-  "carte": "da/keyarts/ONZE_51_Djibril.webp",
-  "frontale": "da/frontales/ONZE_51_Djibril_frontale.webp"
- },
- "Duncan": {
-  "carte": "da/keyarts/ONZE_69_Duncan.webp",
-  "frontale": "da/frontales/ONZE_69_Duncan_frontale.webp"
- },
- "Emiliano": {
-  "carte": "da/keyarts/ONZE_41_Emiliano.webp",
-  "frontale": "da/frontales/ONZE_41_Emiliano_frontale.webp"
- },
- "Enzo": {
-  "carte": "da/keyarts/ONZE_57_Enzo.webp",
-  "frontale": "da/frontales/ONZE_57_Enzo_frontale.webp"
- },
- "Esteban": {
-  "carte": "da/keyarts/ONZE_21_Esteban.webp",
-  "frontale": "da/frontales/ONZE_21_Esteban_frontale.webp"
- },
- "Ezequiel": {
-  "carte": "da/keyarts/ONZE_66_Ezequiel.webp",
-  "frontale": "da/frontales/ONZE_66_Ezequiel_frontale.webp"
- },
- "Facundo": {
-  "carte": "da/keyarts/ONZE_49_Facundo.webp",
-  "frontale": "da/frontales/ONZE_49_Facundo_frontale.webp"
- },
- "Federico": {
-  "carte": "da/keyarts/ONZE_43_Federico.webp",
-  "frontale": "da/frontales/ONZE_43_Federico_frontale.webp"
- },
- "Gianluca": {
-  "carte": "da/keyarts/ONZE_16_Gianluca.webp",
-  "frontale": "da/frontales/ONZE_16_Gianluca_frontale.webp"
- },
- "Gorka": {
-  "carte": "da/keyarts/ONZE_29_Gorka.webp",
-  "frontale": "da/frontales/ONZE_29_Gorka_frontale.webp"
- },
- "Gus": {
-  "carte": "da/keyarts/ONZE_H1_Gus.webp",
-  "frontale": "da/frontales/ONZE_H1_Gus_frontale.webp"
- },
- "Harry": {
-  "carte": "da/keyarts/ONZE_10_Harry.webp",
-  "frontale": "da/frontales/ONZE_10_Harry_frontale.webp"
- },
- "Iñaki": {
-  "carte": "da/keyarts/ONZE_50_Iñaki.webp",
-  "frontale": "da/frontales/ONZE_50_Iñaki_frontale.webp"
- },
- "Jairzão": {
-  "frontale": "da/frontales/ONZE_54_Jairzão_frontale.webp",
-  "carte": "da/keyarts/ONZE_54_Jairzão.webp"
- },
- "Jamie": {
-  "carte": "da/keyarts/ONZE_26_Jamie.webp",
-  "frontale": "da/frontales/ONZE_26_Jamie_frontale.webp"
- },
- "Jasper": {
-  "carte": "da/keyarts/ONZE_46_Jasper.webp",
-  "frontale": "da/frontales/ONZE_46_Jasper_frontale.webp"
- },
- "Joaquín": {
-  "carte": "da/keyarts/ONZE_61_Joaquín_El_Santo.webp",
-  "frontale": "da/frontales/ONZE_61_Joaquín_El_Santo_frontale.webp"
- },
- "Joe": {
-  "carte": "da/keyarts/ONZE_44_Joe.webp",
-  "frontale": "da/frontales/ONZE_44_Joe_frontale.webp"
- },
- "Jonah": {
-  "carte": "da/keyarts/ONZE_04_Jonah.webp",
-  "frontale": "da/frontales/ONZE_04_Jonah_frontale.webp"
- },
- "Joost": {
-  "carte": "da/keyarts/ONZE_33_Joost.webp",
-  "frontale": "da/frontales/ONZE_33_Joost_frontale.webp"
- },
- "Joris": {
-  "carte": "da/keyarts/ONZE_37_Joris.webp",
-  "frontale": "da/frontales/ONZE_37_Joris_frontale.webp"
- },
- "Karim": {
-  "carte": "da/keyarts/ONZE_15_Karim.webp",
-  "frontale": "da/frontales/ONZE_15_Karim_frontale.webp"
- },
- "Kees": {
-  "carte": "da/keyarts/ONZE_25_Kees.webp",
-  "frontale": "da/frontales/ONZE_25_Kees_frontale.webp"
- },
- "Kwame": {
-  "carte": "da/keyarts/ONZE_60_Kwame.webp",
-  "frontale": "da/frontales/ONZE_60_Kwame_frontale.webp"
- },
- "Le Fidèle": {
-  "carte": "da/keyarts/ONZE_I1_Le_Fidèle.webp",
-  "frontale": "da/frontales/ONZE_I1_Le_Fidèle_frontale.webp"
- },
- "Lorenzo": {
-  "carte": "da/keyarts/ONZE_58_Lorenzo.webp",
-  "frontale": "da/frontales/ONZE_58_Lorenzo_frontale.webp"
- },
- "Luuk": {
-  "carte": "da/keyarts/ONZE_11_Luuk.webp",
-  "frontale": "da/frontales/ONZE_11_Luuk_frontale.webp"
- },
- "L’Enfant du Pays": {
-  "frontale": "da/frontales/ONZE_71_Enfant_du_Pays_frontale.webp",
-  "carte": "da/keyarts/ONZE_71_LEnfant_du_Pays.webp"
- },
- "Malandro": {
-  "frontale": "da/frontales/ONZE_67_Malandro_frontale.webp",
-  "carte": "da/keyarts/ONZE_67_Malandro.webp"
- },
- "Marcus": {
-  "carte": "da/keyarts/ONZE_55_Marcus.webp",
-  "frontale": "da/frontales/ONZE_55_Marcus_frontale.webp"
- },
- "Mattia": {
-  "carte": "da/keyarts/ONZE_03_Mattia.webp",
-  "frontale": "da/frontales/ONZE_03_Mattia_frontale.webp"
- },
- "Milan": {
-  "carte": "da/keyarts/ONZE_39_Milan.webp",
-  "frontale": "da/frontales/ONZE_39_Milan_frontale.webp"
- },
- "Moussa": {
-  "carte": "da/keyarts/ONZE_38_Moussa.webp",
-  "frontale": "da/frontales/ONZE_38_Moussa_frontale.webp"
- },
- "Nico": {
-  "carte": "da/keyarts/ONZE_14_Nico.webp",
-  "frontale": "da/frontales/ONZE_14_Nico_frontale.webp"
- },
- "Nino": {
-  "frontale": "da/frontales/ONZE_34_Nino_frontale.webp",
-  "carte": "da/keyarts/ONZE_34_Nino.webp"
- },
- "Pieter": {
-  "carte": "da/keyarts/ONZE_18_Pieter.webp",
-  "frontale": "da/frontales/ONZE_18_Pieter_frontale.webp"
- },
- "Rafinha": {
-  "frontale": "da/frontales/ONZE_22_Rafinha_frontale.webp",
-  "carte": "da/keyarts/ONZE_22_Rafinha.webp"
- },
- "Ratko": {
-  "carte": "da/keyarts/ONZE_19_Ratko.webp",
-  "frontale": "da/frontales/ONZE_19_Ratko_frontale.webp"
- },
- "Rodrigo": {
-  "frontale": "da/frontales/ONZE_40_Rodrigo_frontale.webp",
-  "carte": "da/keyarts/ONZE_40_Rodrigo.webp"
- },
- "Rubén": {
-  "carte": "da/keyarts/ONZE_31_Rubén.webp",
-  "frontale": "da/frontales/ONZE_31_Rubén_frontale.webp"
- },
- "Ruud": {
-  "carte": "da/keyarts/ONZE_70_Ruud.webp",
-  "frontale": "da/frontales/ONZE_70_Ruud_frontale.webp"
- },
- "Salvatore": {
-  "carte": "da/keyarts/ONZE_63_Salvatore.webp",
-  "frontale": "da/frontales/ONZE_63_Salvatore_frontale.webp"
- },
- "Sam": {
-  "carte": "da/keyarts/ONZE_01_Sam.webp",
-  "frontale": "da/frontales/ONZE_01_Sam_frontale.webp"
- },
- "Santiago": {
-  "carte": "da/keyarts/ONZE_64_Santiago.webp",
-  "frontale": "da/frontales/ONZE_64_Santiago_frontale.webp"
- },
- "Sven": {
-  "carte": "da/keyarts/ONZE_48_Sven.webp",
-  "frontale": "da/frontales/ONZE_48_Sven_frontale.webp"
- },
- "Sékou": {
-  "carte": "da/keyarts/ONZE_05_Sékou.webp",
-  "frontale": "da/frontales/ONZE_05_Sékou_frontale.webp"
- },
- "Théo": {
-  "carte": "da/keyarts/ONZE_07_Théo.webp",
-  "frontale": "da/frontales/ONZE_07_Théo_frontale.webp"
- },
- "Tiago": {
-  "frontale": "da/frontales/ONZE_27_Tiago_frontale.webp",
-  "carte": "da/keyarts/ONZE_27_Tiago.webp"
- },
- "Timo": {
-  "carte": "da/keyarts/ONZE_59_Timo.webp",
-  "frontale": "da/frontales/ONZE_59_Timo_frontale.webp"
- },
- "Titi": {
-  "carte": "da/keyarts/ONZE_H2_Titi.webp",
-  "frontale": "da/frontales/ONZE_H2_Titi_frontale.webp"
- },
- "Tiémoko": {
-  "carte": "da/keyarts/ONZE_62_Tiémoko.webp",
-  "frontale": "da/frontales/ONZE_62_Tiémoko_frontale.webp"
- },
- "Tommaso": {
-  "carte": "da/keyarts/ONZE_36_Tommaso.webp",
-  "frontale": "da/frontales/ONZE_36_Tommaso_frontale.webp"
- },
- "Unai": {
-  "carte": "da/keyarts/ONZE_06_Unai.webp",
-  "frontale": "da/frontales/ONZE_06_Unai_frontale.webp"
- },
- "Vito": {
-  "carte": "da/keyarts/ONZE_32_Vito.webp",
-  "frontale": "da/frontales/ONZE_32_Vito_frontale.webp"
- },
- "Wim": {
-  "carte": "da/keyarts/ONZE_53_Wim.webp",
-  "frontale": "da/frontales/ONZE_53_Wim_frontale.webp"
- },
- "Xabi": {
-  "carte": "da/keyarts/ONZE_23_Xabi.webp",
-  "frontale": "da/frontales/ONZE_23_Xabi_frontale.webp"
- },
- "Yannick": {
-  "carte": "da/keyarts/ONZE_42_Yannick.webp",
-  "frontale": "da/frontales/ONZE_42_Yannick_frontale.webp"
- },
- "Álvaro": {
-  "carte": "da/keyarts/ONZE_65_Don_Álvaro.webp",
-  "frontale": "da/frontales/ONZE_65_Don_Álvaro_frontale.webp"
- }
+  "Abdou": {
+    "carte": "da/keyarts/ONZE_35_Abdou.webp",
+    "frontale": "da/frontales/ONZE_35_Abdou_frontale.webp"
+  },
+  "Adama": {
+    "carte": "da/keyarts/ONZE_28_Adama.webp",
+    "frontale": "da/frontales/ONZE_28_Adama_frontale.webp"
+  },
+  "Aitor": {
+    "carte": "da/keyarts/ONZE_56_Aitor.webp",
+    "frontale": "da/frontales/ONZE_56_Aitor_frontale.webp"
+  },
+  "Andoni": {
+    "carte": "da/keyarts/ONZE_09_Andoni.webp",
+    "frontale": "da/frontales/ONZE_09_Andoni_frontale.webp"
+  },
+  "Aurelio": {
+    "carte": "da/keyarts/ONZE_47_Aurelio.webp",
+    "frontale": "da/frontales/ONZE_47_Aurelio_frontale.webp"
+  },
+  "Bakary": {
+    "carte": "da/keyarts/ONZE_02_Bakary.webp",
+    "frontale": "da/frontales/ONZE_02_Bakary_frontale.webp"
+  },
+  "Billy": {
+    "carte": "da/keyarts/ONZE_13_Billy.webp",
+    "frontale": "da/frontales/ONZE_13_Billy_frontale.webp"
+  },
+  "Brahim": {
+    "frontale": "da/frontales/ONZE_08_Brahim_frontale.webp",
+    "carte": "da/keyarts/ONZE_8_Brahim.webp"
+  },
+  "Bram": {
+    "carte": "da/keyarts/ONZE_45_Bram.webp",
+    "frontale": "da/frontales/ONZE_45_Bram_frontale.webp"
+  },
+  "Caio": {
+    "frontale": "da/frontales/ONZE_52_Caio_frontale.webp",
+    "carte": "da/keyarts/ONZE_52_Caio.webp"
+  },
+  "Callum": {
+    "carte": "da/keyarts/ONZE_20_Callum.webp",
+    "frontale": "da/frontales/ONZE_20_Callum_frontale.webp"
+  },
+  "Ciro": {
+    "carte": "da/keyarts/ONZE_30_Ciro.webp",
+    "frontale": "da/frontales/ONZE_30_Ciro_frontale.webp"
+  },
+  "Denilson": {
+    "frontale": "da/frontales/ONZE_12_Denilson_frontale.webp",
+    "carte": "da/keyarts/ONZE_12_Denilson.webp"
+  },
+  "Dennis": {
+    "carte": "da/keyarts/ONZE_24_Dennis.webp",
+    "frontale": "da/frontales/ONZE_24_Dennis_frontale.webp"
+  },
+  "Didico": {
+    "frontale": "da/frontales/ONZE_68_Didico_frontale.webp",
+    "carte": "da/keyarts/ONZE_68_Didico.webp"
+  },
+  "Dino": {
+    "carte": "da/keyarts/ONZE_17_Dino.webp",
+    "frontale": "da/frontales/ONZE_17_Dino_frontale.webp"
+  },
+  "Djibril": {
+    "carte": "da/keyarts/ONZE_51_Djibril.webp",
+    "frontale": "da/frontales/ONZE_51_Djibril_frontale.webp"
+  },
+  "Duncan": {
+    "carte": "da/keyarts/ONZE_69_Duncan.webp",
+    "frontale": "da/frontales/ONZE_69_Duncan_frontale.webp"
+  },
+  "Emiliano": {
+    "carte": "da/keyarts/ONZE_41_Emiliano.webp",
+    "frontale": "da/frontales/ONZE_41_Emiliano_frontale.webp"
+  },
+  "Enzo": {
+    "carte": "da/keyarts/ONZE_57_Enzo.webp",
+    "frontale": "da/frontales/ONZE_57_Enzo_frontale.webp"
+  },
+  "Esteban": {
+    "carte": "da/keyarts/ONZE_21_Esteban.webp",
+    "frontale": "da/frontales/ONZE_21_Esteban_frontale.webp"
+  },
+  "Ezequiel": {
+    "carte": "da/keyarts/ONZE_66_Ezequiel.webp",
+    "frontale": "da/frontales/ONZE_66_Ezequiel_frontale.webp"
+  },
+  "Facundo": {
+    "carte": "da/keyarts/ONZE_49_Facundo.webp",
+    "frontale": "da/frontales/ONZE_49_Facundo_frontale.webp"
+  },
+  "Federico": {
+    "carte": "da/keyarts/ONZE_43_Federico.webp",
+    "frontale": "da/frontales/ONZE_43_Federico_frontale.webp"
+  },
+  "Gianluca": {
+    "carte": "da/keyarts/ONZE_16_Gianluca.webp",
+    "frontale": "da/frontales/ONZE_16_Gianluca_frontale.webp"
+  },
+  "Gorka": {
+    "carte": "da/keyarts/ONZE_29_Gorka.webp",
+    "frontale": "da/frontales/ONZE_29_Gorka_frontale.webp"
+  },
+  "Harry": {
+    "carte": "da/keyarts/ONZE_10_Harry.webp",
+    "frontale": "da/frontales/ONZE_10_Harry_frontale.webp"
+  },
+  "Iñaki": {
+    "carte": "da/keyarts/ONZE_50_Iñaki.webp",
+    "frontale": "da/frontales/ONZE_50_Iñaki_frontale.webp"
+  },
+  "Jairzão": {
+    "frontale": "da/frontales/ONZE_54_Jairzão_frontale.webp",
+    "carte": "da/keyarts/ONZE_54_Jairzão.webp"
+  },
+  "Jamie": {
+    "carte": "da/keyarts/ONZE_26_Jamie.webp",
+    "frontale": "da/frontales/ONZE_26_Jamie_frontale.webp"
+  },
+  "Jasper": {
+    "carte": "da/keyarts/ONZE_46_Jasper.webp",
+    "frontale": "da/frontales/ONZE_46_Jasper_frontale.webp"
+  },
+  "Joaquín": {
+    "carte": "da/keyarts/ONZE_61_Joaquín_El_Santo.webp",
+    "frontale": "da/frontales/ONZE_61_Joaquín_El_Santo_frontale.webp"
+  },
+  "Joe": {
+    "carte": "da/keyarts/ONZE_44_Joe.webp",
+    "frontale": "da/frontales/ONZE_44_Joe_frontale.webp"
+  },
+  "Jonah": {
+    "carte": "da/keyarts/ONZE_04_Jonah.webp",
+    "frontale": "da/frontales/ONZE_04_Jonah_frontale.webp"
+  },
+  "Joost": {
+    "carte": "da/keyarts/ONZE_33_Joost.webp",
+    "frontale": "da/frontales/ONZE_33_Joost_frontale.webp"
+  },
+  "Joris": {
+    "carte": "da/keyarts/ONZE_37_Joris.webp",
+    "frontale": "da/frontales/ONZE_37_Joris_frontale.webp"
+  },
+  "Karim": {
+    "carte": "da/keyarts/ONZE_15_Karim.webp",
+    "frontale": "da/frontales/ONZE_15_Karim_frontale.webp"
+  },
+  "Kees": {
+    "carte": "da/keyarts/ONZE_25_Kees.webp",
+    "frontale": "da/frontales/ONZE_25_Kees_frontale.webp"
+  },
+  "Kwame": {
+    "carte": "da/keyarts/ONZE_60_Kwame.webp",
+    "frontale": "da/frontales/ONZE_60_Kwame_frontale.webp"
+  },
+  "Le Fidèle": {
+    "carte": "da/keyarts/ONZE_I1_Le_Fidèle.webp",
+    "frontale": "da/frontales/ONZE_I1_Le_Fidèle_frontale.webp"
+  },
+  "Lorenzo": {
+    "carte": "da/keyarts/ONZE_58_Lorenzo.webp",
+    "frontale": "da/frontales/ONZE_58_Lorenzo_frontale.webp"
+  },
+  "Luuk": {
+    "carte": "da/keyarts/ONZE_11_Luuk.webp",
+    "frontale": "da/frontales/ONZE_11_Luuk_frontale.webp"
+  },
+  "L’Enfant du Pays": {
+    "frontale": "da/frontales/ONZE_71_Enfant_du_Pays_frontale.webp",
+    "carte": "da/keyarts/ONZE_71_LEnfant_du_Pays.webp"
+  },
+  "Malandro": {
+    "frontale": "da/frontales/ONZE_67_Malandro_frontale.webp",
+    "carte": "da/keyarts/ONZE_67_Malandro.webp"
+  },
+  "Marcus": {
+    "carte": "da/keyarts/ONZE_55_Marcus.webp",
+    "frontale": "da/frontales/ONZE_55_Marcus_frontale.webp"
+  },
+  "Mattia": {
+    "carte": "da/keyarts/ONZE_03_Mattia.webp",
+    "frontale": "da/frontales/ONZE_03_Mattia_frontale.webp"
+  },
+  "Milan": {
+    "carte": "da/keyarts/ONZE_39_Milan.webp",
+    "frontale": "da/frontales/ONZE_39_Milan_frontale.webp"
+  },
+  "Moussa": {
+    "carte": "da/keyarts/ONZE_38_Moussa.webp",
+    "frontale": "da/frontales/ONZE_38_Moussa_frontale.webp"
+  },
+  "Nico": {
+    "carte": "da/keyarts/ONZE_14_Nico.webp",
+    "frontale": "da/frontales/ONZE_14_Nico_frontale.webp"
+  },
+  "Nino": {
+    "frontale": "da/frontales/ONZE_34_Nino_frontale.webp",
+    "carte": "da/keyarts/ONZE_34_Nino.webp"
+  },
+  "Pieter": {
+    "carte": "da/keyarts/ONZE_18_Pieter.webp",
+    "frontale": "da/frontales/ONZE_18_Pieter_frontale.webp"
+  },
+  "Rafinha": {
+    "frontale": "da/frontales/ONZE_22_Rafinha_frontale.webp",
+    "carte": "da/keyarts/ONZE_22_Rafinha.webp"
+  },
+  "Ratko": {
+    "carte": "da/keyarts/ONZE_19_Ratko.webp",
+    "frontale": "da/frontales/ONZE_19_Ratko_frontale.webp"
+  },
+  "Rodrigo": {
+    "frontale": "da/frontales/ONZE_40_Rodrigo_frontale.webp",
+    "carte": "da/keyarts/ONZE_40_Rodrigo.webp"
+  },
+  "Rubén": {
+    "carte": "da/keyarts/ONZE_31_Rubén.webp",
+    "frontale": "da/frontales/ONZE_31_Rubén_frontale.webp"
+  },
+  "Ruud": {
+    "carte": "da/keyarts/ONZE_70_Ruud.webp",
+    "frontale": "da/frontales/ONZE_70_Ruud_frontale.webp"
+  },
+  "Salvatore": {
+    "carte": "da/keyarts/ONZE_63_Salvatore.webp",
+    "frontale": "da/frontales/ONZE_63_Salvatore_frontale.webp"
+  },
+  "Sam": {
+    "carte": "da/keyarts/ONZE_01_Sam.webp",
+    "frontale": "da/frontales/ONZE_01_Sam_frontale.webp"
+  },
+  "Santiago": {
+    "carte": "da/keyarts/ONZE_64_Santiago.webp",
+    "frontale": "da/frontales/ONZE_64_Santiago_frontale.webp"
+  },
+  "Sven": {
+    "carte": "da/keyarts/ONZE_48_Sven.webp",
+    "frontale": "da/frontales/ONZE_48_Sven_frontale.webp"
+  },
+  "Sékou": {
+    "carte": "da/keyarts/ONZE_05_Sékou.webp",
+    "frontale": "da/frontales/ONZE_05_Sékou_frontale.webp"
+  },
+  "Théo": {
+    "carte": "da/keyarts/ONZE_07_Théo.webp",
+    "frontale": "da/frontales/ONZE_07_Théo_frontale.webp"
+  },
+  "Tiago": {
+    "frontale": "da/frontales/ONZE_27_Tiago_frontale.webp",
+    "carte": "da/keyarts/ONZE_27_Tiago.webp"
+  },
+  "Timo": {
+    "carte": "da/keyarts/ONZE_59_Timo.webp",
+    "frontale": "da/frontales/ONZE_59_Timo_frontale.webp"
+  },
+  "Tiémoko": {
+    "carte": "da/keyarts/ONZE_62_Tiémoko.webp",
+    "frontale": "da/frontales/ONZE_62_Tiémoko_frontale.webp"
+  },
+  "Tommaso": {
+    "carte": "da/keyarts/ONZE_36_Tommaso.webp",
+    "frontale": "da/frontales/ONZE_36_Tommaso_frontale.webp"
+  },
+  "Unai": {
+    "carte": "da/keyarts/ONZE_06_Unai.webp",
+    "frontale": "da/frontales/ONZE_06_Unai_frontale.webp"
+  },
+  "Vito": {
+    "carte": "da/keyarts/ONZE_32_Vito.webp",
+    "frontale": "da/frontales/ONZE_32_Vito_frontale.webp"
+  },
+  "Wim": {
+    "carte": "da/keyarts/ONZE_53_Wim.webp",
+    "frontale": "da/frontales/ONZE_53_Wim_frontale.webp"
+  },
+  "Xabi": {
+    "carte": "da/keyarts/ONZE_23_Xabi.webp",
+    "frontale": "da/frontales/ONZE_23_Xabi_frontale.webp"
+  },
+  "Yannick": {
+    "carte": "da/keyarts/ONZE_42_Yannick.webp",
+    "frontale": "da/frontales/ONZE_42_Yannick_frontale.webp"
+  },
+  "Álvaro": {
+    "carte": "da/keyarts/ONZE_65_Don_Álvaro.webp",
+    "frontale": "da/frontales/ONZE_65_Don_Álvaro_frontale.webp"
+  },
+  "Gus · Le Douzième Homme": {
+    "carte": "da/keyarts/ONZE_H1_Gus.webp",
+    "frontale": "da/frontales/ONZE_H1_Gus_frontale.webp"
+  },
+  "Titi · Le Douzième Homme": {
+    "carte": "da/keyarts/ONZE_H2_Titi.webp",
+    "frontale": "da/frontales/ONZE_H2_Titi_frontale.webp"
+  },
+  "Gus": {
+    "carte": "da/keyarts/ONZE_S1_Gus.webp",
+    "frontale": "da/frontales/ONZE_S1_Gus_frontale.webp"
+  },
+  "Marcel": {
+    "carte": "da/keyarts/ONZE_S2_Marcel.webp",
+    "frontale": "da/frontales/ONZE_S2_Marcel_frontale.webp"
+  },
+  "Rachid": {
+    "carte": "da/keyarts/ONZE_S3_Rachid.webp",
+    "frontale": "da/frontales/ONZE_S3_Rachid_frontale.webp"
+  },
+  "Momo": {
+    "carte": "da/keyarts/ONZE_S4_Momo.webp",
+    "frontale": "da/frontales/ONZE_S4_Momo_frontale.webp"
+  },
+  "Titi": {
+    "carte": "da/keyarts/ONZE_S5_Titi.webp",
+    "frontale": "da/frontales/ONZE_S5_Titi_frontale.webp"
+  }
 }

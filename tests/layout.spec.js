@@ -53,7 +53,7 @@ const TAILLES = [
       const ctx = toile.getContext("2d");
       const dpr = toile.width / toile.clientWidth;
       const geo = d.cadre, r = d.rayonPion;
-      // décision 44 : le diagnostic parle MÈTRES, origine au centre
+      // décision 50 : le diagnostic parle MÈTRES, origine au centre
       const T = d.terrain;
       const px = (p) => ({ X: geo.x + ((p.x + T.L / 2) / T.L) * geo.w,
                            Y: geo.y + ((p.y + T.W / 2) / T.W) * geo.h });
