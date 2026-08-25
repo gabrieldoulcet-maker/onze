@@ -189,6 +189,42 @@ async function ouvrir(page) {
       verifier(`${taille.nom} · ${ecran} : tout ce qui se tape reçoit le tap ` +
         `(${occlus.total} cibles, ${occlus.rates.length} recouverte(s))`,
         occlus.rates.length === 0, occlus.rates.slice(0, 5).join(" | "));
+
+      /* LES DEUX COLONNES NE MANGENT PAS L'ÉCRAN. Mesuré : 108 + 104 px
+         sur 844, soit 25 % de la largeur pour de l'information de
+         CONSULTATION, pendant que le terrain — le sujet — se serre au
+         milieu. Trois contrats : collées au bord (la marge vient du seul
+         `env(safe-area-inset-*)`), ≤ 80 px chacune au repos, et ≤ 20 %
+         de l'écran à elles deux. Ce qui ne tient pas se replie derrière
+         son bouton, il ne s'étale pas. */
+      const colonnes = await page.evaluate(() => {
+        const lire = (sel, cote) => {
+          const e = document.querySelector(sel);
+          if (!e) return null;
+          const st = getComputedStyle(e);
+          if (st.display === "none" || st.visibility === "hidden") return null;
+          const r = e.getBoundingClientRect();
+          return { sel, largeur: r.width,
+            marge: cote === "gauche" ? r.x : innerWidth - (r.x + r.width) };
+        };
+        const g = lire(".col-synergies", "gauche"), d = lire(".col-classement", "droite");
+        return { g, d, ecran: innerWidth };
+      });
+      const cols = [colonnes.g, colonnes.d].filter(Boolean);
+      if (cols.length === 2) {
+        const somme = cols.reduce((n, c) => n + c.largeur, 0);
+        const part = somme / colonnes.ecran;
+        const large = cols.filter((c) => c.largeur > 80);
+        const decollees = cols.filter((c) => c.marge > 8);
+        verifier(`${taille.nom} · ${ecran} : les deux colonnes rendent l'écran au terrain ` +
+          `(${cols.map((c) => Math.round(c.largeur) + " px").join(" + ")} = ${(part * 100).toFixed(0)} % ` +
+          `de ${colonnes.ecran} px — plafonds 80 px chacune et 20 % à elles deux)`,
+          part <= 0.20 && large.length === 0,
+          `${large.length} colonne(s) au-dessus de 80 px, ensemble à ${(part * 100).toFixed(0)} %`);
+        verifier(`${taille.nom} · ${ecran} : les deux colonnes sont collées aux bords ` +
+          `(marges ${cols.map((c) => Math.round(c.marge) + " px").join(" · ")}, la sécurité vient du seul safe-area)`,
+          decollees.length === 0, decollees.map((c) => `${c.sel} à ${Math.round(c.marge)} px du bord`).join(" | "));
+      }
     }
     await page.close();
   }
