@@ -490,6 +490,150 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   verifier(`Étape 2 — le gazon zoome avec le terrain : la bande de tonte garde sa largeur réelle (${bandeMin.toFixed(1)}-${bandeMax.toFixed(1)} m) et on en voit ${nbBandes[0]} à 10 joueurs contre ${nbBandes[nbBandes.length - 1]} à 22`,
     bandeMax / bandeMin <= 1.15 && nbBandes[0] < nbBandes[nbBandes.length - 1]);
 
+  /* ============================================================
+     LES MAILLOTS DE MATCH — la couleur dit l'ÉQUIPE, la séparation
+     d'avec le sol vient d'un signal NON COLORÉ (décision 61).
+     ============================================================ */
+  const couleurs = await page.evaluate(() => {
+    const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+    const L = ([r, g, b]) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    const contraste = (a, b) => { const la = L(a), lb = L(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); };
+    const melange = (src, alpha, fond) => src.map((v, i) => Math.round(v * alpha + fond[i] * (1 - alpha)));
+    const lab = (rgb) => {
+      const [r, g, b] = rgb.map(lin);
+      const X = r * 0.4124 + g * 0.3576 + b * 0.1805, Y = r * 0.2126 + g * 0.7152 + b * 0.0722,
+            Z = r * 0.0193 + g * 0.1192 + b * 0.9505;
+      const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+      const fx = f(X / 0.95047), fy = f(Y), fz = f(Z / 1.08883);
+      return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+    };
+    const dE = (a, b) => { const x = lab(a), y = lab(b); return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]); };
+    const m = ONZE_SCENE.maillots();
+    const o = ONZE_SCENE.OMBRE_CONTACT, li = ONZE_SCENE.LISERE_HAUT;
+    const sols = ONZE_STADE.liste().map(({ id }) => {
+      const t = ONZE_STADE.theme(id);
+      return { nom: t.nom, sol: hex(ONZE_STADE.sol(t)) };
+    });
+    return {
+      dEBleuRouge: dE(hex(m.moi.corps), hex(m.eux.corps)),
+      dEBleuJaune: dE(hex(m.moi.corps), hex(m.gardien.corps)),
+      dERougeJaune: dE(hex(m.eux.corps), hex(m.gardien.corps)),
+      // le constat qui JUSTIFIE le signal non coloré : aucun maillot ne tient
+      maillotsContreSol: sols.map((s) => ({ nom: s.nom,
+        moi: contraste(hex(m.moi.corps), s.sol), eux: contraste(hex(m.eux.corps), s.sol) })),
+      // et le signal non coloré, lui, tient partout
+      signal: sols.map((s) => ({ nom: s.nom,
+        ombre: contraste(melange(o.rgb, o.alpha, s.sol), s.sol),
+        lisere: contraste(melange(li.rgb, li.alpha, s.sol), s.sol) })),
+      // la couleur est rangée par ÉQUIPE : aucune famille sur le terrain
+      parEquipe: !!(m.moi && m.eux && m.gardien) &&
+        Object.values(m).every((x) => typeof x.corps === "string"),
+      familles: Object.keys(ONZE_SCENE.couleurFamille ? {} : {}).length,
+    };
+  });
+  verifier(`Décision 61 — bleu et rouge sont la meilleure paire (ΔE ${Math.round(couleurs.dEBleuRouge)} ; gardien à ΔE ${Math.round(couleurs.dEBleuJaune)} du bleu et ${Math.round(couleurs.dERougeJaune)} du rouge)`,
+    couleurs.dEBleuRouge >= 100 && couleurs.dEBleuJaune >= 60 && couleurs.dERougeJaune >= 60);
+  const aucunMaillotNeTient = couleurs.maillotsContreSol.some((s) => s.moi < 3 || s.eux < 3);
+  console.log(`   📐 aucun maillot ne tient 3:1 contre tous les sols — ${couleurs.maillotsContreSol.map((s) => `${s.nom} ${s.moi.toFixed(2)}/${s.eux.toFixed(2)}`).join(" · ")} (c'est pour ça que la séparation ne peut pas venir de la teinte)`);
+  const signalOk = couleurs.signal.every((s) => Math.max(s.ombre, s.lisere) >= 3);
+  verifier(`Décision 61 — la séparation vient d'un signal NON COLORÉ : sur chaque sol, l'ombre de contact OU le liseré tient 3:1 (${couleurs.signal.map((s) => `${s.nom} ${s.ombre.toFixed(1)}/${s.lisere.toFixed(1)}`).join(" · ")})`,
+    signalOk && aucunMaillotNeTient);
+
+  /* ============================================================
+     ÉTAPE A — LE PION EST UN CORPS. Taille, mêlée, repli.
+     ============================================================ */
+  const figurines = await page.evaluate(async () => {
+    const parEcole = (ecole, n) => tousLesJoueurs.filter((j) => j.ecole === ecole).slice(0, n)
+      .map((j) => ({ ...j, etoiles: 1 }));
+    const sortie = { tailles: [], melee: null, repli: null };
+    // 1. LA TAILLE : hauteur = 1,2 × le diamètre du pion, à tous les
+    //    effectifs et à toutes les tailles d'écran
+    for (const [n, L, H] of [[5, 800, 280], [8, 800, 280], [11, 800, 280], [11, 560, 190], [5, 1000, 340]]) {
+      const bac = document.createElement("div");
+      bac.style.cssText = `position:fixed;left:-3000px;width:${L}px;height:${H}px`;
+      document.body.appendChild(bac);
+      const sc = ONZE_SCENE.creer(bac,
+        ONZE.equipeDepuisFiches("A", "A", parEcole("Tiki-Taka", n)),
+        ONZE.equipeDepuisFiches("B", "B", parEcole("Catenaccio", n)), {});
+      const d = sc.diagnostic();
+      sortie.tailles.push({ n: n * 2, L, H, hauteur: d.figurine.hauteur,
+        diametre: 2 * d.rayonPion, rapport: d.figurine.hauteur / (2 * d.rayonPion),
+        partTete: d.figurine.partTete });
+      sc.detruire(); bac.remove();
+    }
+    /* 2. LA MÊLÉE — le vrai go/no-go du chantier. À 23 px avec
+       vingt-deux corps, trois joueurs qui se croisent peuvent faire une
+       bouillie là où trois disques restaient lisibles. On les superpose
+       de force et on regarde les PIXELS : le porteur doit rester
+       identifiable (son anneau au sol) et les deux camps distinguables. */
+    {
+      const bac = document.createElement("div");
+      bac.style.cssText = "position:fixed;left:-3000px;width:800px;height:280px";
+      document.body.appendChild(bac);
+      const sc = ONZE_SCENE.creer(bac,
+        ONZE.equipeDepuisFiches("A", "A", parEcole("Tiki-Taka", 6)),
+        ONZE.equipeDepuisFiches("B", "B", parEcole("Catenaccio", 6)), {});
+      await new Promise((r) => setTimeout(r, 600));
+      const d0 = sc.diagnostic();
+      // on colle quatre pions des DEUX camps au même endroit
+      sc.entasser(0, 0);
+      await new Promise((r) => setTimeout(r, 120));
+      const cv = bac.querySelector("canvas");
+      const g = cv.getContext("2d");
+      const dpr = cv.width / cv.clientWidth;
+      const geo = sc.diagnostic().cadre;
+      const cx = (geo.x + geo.w / 2) * dpr, cy = (geo.y + geo.h / 2) * dpr;
+      const cote = Math.round(70 * dpr);
+      const im = g.getImageData(Math.round(cx - cote), Math.round(cy - cote), cote * 2, cote * 2).data;
+      let bleus = 0, rouges = 0, clairs = 0;
+      for (let i = 0; i < im.length; i += 4) {
+        const R = im[i], V = im[i + 1], B = im[i + 2], A = im[i + 3];
+        if (A < 40) continue;
+        if (B > 120 && B > R * 1.5 && B > V * 1.2) bleus++;
+        else if (R > 120 && R > B * 1.5 && R > V * 1.5) rouges++;
+        else if (R > 200 && V > 200 && B > 190) clairs++;   // l'anneau du porteur / le liseré
+      }
+      sortie.melee = { bleus, rouges, clairs, entasses: d0.nbDisques };
+      sc.detruire(); bac.remove();
+    }
+    // 3. LE REPLI : figurines coupées, le match reste jouable et lisible
+    {
+      const avant = ONZE_SCENE.reglages().figurines;
+      ONZE_SCENE.majReglages({ figurines: false });
+      const bac = document.createElement("div");
+      bac.style.cssText = "position:fixed;left:-3000px;width:800px;height:280px";
+      document.body.appendChild(bac);
+      const sc = ONZE_SCENE.creer(bac,
+        ONZE.equipeDepuisFiches("A", "A", parEcole("Tiki-Taka", 6)),
+        ONZE.equipeDepuisFiches("B", "B", parEcole("Catenaccio", 6)), {});
+      await new Promise((r) => setTimeout(r, 500));
+      const d = sc.diagnostic();
+      const cv = bac.querySelector("canvas");
+      const g = cv.getContext("2d");
+      const dpr = cv.width / cv.clientWidth;
+      const im = g.getImageData(0, 0, cv.width, cv.height).data;
+      let bleus = 0, rouges = 0;
+      for (let i = 0; i < im.length; i += 4) {
+        const R = im[i], V = im[i + 1], B = im[i + 2];
+        if (B > 120 && B > R * 1.5 && B > V * 1.2) bleus++;
+        else if (R > 120 && R > B * 1.5 && R > V * 1.5) rouges++;
+      }
+      sortie.repli = { figurines: d.figurine.active, pions: d.nbDisques, bleus, rouges };
+      sc.detruire(); bac.remove();
+      ONZE_SCENE.majReglages({ figurines: avant });
+    }
+    return sortie;
+  });
+  const tailleOk = figurines.tailles.every((t) => Math.abs(t.rapport - 1.2) < 0.02);
+  verifier(`Étape A — la figurine mesure 1,2 × le diamètre du pion, à tous les effectifs et écrans (${figurines.tailles.map((t) => `${t.n}j ${t.L}×${t.H}: ${t.hauteur.toFixed(1)} px pour ${t.diametre.toFixed(1)}`).join(" · ")})`,
+    tailleOk && figurines.tailles.every((t) => t.partTete >= 0.34 && t.partTete <= 0.38));
+  const m = figurines.melee;
+  verifier(`Étape A — la MÊLÉE reste lisible : ${m.bleus} px bleus et ${m.rouges} px rouges sur ${m.entasses} pions entassés, porteur repérable (${m.clairs} px clairs)`,
+    m.bleus > 40 && m.rouges > 40 && m.clairs > 20);
+  verifier(`Étape A — le repli tient : figurines coupées, le match reste lisible (${figurines.repli.pions} disques, ${figurines.repli.bleus} px bleus / ${figurines.repli.rouges} px rouges)`,
+    figurines.repli.figurines === false && figurines.repli.bleus > 40 && figurines.repli.rouges > 40);
+
   /* ---- Un MATCH PLEIN sous instruments : régimes, durées, mouvement,
      étiquettes, ballon jamais téléporté ---- */
   /* Le match de relevé doit avoir de la MATIÈRE : un 0-0 à une seule
@@ -513,6 +657,14 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   const ECHANTILLON_MARQUAGE = 100;
   const sacMarquage = { vus: 0, bons: 0, tous: 0, tousBons: 0, matchs: 0 };
   const sacPorteur = [];
+  /* Les ÉPISODES de l'étape 3 se cumulent d'un match à l'autre, comme le
+     marquage : un match ne donne que cinq appels et sept pressings, et
+     une distribution ne se juge pas sur sept points (décision 43). */
+  const sacE3 = { hauteurs: [], postures: {}, lignes: [], appels: [], pressings: [], options: [], dureesOption: [] };
+  /* La durée des temps forts se cumule elle aussi : un match ne rend
+     parfois qu'UN grand format, et une moyenne sur un point n'est pas
+     une moyenne (décision 43). */
+  const sacFormats = [];
   let releve = null, avecMatiere = null;
   for (let essai = 0; essai < 9; essai++) {
     releve = await mesurerUnMatch(page);
@@ -520,9 +672,17 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     sacMarquage.tous += releve.marquagesTous; sacMarquage.tousBons += releve.marquagesTousBons;
     sacMarquage.matchs++;
     sacPorteur.push(...(releve.relevesPorteurSimule || []));
+    sacFormats.push(...(releve.tempsFortsMs || []));
+    if (releve.etape3) {
+      for (const k of ["hauteurs", "lignes", "appels", "pressings", "options", "dureesOption"]) {
+        sacE3[k].push(...(releve.etape3[k] || []));
+      }
+      for (const k in releve.etape3.postures) sacE3.postures[k] = (sacE3.postures[k] || 0) + releve.etape3.postures[k];
+    }
     // le relevé qui sert à TOUTES les autres mesures doit avoir de la matière
     if (!avecMatiere && releve.buts >= 1 && releve.misesEnPlace >= 2) avecMatiere = releve;
-    if (avecMatiere && sacMarquage.vus >= ECHANTILLON_MARQUAGE && sacPorteur.length >= 100) break;
+    if (avecMatiere && sacMarquage.vus >= ECHANTILLON_MARQUAGE && sacPorteur.length >= 100
+        && sacE3.appels.length >= 15 && sacE3.pressings.length >= 12 && sacE3.dureesOption.length >= 30) break;
     console.log(`   (relevé ${essai + 1} : ${releve.buts} but(s), ${releve.misesEnPlace} temps fort(s), ${releve.marquagesVus} marquage(s) en position — sac à ${sacMarquage.vus}/${ECHANTILLON_MARQUAGE}, on rejoue)`);
   }
   if (avecMatiere) releve = avecMatiere;
@@ -556,8 +716,10 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     const vitesses = [];
     let ballonPrec = null, sautMaxBallon = 0;
     let etiqAction = [], etiqBut = 0, nonFinies = 0;
+    // étape 3 : les distributions du cerveau
+    const e3 = { hauteurs: [], postures: {}, lignes: [] };
     // décision 33 : les mesures du cerveau de placement
-    let sansRaison = 0; const ecartsCible = [];
+    let sansRaison = 0, premierMuet = null; const ecartsCible = [];
     let appelsVus = 0, appelsEnCourse = 0;
     let reposDepuis = 0, vitesseReposCourante = 0; const finsDeRepos = [];
     let lignesVues = 0, sommeEcartType = 0;
@@ -633,7 +795,13 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
           loin: p.ecartCible === null || p.ecartCible > 4 };
         // --- décision 33 : le cerveau ---
         const champ = d.positions.filter((p) => p.role !== "gardien");
-        if (champ.some((p) => !p.role)) sansRaison++;
+        const muets = champ.filter((p) => !p.role);
+        if (muets.length) {
+          sansRaison++;
+          if (!premierMuet) premierMuet = { regime: d.regime, n: muets.length,
+            qui: muets.map((p) => `${p.camp}|${p.nom}`).slice(0, 3).join(","),
+            cible: muets[0].cible ? "avec cible" : "sans cible" };
+        }
         champ.forEach((p) => { if (p.ecartCible !== null) ecartsCible.push(p.ecartCible); });
         if (d.receveurAttendu) {
           const r = d.positions.find((p) => p.cle === d.receveurAttendu);
@@ -668,6 +836,18 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
           // celui qui court encore vers son homme n'est pas en position
           if (m.ecartCible !== null && m.ecartCible < 5) {
             marquagesVus++; if (bon) marquagesBons++;
+          }
+        }
+        if (d.regime === "action" && d.hauteurDepuisBut) {
+          for (const c of ["moi", "eux"]) {
+            // ramenée au terrain plein : c'est l'échelle du manuel
+            e3.hauteurs.push(d.hauteurDepuisBut[c] * (104 / d.terrain.L));
+
+            const xs = d.positions.filter((p) => p.camp === c && p.role !== "gardien")
+              .map((p) => p.x).sort((a, b) => a - b);
+            let n = xs.length ? 1 : 0;
+            for (let i = 1; i < xs.length; i++) if (xs[i] - xs[i - 1] > 6) n++;
+            e3.lignes.push(n);
           }
         }
         for (const p of d.positions) if (p.role !== "gardien") allures.push(p.vitesse / p.vMax);
@@ -760,7 +940,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       // aucune position ne doit jamais devenir non finie
       nonFinies,
       // décision 33
-      sansRaison,
+      sansRaison, premierMuet,
       ecartMedian: ecartsCible.length ? ecartsCible.slice().sort((a, b) => a - b)[Math.floor(ecartsCible.length / 2)] : 0,
       appelsVus, appelsEnCourse,
       reposVus: finsDeRepos.length,
@@ -769,6 +949,10 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       lignesVues, ecartTypeLigne: lignesVues ? sommeEcartType / lignesVues : 0,
       marquagesVus, marquagesBons, marquagesTous, marquagesTousBons,
       tlTotal, tlMax, tlRecule, tlMalCompte, porteurAmbigu, matchsAvecHomonymes,
+      // ÉTAPE 3 : les distributions du cerveau
+      etape3: { ...e3, postures: physique.tiragesPosture || {},
+        appels: physique.appels || [], pressings: physique.pressings || [],
+        options: physique.optionsPasse || [], dureesOption: physique.dureesOption || [] },
       // ÉTAPE 1 : la physique
       physique, vMaxPlusHaut,
       vitesseChampMediane: med(vitessesChamp), vitesseChampP90: pct(vitessesChamp, 0.9),
@@ -836,7 +1020,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
      LE CERVEAU DE PLACEMENT (design/scene-intention.md, décision 33) —
      les cinq tests d'acceptation de la spec.
      ============================================================ */
-  verifier(`Décision 33 — test de pause : chaque pion a une RAISON nommée (${releve.sansRaison} relevé(s) avec un pion sans rôle)`,
+  verifier(`Décision 33 — test de pause : chaque pion a une RAISON nommée (${releve.sansRaison} relevé(s) avec un pion sans rôle${releve.premierMuet ? ` — ${JSON.stringify(releve.premierMuet)}` : ""})`,
     releve.sansRaison === 0);
   verifier(`Décision 33 — test de pause : les pions convergent vers leur cible (écart médian ${releve.ecartMedian.toFixed(1)} m)`,
     releve.ecartMedian > 0 && releve.ecartMedian < 14);
@@ -860,7 +1044,12 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       ONZE.equipeDepuisFiches("A", "A", parEcole("Tiki-Taka", 6)),
       ONZE.equipeDepuisFiches("B", "B", parEcole("Catenaccio", 6)), {});
     const lire = () => sc.diagnostic().positions.map((p) => ({ v: p.vitesse, x: p.x, y: p.y }));
-    await new Promise((r) => setTimeout(r, 3500));
+    /* Six secondes de calme, pas trois et demie : depuis que la ligne
+       défensive vit à sa vraie hauteur (décision 57), les pions ont une
+       vingtaine de mètres de plus à parcourir avant d'être en place.
+       Mesuré : vitesse max 6,1 m/s à 3 s, 1,2 à 4 s, 0,00 à partir de 5.
+       Le test mesure la STABILITÉ, pas la vitesse de convergence. */
+    await new Promise((r) => setTimeout(r, 6000));
     const a = lire();
     await new Promise((r) => setTimeout(r, 800));
     const b = lire();
@@ -948,6 +1137,60 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   console.log(`   📐 braquage : p99 ${releve.braquageP99.toFixed(1)} rad/s, max ${releve.braquageMax.toFixed(1)} (${releve.braquagesVus} mesures sur les joueurs lancés)`);
   console.log(`   📐 allure : médiane à ${Math.round(releve.allureMediane * 100)} % de la vitesse max (${releve.alluresVues} relevés) — dans le vrai football, un joueur passe l'essentiel du match SOUS son maximum`);
 
+  /* ============================================================
+     ÉTAPE 3 — LE CERVEAU DE PLACEMENT, comparé aux distributions du
+     football réel (design/football-chiffre.md, corrigé par la
+     décision 57). Tolérance du manuel : médiane ±25 %, p90 ±35 %.
+     Ce qui TIENT devient une assertion ; ce qui manque encore est
+     AFFICHÉ avec son écart, jamais noyé ni desserré.
+     ============================================================ */
+  const e3 = sacE3;
+  const q = (l, p) => (l.length ? l.slice().sort((a, b) => a - b)[Math.min(l.length - 1, Math.floor(l.length * p))] : 0);
+  const ecart = (v, ref) => Math.abs(v - ref) / ref;
+  // 1. la hauteur de la dernière ligne : p10 13,0 · médiane 34,8 · p90 52,2
+  const H = e3.hauteurs;
+  verifier(`Étape 3 — la ligne défensive vit à sa vraie hauteur : p10 ${q(H, 0.1).toFixed(1)} · médiane ${q(H, 0.5).toFixed(1)} · p90 ${q(H, 0.9).toFixed(1)} m de son but (réel 13,0 · 34,8 · 52,2 ; ${H.length} relevés)`,
+    H.length >= 300 && ecart(q(H, 0.5), 34.8) <= 0.25 && ecart(q(H, 0.9), 52.2) <= 0.35);
+  // 2. les quatre postures existent toutes, et aucune n'écrase les autres
+  /* On compte les TIRAGES, pas les frames : le manuel donne des parts DE
+     PHASES. Compter frame par frame pondère chaque posture par la durée
+     de son temps fort, et une poignée de temps forts longs suffit à
+     fausser la distribution — mesuré 59 % de bloc médian là où les
+     tirages en donnaient 41. */
+  const partPost = e3.postures, totalP = Object.values(partPost).reduce((a, b) => a + b, 0) || 1;
+  const quatre = ["bas", "median", "haut", "chaos"].every((k) => (partPost[k] || 0) / totalP >= 0.05);
+  verifier(`Étape 3 — les quatre postures se tirent vraiment (${totalP} tirages : ${Object.entries(partPost).map(([k, v]) => `${k} ${Math.round(100 * v / totalP)} %`).join(" · ")} ; réel bas 25 · médian 42 · haut 18 · chaos 15)`,
+    totalP >= 40 && quatre && (partPost.median || 0) / totalP <= 0.62);
+  // 3. le bloc a TROIS lignes (médiane du manuel)
+  verifier(`Étape 3 — le bloc a trois lignes (médiane mesurée ${q(e3.lignes, 0.5)}, réel 3)`,
+    e3.lignes.length >= 100 && q(e3.lignes, 0.5) >= 2 && q(e3.lignes, 0.5) <= 4);
+  // 4. l'appel dure ce que dure un appel : 2,1 s
+  const AD = e3.appels.map((a) => a.duree);
+  verifier(`Étape 3 — un appel dure ${q(AD, 0.5).toFixed(1)} s (réel 2,1 ; ${AD.length} appels relevés)`,
+    AD.length >= 15 && ecart(q(AD, 0.5), 2.1) <= 0.25);
+  // 5. un pressing DURE ce que dure un pressing : 1,6 s
+  const PU2 = e3.pressings.map((p) => p.duree);
+  verifier(`Étape 3 — un pressing dure ${q(PU2, 0.5).toFixed(1)} s (réel 1,6 ; ${PU2.length} pressings)`,
+    PU2.length >= 12 && ecart(q(PU2, 0.5), 1.6) <= 0.35);
+  /* 6. UNE OPTION EST UN ÉVÉNEMENT COURT. C'est la propriété qui
+     distingue la bonne définition de la mauvaise : « un coéquipier à
+     portée » reste disponible des dizaines de secondes, une option née
+     d'un mouvement vit une seconde. On borne donc largement — le but
+     n'est pas de coller au chiffre réel (0,70 s) mais d'attraper un
+     retour à la définition géométrique. */
+  const DO = e3.dureesOption;
+  verifier(`Étape 3 — une option de passe est un ÉVÉNEMENT, pas un coéquipier à portée : elle vit ${q(DO, 0.5).toFixed(2)} s, p90 ${q(DO, 0.9).toFixed(1)} (réel 0,70 et 2,3 ; ${DO.length} options)`,
+    DO.length >= 30 && q(DO, 0.5) <= 1.5 && q(DO, 0.9) <= 4);
+  /* CE QUI MANQUE ENCORE — affiché avec son écart plutôt que desserré.
+     Ces trois distributions dépendent de la chorégraphie, que l'étape 4
+     remplace : elle décide qui touche le ballon et quand, donc la
+     longueur des courses, la densité du bloc autour du porteur et le
+     nombre de solutions ouvertes au moment de la passe. */
+  const AL = e3.appels.map((a) => a.longueur), PD = e3.pressings.map((p) => p.depart);
+  const PM = e3.pressings.map((p) => p.mini), OP = e3.options;
+  const dans13 = OP.length ? OP.filter((v) => v >= 1 && v <= 3).length / OP.length : 0;
+  console.log(`   📐 encore court, l'étape 4 en répond : longueur d'appel ${q(AL, 0.5).toFixed(1)} m (réel 10,7) · pressing de ${q(PD, 0.5).toFixed(1)} m à ${q(PM, 0.5).toFixed(1)} m (réel 5,9 → 2,6) · options à la passe médiane ${q(OP, 0.5)} (réel 2), ${Math.round(dans13 * 100)} % dans 1-3 (réel 88 %)`);
+
   verifier(`Décision 24 : le porteur est désigné sans ambiguïté, même avec des homonymes (${releve.porteurAmbigu} relevé(s) ambigu(s)${releve.matchsAvecHomonymes ? `, ${releve.matchsAvecHomonymes} relevé(s) AVEC homonymes sur le terrain` : ", aucun homonyme dans ce match"})`,
     releve.porteurAmbigu === 0);
 
@@ -970,8 +1213,8 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
      Le grand format garde sa mise en place pleine (~3 s) et dure ~13 s ;
      le format court la ramène à ~1,2 s et tient ~8 s, sans jamais
      toucher à la chorégraphie de l'issue. On les mesure SÉPARÉMENT. ---- */
-  const grands = releve.tempsFortsMs.filter((x) => x.mep >= 2000);
-  const courts = releve.tempsFortsMs.filter((x) => x.mep < 2000);
+  const grands = sacFormats.filter((x) => x.mep >= 2000);
+  const courts = sacFormats.filter((x) => x.mep < 2000);
   const moy = (l) => l.length ? l.reduce((a, b) => a + b.duree, 0) / l.length : 0;
   verifier(`Formats : le grand format tient ~13 s (${grands.length} mesuré(s), moyenne ${(moy(grands) / 1000).toFixed(1)} s)`,
     grands.length === 0 || (moy(grands) > 10000 && moy(grands) < 16000));

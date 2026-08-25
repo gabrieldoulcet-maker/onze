@@ -54,6 +54,43 @@ const ONZE_SCENE = (() => {
   };
   const couleurFamille = (nom) => COULEURS_FAMILLES[nom] || "#F2C14E";
 
+  /* ============================================================
+     LES MAILLOTS — la couleur est rangée par ÉQUIPE, jamais par famille.
+     Pendant le match, une seule question compte : qui est à moi ? Le
+     camp du joueur est BLEU, l'adversaire ROUGE. Les couleurs d'École et
+     d'archétype restent là où se prennent les DÉCISIONS — les cartes, le
+     banc, l'écran de mise en place — et disparaissent du terrain.
+     ΔE bleu/rouge mesuré : 118, la meilleure paire possible.
+     LES GARDIENS ne portent ni l'un ni l'autre : le jaune est déjà la
+     couleur de poste du gardien, et il tient à ΔE 137 du bleu et 71 du
+     rouge. Les deux gardiens portent donc le même maillot — leur camp se
+     lit à leur but, jamais à leur couleur.
+     Ce champ est un MAILLOT, pas une couleur en dur : une boutique de
+     maillots pourra le surcharger par équipe (`majMaillots`).
+     ============================================================ */
+  const MAILLOTS_DEFAUT = {
+    moi:     { corps: "#2E6FE8", chiffre: "#F2F7FF", nom: "Bleu" },
+    eux:     { corps: "#E03A32", chiffre: "#FFF2F0", nom: "Rouge" },
+    gardien: { corps: "#F0C64B", chiffre: "#1A1405", nom: "Jaune" },
+  };
+  let maillots = { ...MAILLOTS_DEFAUT };
+  const majMaillots = (m) => { maillots = { ...MAILLOTS_DEFAUT, ...(m || {}) }; };
+  const maillotDe = (p) => (p.gardien ? maillots.gardien : maillots[p.camp] || maillots.moi);
+
+  /* LA SÉPARATION D'AVEC LE SOL NE VIENT PAS DE LA TEINTE.
+     Mesuré : aucun maillot ne tient 3:1 contre les trois sols de match
+     (bleu 3,35 · 1,01 · 1,40 ; rouge 3,54 · 1,05 · 1,32) — sur le gazon
+     du Chaudron, le rouge vif a exactement la même luminance que le sol.
+     C'est la leçon des dalles de poste : la teinte dit l'ÉQUIPE, la
+     séparation vient d'un signal NON COLORÉ. Deux signaux, et la recette
+     exige qu'au moins l'un des deux tienne 3:1 sur chaque sol :
+       — l'OMBRE DE CONTACT, sombre et dense (elle porte les sols clairs)
+       — le LISERÉ CLAIR sur le haut du disque (il porte les sols sombres)
+     Mesures : nocturne ombre 1,27 / liseré 12,90 · chaudron 3,90 / 4,03
+     · émeraude 5,27 / 2,94. */
+  const OMBRE_CONTACT = { rgb: [4, 8, 10], alpha: 0.85 };
+  const LISERE_HAUT = { rgb: [250, 252, 255], alpha: 0.92 };
+
   /* L'École dominante d'une équipe → son style de MOUVEMENT (R11/R12).
      C'est le test de l'ADN : 3 matchs suffisent à le deviner. */
   const STYLES_ECOLES = {
@@ -89,6 +126,7 @@ const ONZE_SCENE = (() => {
     etiquettes: true,     // les noms sur les protagonistes
     trainee: true,        // « Ballon animé » : la traînée
     tempsMorts: "scores", // « Affichage des temps morts » : scores | stats | les-deux
+    figurines: true,      // le pion est un CORPS (étape A) ; false = repli sur les disques
     stade: "emeraude",    // le thème de stade (R13) — un décor PEINT par défaut :
                           // un joueur neuf voit le Grand Soir sans rien régler
   };
@@ -569,15 +607,74 @@ const ONZE_SCENE = (() => {
     /* La hauteur de la ligne défensive d'un camp : elle SUIT le ballon —
        basse quand il approche, remontée quand il s'éloigne. Les
        défenseurs la partagent, ils montent et descendent ensemble. */
+    /* ============================================================
+       LES POSTURES DÉFENSIVES (design/football-chiffre.md §5 corrigé,
+       décision 57). La hauteur de la dernière ligne s'étale de 13 à 52 m
+       depuis son propre but — et ce n'est PAS du bruit autour de 34,8 :
+       ce sont quatre comportements distincts, mesurés phase par phase.
+       Une hauteur calculée par une fonction continue du ballon produit
+       une bande étroite autour de la médiane et PARAÎT ÉCRITE. On tire
+       donc une posture au début de chaque temps fort et on la TIENT ; le
+       ballon ne fait que moduler à l'intérieur de son étendue.
+       ============================================================ */
+    const POSTURES = {
+      bas:    { bas: 8.0,  haut: 25.4, part: 0.22 },
+      median: { bas: 25.0, haut: 47.1, part: 0.37 },
+      haut:   { bas: 41.0, haut: 55.7, part: 0.16 },
+      chaos:  { bas: 16.4, haut: 57.5, part: 0.13 },
+    };
+    /* Le penchant d'une École : le Catenaccio défend bas, La Grinta
+       presse haut, l'École de la Rue vit dans le chaos. C'est ce qui
+       fait qu'un style se LIT sans qu'on l'ait scripté. */
+    const PENCHANT = {
+      catenaccio: { bas: 3.0, median: 1.3, haut: 0.25, chaos: 0.9 },
+      grinta:     { bas: 0.3, median: 0.8, haut: 4.5,  chaos: 1.0 },
+      kickrush:   { bas: 0.5, median: 0.8, haut: 3.2,  chaos: 1.2 },
+      tiki:       { bas: 0.4, median: 1.3, haut: 2.4,  chaos: 0.7 },
+      rue:        { bas: 0.7, median: 0.8, haut: 1.6,  chaos: 2.0 },
+      total:      { bas: 0.5, median: 1.1, haut: 2.6,  chaos: 0.9 },
+    };
+    const posture = { moi: "median", eux: "median" };
+    function tirerPosture(camp) {
+      const p = PENCHANT[styles[camp].style] || {};
+      const noms = Object.keys(POSTURES);
+      const poids = noms.map((n) => POSTURES[n].part * (p[n] !== undefined ? p[n] : 1));
+      const total = poids.reduce((a, b) => a + b, 0);
+      let tirage = Math.random() * total;
+      let choisie = "median";
+      for (let i = 0; i < noms.length; i++) {
+        tirage -= poids[i];
+        if (tirage <= 0) { choisie = noms[i]; break; }
+      }
+      posture[camp] = choisie;
+      /* On compte les TIRAGES, pas les frames. Le manuel donne des parts
+         DE PHASES ; compter frame par frame revient à pondérer chaque
+         posture par la durée de son temps fort, et une poignée de temps
+         forts longs suffit alors à faire dire n'importe quoi à la
+         distribution (mesuré : 59 % de bloc médian là où les tirages en
+         donnaient 41). */
+      mesures.tiragesPosture[choisie] = (mesures.tiragesPosture[choisie] || 0) + 1;
+    }
+    /* La hauteur de CE camp, en mètres depuis son propre but, mise à
+       l'échelle du terrain (une posture haute à 49 m n'a pas de sens sur
+       un terrain de 70 m de long). */
     function hauteurLigne(camp) {
       const sens = sensDe(camp);
       const but = BUTS[camp].x;
-      const ecart = Math.abs(refBloc.x - but);
-      // mesures réelles : dernière ligne à 17,7 m du but en médiane,
-      // p10 0,3 m (bloc écrasé) et p90 39,5 m (bloc haut)
-      const bas = styles[camp].style === "catenaccio" ? 4 : 7;
-      const haut = styles[camp].style === "grinta" ? 44 : 38;
-      return but + sens * borne(ecart * 0.35, bas, haut);
+      const p = POSTURES[posture[camp]] || POSTURES.median;
+      const echelle = TERRAIN.L / 104;
+      // le ballon module DANS la posture : il approche → la ligne descend
+      const t = borne(Math.abs(refBloc.x - but) / TERRAIN.L, 0, 1);
+      const h = lerp(p.bas, p.haut, t) * echelle;
+      return but + sens * borne(h, 3, TERRAIN.L * 0.52);
+    }
+    // la hauteur d'une ligne AVANCÉE : le bloc réel fait trois lignes,
+    // séparées d'une dizaine de mètres (médiane du manuel : 3 lignes)
+    const ECART_LIGNES = 11;
+    function hauteurLigneDe(camp, ligne) {
+      const rang = ligne === "MIL" ? 1 : ligne === "ATT" ? 2 : 0;
+      const echelle = TERRAIN.L / 104;
+      return hauteurLigne(camp) + sensDe(camp) * rang * ECART_LIGNES * echelle;
     }
 
     /* ============================================================
@@ -669,20 +766,50 @@ const ONZE_SCENE = (() => {
       if (!p || p.cle === ballon.porteur) return null;
       return p;
     }
+    /* LES DIX TYPES D'APPEL RÉELS (design/football-chiffre.md §4), avec
+       leur fréquence, leur longueur et leur GAIN DE LIGNE — de combien la
+       course rapproche le joueur de la dernière ligne adverse (négatif =
+       il l'attaque, positif = il décroche). Un appel n'est pas « dix
+       mètres devant » : c'est un décrochage, un écartement ou une course
+       dans le dos, et la différence se voit. */
+    const APPELS = [
+      { nom: "dos du ballon",     part: 28, longueur: 10.8, gain: -3.7 , duree: 2.1 },
+      { nom: "soutien",           part: 15, longueur: 10.1, gain: -3.0 , duree: 2.0 },
+      { nom: "décrochage court",  part: 14, longueur: 8.3,  gain: 2.6 , duree: 1.8 },
+      { nom: "décrochage",        part: 13, longueur: 8.5,  gain: 3.3 , duree: 1.9 },
+      { nom: "receveur de centre", part: 8, longueur: 15.4, gain: -1.5 , duree: 2.8 },
+      { nom: "profondeur",        part: 7,  longueur: 13.9, gain: -2.9 , duree: 2.5 },
+      { nom: "écartement",        part: 7,  longueur: 10.8, gain: -0.4 , duree: 2.2 },
+      { nom: "débordement ext.",  part: 3,  longueur: 19.4, gain: -9.0 , duree: 3.2 },
+      { nom: "entre les lignes",  part: 3,  longueur: 8.9,  gain: 0.5 , duree: 1.9 },
+      { nom: "débordement int.",  part: 2,  longueur: 15.0, gain: -8.2 , duree: 2.7 },
+    ];
+    const PART_APPELS = APPELS.reduce((t, a) => t + a.part, 0);
+    function tirerAppel() {
+      let t = Math.random() * PART_APPELS;
+      for (const a of APPELS) { t -= a.part; if (t <= 0) return a; }
+      return APPELS[0];
+    }
     function cibleAppel(p) {
       const sens = sensDe(p.camp);
-      const but = BUTS[adverse(p.camp)];
-      const ligne = hauteurLigne(adverse(p.camp));
-      // longueur d'appel réelle : 10,7 m en médiane (8,3 pour un
-      // décrochage, 19,4 pour un débordement extérieur)
-      let x = p.x + sens * 10;
-      let y = lerp(p.y, but.y, 0.12);
-      // s'il s'apprête à traverser la ligne de face, il l'élargit d'abord
-      const traverse = sens > 0 ? (p.x < ligne && x > ligne) : (p.x > ligne && x < ligne);
-      if (traverse) {
-        const cote = p.y < 0 ? -1 : 1;
-        y = p.y + cote * 6;
-      }
+      const type = tirerAppel();
+      p.typeAppel = type.nom;
+      /* Il court jusqu'au BOUT de son appel, même si la passe part
+         ailleurs : dans le football réel, seuls 27 % des appels sont
+         servis, et c'est cette course non servie qui fait le suspense.
+         Sans ça, l'appel s'arrêtait au changement de temps — 1 s au lieu
+         des 2,1 s mesurées. */
+      p.appelJusqua = horloge + type.duree;
+      /* Le gain de ligne donne la composante VERS LE BUT, la longueur
+         donne le reste — qui part sur le côté. C'est ce qui distingue un
+         débordement extérieur (9 m gagnés, 17 m de course latérale) d'un
+         décrochage court (2,6 m rendus, presque tout en profondeur). */
+      const versBut = -type.gain;
+      const lateral = Math.sqrt(Math.max(0, type.longueur * type.longueur - versBut * versBut));
+      // il s'écarte du côté le plus libre, pas au hasard
+      const cote = p.y > 0 ? 1 : -1;
+      const x = p.x + sens * versBut;
+      const y = p.y + cote * lateral * (Math.abs(p.y) > DEMI_W * 0.7 ? -1 : 1);
       return { x: dansLeJeu(x), y: dansLaLargeur(y) };
     }
 
@@ -691,18 +818,26 @@ const ONZE_SCENE = (() => {
        distance de passe, dans un angle OUVERT. Si un défenseur ferme la
        ligne, ils se déplacent pour la rouvrir — et c'est ce
        réajustement continu qui remplace la sinusoïde. --- */
-    // distance de passe réelle : p10 6 m, médiane 12,9, p90 23,3
-    const DISTANCE_SOUTIEN = { tiki: 9, catenaccio: 13, kickrush: 18, rue: 10, total: 13, grinta: 13 };
+    /* La distance d'une OPTION au porteur — 7,0 · 15,8 · 30,3 m — et non
+       la distance de passe JOUÉE (6,0 · 12,9 · 23,3). Un soutien se place
+       plus loin que la passe moyenne : c'est le porteur qui choisit la
+       plus courte. (design/football-chiffre.md, décision 57) */
+    const DISTANCE_SOUTIEN = { tiki: 11, catenaccio: 16, kickrush: 22, rue: 13, total: 16, grinta: 16 };
     function cibleSoutien(p, porteur) {
       const sens = sensDe(p.camp);
       const d = DISTANCE_SOUTIEN[styles[p.camp].style] || 15;
       let meilleure = null, meilleurScore = -Infinity;
-      for (let k = 0; k < 12; k++) {
-        const angle = (k / 12) * 6.283;
+      for (let k = 0; k < 16; k++) {
+        const angle = (k / 16) * 6.283;
         const c = { x: porteur.x + Math.cos(angle) * d,
                     y: porteur.y + Math.sin(angle) * d, camp: p.camp };
         if (Math.abs(c.x) > DEMI_L - 5 || Math.abs(c.y) > DEMI_W - 3) continue;
-        let score = ligneOuverte(porteur, c, p.camp) ? 12 : 0;   // l'angle ouvert d'abord
+        /* L'ANGLE OUVERT DOMINE. À 12 points, la géométrie (l'avant, la
+           distance) pouvait faire préférer une position fermée : le
+           porteur n'avait alors qu'une solution ouverte en médiane au
+           lieu de deux. Se rendre DISPONIBLE est le métier d'un soutien,
+           tout le reste passe après. */
+        let score = ligneOuverte(porteur, c, p.camp) ? 30 : 0;
         score += (c.x - porteur.x) * sens * 0.35;                // on préfère l'avant
         score -= distance(c, p) * 0.30;                          // sans courir à l'autre bout
         // INERTIE DE DÉCISION : on ne change pas d'idée pour un cheveu.
@@ -726,7 +861,18 @@ const ONZE_SCENE = (() => {
                      y: homme.y + (homme.vy || 0) * 0.35 };
       const dx = but.x - vise.x, dy = but.y - vise.y;
       const n = Math.hypot(dx, dy) || 1;
-      return { x: borne(vise.x + (dx / n) * 2.5, -DEMI_L + 1, DEMI_L - 1),
+      let x = vise.x + (dx / n) * 2.5;
+      /* GOAL-SIDE, TOUJOURS. L'anticipation peut retourner la règle : un
+         homme qui court VERS le but adverse à 8 m/s se voit anticipé de
+         2,8 m dans ce sens, ce qui annule les 2,5 m de couverture et pose
+         le défenseur du mauvais côté. Mesuré : 52 % de goal-side au lieu
+         de 99 %, et le taux « en position » était PIRE que le taux brut —
+         la signature d'une cible fautive, pas d'un défenseur en retard.
+         On borne donc : la cible est au minimum 1,5 m côté but. */
+      const sens = sensDe(d.camp);              // vers le but ADVERSE
+      const limite = homme.x + sens * 1.5;      // 1,5 m derrière lui, côté SON but à lui
+      x = sens > 0 ? Math.min(x, limite) : Math.max(x, limite);
+      return { x: borne(x, -DEMI_L + 1, DEMI_L - 1),
                y: dansLaLargeur(vise.y + (dy / n) * 2.5) };
     }
 
@@ -762,7 +908,7 @@ const ONZE_SCENE = (() => {
       for (const p of listePions) {
         // la mémoire d'une décision ne survit pas au changement de rôle
         if (p.role !== "soutien") p.soutienMemo = null;
-        if (p.role !== "porteur" && p.role !== "appel") p.ancre = null;
+        if (p.role !== "porteur" && p.role !== "appel" && !(p.appelJusqua > horloge)) p.ancre = null;
         if (p.role !== "marquage") p.marque = null;
         p.role = null; p.cible = null;
       }
@@ -794,7 +940,26 @@ const ONZE_SCENE = (() => {
         porteur.cible = ancrer(porteur, "porteur", () => cibleConduite(porteur), 0.5);
       }
       // 2. l'appel en profondeur — un seul appel tranchant à la fois
-      const receveur = jeuVivant ? receveurAttendu() : null;
+      let receveur = jeuVivant ? receveurAttendu() : null;
+      // celui qui a commencé sa course la termine, servi ou pas
+      if (jeuVivant && (!receveur || receveur.cible)) {
+        const enCours = listePions.find((q) => q.ancre && q.ancre.cle === "appel" &&
+          q.appelJusqua > horloge && !q.cible && !q.gardien);
+        if (enCours) receveur = enCours;
+      }
+      /* IL Y A TOUJOURS UNE COURSE VIVANTE. La médiane réelle des appels
+         simultanés vaut 1 : un appel tranchant en permanence, et les
+         autres qui se replacent. Quand la chorégraphie ne désigne pas de
+         receveur (elle fait souvent agir le porteur deux fois de suite),
+         c'est le coéquipier le plus avancé qui part — sinon on ne
+         mesurait que huit appels par match au lieu d'un flux continu. */
+      if (jeuVivant && campAtt && (!receveur || receveur.cible)) {
+        const sens = sensDe(campAtt);
+        receveur = listePions
+          .filter((q) => q.camp === campAtt && !q.gardien && !q.cible &&
+            q.cle !== ballon.porteur && q.ligne !== "DÉF")
+          .sort((a, b) => (b.x - a.x) * sens)[0] || receveur;
+      }
       if (receveur && !receveur.cible && !receveur.gardien) {
         receveur.role = "appel";
         receveur.cible = ancrer(receveur, "appel", () => cibleAppel(receveur), 1.5);
@@ -805,7 +970,13 @@ const ONZE_SCENE = (() => {
           .filter((q) => q.camp === porteur.camp && !q.gardien && !q.cible &&
             distance(q, porteur) < 32)          // on ne traverse pas le terrain pour se proposer
           .sort((a, b) => distance(a, porteur) - distance(b, porteur))
-          .slice(0, 2)
+          /* TROIS, pas deux. La référence « deux options » venait de la
+             colonne corrigée en décision 57 : les options VIVANTES au
+             même instant valent p10 1 · médiane 2 · p90 4. Avec un appel
+             et deux soutiens, le porteur n'avait qu'une solution ouverte
+             en médiane ; avec trois, la distribution retombe sur la
+             mesure. Ça reste « quelques solutions, pas dix ». */
+          .slice(0, 3)
           .forEach((q) => { q.role = "soutien"; q.cible = cibleSoutien(q, porteur); });
       }
       // 4. le pressing : les 2 défenseurs les plus proches du ballon,
@@ -816,19 +987,46 @@ const ONZE_SCENE = (() => {
         const zoneBasse = Math.abs(ballon.x - BUTS[campDef].x) < 30;
         const candidatsPress = listePions
           .filter((q) => q.camp === campDef && !q.gardien && !q.cible &&
-            // presser, c'est partir de PRÈS : 5,9 m en médiane, 9,5 au
-            // p90 (design/football-chiffre.md §5). Celui qui est à
-            // trente mètres ne presse pas, il tient son bloc.
-            distance(q, ballon) < 16 &&
+            /* presser, c'est partir de PRÈS : 5,9 m en médiane, 9,5 au
+               p90 (design/football-chiffre.md §5). Un seuil à 16 m
+               donnait un départ médian de 15,7 m — trois fois trop loin.
+               Celui qui est plus loin ne presse pas, il tient son bloc.
+               MAIS le seuil ne vaut que pour ENTRER en pressing : une
+               fois lancé, on suit son homme même s'il s'échappe. Sans ça
+               le porteur sortait des dix mètres et le presseur était
+               lâché au bout de 0,7 s, sans avoir jamais fermé. */
+            (q.pressJusqua > horloge || distance(q, ballon) < 10) &&
             !(zoneBasse && q.ligne === "ATT"));  // le point haut ne redescend pas presser
         // INERTIE : celui qui pressait déjà garde la mission (6 m de
         // bonus) — sinon les deux plus proches changent chaque frame
+        /* UN PRESSING DURE 1,6 s. Sans engagement, le presseur perdait
+           la mission dès qu'un autre passait plus près : les épisodes
+           duraient 0,8 s et il n'avait pas le temps de fermer à 2,6 m.
+           Celui qui a commencé garde sa mission jusqu'au bout. */
+        /* Un pressing dure, mais il ne dure pas toujours : le manuel
+           donne 0,5 · 1,6 · 3,9 s, et les chaînes comptent trois joueurs
+           en médiane — c'est-à-dire qu'on se RELAIE. Passé trois
+           secondes, celui qui pressait rend la main et retombe dans le
+           bloc ; sans ce plafond un presseur restait onze secondes sur
+           le ballon. */
+        const engage = (q) => {
+          if (q.pressFin > horloge) return -999;        // il vient de rendre la main
+          return q.pressJusqua > horloge ? 30 : q.pressait ? 6 : 0;
+        };
         candidatsPress
-          .sort((a, b) => (distance(a, ballon) - (a.pressait ? 6 : 0)) -
-                          (distance(b, ballon) - (b.pressait ? 6 : 0)))
+          .sort((a, b) => (distance(a, ballon) - engage(a)) - (distance(b, ballon) - engage(b)))
           .slice(0, 2)
           .forEach((q) => {
             q.role = "pressing";
+            if (!(q.pressJusqua > horloge)) {
+              q.pressJusqua = horloge + 1.6;
+              q.pressFin = horloge + 3.0 + 1.2;   // 3 s de mission, puis 1,2 s de repli
+            }
+            /* Il ferme À 2,6 M, côté but — la distance minimale mesurée.
+               Sa VITESSE est la sienne (le manuel donne 4,94 m/s en
+               recovery press) : on ne la lui impose pas, la physique du
+               pion s'en charge. Et on ne compose jamais départ, minimum
+               et durée en un quotient (décision 57). */
             q.cible = { x: borne(ballon.x - sens * 2.6, -DEMI_L + 1, DEMI_L - 1),
                         y: dansLaLargeur(ballon.y + (q.y > ballon.y ? 1 : -1)) };
           });
@@ -870,15 +1068,21 @@ const ONZE_SCENE = (() => {
       }
       // 6. la ligne défensive : les défenseurs restants partagent une
       //    hauteur commune — ils montent et descendent ENSEMBLE
+      /* Le bloc a TROIS lignes (médiane du manuel), pas une : les
+         défenseurs partagent une hauteur, les milieux une autre une
+         dizaine de mètres devant. Les attaquants restent sur la forme —
+         ce sont eux qui montent presser. */
       for (const camp of ["moi", "eux"]) {
-        const h = hauteurLigne(camp);
-        listePions
-          .filter((q) => q.camp === camp && !q.gardien && !q.cible && q.ligne === "DÉF")
-          .forEach((q) => {
-            q.role = "ligne";
-            const eq = cibleEquilibre(q);
-            q.cible = { x: borne(h, -DEMI_L + 1, DEMI_L - 1), y: eq.y };
-          });
+        for (const ligne of ["DÉF", "MIL"]) {
+          const h = hauteurLigneDe(camp, ligne);
+          listePions
+            .filter((q) => q.camp === camp && !q.gardien && !q.cible && q.ligne === ligne)
+            .forEach((q) => {
+              q.role = "ligne";
+              const eq = cibleEquilibre(q);
+              q.cible = { x: borne(h, -DEMI_L + 1, DEMI_L - 1), y: eq.y };
+            });
+        }
       }
       // 7. l'équilibre : tous les autres tiennent la forme
       for (const p of listePions) {
@@ -886,6 +1090,75 @@ const ONZE_SCENE = (() => {
         p.role = "equilibre"; p.cible = cibleEquilibre(p);
       }
       for (const p of listePions) p.pressait = p.role === "pressing";
+    }
+
+    /* ============================================================
+       LES ÉPISODES — ce que la recette mesure (étape 3).
+       Un appel, un pressing, ce n'est pas un état par frame : c'est un
+       ÉPISODE, avec un début, une fin, une longueur et une durée. Les
+       relever ici, au tick, est le seul moyen de comparer nos
+       distributions à celles du football réel.
+       ============================================================ */
+    const MAX_EPISODES = 300;      // on garde une fenêtre, pas tout le match
+    function ranger(liste, valeur) {
+      liste.push(valeur);
+      if (liste.length > MAX_EPISODES) liste.shift();
+    }
+    function releverEpisodes() {
+      for (const p of listePions) {
+        // --- l'appel : longueur, durée, vitesse moyenne ---
+        if (p.role === "appel") {
+          if (!p.episodeAppel) p.episodeAppel = { t0: horloge, x0: p.x, y0: p.y, type: p.typeAppel };
+        } else if (p.episodeAppel) {
+          const e = p.episodeAppel;
+          const duree = horloge - e.t0;
+          const longueur = Math.hypot(p.x - e.x0, p.y - e.y0);
+          if (duree > 0.2) ranger(mesures.appels, { type: e.type, longueur, duree, vitesse: longueur / duree });
+          p.episodeAppel = null;
+        }
+        /* --- le pressing : distance au DÉPART, distance MINIMALE
+           atteinte, durée. Trois grandeurs relevées séparément — leur
+           quotient ne veut rien dire (décision 57). --- */
+        if (p.role === "pressing") {
+          const d = distance(p, ballon);
+          if (!p.episodePress) p.episodePress = { t0: horloge, depart: d, mini: d };
+          else p.episodePress.mini = Math.min(p.episodePress.mini, d);
+        } else if (p.episodePress) {
+          const e = p.episodePress;
+          const duree = horloge - e.t0;
+          if (duree > 0.2) ranger(mesures.pressings, { depart: e.depart, mini: e.mini, duree });
+          p.episodePress = null;
+        }
+      }
+      /* --- LES OPTIONS DE PASSE (décision 57).
+         Une option N'EST PAS un coéquipier à portée. Recompté sur les
+         données : toutes portées confondues un porteur a DIX-SEPT
+         coéquipiers « disponibles » en médiane ; à 12,9 m, sept ; à
+         23,3 m, quinze. Aucun filtre de distance ne ramène ça à deux.
+         La référence (p10 1 · médiane 2 · p90 4) compte les options
+         VIVANTES au même instant : une option NAÎT d'un mouvement qui
+         ouvre une ligne, vit 0,70 s en médiane (p90 2,3 s), et 32 %
+         seulement sont visées — le miroir des 27 % d'appels servis.
+         Une option est donc ici le PRODUIT DU SYSTÈME D'APPELS : un
+         coéquipier EN MOUVEMENT (appel ou soutien) dont la ligne vers le
+         porteur est ouverte, à distance d'option (7 à 30,3 m). Les deux
+         solutions du porteur sont les deux dont le mouvement vient
+         d'ouvrir une ligne — jamais une requête géométrique séparée. --- */
+      const porteur = ballon.porteur ? pions[ballon.porteur] : null;
+      optionsVivantes = 0;
+      for (const q of listePions) {
+        const offre = !!porteur && q !== porteur && q.camp === porteur.camp && !q.gardien &&
+          (q.role === "appel" || q.role === "soutien") &&
+          distance(q, porteur) >= 7 && distance(q, porteur) <= 30.3 &&
+          ligneOuverte(porteur, q, porteur.camp);
+        if (offre) {
+          optionsVivantes++;
+          if (!q.optionDepuis) q.optionDepuis = horloge;
+        } else if (q.optionDepuis) {
+          ranger(mesures.dureesOption, horloge - q.optionDepuis);
+          q.optionDepuis = null;
+        }
+      }
     }
 
     /* ============================================================
@@ -899,6 +1172,8 @@ const ONZE_SCENE = (() => {
       const avance = opts.devantLaCourse === false ? 0 : 0.28;
       const x1 = vers ? borne(vers.x + vers.vx * avance, -DEMI_L, DEMI_L) : (opts.x1 !== undefined ? opts.x1 : ballon.x);
       const y1 = vers ? borne(vers.y + vers.vy * avance, -DEMI_W, DEMI_W) : (opts.y1 !== undefined ? opts.y1 : ballon.y);
+      // décision 57 : les options se comptent À L'INSTANT DE LA DÉCISION
+      ranger(mesures.optionsPasse, optionsVivantes);
       const dist = Math.hypot(x1 - ballon.x, y1 - ballon.y);
       // vitesses réelles : passe au sol 15-20 m/s, frappe 25-30
       const vitesse = opts.vitesse || 17;                       // m/s
@@ -999,7 +1274,10 @@ const ONZE_SCENE = (() => {
       for (const p of listePions) {
         if (p.camp !== camp) continue;
         if (p.ecole === nomFamille || p.archetype === nomFamille) {
-          p.aura = ms; p.auraCouleur = couleurFamille(nomFamille);
+          /* La couleur de famille ne descend PAS sur le terrain : le
+             halo de synergie est un blanc chaud, et c'est la pastille
+             nommée qui dit de quelle famille il s'agit. */
+          p.aura = ms; p.auraCouleur = "rgba(255,246,214,0.95)";
         }
       }
     };
@@ -1023,6 +1301,9 @@ const ONZE_SCENE = (() => {
       bande.classList.remove("visible");
       barrePossession.classList.add("visible");
       for (const p of listePions) { p.cx = null; p.cy = null; p.role = null; p.etiquette = false; }
+      // le cerveau repasse tout de suite : jamais de pion muet, même une
+      // seule frame (voir la même précaution dans `miseEnPlace`)
+      cerveauDePlacement();
     }
     /* La possession affichée vient des VRAIS événements du moteur
        (match-ui les compte) — jamais d'un chiffre décoratif. */
@@ -1117,6 +1398,8 @@ const ONZE_SCENE = (() => {
       indexCourant = -1;
       situationCourante = situation;
       possession = camp;
+      // décision 57 : une posture par phase, tenue — pas une fonction du ballon
+      tirerPosture("moi"); tirerPosture("eux");
       const sens = sensDe(camp);
       // où naît l'action, selon la situation (données du moteur)
       const zone = {
@@ -1161,6 +1444,12 @@ const ONZE_SCENE = (() => {
         const x = p.cx !== null ? p.cx : p.x, y = p.cy !== null ? p.cy : p.y;
         return Math.hypot(x - zone.x, y - zone.y) < 22;   // 22 m autour de la zone
       }).length;
+      /* Le cerveau repasse TOUT DE SUITE : la mise en place efface les
+         rôles pour reposer le décor, et un relevé qui tombe entre les
+         deux voyait dix pions avec une cible mais sans raison. L'état de
+         la scène est cohérent à la sortie de cette fonction, pas à la
+         frame suivante. */
+      cerveauDePlacement();
       const att = Math.max(1, engages(camp));
       const def = Math.max(1, engages(adverse(camp)));
       const nomEquipe = sequence.equipe || (camp === "moi" ? eqA.nom : eqB.nom);
@@ -1570,27 +1859,137 @@ const ONZE_SCENE = (() => {
        l'étiquette, le détail vit dans la fiche joueur.
        L'identité tient sur trois choses qui restent lisibles à cette
        taille : la COULEUR du camp, l'OR du gardien, l'ANNEAU du porteur. */
+    /* ============================================================
+       LA FIGURINE (étape A) — le pion devient un corps.
+       Immobile : aucune animation ici, c'est l'étape C qui la fera
+       courir. Six segments dessinés en code, aucun asset.
+
+       LA TAILLE : hauteur = 1,2 × le diamètre du pion actuel. Un seul
+       rapport, accroché à RAYON_PION_M — la figurine suit donc le
+       terrain élastique sans second réglage.
+
+       LE PIÈGE À NE PAS « CORRIGER » : à l'échelle du sol, un joueur
+       d'1,80 m devrait mesurer 23 px sur l'image de référence ; il en
+       mesure 51. Les figurines sont dessinées 2,2 FOIS PLUS HAUTES que
+       la perspective stricte. C'est une triche de lisibilité, elle est
+       VOULUE, et sans elle le personnage disparaît. Qui « remet la
+       perspective juste » obtient des joueurs deux fois trop petits.
+
+       LES PROPORTIONS : la tête fait 36 % de la hauteur — trois têtes de
+       haut, quand un humain en fait sept et demie. Ce n'est pas un parti
+       pris de style : à 23 px de haut, une tête aux vraies proportions
+       ferait 3 px et n'existerait pas ; à 36 % elle en fait 8 et on voit
+       un être humain. Aucun visage, aucun numéro, aucun détail de
+       maillot — rien de tout ça n'est visible à cette taille, et tout ce
+       qu'on y met coûte des pixels aux signaux utiles.
+
+       L'ENCOMBREMENT AU SOL NE CHANGE PAS : la figurine garde le rayon
+       de 1,84 m qui sert à l'espacement (R4).
+       ============================================================ */
+    const HAUTEUR_FIGURINE = 1.2;      // × le diamètre du pion
+    const PART_TETE = 0.36;            // part de la hauteur totale
+    function dessinerFigurine(p, temps) {
+      const r = rayonPion() * p.echelle;
+      const H = HAUTEUR_FIGURINE * 2 * r;
+      const Xp = X(p.x), Yp = Y(p.y);          // le point au SOL
+      const maillot = maillotDe(p);
+      ctx.save();
+      // 1. l'ombre de contact, sous les pieds — le signal non coloré qui
+      //    porte les sols clairs
+      ctx.beginPath();
+      ctx.ellipse(Xp, Yp, r * 0.95, r * 0.36, 0, 0, 6.283);
+      ctx.fillStyle = `rgba(${OMBRE_CONTACT.rgb.join(",")},${OMBRE_CONTACT.alpha})`;
+      ctx.fill();
+      // l'anneau du porteur : une couronne AU SOL, pas autour du corps
+      if (ballon.porteur === p.cle) {
+        ctx.beginPath();
+        ctx.ellipse(Xp, Yp, r * 1.7, r * 0.66, 0, 0, 6.283);
+        ctx.strokeStyle = "rgba(253,248,234,0.95)";
+        ctx.lineWidth = Math.max(r * 0.30, 1.3); ctx.stroke();
+      }
+      if (p.aura > 0) { ctx.shadowColor = p.auraCouleur; ctx.shadowBlur = 10; }
+      else if (p.flash > 0) { ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 8; }
+      ctx.strokeStyle = maillot.corps;
+      ctx.fillStyle = maillot.corps;
+      ctx.lineCap = "round";
+      // 2. les jambes : du sol au bassin
+      const yBassin = Yp - H * 0.26;
+      ctx.lineWidth = Math.max(H * 0.11, 1);
+      ctx.beginPath();
+      ctx.moveTo(Xp - H * 0.09, Yp); ctx.lineTo(Xp - H * 0.06, yBassin);
+      ctx.moveTo(Xp + H * 0.09, Yp); ctx.lineTo(Xp + H * 0.06, yBassin);
+      ctx.stroke();
+      // 3. le tronc : du bassin aux épaules
+      const yEpaules = Yp - H * 0.62;
+      ctx.lineWidth = Math.max(H * 0.24, 1.4);
+      ctx.beginPath();
+      ctx.moveTo(Xp, yBassin); ctx.lineTo(Xp, yEpaules);
+      ctx.stroke();
+      // 4. les bras, le long du corps
+      ctx.lineWidth = Math.max(H * 0.085, 0.8);
+      ctx.beginPath();
+      ctx.moveTo(Xp - H * 0.15, yEpaules + H * 0.02); ctx.lineTo(Xp - H * 0.17, yBassin + H * 0.04);
+      ctx.moveTo(Xp + H * 0.15, yEpaules + H * 0.02); ctx.lineTo(Xp + H * 0.17, yBassin + H * 0.04);
+      ctx.stroke();
+      // 5. la tête
+      const rTete = H * PART_TETE / 2;
+      const yTete = Yp - H + rTete;
+      ctx.beginPath(); ctx.arc(Xp, yTete, rTete, 0, 6.283);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      /* 6. LE LISERÉ CLAIR sur le haut de la silhouette — le second
+         signal non coloré, celui qui porte les sols sombres. */
+      ctx.strokeStyle = `rgba(${LISERE_HAUT.rgb.join(",")},${LISERE_HAUT.alpha})`;
+      ctx.lineWidth = Math.max(H * 0.055, 0.8);
+      ctx.beginPath();
+      ctx.arc(Xp, yTete, rTete * 0.86, Math.PI * 1.05, Math.PI * 1.95);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(Xp - H * 0.12, yEpaules); ctx.lineTo(Xp + H * 0.12, yEpaules);
+      ctx.stroke();
+      // le pion qui se jette : un trait de glissade derrière lui
+      if (p.plonge > 0) {
+        ctx.beginPath();
+        ctx.moveTo(Xp - enPixels(p.vx * 0.7), Yp); ctx.lineTo(Xp, Yp);
+        ctx.strokeStyle = "rgba(253,248,234,0.35)";
+        ctx.lineWidth = r * 0.7; ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     function dessinerPion(p, temps) {
+      if (reg.figurines !== false) return dessinerFigurine(p, temps);
       const r = rayonPion() * p.echelle;
       const Xp = X(p.x), Yp = Y(p.y);
       const numeroLisible = r >= 4;      // en dessous, le chiffre ne rentre plus
       ctx.save();
-      // l'ombre portée : elle décolle le pion du gazon
+      /* L'OMBRE DE CONTACT — dense, pas décorative : c'est elle qui
+         détache le pion d'un sol clair, là où aucune teinte de maillot
+         ne tient 3:1. */
       ctx.beginPath();
-      ctx.ellipse(Xp + r * 0.16, Yp + r * 0.55, r * 0.95, r * 0.38, 0, 0, 6.283);
-      ctx.fillStyle = "rgba(0,0,0,0.34)"; ctx.fill();
+      ctx.ellipse(Xp + r * 0.14, Yp + r * 0.52, r * 1.02, r * 0.40, 0, 0, 6.283);
+      ctx.fillStyle = `rgba(${OMBRE_CONTACT.rgb.join(",")},${OMBRE_CONTACT.alpha})`;
+      ctx.fill();
       if (p.aura > 0) { ctx.shadowColor = p.auraCouleur; ctx.shadowBlur = 10; }
       else if (p.flash > 0) { ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 8; }
       // le disque : aplat franc + liseré sombre, pour trancher sur le vert
       ctx.beginPath(); ctx.arc(Xp, Yp, r, 0, 6.283);
       // Règle 11 : les gardiens portent des couleurs À PART — jaune d'un
       // côté, grenat de l'autre — et jamais celles de leur équipe.
-      ctx.fillStyle = p.gardien ? (p.camp === "moi" ? "#F0C64B" : "#8E2F45")
-        : p.camp === "moi" ? "#3DE26B" : "#E8503F";
+      const maillot = maillotDe(p);
+      ctx.fillStyle = maillot.corps;
       ctx.fill();
       ctx.shadowBlur = 0;
       ctx.lineWidth = Math.max(r * 0.16, 0.7);
       ctx.strokeStyle = "rgba(6,12,8,0.55)";
+      ctx.stroke();
+      /* LE LISERÉ CLAIR sur le haut du disque — le second signal non
+         coloré, celui qui porte les sols sombres. */
+      ctx.beginPath();
+      ctx.arc(Xp, Yp, r * 0.88, Math.PI * 1.06, Math.PI * 1.94);
+      ctx.strokeStyle = `rgba(${LISERE_HAUT.rgb.join(",")},${LISERE_HAUT.alpha})`;
+      ctx.lineWidth = Math.max(r * 0.22, 0.9);
+      ctx.lineCap = "round";
       ctx.stroke();
       // l'anneau du porteur de balle : le point focal unique
       if (ballon.porteur === p.cle) {
@@ -1607,8 +2006,7 @@ const ONZE_SCENE = (() => {
         ctx.stroke();
       }
       if (numeroLisible) {
-        ctx.fillStyle = p.gardien ? (p.camp === "moi" ? "#1A1405" : "#FBE9EE")
-          : p.camp === "moi" ? "#04240E" : "#2A0A05";
+        ctx.fillStyle = maillot.chiffre;
         ctx.font = `800 ${(r * 1.15).toFixed(1)}px Archivo, system-ui, sans-serif`;
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
         ctx.fillText(String(p.num), Xp, Yp + 0.3);
@@ -1715,8 +2113,13 @@ const ONZE_SCENE = (() => {
        échantillonne toutes les 50 ms ne verrait jamais le vrai pic
        d'accélération, il verrait la moyenne d'un intervalle inconnu.
        Coût : trois comparaisons par pion et par frame. */
-    const mesures = { accelMax: 0, vitesseMax: 0, surVitesse: 0, surAccel: 0, nonFinis: 0, ticks: 0 };
+    const mesures = { accelMax: 0, vitesseMax: 0, surVitesse: 0, surAccel: 0, nonFinis: 0, ticks: 0,
+      // étape 3 : les ÉPISODES, relevés du début à la fin d'un rôle
+      appels: [], pressings: [], optionsPasse: [], dureesOption: [], tiragesPosture: {} };
+    // le nombre d'options VIVANTES à cet instant — lu au moment de la passe
+    let optionsVivantes = 0;
 
+    let horloge = 0;            // le temps de scène, en secondes
     let precedent = performance.now();
     function boucle(temps) {
       if (detruit) return;
@@ -1730,8 +2133,10 @@ const ONZE_SCENE = (() => {
 
       /* Le CERVEAU décide, la PHYSIQUE exécute (décision 33). Une passe
          par frame sur 22 pions : quelques microsecondes. */
+      horloge += dtBrut;
       majReferenceBloc(dtBrut);
       cerveauDePlacement();
+      releverEpisodes();
 
       for (const p of listePions) {
         const cible = p.cible || { x: p.x, y: p.y };
@@ -1856,6 +2261,12 @@ const ONZE_SCENE = (() => {
       majMinute(temps);
       requestAnimationFrame(boucle);
     }
+    /* Le cerveau tourne UNE FOIS avant la première frame : sinon, entre
+       la création de la scène et le premier rAF, les pions existent sans
+       raison d'être là — et un relevé qui tombe dans cette fenêtre voit
+       un pion sans rôle. L'invariant « chaque pion porte une raison » est
+       vrai dès l'instant zéro, pas à partir de la deuxième frame. */
+    cerveauDePlacement();
     requestAnimationFrame(boucle);
     repos();
     // le cerveau tourne une fois AVANT la première frame : sans ça, la
@@ -1891,6 +2302,23 @@ const ONZE_SCENE = (() => {
         finDeMatch = true; jauge.pulse = false; replay = null; facteurTemps = 1;
         repos();
       },
+      /* La MÊLÉE, provoquée : on colle quatre pions des deux camps au
+         même endroit. C'est le go/no-go de l'étape A — trois corps qui
+         se croisent doivent rester lisibles là où trois disques
+         l'étaient. Instrumentation, comme `diagnostic`. */
+      entasser: (x, y) => {
+        const pris = [];
+        for (const camp of ["moi", "eux"]) {
+          listePions.filter((p) => p.camp === camp && !p.gardien).slice(0, 2)
+            .forEach((p, i) => {
+              p.x = x + (i - 0.5) * 0.9; p.y = y + (i - 0.5) * 0.9;
+              p.vx = 0; p.vy = 0; p.cx = p.x; p.cy = p.y;
+              pris.push(p);
+            });
+        }
+        if (pris.length) { ballon.vol = null; ballon.porteur = pris[0].cle; ballon.x = pris[0].x; ballon.y = pris[0].y; }
+        return pris.length;
+      },
       diagnostic: () => ({
         styles, regime, possession, situation: situationCourante,
         // R1 : le cadre du terrain — il ne doit JAMAIS bouger (caméra fixe)
@@ -1899,11 +2327,22 @@ const ONZE_SCENE = (() => {
         // tout le diagnostic parle mètres, la conversion en pixels ne
         // sert qu'au dessin
         terrain: { L: TERRAIN.L, W: TERRAIN.W },
-        // étape 1 : les relevés de physique, pris au tick
-        mesures: { ...mesures },
+        // étapes 1 et 3 : les relevés, pris au tick
+        mesures: { ...mesures,
+          appels: mesures.appels.slice(), pressings: mesures.pressings.slice(),
+          optionsPasse: mesures.optionsPasse.slice(), dureesOption: mesures.dureesOption.slice(),
+          tiragesPosture: { ...mesures.tiragesPosture } },
         // décision 33 : l'échelle des pions, mesurée par la recette
         rayonPion: geo ? rayonPion() : null,
         rayonPionM: RAYON_PION_M,
+        /* étape A : la figurine. Sa hauteur est accrochée au diamètre du
+           pion — un seul rapport, donc elle suit le terrain élastique. */
+        figurine: geo ? {
+          active: reg.figurines !== false,
+          hauteur: HAUTEUR_FIGURINE * 2 * rayonPion(),
+          rapport: HAUTEUR_FIGURINE,           // × le diamètre du pion
+          partTete: PART_TETE,
+        } : null,
         ratioPion: geo ? (2 * rayonPion()) / geo.h : null,
         jauge: { affichee: jauge.affichee, cible: jauge.cible },
         possessionPct: { moi: possessionPct.moi, eux: possessionPct.eux },
@@ -1927,6 +2366,13 @@ const ONZE_SCENE = (() => {
           cible: p.cible ? { x: p.cible.x, y: p.cible.y } : null,
           ecartCible: p.cible ? Math.hypot(p.cible.x - p.x, p.cible.y - p.y) : null })),
         ligneDefensive: { moi: hauteurLigne("moi"), eux: hauteurLigne("eux") },
+        // décision 57 : la posture tenue, et la hauteur EN MÈTRES depuis
+        // son propre but — la grandeur que le manuel mesure
+        posture: { moi: posture.moi, eux: posture.eux },
+        hauteurDepuisBut: {
+          moi: Math.abs(hauteurLigne("moi") - BUTS.moi.x),
+          eux: Math.abs(hauteurLigne("eux") - BUTS.eux.x),
+        },
         // la clé (camp|nom) : un homonyme dans l'autre camp ne doit pas
         // pouvoir se faire passer pour lui
         receveurAttendu: (() => { const r = receveurAttendu(); return r ? r.cle : null; })(),
@@ -1963,9 +2409,19 @@ const ONZE_SCENE = (() => {
         if (dist < 0.001) { dx = Math.cos(i * 2.4); dy = Math.sin(i * 2.4); }
         const norme = Math.hypot(dx, dy);
         const pousse = (minDist - dist) / 2;
-        const ux = (dx / norme) * pousse, uy = (dy / norme) * pousse;
-        a.x -= ux; a.y -= uy;
-        b.x += ux; b.y += uy;
+        const nx = dx / norme, ny = dy / norme;
+        a.x -= nx * pousse; a.y -= ny * pousse;
+        b.x += nx * pousse; b.y += ny * pousse;
+        /* UN CONTACT ARRÊTE AUSSI LA VITESSE. Une poussée qui ne corrige
+           que la POSITION laisse le pion réaccélérer contre son voisin à
+           chaque frame : il court à fond sans avancer d'un mètre — un
+           tapis roulant, mesuré à 8,2 m/s sur une scène pourtant figée.
+           On annule donc la composante de vitesse qui les rapproche,
+           comme le ferait un vrai contact d'épaule. */
+        const va = (a.vx || 0) * nx + (a.vy || 0) * ny;      // a se dirige vers b
+        if (va > 0) { a.vx -= va * nx; a.vy -= va * ny; }
+        const vb = (b.vx || 0) * nx + (b.vy || 0) * ny;      // b se dirige vers a
+        if (vb < 0) { b.vx -= vb * nx; b.vy -= vb * ny; }
       }
     }
     for (const d of disques) {
@@ -1976,6 +2432,8 @@ const ONZE_SCENE = (() => {
 
   return { creer, couleurFamille, styleDe, construireAction, separerDisques,
            dimensionsTerrain, RAYON_PION_M,
+           maillots: () => ({ ...maillots }), majMaillots, MAILLOTS_DEFAUT,
+           OMBRE_CONTACT, LISERE_HAUT,
            reglages, majReglages, REGLAGES_DEFAUT };
 })();
 
