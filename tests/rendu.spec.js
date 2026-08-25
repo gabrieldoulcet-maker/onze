@@ -343,6 +343,111 @@ async function empreinteVisuel(page, indice, zone) {
       replis.peint && replis.total > 0 && replis.sansPortrait.length === 0,
       replis.sansPortrait.slice(0, 6).join(", "));
 
+    /* LE REMPLAÇANT NE DOIT PAS SE CONFONDRE AVEC CELUI DONT IL PORTE LE
+       CORPS. Il emprunte l'unité d'un joueur du roster, et ce joueur peut
+       se tenir sur le MÊME terrain : à 23 px, seuls la couleur et la
+       corpulence se lisent. Toute la charge repose sur l'anonymisation —
+       et « je crois que ça se distingue » n'est pas une mesure.
+
+       PREMIÈRE VERSION, FAUSSE, et c'est le piège de la règle M6 en
+       personne. Je photographiais le remplaçant et le vrai joueur CÔTE À
+       CÔTE, chacun à sa place sur la ligne. Relevé : 56 à 63 % de pixels
+       différents — l'air d'un bon chiffre. Le contre-test l'a démoli :
+       **anonymisation retirée, la même mesure donnait 20 à 65 %**, une
+       plage qui recouvre la première. Elle ne mesurait pas le traitement,
+       elle mesurait la PROFONDEUR : deux joueurs à deux endroits d'une
+       ligne n'ont ni la même taille ni le même gazon derrière eux.
+
+       LA BONNE MESURE compare la même figurine À ELLE-MÊME, comme la
+       décision 59 : on photographie la boîte du remplaçant, on lui retire
+       le traitement, on rephotographie la MÊME boîte. Même corps, même
+       taille, même fond — ce qui change est le traitement, et rien
+       d'autre. Et on rapporte ces pixels à ceux que la figurine PEINT
+       vraiment (le reste de la boîte est du gazon qui ne bougera jamais),
+       ce qui donne la seule grandeur qui a un sens : **quelle part du
+       corps l'anonymisation transforme-t-elle ?**
+
+       Et c'est bien la réponse à la question posée — « le remplaçant se
+       distingue-t-il du vrai joueur dont il porte le corps ? ». Placés au
+       MÊME endroit, les deux ne diffèrent QUE par le traitement : même
+       image source, même taille, même gazon. Les comparer côte à côte,
+       chacun à sa place, revenait à mesurer la profondeur.
+
+       Relevé, et le contre-test avec : **87 à 95 %** des pixels peints
+       changent ; **0 % sur les six** quand on neutralise le filtre. Un
+       plancher à 60 % laisse la marge pour un traitement plus doux, sans
+       laisser passer un traitement absent. */
+    const PART_ANONYME = 0.60;
+    const corpsAnonymes = await page.evaluate(async () => {
+      arreterChrono();
+      document.querySelectorAll(".volet").forEach((v) => v.remove());
+      partie.niveau = 9;
+      partie.banc = [];
+      const faux = ["Gilbert", "Norbert", "Fernand", "Marius", "Lucien", "Célestin"];
+      partie.terrain = faux.map((f) => ({ nom: f, cout: 0, poste: "MIL", ligne: "MIL",
+        ecole: "", archetype: "", unique: null, etoiles: 1, uid: "F" + f }));
+      afficher();
+      await Promise.all([...document.images].filter((i) => i.src && !i.complete)
+        .map((i) => i.decode().catch(() => {})));
+      await new Promise((r) => setTimeout(r, 350));
+      return [...document.querySelectorAll(".ligne-terrain .jeton.figurine.remplacant")].map((j, i) => {
+        const im = j.querySelector("img.frontale");
+        const r = (im || j).getBoundingClientRect();
+        return { i, nom: (j.getAttribute("aria-label") || "").split(",")[0],
+          corps: im ? (im.getAttribute("src") || "").split("/").pop() : null,
+          boite: { x: r.x, y: r.y, w: r.width, h: r.height } };
+      });
+    });
+
+    /* Le basculement du traitement sur UNE figurine désignée, et la
+       comparaison de la même zone dans les deux états. */
+    const basculer = (indice, actif) => page.evaluate(([n, on]) => {
+      const j = document.querySelectorAll(".ligne-terrain .jeton.figurine.remplacant, " +
+        ".ligne-terrain .jeton.figurine.sans-traitement")[n];
+      if (!j) return;
+      j.classList.toggle("remplacant", on);
+      j.classList.toggle("sans-traitement", !on);
+    }, [indice, actif]);
+
+    let faibles = 0;
+    const partsAnonymes = [];
+    for (const c of corpsAnonymes) {
+      const clip = { x: Math.max(0, Math.round(c.boite.x)), y: Math.max(0, Math.round(c.boite.y)),
+        width: Math.min(Math.round(c.boite.w), taille.l - Math.round(c.boite.x)),
+        height: Math.min(Math.round(c.boite.h), taille.h - Math.round(c.boite.y)) };
+      if (clip.width < 6 || clip.height < 8) continue;
+      // combien de pixels la figurine peint-elle ? (référence)
+      const peints = await empreinteVisuel(page, c.i, clip);
+      const avec = (await page.screenshot({ clip, animations: "disabled" })).toString("base64");
+      await basculer(c.i, false);
+      const sans = (await page.screenshot({ clip, animations: "disabled" })).toString("base64");
+      await basculer(c.i, true);
+      const changes = await page.evaluate(async ([x, y, seuil]) => {
+        const lire = async (b64) => {
+          const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode();
+          const cv = document.createElement("canvas"); cv.width = im.width; cv.height = im.height;
+          const g = cv.getContext("2d", { willReadFrequently: true }); g.drawImage(im, 0, 0);
+          return g.getImageData(0, 0, cv.width, cv.height).data;
+        };
+        const [u, v] = [await lire(x), await lire(y)];
+        let n = 0;
+        for (let i = 0; i < u.length; i += 4) {
+          const d = Math.max(Math.abs(u[i] - v[i]), Math.abs(u[i + 1] - v[i + 1]), Math.abs(u[i + 2] - v[i + 2]));
+          if (d > seuil) n++;
+        }
+        return n;
+      }, [avec, sans, 24]);
+      const part = peints.pixels ? changes / peints.pixels : 0;
+      partsAnonymes.push(part);
+      if (part < PART_ANONYME) faibles++;
+    }
+    const pireAnonyme = partsAnonymes.length ? Math.min(...partsAnonymes) : 0;
+    verifier(`${taille.nom} : l'anonymisation transforme vraiment le corps emprunté ` +
+      `(${partsAnonymes.length} remplaçant(s), le moins transformé change sur ` +
+      `${(pireAnonyme * 100).toFixed(0)} % des pixels qu'il peint — plancher ${(PART_ANONYME * 100).toFixed(0)} %)`,
+      partsAnonymes.length >= 3 && faibles === 0,
+      `${faibles} sous le plancher · relevés ${partsAnonymes.map((p) => Math.round(p * 100) + " %").join(" · ")}`);
+
     verifier(`${taille.nom} : zéro erreur JS`, erreursJS.length === 0, erreursJS.slice(0, 2).join(" | "));
     await page.close();
   }
