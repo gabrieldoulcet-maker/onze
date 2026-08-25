@@ -218,6 +218,12 @@
       pointer-events: none; z-index: 1;
       filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.55));
     }
+    /* la SILHOUETTE NEUTRE : même gabarit, même ligne de sol qu'une
+       illustration — teintée du poste pour qu'elle reste informative */
+    .jeton.figurine .frontale.silhouette {
+      fill: var(--teinte-pleine, #8FA492);
+      stroke: rgba(4, 12, 6, 0.85); stroke-width: 2.4; paint-order: stroke;
+    }
     /* l'ombre de contact : c'est elle qui POSE le joueur */
     .jeton.figurine::before {
       content: ""; position: absolute; left: 50%; transform: translateX(-50%);
@@ -255,10 +261,10 @@
     /* les quatre teintes de poste : franches (on doit les nommer d'un coup
        d'œil) mais assourdies — elles informent, elles ne concurrencent ni
        le maillot ni les couleurs de coût de la boutique */
-    .jeton.figurine.p-GAR { --teinte-poste: rgba(245, 197, 49, 0.72); --teinte-basse: rgba(120, 92, 12, 0.72); }
-    .jeton.figurine.p-DÉF { --teinte-poste: rgba(62, 155, 224, 0.72); --teinte-basse: rgba(18, 62, 104, 0.72); }
-    .jeton.figurine.p-MIL { --teinte-poste: rgba(61, 204, 110, 0.72); --teinte-basse: rgba(18, 88, 44, 0.72); }
-    .jeton.figurine.p-ATT { --teinte-poste: rgba(232, 80, 63, 0.72); --teinte-basse: rgba(104, 28, 20, 0.72); }
+    .jeton.figurine.p-GAR { --teinte-poste: rgba(245, 197, 49, 0.72); --teinte-basse: rgba(120, 92, 12, 0.72); --teinte-pleine: #E8BE41; }
+    .jeton.figurine.p-DÉF { --teinte-poste: rgba(62, 155, 224, 0.72); --teinte-basse: rgba(18, 62, 104, 0.72); --teinte-pleine: #4E97D2; }
+    .jeton.figurine.p-MIL { --teinte-poste: rgba(61, 204, 110, 0.72); --teinte-basse: rgba(18, 88, 44, 0.72); --teinte-pleine: #45BE6D; }
+    .jeton.figurine.p-ATT { --teinte-poste: rgba(232, 80, 63, 0.72); --teinte-basse: rgba(104, 28, 20, 0.72); --teinte-pleine: #DE6350; }
     /* une dalle VIDE : visible, sombre et neutre — c'est elle qui rend
        le glisser-déposer lisible */
     .place-banc {
@@ -3051,6 +3057,14 @@
     }
     const prixHTML = (cout) => `${cout}${ONZE_ICONES_SYS.ic("piece", 9)}`;
 
+    /* La SILHOUETTE NEUTRE : le joueur sans illustration (réservistes
+       gratuits, recrues d'auto-complétion) reste un joueur DEBOUT sur le
+       gazon. Dessinée en SVG, donc sans chemin d'image et sans réseau :
+       elle tient sa promesse même avec une table de portraits vide. */
+    const SILHOUETTE_NEUTRE = `<svg class="frontale silhouette" viewBox="0 0 60 100" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+      <circle cx="30" cy="15" r="10.5"></circle>
+      <path d="M30 27c-9.5 0-15.5 4.2-16.6 12.2L10 58l7.4 2 3.4-13.2.8 12.4-3.2 37h9.2l2.4-25 2.4 25h9.2l-3.2-37 .8-12.4L43 60l7.4-2-3.4-18.8C45.9 31.2 39.9 27 30.4 27z"></path>
+    </svg>`;
     function jetonHTML(fiche, nomListe, indice) {
       const stats = ONZE.genererStats(fiche);
       const note = ONZE.noteGlobale(stats);
@@ -3063,8 +3077,14 @@
       /* HORS MATCH : le joueur se tient DEBOUT sur son emplacement (DA S2).
          Pendant le match, on garde les pastilles actuelles — elles sont
          lisibles à petite taille et la scène en dépend (brief §4). */
-      const frontale = partie.matchEnCours ? null : ONZE_PORTRAITS.frontale(fiche.nom);
-      if (frontale) {
+      /* HORS MATCH, il n'y a QU'UN chemin de rendu : la silhouette. Un
+         joueur sans illustration (les réservistes gratuits, par exemple)
+         n'a jamais droit au repli « carte avec son nom » — c'est ce repli
+         qui remettait des noms, des pastilles et des rectangles sombres au
+         milieu du gazon. Il reçoit une silhouette NEUTRE, teintée de son
+         poste, posée sur la même ligne de sol. */
+      if (!partie.matchEnCours) {
+        const frontale = ONZE_PORTRAITS.frontale(fiche.nom);
         /* PLUS AUCUN HABILLAGE (brief habillage v2) : ni cadre, ni nom, ni
            étoiles, ni pastille. Sur le gazon il ne reste que la silhouette
            et son ombre ; au banc, une dalle teintée du poste. Le niveau
@@ -3073,10 +3093,16 @@
            Le nom, le poste, les familles et les étoiles restent à un tap
            (le menu du joueur, puis sa fiche). */
         const etoiles = Math.min(3, fiche.etoiles || 1);
-        const decor = nomListe === "banc" ? `sur-dalle p-${ligneDe(fiche)}` : "sur-gazon";
-        return `<div ${ouverture(` figurine ${decor}${etoiles >= 3 ? " legende" : ""}`)}>
-          <img class="frontale" src="${frontale}" alt="" loading="lazy" decoding="async" onerror="this.remove()">
-        </div>`;
+        const poste = ligneDe(fiche);
+        const decor = (nomListe === "banc" ? "sur-dalle" : "sur-gazon") + " p-" + poste;
+        // sans illustration : la silhouette neutre, dessinée (aucun chemin
+        // d'image, elle marche donc même avec une table de portraits vide)
+        const corps = frontale
+          ? `<img class="frontale" src="${frontale}" alt="" loading="lazy" decoding="async"
+               onerror="this.closest('.jeton').classList.add('sans-portrait'); this.remove()">`
+          : SILHOUETTE_NEUTRE;
+        return `<div ${ouverture(` figurine ${decor}${frontale ? "" : " sans-portrait"}${etoiles >= 3 ? " legende" : ""}`)}
+          aria-label="${fiche.nom}, ${poste}${etoiles > 1 ? ", " + etoiles + " étoiles" : ""}">${corps}</div>`;
       }
       return `<div ${ouverture()}>
         <span class="nom-jeton">${fiche.nom}</span>

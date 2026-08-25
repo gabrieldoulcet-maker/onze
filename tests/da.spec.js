@@ -244,17 +244,28 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
     enMatch.pendant === 0 && enMatch.apres > 0, JSON.stringify(enMatch));
 
   // ---- 1 & 2. table VIDE puis PARTIELLE : le jeu reste jouable ----
+  /* La promesse tenue avec une table vide a CHANGÉ de forme (décision 39
+     complétée) : sans illustration, le jeton ne redevient plus une carte
+     avec un nom — c'était ce repli qui remettait des rectangles et des
+     noms sur le gazon. Il devient une SILHOUETTE NEUTRE, teintée du
+     poste et dessinée en SVG : un seul chemin de rendu hors match, quelle
+     que soit la table. Côté boutique, le repli Blason ne bouge pas. */
   const vide = await page.evaluate(() => {
     ONZE_PORTRAITS.definir({});
     afficher();
+    const jetons = [...document.querySelectorAll("#terrain-scene .jeton, #banc .jeton")];
     return { cartes: document.querySelectorAll("#boutique .carte-boutique").length,
       illustrees: document.querySelectorAll(".carte-boutique.illustree").length,
-      figurines: document.querySelectorAll(".jeton.figurine").length,
+      jetons: jetons.length,
+      figurines: jetons.filter((j) => j.classList.contains("figurine")).length,
+      silhouettes: jetons.filter((j) => j.querySelector("svg.frontale")).length,
+      textes: jetons.filter((j) => (j.innerText || "").trim()).length,
       // la carte ENTIÈRE est la cible d'achat : plus de bouton à compter
       boutons: document.querySelectorAll("#boutique .carte-boutique[data-boutique]").length };
   });
-  verifier("table VIDE : les 5 cartes Blason s'affichent, achat toujours possible",
-    vide.cartes === 5 && vide.illustrees === 0 && vide.figurines === 0 && vide.boutons === 5,
+  verifier("table VIDE : cartes Blason en boutique, silhouettes neutres sur le terrain, achat possible",
+    vide.cartes === 5 && vide.illustrees === 0 && vide.boutons === 5 &&
+    vide.jetons > 0 && vide.figurines === vide.jetons && vide.silhouettes === vide.jetons && vide.textes === 0,
     JSON.stringify(vide));
   const achatSansTable = await page.evaluate(() => {
     const avant = partie.terrain.length + partie.banc.length;
@@ -267,12 +278,16 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
     const nom = partie.boutique.find(Boolean).nom;
     ONZE_PORTRAITS.definir({ [nom]: { carte: "da/keyarts/ONZE_01_Sam.webp" } });  // carte seule, pas de frontale
     afficher();
+    const jetons = [...document.querySelectorAll("#terrain-scene .jeton, #banc .jeton")];
     return { illustrees: document.querySelectorAll(".carte-boutique.illustree").length,
       cartes: document.querySelectorAll("#boutique .carte-boutique").length,
-      figurines: document.querySelectorAll(".jeton.figurine").length };
+      jetons: jetons.length,
+      silhouettes: jetons.filter((j) => j.querySelector("svg.frontale")).length,
+      textes: jetons.filter((j) => (j.innerText || "").trim()).length };
   });
-  verifier("table PARTIELLE : une carte illustrée, les autres en Blason, aucune figurine sans frontale",
-    partielle.illustrees === 1 && partielle.cartes === 5 && partielle.figurines === 0,
+  verifier("table PARTIELLE : une carte illustrée, les autres en Blason, silhouettes neutres au sol",
+    partielle.illustrees === 1 && partielle.cartes === 5 &&
+    partielle.silhouettes === partielle.jetons && partielle.textes === 0,
     JSON.stringify(partielle));
 
   // ---- l'arène : le décor se peint, le ballon reste un jeton de thème ----

@@ -283,12 +283,27 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
      occasion ne prouve rien sur les buts ni sur les formats. On rejoue
      (jusqu'à 4 fois) jusqu'à décrocher un match avec au moins un but —
      le moteur n'est pas touché, on tire juste un autre match. */
-  let releve = null;
-  for (let essai = 0; essai < 4; essai++) {
+  /* Le MARQUAGE, lui, se juge sur un ÉCHANTILLON, pas sur une durée.
+     Un match court peut ne montrer qu'un seul marqueur en position : le
+     seuil « au moins 15 relevés » échouait alors sur la taille de
+     l'échantillon, pas sur la qualité du marquage (mesuré : 1, 52, 64,
+     79 relevés selon les matchs). On CUMULE donc les relevés d'un match
+     à l'autre jusqu'à remplir le sac — ce sont les mêmes observations de
+     la même règle, et rejouer un match ne coûte que du temps machine. */
+  const ECHANTILLON_MARQUAGE = 30;
+  const sacMarquage = { vus: 0, bons: 0, tous: 0, tousBons: 0, matchs: 0 };
+  let releve = null, avecMatiere = null;
+  for (let essai = 0; essai < 6; essai++) {
     releve = await mesurerUnMatch(page);
-    if (releve.buts >= 1 && releve.misesEnPlace >= 2) break;
-    console.log(`   (relevé ${essai + 1} sans matière — ${releve.buts} but(s), ${releve.misesEnPlace} temps fort(s) — on rejoue)`);
+    sacMarquage.vus += releve.marquagesVus; sacMarquage.bons += releve.marquagesBons;
+    sacMarquage.tous += releve.marquagesTous; sacMarquage.tousBons += releve.marquagesTousBons;
+    sacMarquage.matchs++;
+    // le relevé qui sert à TOUTES les autres mesures doit avoir de la matière
+    if (!avecMatiere && releve.buts >= 1 && releve.misesEnPlace >= 2) avecMatiere = releve;
+    if (avecMatiere && sacMarquage.vus >= ECHANTILLON_MARQUAGE) break;
+    console.log(`   (relevé ${essai + 1} : ${releve.buts} but(s), ${releve.misesEnPlace} temps fort(s), ${releve.marquagesVus} marquage(s) en position — sac à ${sacMarquage.vus}/${ECHANTILLON_MARQUAGE}, on rejoue)`);
   }
+  if (avecMatiere) releve = avecMatiere;
 
   async function mesurerUnMatch(pageDuMatch) { return pageDuMatch.evaluate(async () => {
     // repartir propre : si un bilan de manche traîne, on le referme
@@ -549,17 +564,17 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
      désigne un défenseur battu, il se retrouve du mauvais côté — et ça
      doit se voir. On vérifie que la règle tient dans la large majorité
      des cas, pas qu'elle est absolue. */
-  const tauxGoalSide = releve.marquagesVus ? releve.marquagesBons / releve.marquagesVus : 1;
-  const tauxBrut = releve.marquagesTous ? releve.marquagesTousBons / releve.marquagesTous : 1;
+  const tauxGoalSide = sacMarquage.vus ? sacMarquage.bons / sacMarquage.vus : 0;
+  const tauxBrut = sacMarquage.tous ? sacMarquage.tousBons / sacMarquage.tous : 0;
   /* Le seuil est calé sur la dispersion RÉELLE, mesurée sur cinq
      exécutions : 77, 98, 100, 100, 100 %. Le creux à 77 % vient d'un
      échantillon court où un défenseur s'était fait battre — ce que la
      spec veut justement voir. Un seuil à 0,7 laisse passer cette
      variance mais attrape une vraie panne (marquage cassé ≈ 50 %, soit
-     le hasard). L'échantillon minimal évite de conclure sur trois
-     relevés. */
-  verifier(`Décision 33 — le marquage se voit : EN POSITION, le marqueur est goal-side ${Math.round(tauxGoalSide * 100)} % du temps (${releve.marquagesBons}/${releve.marquagesVus}) — ${Math.round(tauxBrut * 100)} % en comptant ceux qui courent encore`,
-    releve.marquagesVus >= 15 && tauxGoalSide >= 0.7);
+     le hasard). L'échantillon est CUMULÉ sur les matchs joués : c'est sa
+     taille qui est garantie, plus la durée d'un match. */
+  verifier(`Décision 33 — le marquage se voit : EN POSITION, le marqueur est goal-side ${Math.round(tauxGoalSide * 100)} % du temps (${sacMarquage.bons}/${sacMarquage.vus} relevés cumulés sur ${sacMarquage.matchs} match(s)) — ${Math.round(tauxBrut * 100)} % en comptant ceux qui courent encore`,
+    sacMarquage.vus >= ECHANTILLON_MARQUAGE && tauxGoalSide >= 0.7);
 
   const mepMin = releve.misesEnPlaceMs.length ? Math.min(...releve.misesEnPlaceMs) : 0;
   verifier(`R3 : la mise en place a le temps de se jouer (la plus courte ${Math.round(mepMin)} ms ≥ 1200)`,
