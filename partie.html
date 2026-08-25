@@ -396,6 +396,10 @@
        maillot. Un aplat sombre légèrement bleuté, avec un liseré clair qui
        le détache du gazon — il lit comme « un joueur du centre, en
        dépannage », jamais comme une image qui n'a pas chargé. */
+    /* `sans-traitement` n'existe que pour la MESURE : elle rend le corps
+       emprunté tel quel, pour que la recette puisse comparer la même
+       figurine avec et sans son anonymisation. */
+    .jeton.figurine.sans-traitement .frontale { filter: none; opacity: 1; }
     .jeton.figurine.remplacant .frontale {
       filter: brightness(0) saturate(0)
               drop-shadow(0 0 1px rgba(237, 245, 236, 0.85))

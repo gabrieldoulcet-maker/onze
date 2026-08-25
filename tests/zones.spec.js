@@ -151,6 +151,25 @@ const RELEVE = `(zones) => {
   return { rects, chevauche, tronques };
 }`;
 
+/* LE TOAST DE REPRISE N'EXISTE QU'AU RETOUR D'UNE SAUVEGARDE. C'est un
+   ÉTAT, pas une géométrie : `signaler("💾 Partie reprise…")` ne part que
+   dans `restaurer()`. Une recette qui démarre une partie neuve ne le voit
+   jamais — et le contre-test du toast restait muet pour cette raison, pas
+   parce que le format différait. On fait donc jouer une manche, on
+   sauvegarde, et on RECHARGE : le jeu reprend et le message part. */
+async function reprendreUneSauvegarde(page) {
+  await page.evaluate(() => {
+    arreterChrono();
+    document.querySelectorAll(".volet").forEach((v) => v.remove());
+    partie.manche = 12;
+    if (typeof sauvegarder === "function") sauvegarder();
+  });
+  await page.reload();
+  await page.waitForSelector(".carte-boutique", { timeout: 15000 });
+  await page.waitForTimeout(250);
+  return page.evaluate(() => !!document.querySelector(".message-flottant"));
+}
+
 async function ouvrir(page) {
   await page.addInitScript(() => { try { localStorage.setItem("onze-tutoriel-vu", "1"); } catch (e) {} });
   await page.goto("http://localhost:8123/partie.html");
@@ -339,17 +358,32 @@ async function ouvrir(page) {
            · le médaillon d'or, à `top: -13px`, dont 12 des 22 px
              dépassaient au-dessus de la barre de boutique — coupé en deux
              par son bord, on n'en voyait que la moitié haute ;
-           · le toast, à `bottom: 110px`, posé sur la couture — Gabriel l'a
-             vu « en plein milieu des cartes de boutique ». À dire tel
-             quel (règle M3 bis) : **le contre-test de celui-là ne mord
-             pas** — remis à `bottom: 110px`, il ne recouvre aucune carte
-             aux trois formats testés, la capture d'origine étant plus
-             large. Il est déplacé sur le principe (un message ne se pose
-             pas sur ce qu'on regarde), et l'assertion garde l'avenir sans
-             prouver le passé ;
+           · le toast, à `bottom: 110px`, posé sur les cartes de boutique.
+             **Mon premier diagnostic était faux** : j'avais mis le
+             contre-test muet sur le compte du format de la capture, qui
+             fait 844 × 390 à densité 3 — exactement le format que je
+             testais. La vraie cause du silence était un ÉTAT : le message
+             « 💾 Partie reprise » ne part qu'au retour d'une sauvegarde,
+             et les recettes démarraient toutes des parties neuves. Le
+             toast n'existait donc **jamais** chez elles. La recette
+             reprend maintenant une vraie sauvegarde.
+
+             **Et le contre-test mord — mais pas partout, et il faut le
+             chiffrer plutôt que de le laisser entendre.** Remis à
+             `bottom: 110px` : il recouvre 2 cartes en **926 × 428**, et
+             **aucune en 844 × 390**, où son bas tombe à 280 px pour des
+             cartes qui commencent à 291 — **11 px d'écart**. Un message
+             plus long ne change rien : le toast grandit vers le HAUT (son
+             bas reste à 280). Trois hypothèses vérifiées, aucune ne
+             reproduit le recouvrement au format de la capture ; je
+             n'invente pas la quatrième. Il est déplacé parce qu'un
+             message ne se pose pas sur ce qu'on regarde, et l'assertion
+             garde les trois formats ;
            · l'emplacement libre de la boutique, un grand rectangle sombre
              portant un tiret — la troisième forme de placeholder de
              l'écran, et celle qui lisait le plus comme une image cassée. */
+      // le toast doit EXISTER pour qu'on puisse dire où il se pose
+      const toastVu = ecran === "mise en place" ? await reprendreUneSauvegarde(page) : false;
       const meubles = await page.evaluate(() => {
         const dedans = (sel, parent) => {
           const e = document.querySelector(sel), p = document.querySelector(parent);
@@ -360,8 +394,6 @@ async function ouvrir(page) {
           return { sel, hautDehors: Math.round(q.top - r.top), basDehors: Math.round(r.bottom - q.bottom),
             gaucheDehors: Math.round(q.left - r.left), droiteDehors: Math.round(r.right - q.right) };
         };
-        // un toast, provoqué pour de bon
-        if (typeof signaler === "function") signaler("💾 Partie reprise — manche 12.");
         const t = document.querySelector(".message-flottant");
         const cartes = [...document.querySelectorAll(".carte-boutique")].map((e) => e.getBoundingClientRect());
         let surCartes = 0;
@@ -381,8 +413,13 @@ async function ouvrir(page) {
       verifier(`${taille.nom} · ${ecran} : le médaillon d'or tient dans la bande basse ` +
         `(dépassements haut ${m && m.hautDehors} · bas ${m && m.basDehors} px)`,
         !!m && !deborde, JSON.stringify(m));
-      verifier(`${taille.nom} · ${ecran} : le toast ne se pose pas sur les cartes de boutique ` +
-        `(${meubles.toastSurCartes} carte(s) recouverte(s))`, meubles.toastSurCartes === 0);
+      if (ecran === "mise en place") {
+        verifier(`${taille.nom} : le toast de reprise existe (sans lui, l'assertion suivante ne dit rien)`,
+          toastVu === true, "aucun message flottant après reprise d'une sauvegarde");
+        verifier(`${taille.nom} : le toast de reprise ne se pose pas sur les cartes de boutique ` +
+          `(${meubles.toastSurCartes} carte(s) recouverte(s))`,
+          toastVu === true && meubles.toastSurCartes === 0);
+      }
       verifier(`${taille.nom} · ${ecran} : l'emplacement libre de la boutique ne porte pas de caractère ` +
         `(« ${meubles.videTexte === null ? "—" : meubles.videTexte} »)`,
         meubles.videExiste && meubles.videTexte === "",
