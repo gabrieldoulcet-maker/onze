@@ -307,10 +307,16 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
     const g = ONZE_STADE.geometrie(844, 390, t);
     const gDefaut = ONZE_STADE.geometrie(844, 390, ONZE_STADE.theme("municipal"));
     return { prete, contour: b.contour, inscrit: g.x > 0 && g.w < 844,
-      defautIntact: gDefaut.x === 0 && gDefaut.w === 844 };
+      /* Décision 51 : un thème DESSINÉ n'a pas d'artwork pour lui dicter
+         son cadre, il suit donc la caméra de la scène (2,40:1) au lieu
+         de s'étaler sur toute la fenêtre — ce qu'il faisait avant, et
+         qui le laissait sans caméra du tout. */
+      rapportDefaut: +(gDefaut.w / gDefaut.h).toFixed(2),
+      defautCentre: Math.abs((844 - gDefaut.w) / 2 - gDefaut.x) <= 1 };
   });
-  verifier("arène : l'image se charge, le rectangle de jeu se resserre, les thèmes dessinés sont intacts",
-    arene.prete && arene.inscrit && arene.defautIntact, JSON.stringify(arene));
+  verifier(`arène : l'image se charge, le rectangle de jeu se resserre, et un thème dessiné garde la caméra de la scène (${arene.rapportDefaut}:1)`,
+    arene.prete && arene.inscrit && Math.abs(arene.rapportDefaut - 2.40) <= 0.12 && arene.defautCentre,
+    JSON.stringify(arene));
   verifier("arène : le ballon porte un contour de thème", !!arene.contour);
   verifier("les 3 arènes sont proposées dans les réglages",
     await page.evaluate(() => ONZE_STADE.liste().filter((t) => ONZE_STADE.theme(t.id).fond).length) === 3);
