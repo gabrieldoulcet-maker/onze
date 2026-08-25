@@ -327,7 +327,8 @@ const ONZE_SCENE = (() => {
             role: null, etiquette: false, aura: 0, auraCouleur: null, flash: 0,
             echelle: 1, phase: Math.random() * 6.28, plonge: 0,
           };
-          pions[j.nom] = p;
+          p.cle = camp + "|" + j.nom;
+          pions[p.cle] = p;
           listePions.push(p);
         }
       }
@@ -348,8 +349,97 @@ const ONZE_SCENE = (() => {
     };
     const campDe = (nomEquipe) => (nomEquipe === eqA.nom ? "moi" : "eux");
     const adverse = (camp) => (camp === "moi" ? "eux" : "moi");
-    const pionDe = (nom) => pions[nom] || null;
+    /* FIDÉLITÉ (décision 24) : le pool contient plusieurs copies de chaque
+       joueur, donc DEUX CLUBS peuvent aligner un « Esteban » chacun. Un
+       pion s'identifie donc par CAMP + NOM, jamais par le nom seul —
+       sinon la scène met l'anneau du porteur sur les deux, et peut
+       montrer le mauvais homme en train de faire l'action du moteur.
+       `camp` omis = on cherche dans les deux (cas où le moteur ne dit
+       pas de quel côté vient l'acteur). */
+    const pionDe = (nom, camp) => {
+      if (!nom) return null;
+      if (camp) return pions[camp + "|" + nom] || null;
+      return pions["moi|" + nom] || pions["eux|" + nom] || null;
+    };
     const gardienDe = (camp) => listePions.find((p) => p.camp === camp && p.gardien) || null;
+
+    /* ============================================================
+       RÈGLE 11 — LES PERSONNAGES DU DÉCOR.
+       L'arbitre (disque noir « A ») suit le jeu près du ballon, les
+       assistants tiennent leur touche à la hauteur de l'avant-dernier
+       défenseur (la ligne de hors-jeu, comme dans la vraie vie).
+       Ils ne sont PAS des joueurs : hors de `listePions`, donc hors du
+       cerveau de placement, hors de la répulsion, hors des recettes de
+       rôles. Ce sont des figurants, et ils se comportent comme tels —
+       ils ne gênent jamais la lecture du jeu.
+       ============================================================ */
+    const arbitre = { x: 50, y: 58, vx: 0, vy: 0, vMax: 15, accel: 26 };
+    const assistants = [
+      { x: 50, y: 1.5, vx: 0, vy: 0, vMax: 17, accel: 30, cote: "haut" },
+      { x: 50, y: 98.5, vx: 0, vy: 0, vMax: 17, accel: 30, cote: "bas" },
+    ];
+    /* L'arbitre se tient EN DIAGONALE du ballon, jamais dessus : il suit
+       à distance, du côté où il ne coupe pas la ligne de jeu. */
+    function cibleArbitre() {
+      const cote = ballon.y > 50 ? -1 : 1;      // il se décale côté opposé
+      return { x: borne(ballon.x - 6, 8, 92), y: borne(ballon.y + cote * 11, 12, 88) };
+    }
+    /* Un assistant tient sa touche et se cale sur la ligne de hors-jeu
+       de la moitié qu'il couvre : l'avant-dernier défenseur. */
+    function cibleAssistant(a) {
+      const camp = ballon.x < 50 ? "moi" : "eux";
+      const arriere = listePions
+        .filter((p) => p.camp === camp && !p.gardien)
+        .sort((q, w) => Math.abs(q.x - BUTS[camp].x) - Math.abs(w.x - BUTS[camp].x));
+      const ligne = arriere.length >= 2 ? arriere[1].x : ballon.x;
+      return { x: borne(lerp(ligne, ballon.x, 0.25), 4, 96), y: a.y };
+    }
+    function majFigurants(dt, dtBrut) {
+      const bouger = (f, cible) => {
+        const dx = cible.x - f.x, dy = cible.y - f.y;
+        const d = Math.hypot(dx, dy);
+        const v = Math.min(f.vMax, d * 3.4);
+        const vx = d > 0.02 ? (dx / d) * v : 0, vy = d > 0.02 ? (dy / d) * v : 0;
+        const ax = vx - f.vx, ay = vy - f.vy;
+        const norme = Math.hypot(ax, ay);
+        const budget = f.accel * dtBrut;
+        const k = norme > budget ? budget / norme : 1;
+        f.vx += ax * k; f.vy += ay * k;
+        f.x = borne(f.x + f.vx * dt, 1, 99);
+        f.y = borne(f.y + f.vy * dt, 1, 99);
+      };
+      bouger(arbitre, cibleArbitre());
+      for (const a of assistants) bouger(a, cibleAssistant(a));
+    }
+    function dessinerFigurants() {
+      const r = rayonPion() * 0.82;            // un peu plus petits qu'un joueur
+      ctx.save();
+      // les assistants : un trait sur la touche, discret
+      for (const a of assistants) {
+        const X = geo.px(a.x), Y = geo.py(a.y);
+        ctx.beginPath();
+        ctx.ellipse(X, Y, r * 0.72, r * 0.5, 0, 0, 6.283);
+        ctx.fillStyle = "rgba(18,22,20,0.9)"; ctx.fill();
+        ctx.lineWidth = Math.max(r * 0.2, 0.6);
+        ctx.strokeStyle = "rgba(242,193,78,0.75)"; ctx.stroke();   // le drapeau
+      }
+      // l'arbitre : disque noir marqué « A »
+      const X = geo.px(arbitre.x), Y = geo.py(arbitre.y);
+      ctx.beginPath();
+      ctx.ellipse(X + r * 0.16, Y + r * 0.55, r * 0.9, r * 0.36, 0, 0, 6.283);
+      ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fill();
+      ctx.beginPath(); ctx.arc(X, Y, r, 0, 6.283);
+      ctx.fillStyle = "#14181A"; ctx.fill();
+      ctx.lineWidth = Math.max(r * 0.16, 0.6);
+      ctx.strokeStyle = "rgba(253,248,234,0.5)"; ctx.stroke();
+      if (r >= 4) {
+        ctx.fillStyle = "rgba(253,248,234,0.9)";
+        ctx.font = `800 ${(r * 1.05).toFixed(1)}px Archivo, system-ui, sans-serif`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("A", X, Y + 0.3);
+      }
+      ctx.restore();
+    }
 
     /* ---- État de la scène ---- */
     let regime = "repos";       // repos | miseEnPlace | action | ralenti | cut | replay
@@ -464,8 +554,10 @@ const ONZE_SCENE = (() => {
       const suivant = sequenceCourante[indexCourant + 1];
       if (!suivant) return null;
       const nom = suivant.vers || suivant.tireur || suivant.acteur;
-      const p = nom && pionDe(nom);
-      if (!p || p.nom === ballon.porteur) return null;
+      const campSuivant = suivant.equipe ? campDe(suivant.equipe)
+        : sequenceCourante.equipe ? campDe(sequenceCourante.equipe) : null;
+      const p = nom && pionDe(nom, campSuivant);
+      if (!p || p.cle === ballon.porteur) return null;
       return p;
     }
     function cibleAppel(p) {
@@ -635,7 +727,7 @@ const ONZE_SCENE = (() => {
           const libres = [];
           // on GARDE son homme tant qu'il reste dangereux
           for (const d of candidats) {
-            const homme = d.marque && aMarquer.find((h) => h.nom === d.marque);
+            const homme = d.marque && aMarquer.find((h) => h.cle === d.marque);
             if (homme && !pris.has(homme.nom)) {
               pris.add(homme.nom);
               d.role = "marquage"; d.cible = cibleMarquage(d, homme);
@@ -647,7 +739,7 @@ const ONZE_SCENE = (() => {
             libres.sort((a, b) => distance(a, homme) - distance(b, homme));
             const d = libres.shift();
             pris.add(homme.nom);
-            d.role = "marquage"; d.marque = homme.nom; d.cible = cibleMarquage(d, homme);
+            d.role = "marquage"; d.marque = homme.cle; d.cible = cibleMarquage(d, homme);
           }
           for (const d of libres) d.marque = null;   // il a lâché son homme
         }
@@ -678,7 +770,7 @@ const ONZE_SCENE = (() => {
     /* Le ballon part TOUJOURS d'où il est (jamais du passeur théorique :
        ce serait une téléportation) et vise le receveur, devant sa course. */
     function passer(deNom, versNom, opts = {}) {
-      const vers = pionDe(versNom);
+      const vers = pionDe(versNom, opts.camp);
       // R4 : la passe est donnée DEVANT la course du receveur
       const avance = opts.devantLaCourse === false ? 0 : 0.28;
       const x1 = vers ? borne(vers.x + vers.vx * avance, 2, 98) : (opts.x1 !== undefined ? opts.x1 : ballon.x);
@@ -690,7 +782,7 @@ const ONZE_SCENE = (() => {
         x0: ballon.x, y0: ballon.y, x1, y1, t: 0,
         duree: Math.max(0.14, dist / vitesse),
         hauteur: opts.cloche ? Math.min(dist * 0.11, 9) : (opts.hauteur || 0),
-        versNom: vers ? vers.nom : null,
+        versNom: vers ? vers.cle : null,
         apres: opts.apres || null,
       };
       return ballon.vol.duree;
@@ -701,17 +793,17 @@ const ONZE_SCENE = (() => {
         x1: but.x + sensDe(campAttaque) * -0.5,
         y1: borne(50 + (opts.cote || 0) * 6, 41, 59),
       };
-      return passer(deNom, null, { ...cible, vitesse: opts.vitesse || 105, hauteur: opts.hauteur || 2.5, apres: opts.apres });
+      return passer(deNom, null, { ...cible, vitesse: opts.vitesse || 105, hauteur: opts.hauteur || 2.5, apres: opts.apres, camp: campAttaque });
     }
     /* Donner le ballon à un joueur : s'il est loin, le ballon y VOYAGE
        (R4 — aucune téléportation, jamais, même sur un changement de
        porteur). S'il est déjà dans ses pieds, on l'accroche. */
-    function donnerLeBallon(nom, vitesse) {
-      const p = pionDe(nom);
+    function donnerLeBallon(nom, vitesse, camp) {
+      const p = pionDe(nom, camp);
       if (!p) return 0;
       const dist = Math.hypot(p.x - ballon.x, p.y - ballon.y);
-      if (dist < 3.5 && !ballon.vol) { ballon.vol = null; ballon.porteur = p.nom; return 0; }
-      return passer(null, nom, { vitesse: vitesse || 64, devantLaCourse: false });
+      if (dist < 3.5 && !ballon.vol) { ballon.vol = null; ballon.porteur = p.cle; return 0; }
+      return passer(null, nom, { vitesse: vitesse || 64, devantLaCourse: false, camp });
     }
 
     function majBallon(dt) {
@@ -901,13 +993,13 @@ const ONZE_SCENE = (() => {
       // le ballon rejoint le premier acteur de la séquence
       const premier = sequence.find && sequence.find((t) => t.acteur || t.de);
       const nomPremier = premier ? (premier.acteur || premier.de) : null;
-      const porteur = nomPremier && pionDe(nomPremier);
+      const porteur = nomPremier && pionDe(nomPremier, camp);
       if (porteur) {
         porteur.cx = borne(zone.x, 5, 95); porteur.cy = borne(zone.y, 6, 94);
         // le ballon est à SES pieds tout de suite : il l'emmène en glissant
         // la mise en place suit un CUT : c'est le seul endroit où le
         // ballon peut se reposer d'un coup — la coupe le justifie.
-        ballon.vol = null; ballon.porteur = porteur.nom;
+        ballon.vol = null; ballon.porteur = porteur.cle;
         ballon.x = porteur.x; ballon.y = porteur.y; ballon.z = 0;
         if (reg.etiquettes) porteur.etiquette = true;
       } else {
@@ -949,10 +1041,12 @@ const ONZE_SCENE = (() => {
        ============================================================ */
 
     /* R6 : les noms suivent l'action — 2 ou 3 protagonistes étiquetés */
-    function etiqueter(noms) {
+    /* On étiquette des PIONS, plus des noms : deux joueurs homonymes
+       dans les deux camps ne doivent pas s'allumer ensemble. */
+    function etiqueter(cibles) {
       if (!reg.etiquettes) return;
-      const set = new Set((noms || []).filter(Boolean));
-      for (const p of listePions) p.etiquette = set.has(p.nom);
+      const set = new Set((cibles || []).filter(Boolean).map((c) => (typeof c === "string" ? c : c.cle)));
+      for (const p of listePions) p.etiquette = set.has(p.cle);
     }
     function etiqueterTous() {
       if (!reg.etiquettes) return;
@@ -978,21 +1072,21 @@ const ONZE_SCENE = (() => {
       switch (t.type) {
 
         case "recuperation": {
-          const p = pionDe(t.acteur);
+          const p = pionDe(t.acteur, camp);
           possession = camp;
           if (p) {
             p.flash = 420;
-            donnerLeBallon(p.nom, 70);
+            donnerLeBallon(p.nom, 70, camp);
             p.cx = borne(p.x + sens * 5, 5, 95); p.cy = p.y;
-            etiqueter([p.nom]);
+            etiqueter([p]);
           }
           break;
         }
 
         case "contre": {
           possession = camp;
-          const p = pionDe(t.acteur);
-          if (p) { donnerLeBallon(p.nom, 80); p.flash = 400; etiqueter([p.nom]); }
+          const p = pionDe(t.acteur, camp);
+          if (p) { donnerLeBallon(p.nom, 80, camp); p.flash = 400; etiqueter([p]); }
           // tout le bloc part vers l'avant : c'est CE mouvement qui dit « contre »
           for (const q of listePions) {
             if (q.camp !== camp || q.gardien) continue;
@@ -1012,38 +1106,38 @@ const ONZE_SCENE = (() => {
 
         case "relais": {
           possession = camp;
-          const de = pionDe(t.de), vers = pionDe(t.vers);
+          const de = pionDe(t.de, camp), vers = pionDe(t.vers, camp);
           if (vers) {
             const cadence = { tiki: 78, kickrush: 95, catenaccio: 58, rue: 62, total: 74, grinta: 80 };
-            passer(t.de, t.vers, { vitesse: cadence[styles[camp].style] || 70 });
+            passer(t.de, t.vers, { vitesse: cadence[styles[camp].style] || 70, camp });
             if (de) { de.cx = borne(de.x + sens * 4, 5, 95); de.roleScenario = "suit"; }   // il suit sa passe
             vers.cx = borne(vers.x + sens * 4, 5, 95);
-            etiqueter([t.de, t.vers]);
+            etiqueter([de, vers]);
           }
           break;
         }
 
         case "relais_long": {
           possession = camp;
-          const vers = pionDe(t.vers);
+          const vers = pionDe(t.vers, camp);
           if (vers) {
             // la cloche : le ballon monte, l'ombre au sol le trahit
             vers.cx = borne(vers.x + sens * 12, 5, 95);
             vers.cy = borne(lerp(vers.y, vers.baseY, 0.4), 6, 94);
-            passer(t.de, t.vers, { vitesse: 52, cloche: true });
+            passer(t.de, t.vers, { vitesse: 52, cloche: true, camp });
           } else {
             passer(t.de, null, { x1: borne(50 + sens * 30, 5, 95), y1: 30 + Math.random() * 40, vitesse: 52, cloche: true });
           }
-          etiqueter([t.de, t.vers]);
+          etiqueter([pionDe(t.de, camp), vers]);
           chipEtSynergie(t.ev, ballon, ms);
           break;
         }
 
         case "conduite": {
           possession = camp;
-          const p = pionDe(t.acteur);
+          const p = pionDe(t.acteur, camp);
           if (p) {
-            donnerLeBallon(p.nom, 66);
+            donnerLeBallon(p.nom, 66, camp);
             // la Rue : conduite en crochets, le pion serpente vers le but
             // le crochet part du CÔTÉ OPPOSÉ au défenseur le plus proche :
             // une décision de football, pas une fonction du temps
@@ -1053,20 +1147,20 @@ const ONZE_SCENE = (() => {
             p.cx = borne(p.x + sens * 13, 5, 95);
             p.cy = borne(p.y + cote * 10, 6, 94);
             p.roleScenario = "conduite";
-            etiqueter([p.nom]);
+            etiqueter([p]);
           }
           break;
         }
 
         case "geste": {
           possession = camp;
-          const p = pionDe(t.acteur);
+          const p = pionDe(t.acteur, camp);
           if (p) {
-            donnerLeBallon(p.nom, 66);
+            donnerLeBallon(p.nom, 66, camp);
             p.cx = borne(p.x + sens * 7, 5, 95);
             p.cy = borne(p.y + 6 * (Math.random() < 0.5 ? 1 : -1), 6, 94);
             ephemere("eclat-geste", p.x, p.y, "✨", ms);
-            etiqueter([p.nom]);
+            etiqueter([p]);
             // le défenseur le plus proche part dans le décor
             const battu = listePions.filter((q) => q.camp !== camp && !q.gardien)
               .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
@@ -1078,20 +1172,20 @@ const ONZE_SCENE = (() => {
 
         case "percee": {
           possession = camp;
-          const p = pionDe(t.acteur), battu = pionDe(t.battu);
-          etiqueter([t.acteur, t.battu]);
+          const p = pionDe(t.acteur, camp), battu = pionDe(t.battu, adverse(camp));
+          etiqueter([p, battu]);
           if (p) {
             p.roleScenario = "percee";
             if (t.sousType === "course") {
               // le sprint dans le couloir : il prend la profondeur, plein axe
               const couloir = p.y < 50 ? Math.max(10, p.y - 8) : Math.min(90, p.y + 8);
               p.cx = dansLeJeu(p.x + sens * 22); p.cy = couloir;
-              donnerLeBallon(p.nom, 76);
+              donnerLeBallon(p.nom, 76, camp);
             } else if (t.sousType === "dribble") {
               // le crochet sec : un décalage latéral franc devant le défenseur
               p.cx = dansLeJeu(p.x + sens * 12);
               p.cy = borne(p.y + (battu && battu.y > p.y ? -9 : 9), 8, 92);
-              donnerLeBallon(p.nom, 70);
+              donnerLeBallon(p.nom, 70, camp);
               ephemere("eclat-geste", p.x, p.y, "⚡", ms * 0.8);
             } else if (t.sousType === "aerien") {
               // le duel aérien : cloche vers lui, il saute (l'échelle grandit)
@@ -1104,7 +1198,7 @@ const ONZE_SCENE = (() => {
               const cibleAtt = listePions.filter((q) => q.camp === camp && !q.gardien && q !== p)
                 .sort((a, b) => Math.abs(b.x - BUTS[adverse(camp)].x) * -1 - Math.abs(a.x - BUTS[adverse(camp)].x) * -1)[0];
               if (cibleAtt) { cibleAtt.cx = dansLeJeu(BUTS[adverse(camp)].x - sens * 12); cibleAtt.cy = borne(45 + Math.random() * 10, 25, 75); }
-              passer(p.nom, cibleAtt ? cibleAtt.nom : null, { vitesse: 74, cloche: true });
+              passer(p.nom, cibleAtt ? cibleAtt.nom : null, { vitesse: 74, cloche: true, camp });
             }
           }
           if (battu) {
@@ -1119,12 +1213,12 @@ const ONZE_SCENE = (() => {
         }
 
         case "stop": {
-          const p = pionDe(t.acteur);
+          const p = pionDe(t.acteur, camp);
           possession = camp;
           if (p) {
             p.flash = 480; p.plonge = 320;
-            donnerLeBallon(p.nom, 72);
-            etiqueter([t.acteur]);
+            donnerLeBallon(p.nom, 72, camp);
+            etiqueter([p]);
           }
           chipEtSynergie(t.ev, p || ballon, ms);
           break;
@@ -1133,20 +1227,20 @@ const ONZE_SCENE = (() => {
         case "hors_jeu": {
           const attaquant = listePions.filter((q) => q.camp !== camp && !q.gardien)
             .sort((a, b) => Math.abs(b.x - 50) - Math.abs(a.x - 50))[0];
-          if (attaquant) { attaquant.cx = borne(attaquant.x + sensDe(attaquant.camp) * 10, 5, 95); etiqueter([attaquant.nom]); }
+          if (attaquant) { attaquant.cx = borne(attaquant.x + sensDe(attaquant.camp) * 10, 5, 95); etiqueter([attaquant]); }
           ephemere("chip-arbitre", ballon.x, ballon.y, "🚩 Hors-jeu", ms);
           chipEtSynergie(t.ev, ballon, ms);
           break;
         }
 
         case "rebond": {
-          const p = pionDe(t.acteur);
+          const p = pionDe(t.acteur, camp);
           possession = camp;
           if (p) {
             p.cx = borne(ballon.x, 5, 95); p.cy = borne(ballon.y, 6, 94);
             p.roleScenario = "rebond";
-            etiqueter([t.acteur]);
-            setTimeout(() => { if (!detruit) donnerLeBallon(p.nom, 60); }, ms * 0.5);
+            etiqueter([p]);
+            setTimeout(() => { if (!detruit) donnerLeBallon(p.nom, 60, camp); }, ms * 0.5);
           }
           chipEtSynergie(t.ev, p || ballon, ms);
           break;
@@ -1157,11 +1251,11 @@ const ONZE_SCENE = (() => {
            défenseurs se jettent. Personne ne peut deviner l'issue. --- */
         case "frappe": {
           possession = camp;
-          const tireur = pionDe(t.tireur);
+          const tireur = pionDe(t.tireur, camp);
           const gk = gardienDe(adverse(camp));
-          etiqueter([t.tireur, t.passeur, gk && gk.nom]);
+          etiqueter([tireur, pionDe(t.passeur, camp), gk]);
           if (tireur) {
-            donnerLeBallon(tireur.nom, 74);
+            donnerLeBallon(tireur.nom, 74, camp);
             // il se replace dans un angle jouable : ni sur la ligne de but,
             // ni dans le couloir — entre 12 et 26 % du fond, axe resserré
             const but = BUTS[adverse(camp)];
@@ -1184,8 +1278,8 @@ const ONZE_SCENE = (() => {
         case "issue_arret":
         case "issue_blocage": {
           possession = camp;
-          const tireur = pionDe(t.tireur);
-          const gk = pionDe(t.gardien) || gardienDe(adverse(camp));
+          const tireur = pionDe(t.tireur, camp);
+          const gk = pionDe(t.gardien, adverse(camp)) || gardienDe(adverse(camp));
           const cote = (Math.abs((tireur ? tireur.y : 50) - 50) > 8 ? ((tireur.y < 50) ? -1 : 1) : (Math.random() < 0.5 ? -1 : 1));
           const revele = () => {
             if (detruit) return;
@@ -1332,14 +1426,17 @@ const ONZE_SCENE = (() => {
       else if (p.flash > 0) { ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 8; }
       // le disque : aplat franc + liseré sombre, pour trancher sur le vert
       ctx.beginPath(); ctx.arc(X, Y, r, 0, 6.283);
-      ctx.fillStyle = p.gardien ? "#F0C64B" : p.camp === "moi" ? "#3DE26B" : "#E8503F";
+      // Règle 11 : les gardiens portent des couleurs À PART — jaune d'un
+      // côté, grenat de l'autre — et jamais celles de leur équipe.
+      ctx.fillStyle = p.gardien ? (p.camp === "moi" ? "#F0C64B" : "#8E2F45")
+        : p.camp === "moi" ? "#3DE26B" : "#E8503F";
       ctx.fill();
       ctx.shadowBlur = 0;
       ctx.lineWidth = Math.max(r * 0.16, 0.7);
       ctx.strokeStyle = "rgba(6,12,8,0.55)";
       ctx.stroke();
       // l'anneau du porteur de balle : le point focal unique
-      if (ballon.porteur === p.nom) {
+      if (ballon.porteur === p.cle) {
         ctx.beginPath(); ctx.arc(X, Y, r + Math.max(r * 0.7, 2.6), 0, 6.283);
         ctx.strokeStyle = "rgba(253,248,234,0.95)";
         ctx.lineWidth = Math.max(r * 0.34, 1.3); ctx.stroke();
@@ -1353,7 +1450,8 @@ const ONZE_SCENE = (() => {
         ctx.stroke();
       }
       if (numeroLisible) {
-        ctx.fillStyle = p.gardien ? "#1A1405" : p.camp === "moi" ? "#04240E" : "#2A0A05";
+        ctx.fillStyle = p.gardien ? (p.camp === "moi" ? "#1A1405" : "#FBE9EE")
+          : p.camp === "moi" ? "#04240E" : "#2A0A05";
         ctx.font = `800 ${(r * 1.15).toFixed(1)}px Archivo, system-ui, sans-serif`;
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
         ctx.fillText(String(p.num), X, Y + 0.3);
@@ -1494,6 +1592,7 @@ const ONZE_SCENE = (() => {
       }
       // R4 : espacement en jeu ouvert, mêlées permises dans la surface
       separerDisques(listePions, geo.w, geo.h, rayonPion());
+      majFigurants(dt, dtBrut);      // règle 11 : arbitre et assistants
       majBallon(dt);
 
       // le tampon du replay (~3 s à 30 états/s)
@@ -1521,6 +1620,7 @@ const ONZE_SCENE = (() => {
           ctx.fillRect(0, 0, largeur, hauteur);
         }
       } else {
+        dessinerFigurants();          // sous les joueurs : ils ne masquent rien
         for (const p of listePions) dessinerPion(p, temps);
         dessinerEtiquettes();
         dessinerBallon(ballon.x, ballon.y, ballon.z, ballon.trainee);
@@ -1585,14 +1685,19 @@ const ONZE_SCENE = (() => {
         etiquettes: listePions.filter((p) => p.etiquette).map((p) => p.nom),
         theme: theme.nom, replayEnCours: !!replay,
         timeline: { total: tfTotal, courant: tfCourant },
-        positions: listePions.map((p) => ({ nom: p.nom, camp: p.camp, x: p.x, y: p.y, base: p.baseX,
+        // règle 11 : les personnages du décor
+        figurants: { arbitre: { x: arbitre.x, y: arbitre.y },
+          assistants: assistants.map((a) => ({ x: a.x, y: a.y })) },
+        positions: listePions.map((p) => ({ nom: p.nom, cle: p.cle, camp: p.camp, x: p.x, y: p.y, base: p.baseX,
           vitesse: Math.hypot(p.vx, p.vy),
           // décision 33 : « pourquoi es-tu là ? » — la raison, et la cible
           role: p.role, marque: p.marque || null,
           cible: p.cible ? { x: p.cible.x, y: p.cible.y } : null,
           ecartCible: p.cible ? Math.hypot(p.cible.x - p.x, p.cible.y - p.y) : null })),
         ligneDefensive: { moi: hauteurLigne("moi"), eux: hauteurLigne("eux") },
-        receveurAttendu: (() => { const r = receveurAttendu(); return r ? r.nom : null; })(),
+        // la clé (camp|nom) : un homonyme dans l'autre camp ne doit pas
+        // pouvoir se faire passer pour lui
+        receveurAttendu: (() => { const r = receveurAttendu(); return r ? r.cle : null; })(),
       }),
       detruire: () => {
         detruit = true;

@@ -259,6 +259,46 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   verifier(`Allocation : beaucoup de buts → le format court entre en jeu (5 buts : ${alloc.mesures[5].courts} courts)`,
     alloc.mesures[5].courts >= 1);
 
+  /* ---- FIDÉLITÉ (décision 24) : LE CAS DES HOMONYMES, forcé.
+     Le pool contient plusieurs copies de chaque joueur : deux clubs
+     peuvent aligner un « Esteban » chacun (mesuré en jeu). On monte donc
+     le pire cas — DEUX équipes composées des MÊMES fiches — et on
+     vérifie que la scène ne confond pas les deux hommes. ---- */
+  const homonymes = await page.evaluate(async () => {
+    const fiches = tousLesJoueurs.slice(0, 6).map((j) => ({ ...j, etoiles: 1 }));
+    const eqA = ONZE.equipeDepuisFiches("Nous", "Nous", fiches);
+    const eqB = ONZE.equipeDepuisFiches("Eux", "Eux", fiches.map((j) => ({ ...j })));
+    const bac = document.createElement("div");
+    bac.style.cssText = "position:fixed;left:-2000px;width:800px;height:360px";
+    document.body.appendChild(bac);
+    const sc = ONZE_SCENE.creer(bac, eqA, eqB, {});
+    const nom = eqB.joueurs.find((j) => j.poste !== "GAR").nom;
+    // une action de l'équipe B, portée par un joueur dont l'homonyme
+    // existe aussi dans l'équipe A
+    const seq = [{ type: "recuperation", acteur: nom, equipe: "Eux", promesse: "…" }];
+    seq.equipe = "Eux"; seq.situation = "placee";
+    sc.miseEnPlace(seq, 400);
+    sc.jouerTemps(seq[0], 800);
+    await new Promise((r) => setTimeout(r, 700));
+    const d = sc.diagnostic();
+    const memeNom = d.positions.filter((p) => p.nom === nom);
+    const resultat = {
+      nomPartage: memeNom.length,
+      camps: memeNom.map((p) => p.camp),
+      porteur: d.ballon.porteur,
+      porteursDesignes: d.positions.filter((p) => p.cle === d.ballon.porteur).length,
+      etiquetes: d.etiquettes.length,
+    };
+    sc.detruire(); bac.remove();
+    return resultat;
+  });
+  verifier(`Décision 24 : le cas est bien monté — « ${homonymes.nomPartage} » joueurs du même nom, un par camp (${homonymes.camps.join(", ")})`,
+    homonymes.nomPartage === 2 && new Set(homonymes.camps).size === 2);
+  verifier(`Décision 24 : l'homonyme ne vole pas le ballon — porteur « ${homonymes.porteur} », ${homonymes.porteursDesignes} pion désigné`,
+    homonymes.porteur === "eux|" + homonymes.porteur.split("|")[1] && homonymes.porteursDesignes === 1);
+  verifier(`Décision 24 : un seul des deux homonymes est étiqueté (${homonymes.etiquetes})`,
+    homonymes.etiquetes === 1);
+
   /* ---- R13 : le stade est une couche de thème, pas du dur ---- */
   const stade = await page.evaluate(async () => {
     const src = await (await fetch("/match-scene.js")).text();
@@ -342,6 +382,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     let marquagesVus = 0, marquagesBons = 0, marquagesTous = 0, marquagesTousBons = 0;
     // R12 : la timeline des temps forts
     let tlTotal = 0, tlMax = -1, tlRecule = 0, tlMalCompte = 0;
+    let porteurAmbigu = 0, matchsAvecHomonymes = 0;
     await new Promise((fini) => {
       const tic = setInterval(() => {
         const sc = typeof sceneMatch !== "undefined" ? sceneMatch : null;
@@ -350,6 +391,18 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
         regimes.push(d.regime);
         if (d.positions.some((p) => !isFinite(p.x) || !isFinite(p.y)) ||
             !isFinite(d.ballon.x) || !isFinite(d.ballon.y)) nonFinies++;
+        /* --- FIDÉLITÉ (décision 24) : le pool contient plusieurs copies
+           de chaque joueur, donc deux clubs peuvent aligner un homonyme.
+           Le porteur, le receveur attendu et l'homme marqué doivent être
+           désignés par leur CLÉ (camp|nom), sinon la scène allume les
+           deux et peut montrer le mauvais homme. --- */
+        if (d.ballon.porteur) {
+          const porteurs = d.positions.filter((p) => p.cle === d.ballon.porteur);
+          if (porteurs.length !== 1) porteurAmbigu++;
+        }
+        const homonymes = d.positions.map((p) => p.nom)
+          .filter((n, i, l) => l.indexOf(n) !== i);
+        if (homonymes.length) matchsAvecHomonymes++;
         // --- Règle 12 de la spec : la timeline ---
         if (d.timeline) {
           tlTotal = d.timeline.total;
@@ -366,7 +419,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
         if (champ.some((p) => !p.role)) sansRaison++;
         champ.forEach((p) => { if (p.ecartCible !== null) ecartsCible.push(p.ecartCible); });
         if (d.receveurAttendu) {
-          const r = d.positions.find((p) => p.nom === d.receveurAttendu);
+          const r = d.positions.find((p) => p.cle === d.receveurAttendu);
           if (r) { appelsVus++; if (r.vitesse > 1.5) appelsEnCourse++; }
         }
         /* Le repos : on ne mesure PAS le pic juste après un temps fort
@@ -388,7 +441,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
           lignesVues++;
         }
         for (const m of d.positions.filter((p) => p.role === "marquage" && p.marque)) {
-          const homme = d.positions.find((p) => p.nom === m.marque);
+          const homme = d.positions.find((p) => p.cle === m.marque);
           if (!homme) continue;
           // goal-side : le marqueur est entre son homme et SON but
           const but = m.camp === "moi" ? 1.5 : 98.5;
@@ -479,7 +532,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
         ? finsDeRepos.slice().sort((a, b) => a - b)[Math.floor(finsDeRepos.length / 2)] : 0,
       lignesVues, ecartTypeLigne: lignesVues ? sommeEcartType / lignesVues : 0,
       marquagesVus, marquagesBons, marquagesTous, marquagesTousBons,
-      tlTotal, tlMax, tlRecule, tlMalCompte,
+      tlTotal, tlMax, tlRecule, tlMalCompte, porteurAmbigu, matchsAvecHomonymes,
       etiqMax: etiqAction.length ? Math.max(...etiqAction) : 0,
       etiqMed: etiqAction.length ? etiqAction.slice().sort((a, b) => a - b)[Math.floor(etiqAction.length / 2)] : 0,
       etiqBut,
@@ -589,6 +642,9 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
      taille qui est garantie, plus la durée d'un match. */
   verifier(`Décision 33 — le marquage se voit : EN POSITION, le marqueur est goal-side ${Math.round(tauxGoalSide * 100)} % du temps (${sacMarquage.bons}/${sacMarquage.vus} relevés cumulés sur ${sacMarquage.matchs} match(s)) — ${Math.round(tauxBrut * 100)} % en comptant ceux qui courent encore`,
     sacMarquage.vus >= ECHANTILLON_MARQUAGE && tauxGoalSide >= 0.7);
+
+  verifier(`Décision 24 : le porteur est désigné sans ambiguïté, même avec des homonymes (${releve.porteurAmbigu} relevé(s) ambigu(s)${releve.matchsAvecHomonymes ? `, ${releve.matchsAvecHomonymes} relevé(s) AVEC homonymes sur le terrain` : ", aucun homonyme dans ce match"})`,
+    releve.porteurAmbigu === 0);
 
   /* ---- Règle 12 de la spec : LA TIMELINE DES TEMPS FORTS ----
      (à ne pas confondre avec le repère interne « R12 » du code, qui
