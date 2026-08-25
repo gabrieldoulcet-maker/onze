@@ -982,7 +982,12 @@
       content: ""; position: absolute; inset: 0; z-index: -1;
       background: var(--couleur-cout, var(--cout-1)); opacity: 0.18;
     }
-    .carte-boutique .barre-nom .nom-carte { flex: 1; min-width: 0; font-size: 0.62rem; }
+    /* le nom du joueur suit la largeur de la carte, comme les familles :
+       le bloc de boutons de la bande basse lui a repris des pixels */
+    .carte-boutique .barre-nom .nom-carte {
+      flex: 1; min-width: 0; font-size: clamp(0.46rem, 5.2cqw, 0.62rem);
+      white-space: nowrap; overflow: visible; text-overflow: clip;
+    }
     .carte-boutique .barre-nom .marque-unique { color: var(--or-trophee); margin-right: 2px; }
     .carte-boutique .barre-nom button { flex: 0 0 auto; display: flex; align-items: center; gap: 1px; }
     /* ---- L'ACHAT AU TAP : la carte entière est la cible ---- */
@@ -1151,11 +1156,28 @@
        `bottom: 110px` il tombait en plein milieu des cartes de boutique et
        de l'emplacement vide — un message qui recouvre ce qu'on est en
        train de regarder (§9.6). */
-    .message-flottant {
-      position: fixed; top: calc(var(--haut-bandeau, 41px) + 6px); left: 50%; transform: translateX(-50%);
-      color: var(--craie-claire); font-size: 0.75rem; z-index: 90;
+    /* LA ZONE UNIQUE D'ANNONCE : sous le bandeau, centrée, une seule à la
+       fois. Elle remplace le message flottant, les bannières de butin et
+       les bannières de fête, qui vivaient chacun à leur place et se
+       posaient les uns sur les autres. */
+    .file-annonces {
+      position: fixed; top: calc(var(--haut-bandeau, 41px) + 6px); left: 50%;
+      transform: translateX(-50%); z-index: 92; pointer-events: none;
+      max-width: min(92vw, 460px); display: flex; justify-content: center;
+    }
+    .file-annonces.masque { display: none; }
+    /* Les trois habillages d'annonce, désormais posés dans la MÊME zone :
+       c'est la file qui décide où et quand, chaque type garde son ton. */
+    .file-annonces .annonce-message {
+      color: var(--craie-claire); font-size: 0.75rem;
       background: #060D08E8; border: 1px solid var(--ligne);
-      border-radius: var(--r-pilule); padding: 0 12px; pointer-events: none; text-align: center;
+      border-radius: var(--r-pilule); padding: 2px 12px; text-align: center;
+      animation: apparait 0.2s ease;
+    }
+    .file-annonces .banniere-orbe,
+    .file-annonces .fusion-banniere {
+      position: static; transform: none; margin: 0; left: auto; top: auto;
+      animation: apparait 0.22s ease;
     }
     /* La bannière en balayage latéral (Lot 5) : couleur = sens —
        vert fusion · or palier/légendaire. Le layout ne bouge pas. */
@@ -1333,7 +1355,9 @@
     </div>
   </div>
 
-  <div class="message-flottant" id="message"></div>
+  <!-- LA SEULE PLACE OÙ LE JEU PARLE. Trois canaux d'annonce
+       s'ignoraient et s'empilaient ; il n'y en a plus qu'un. -->
+  <div class="file-annonces masque" id="file-annonces" role="status" aria-live="polite"></div>
 
   </div><!-- /app -->
 
@@ -1660,11 +1684,8 @@
       // l'arrivée d'un Unique est un ÉVÉNEMENT (fanfare + bannière)
       if (fiche.unique) {
         ONZE_JUICE.jouer("unique");
-        const banniere = document.createElement("div");
-        banniere.className = "fusion-banniere";
-        banniere.innerHTML = `⭐ ${fiche.unique} ⭐<br>${fiche.nom} signe au club !<small>Son pouvoir Unique s'active sur le terrain.</small>`;
-        el("app").appendChild(banniere);
-        setTimeout(() => banniere.remove(), 2400);
+        annoncer(`⭐ ${fiche.unique} ⭐<br>${fiche.nom} signe au club !<small>Son pouvoir Unique s'active sur le terrain.</small>`,
+          "fusion-banniere", 2400);
       } else ONZE_JUICE.jouer("achat");
       const fusions = ONZE.fusionnerEffectif(partie.terrain, partie.banc);
       if (fusions.length) celebrerFusions(fusions);
@@ -1743,9 +1764,46 @@
         seuil = XP_POUR_MONTER[partie.niveau];
       }
     }
+    /* ================= UNE FILE D'ANNONCES, PAS UNE PILE =================
+       (décision 64 · P1 et P2). Le jeu avait TROIS canaux d'annonce qui
+       s'ignoraient : `signaler()` (un message flottant), les bannières de
+       butin, et les bannières de fête (fusion, Unique, Icône, staff).
+       Reproduit en fin de manche : trois annonces au même instant, à
+       y = 0, 47 et 131 — trois bandes empilées, dont deux se recouvraient
+       sur la capture de Gabriel, et qui recouvraient les cartes.
+
+       Elles passent maintenant par UNE SEULE file, à UNE SEULE place :
+       chacune attend son tour, celle qui arrive ne se pose jamais sur
+       celle qui parle. La durée reste propre à chaque type — une fusion
+       3★ mérite plus qu'un « +2M ». */
+    const annonces = { file: [], enCours: false, minuteur: null };
+    function annoncer(html, classe, duree) {
+      annonces.file.push({ html, classe, duree: duree || 1600 });
+      if (!annonces.enCours) defilerAnnonces();
+    }
+    function defilerAnnonces() {
+      const zone = el("file-annonces");
+      const suivante = annonces.file.shift();
+      if (!suivante) {
+        annonces.enCours = false;
+        zone.innerHTML = "";
+        zone.classList.add("masque");
+        return;
+      }
+      annonces.enCours = true;
+      zone.classList.remove("masque");
+      zone.innerHTML = `<div class="${suivante.classe}">${suivante.html}</div>`;
+      clearTimeout(annonces.minuteur);
+      annonces.minuteur = setTimeout(defilerAnnonces, suivante.duree);
+    }
+    function viderAnnonces() {
+      clearTimeout(annonces.minuteur);
+      annonces.file = []; annonces.enCours = false;
+      const zone = el("file-annonces");
+      if (zone) { zone.innerHTML = ""; zone.classList.add("masque"); }
+    }
     function signaler(texte) {
-      el("message").textContent = texte;
-      setTimeout(() => { if (el("message").textContent === texte) el("message").textContent = ""; }, 3000);
+      annoncer(texte, "annonce-message", 2200);
     }
 
     /* ============ L'intégrité de l'effectif (post-playtest, bloquants) ============
@@ -1817,14 +1875,11 @@
       partie.compteurs.fusionsManche = (partie.compteurs.fusionsManche || 0) + fusions.length; // les Jumeaux Bamana
       fusions.forEach((f, i) => {
         setTimeout(() => {
-          const banniere = document.createElement("div");
-          banniere.className = "fusion-banniere" + (f.etoiles >= 3 ? " trois-etoiles" : "");
           ONZE_JUICE.jouer(f.etoiles >= 3 ? "fusion3" : "fusion");
-          banniere.innerHTML = f.etoiles >= 3
+          annoncer(f.etoiles >= 3
             ? `🌟 LÉGENDE DU CLUB ! 🌟<br>${f.nom} atteint les 3 étoiles !<small>Le sommet absolu — niveau maximum</small>`
-            : `✨ FUSION ! ✨<br>${f.nom} devient Titulaire 2★<small>Trois copies réunies — les stats grimpent</small>`;
-          el("app").appendChild(banniere);
-          setTimeout(() => banniere.remove(), f.etoiles >= 3 ? 3400 : 2700);
+            : `✨ FUSION ! ✨<br>${f.nom} devient Titulaire 2★<small>Trois copies réunies — les stats grimpent</small>`,
+            "fusion-banniere" + (f.etoiles >= 3 ? " trois-etoiles" : ""), f.etoiles >= 3 ? 3400 : 2700);
         }, i * 900);
       });
     }
@@ -1981,23 +2036,11 @@
        retombaient par-dessus. On laisse la scène se ranger POUR DE BON
        avant de faire tomber quoi que ce soit. */
     const RETOUR_COLONNES = 340;   // la transition (280 ms) plus un filet
-    /* La file des annonces de butin : une seule à l'écran à la fois. */
-    const fileButin = { attente: [], enCours: false };
+    /* Les annonces de butin rejoignent la file commune : elles avaient la
+       leur, ce qui les empêchait de se chevaucher ENTRE ELLES mais pas de
+       se poser sur un message ou une bannière de fête. */
     function annoncerButin(banc, html, rarete) {
-      fileButin.attente.push({ html, rarete });
-      if (fileButin.enCours) return;
-      const suivante = () => {
-        const item = fileButin.attente.shift();
-        if (!item) { fileButin.enCours = false; return; }
-        fileButin.enCours = true;
-        banc.innerHTML = "";
-        const b = document.createElement("div");
-        b.className = "banniere-orbe " + item.rarete;
-        b.innerHTML = item.html;
-        banc.appendChild(b);
-        setTimeout(() => { b.remove(); suivante(); }, 1300);
-      };
-      suivante();
+      annoncer(html, "banniere-orbe " + rarete, 1500);
     }
     function ramasserOrbes(apresButin) {
       const orbes = partie.orbesEnAttente;
@@ -3490,18 +3533,16 @@
     }
     function celebrerStaff(evenement) {
       if (!evenement || evenement.type === "composant") return;
-      const banniere = document.createElement("div");
-      banniere.className = "fusion-banniere";
+      let html;
       if (evenement.type === "spec") {
         const spec = Object.values(ONZE.SPECIALISATIONS).find((x) => x.nom === evenement.nom);
-        banniere.innerHTML = `🧪 SPÉCIALISATION ! 🧪<br>${evenement.joueur} devient <strong>${evenement.nom}</strong><small>${spec && spec.effet ? spec.effet : "Deux cartes staff fusionnées — définitif."}</small>`;
+        html = `🧪 SPÉCIALISATION ! 🧪<br>${evenement.joueur} devient <strong>${evenement.nom}</strong><small>${spec && spec.effet ? spec.effet : "Deux cartes staff fusionnées — définitif."}</small>`;
       } else if (evenement.type === "embleme") {
-        banniere.innerHTML = `🛂 EMBLÈME ! 🛂<br>${evenement.joueur} rejoint <strong>${evenement.ecole}</strong><small>Le Passeport a parlé — il compte dans l'École.</small>`;
+        html = `🛂 EMBLÈME ! 🛂<br>${evenement.joueur} rejoint <strong>${evenement.ecole}</strong><small>Le Passeport a parlé — il compte dans l'École.</small>`;
       } else {
-        banniere.innerHTML = `🌍 CITOYEN DU MONDE ! 🌍<br>${evenement.joueur} compte dans TOUTES tes Écoles actives.`;
+        html = `🌍 CITOYEN DU MONDE ! 🌍<br>${evenement.joueur} compte dans TOUTES tes Écoles actives.`;
       }
-      el("app").appendChild(banniere);
-      setTimeout(() => banniere.remove(), 3000);
+      annoncer(html, "fusion-banniere", 3000);
     }
 
     /* ================= Le tap sur un jeton : sélection → échange =================
@@ -4362,11 +4403,7 @@
           ONZE_JUICE.jouer("palier");
           // La bannière en balayage (Lot 5) : « FAMILLE — PALIER N »
           const [nomFam, s] = cle.split("|");
-          const banniere = document.createElement("div");
-          banniere.className = "banniere-balayage";
-          banniere.textContent = `${nomFam.toUpperCase()} — PALIER ${s}`;
-          el("app").appendChild(banniere);
-          setTimeout(() => banniere.remove(), 1500);
+          annoncer(`${nomFam.toUpperCase()} — PALIER ${s}`, "banniere-balayage", 1500);
           break;
         }
       }
@@ -4446,11 +4483,8 @@
       partie.boutique[indice] = null;
       for (const arrivant of arrivants) placerAuClub(arrivant);
       ONZE_JUICE.jouer("icone");
-      const banniere = document.createElement("div");
-      banniere.className = "fusion-banniere";
-      banniere.innerHTML = `✨ ${icone.nom} ${icone.duo ? "arrivent" : "arrive"} au club ! ✨<br><small>${icone.identite}</small>`;
-      el("app").appendChild(banniere);
-      setTimeout(() => banniere.remove(), 3000);
+      annoncer(`✨ ${icone.nom} ${icone.duo ? "arrivent" : "arrive"} au club ! ✨<br><small>${icone.identite}</small>`,
+        "fusion-banniere", 3000);
       afficher();
     }
 
@@ -4487,11 +4521,8 @@
           partie.quetesVisibles = partie.quetesVisibles.filter((x) => x !== id);
           partie.icônesDebloquees.push(id);
           partie.garanties.push(id);
-          const banniere = document.createElement("div");
-          banniere.className = "fusion-banniere";
-          banniere.innerHTML = `🏆 ICÔNE DÉBLOQUÉE ! 🏆<br><strong>${icone.nom}</strong><small>${icone.identite}<br>Garantie à ta prochaine relance de mercato.</small>`;
-          el("app").appendChild(banniere);
-          setTimeout(() => banniere.remove(), 3400);
+          annoncer(`🏆 ICÔNE DÉBLOQUÉE ! 🏆<br><strong>${icone.nom}</strong><small>${icone.identite}<br>Garantie à ta prochaine relance de mercato.</small>`,
+            "fusion-banniere", 3400);
           const remplacante = tirerNouvelleQuete();
           if (remplacante) partie.quetesVisibles.push(remplacante);
         }
