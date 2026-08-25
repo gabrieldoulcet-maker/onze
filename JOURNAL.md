@@ -376,5 +376,5 @@ Trois lignes par session : **fait / bloqué / prochaine tâche**. C'est ce qui p
 - **Onze règles consignées** : décisions **63** (méthode, M1-M6) et **64** (produit, P1-P5), chacune avec l'incident mesuré qui l'a produite.
 - **Cinq fois où mes propres recettes mentaient**, toutes trouvées en les retournant contre elles-mêmes : un `\.` dans un littéral de gabarit qui matchait tout (33 à 63 faux tronqués) ; un test d'occlusion visant le centre d'une boîte clippée ; une assertion qui mesurait la perspective des décisions 51-52 et l'appelait bogue ; une recette qui empilait ses propres voiles puis les comptait comme un défaut du jeu ; et deux cérémonies lancées d'affilée dont je tapais la mauvaise.
 - **Le dénominateur est fixé** : `tests/lancer-tout.js` énumère le disque. Trois comptes circulaient (13, 14, 15) et **une recette n'était lancée par personne**.
-- **Bloqué :** rien. Suite complète verte : **18/18 recettes, 428 assertions**, lint 0. `scene.spec.js` appartient à l'autre conversation.
+- **Bloqué :** rien. **19 recettes sur le disque, 18 lancées** (`scene.spec.js` appartient à l'autre conversation et porte son propre rouge), **18 vertes, 428 assertions**, lint 0.
 - **Prochaine tâche :** §6 (le carnet façon TFT) et §10 (les quêtes hors de la colonne), qui se conçoivent ensemble.
