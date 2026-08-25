@@ -540,6 +540,100 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   verifier(`Décision 58 — la séparation vient d'un signal NON COLORÉ : sur chaque sol, l'ombre de contact OU le liseré tient 3:1 (${couleurs.signal.map((s) => `${s.nom} ${s.ombre.toFixed(1)}/${s.lisere.toFixed(1)}`).join(" · ")})`,
     signalOk && aucunMaillotNeTient);
 
+  /* ============================================================
+     ÉTAPE A — LE PION EST UN CORPS. Taille, mêlée, repli.
+     ============================================================ */
+  const figurines = await page.evaluate(async () => {
+    const parEcole = (ecole, n) => tousLesJoueurs.filter((j) => j.ecole === ecole).slice(0, n)
+      .map((j) => ({ ...j, etoiles: 1 }));
+    const sortie = { tailles: [], melee: null, repli: null };
+    // 1. LA TAILLE : hauteur = 1,2 × le diamètre du pion, à tous les
+    //    effectifs et à toutes les tailles d'écran
+    for (const [n, L, H] of [[5, 800, 280], [8, 800, 280], [11, 800, 280], [11, 560, 190], [5, 1000, 340]]) {
+      const bac = document.createElement("div");
+      bac.style.cssText = `position:fixed;left:-3000px;width:${L}px;height:${H}px`;
+      document.body.appendChild(bac);
+      const sc = ONZE_SCENE.creer(bac,
+        ONZE.equipeDepuisFiches("A", "A", parEcole("Tiki-Taka", n)),
+        ONZE.equipeDepuisFiches("B", "B", parEcole("Catenaccio", n)), {});
+      const d = sc.diagnostic();
+      sortie.tailles.push({ n: n * 2, L, H, hauteur: d.figurine.hauteur,
+        diametre: 2 * d.rayonPion, rapport: d.figurine.hauteur / (2 * d.rayonPion),
+        partTete: d.figurine.partTete });
+      sc.detruire(); bac.remove();
+    }
+    /* 2. LA MÊLÉE — le vrai go/no-go du chantier. À 23 px avec
+       vingt-deux corps, trois joueurs qui se croisent peuvent faire une
+       bouillie là où trois disques restaient lisibles. On les superpose
+       de force et on regarde les PIXELS : le porteur doit rester
+       identifiable (son anneau au sol) et les deux camps distinguables. */
+    {
+      const bac = document.createElement("div");
+      bac.style.cssText = "position:fixed;left:-3000px;width:800px;height:280px";
+      document.body.appendChild(bac);
+      const sc = ONZE_SCENE.creer(bac,
+        ONZE.equipeDepuisFiches("A", "A", parEcole("Tiki-Taka", 6)),
+        ONZE.equipeDepuisFiches("B", "B", parEcole("Catenaccio", 6)), {});
+      await new Promise((r) => setTimeout(r, 600));
+      const d0 = sc.diagnostic();
+      // on colle quatre pions des DEUX camps au même endroit
+      sc.entasser(0, 0);
+      await new Promise((r) => setTimeout(r, 120));
+      const cv = bac.querySelector("canvas");
+      const g = cv.getContext("2d");
+      const dpr = cv.width / cv.clientWidth;
+      const geo = sc.diagnostic().cadre;
+      const cx = (geo.x + geo.w / 2) * dpr, cy = (geo.y + geo.h / 2) * dpr;
+      const cote = Math.round(70 * dpr);
+      const im = g.getImageData(Math.round(cx - cote), Math.round(cy - cote), cote * 2, cote * 2).data;
+      let bleus = 0, rouges = 0, clairs = 0;
+      for (let i = 0; i < im.length; i += 4) {
+        const R = im[i], V = im[i + 1], B = im[i + 2], A = im[i + 3];
+        if (A < 40) continue;
+        if (B > 120 && B > R * 1.5 && B > V * 1.2) bleus++;
+        else if (R > 120 && R > B * 1.5 && R > V * 1.5) rouges++;
+        else if (R > 200 && V > 200 && B > 190) clairs++;   // l'anneau du porteur / le liseré
+      }
+      sortie.melee = { bleus, rouges, clairs, entasses: d0.nbDisques };
+      sc.detruire(); bac.remove();
+    }
+    // 3. LE REPLI : figurines coupées, le match reste jouable et lisible
+    {
+      const avant = ONZE_SCENE.reglages().figurines;
+      ONZE_SCENE.majReglages({ figurines: false });
+      const bac = document.createElement("div");
+      bac.style.cssText = "position:fixed;left:-3000px;width:800px;height:280px";
+      document.body.appendChild(bac);
+      const sc = ONZE_SCENE.creer(bac,
+        ONZE.equipeDepuisFiches("A", "A", parEcole("Tiki-Taka", 6)),
+        ONZE.equipeDepuisFiches("B", "B", parEcole("Catenaccio", 6)), {});
+      await new Promise((r) => setTimeout(r, 500));
+      const d = sc.diagnostic();
+      const cv = bac.querySelector("canvas");
+      const g = cv.getContext("2d");
+      const dpr = cv.width / cv.clientWidth;
+      const im = g.getImageData(0, 0, cv.width, cv.height).data;
+      let bleus = 0, rouges = 0;
+      for (let i = 0; i < im.length; i += 4) {
+        const R = im[i], V = im[i + 1], B = im[i + 2];
+        if (B > 120 && B > R * 1.5 && B > V * 1.2) bleus++;
+        else if (R > 120 && R > B * 1.5 && R > V * 1.5) rouges++;
+      }
+      sortie.repli = { figurines: d.figurine.active, pions: d.nbDisques, bleus, rouges };
+      sc.detruire(); bac.remove();
+      ONZE_SCENE.majReglages({ figurines: avant });
+    }
+    return sortie;
+  });
+  const tailleOk = figurines.tailles.every((t) => Math.abs(t.rapport - 1.2) < 0.02);
+  verifier(`Étape A — la figurine mesure 1,2 × le diamètre du pion, à tous les effectifs et écrans (${figurines.tailles.map((t) => `${t.n}j ${t.L}×${t.H}: ${t.hauteur.toFixed(1)} px pour ${t.diametre.toFixed(1)}`).join(" · ")})`,
+    tailleOk && figurines.tailles.every((t) => t.partTete >= 0.34 && t.partTete <= 0.38));
+  const m = figurines.melee;
+  verifier(`Étape A — la MÊLÉE reste lisible : ${m.bleus} px bleus et ${m.rouges} px rouges sur ${m.entasses} pions entassés, porteur repérable (${m.clairs} px clairs)`,
+    m.bleus > 40 && m.rouges > 40 && m.clairs > 20);
+  verifier(`Étape A — le repli tient : figurines coupées, le match reste lisible (${figurines.repli.pions} disques, ${figurines.repli.bleus} px bleus / ${figurines.repli.rouges} px rouges)`,
+    figurines.repli.figurines === false && figurines.repli.bleus > 40 && figurines.repli.rouges > 40);
+
   /* ---- Un MATCH PLEIN sous instruments : régimes, durées, mouvement,
      étiquettes, ballon jamais téléporté ---- */
   /* Le match de relevé doit avoir de la MATIÈRE : un 0-0 à une seule

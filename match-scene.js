@@ -126,6 +126,7 @@ const ONZE_SCENE = (() => {
     etiquettes: true,     // les noms sur les protagonistes
     trainee: true,        // « Ballon animé » : la traînée
     tempsMorts: "scores", // « Affichage des temps morts » : scores | stats | les-deux
+    figurines: true,      // le pion est un CORPS (étape A) ; false = repli sur les disques
     stade: "emeraude",    // le thème de stade (R13) — un décor PEINT par défaut :
                           // un joueur neuf voit le Grand Soir sans rien régler
   };
@@ -1292,6 +1293,9 @@ const ONZE_SCENE = (() => {
       bande.classList.remove("visible");
       barrePossession.classList.add("visible");
       for (const p of listePions) { p.cx = null; p.cy = null; p.role = null; p.etiquette = false; }
+      // le cerveau repasse tout de suite : jamais de pion muet, même une
+      // seule frame (voir la même précaution dans `miseEnPlace`)
+      cerveauDePlacement();
     }
     /* La possession affichée vient des VRAIS événements du moteur
        (match-ui les compte) — jamais d'un chiffre décoratif. */
@@ -1847,7 +1851,106 @@ const ONZE_SCENE = (() => {
        l'étiquette, le détail vit dans la fiche joueur.
        L'identité tient sur trois choses qui restent lisibles à cette
        taille : la COULEUR du camp, l'OR du gardien, l'ANNEAU du porteur. */
+    /* ============================================================
+       LA FIGURINE (étape A) — le pion devient un corps.
+       Immobile : aucune animation ici, c'est l'étape C qui la fera
+       courir. Six segments dessinés en code, aucun asset.
+
+       LA TAILLE : hauteur = 1,2 × le diamètre du pion actuel. Un seul
+       rapport, accroché à RAYON_PION_M — la figurine suit donc le
+       terrain élastique sans second réglage.
+
+       LE PIÈGE À NE PAS « CORRIGER » : à l'échelle du sol, un joueur
+       d'1,80 m devrait mesurer 23 px sur l'image de référence ; il en
+       mesure 51. Les figurines sont dessinées 2,2 FOIS PLUS HAUTES que
+       la perspective stricte. C'est une triche de lisibilité, elle est
+       VOULUE, et sans elle le personnage disparaît. Qui « remet la
+       perspective juste » obtient des joueurs deux fois trop petits.
+
+       LES PROPORTIONS : la tête fait 36 % de la hauteur — trois têtes de
+       haut, quand un humain en fait sept et demie. Ce n'est pas un parti
+       pris de style : à 23 px de haut, une tête aux vraies proportions
+       ferait 3 px et n'existerait pas ; à 36 % elle en fait 8 et on voit
+       un être humain. Aucun visage, aucun numéro, aucun détail de
+       maillot — rien de tout ça n'est visible à cette taille, et tout ce
+       qu'on y met coûte des pixels aux signaux utiles.
+
+       L'ENCOMBREMENT AU SOL NE CHANGE PAS : la figurine garde le rayon
+       de 1,84 m qui sert à l'espacement (R4).
+       ============================================================ */
+    const HAUTEUR_FIGURINE = 1.2;      // × le diamètre du pion
+    const PART_TETE = 0.36;            // part de la hauteur totale
+    function dessinerFigurine(p, temps) {
+      const r = rayonPion() * p.echelle;
+      const H = HAUTEUR_FIGURINE * 2 * r;
+      const Xp = X(p.x), Yp = Y(p.y);          // le point au SOL
+      const maillot = maillotDe(p);
+      ctx.save();
+      // 1. l'ombre de contact, sous les pieds — le signal non coloré qui
+      //    porte les sols clairs
+      ctx.beginPath();
+      ctx.ellipse(Xp, Yp, r * 0.95, r * 0.36, 0, 0, 6.283);
+      ctx.fillStyle = `rgba(${OMBRE_CONTACT.rgb.join(",")},${OMBRE_CONTACT.alpha})`;
+      ctx.fill();
+      // l'anneau du porteur : une couronne AU SOL, pas autour du corps
+      if (ballon.porteur === p.cle) {
+        ctx.beginPath();
+        ctx.ellipse(Xp, Yp, r * 1.7, r * 0.66, 0, 0, 6.283);
+        ctx.strokeStyle = "rgba(253,248,234,0.95)";
+        ctx.lineWidth = Math.max(r * 0.30, 1.3); ctx.stroke();
+      }
+      if (p.aura > 0) { ctx.shadowColor = p.auraCouleur; ctx.shadowBlur = 10; }
+      else if (p.flash > 0) { ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 8; }
+      ctx.strokeStyle = maillot.corps;
+      ctx.fillStyle = maillot.corps;
+      ctx.lineCap = "round";
+      // 2. les jambes : du sol au bassin
+      const yBassin = Yp - H * 0.26;
+      ctx.lineWidth = Math.max(H * 0.11, 1);
+      ctx.beginPath();
+      ctx.moveTo(Xp - H * 0.09, Yp); ctx.lineTo(Xp - H * 0.06, yBassin);
+      ctx.moveTo(Xp + H * 0.09, Yp); ctx.lineTo(Xp + H * 0.06, yBassin);
+      ctx.stroke();
+      // 3. le tronc : du bassin aux épaules
+      const yEpaules = Yp - H * 0.62;
+      ctx.lineWidth = Math.max(H * 0.24, 1.4);
+      ctx.beginPath();
+      ctx.moveTo(Xp, yBassin); ctx.lineTo(Xp, yEpaules);
+      ctx.stroke();
+      // 4. les bras, le long du corps
+      ctx.lineWidth = Math.max(H * 0.085, 0.8);
+      ctx.beginPath();
+      ctx.moveTo(Xp - H * 0.15, yEpaules + H * 0.02); ctx.lineTo(Xp - H * 0.17, yBassin + H * 0.04);
+      ctx.moveTo(Xp + H * 0.15, yEpaules + H * 0.02); ctx.lineTo(Xp + H * 0.17, yBassin + H * 0.04);
+      ctx.stroke();
+      // 5. la tête
+      const rTete = H * PART_TETE / 2;
+      const yTete = Yp - H + rTete;
+      ctx.beginPath(); ctx.arc(Xp, yTete, rTete, 0, 6.283);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      /* 6. LE LISERÉ CLAIR sur le haut de la silhouette — le second
+         signal non coloré, celui qui porte les sols sombres. */
+      ctx.strokeStyle = `rgba(${LISERE_HAUT.rgb.join(",")},${LISERE_HAUT.alpha})`;
+      ctx.lineWidth = Math.max(H * 0.055, 0.8);
+      ctx.beginPath();
+      ctx.arc(Xp, yTete, rTete * 0.86, Math.PI * 1.05, Math.PI * 1.95);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(Xp - H * 0.12, yEpaules); ctx.lineTo(Xp + H * 0.12, yEpaules);
+      ctx.stroke();
+      // le pion qui se jette : un trait de glissade derrière lui
+      if (p.plonge > 0) {
+        ctx.beginPath();
+        ctx.moveTo(Xp - enPixels(p.vx * 0.7), Yp); ctx.lineTo(Xp, Yp);
+        ctx.strokeStyle = "rgba(253,248,234,0.35)";
+        ctx.lineWidth = r * 0.7; ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     function dessinerPion(p, temps) {
+      if (reg.figurines !== false) return dessinerFigurine(p, temps);
       const r = rayonPion() * p.echelle;
       const Xp = X(p.x), Yp = Y(p.y);
       const numeroLisible = r >= 4;      // en dessous, le chiffre ne rentre plus
@@ -2191,6 +2294,23 @@ const ONZE_SCENE = (() => {
         finDeMatch = true; jauge.pulse = false; replay = null; facteurTemps = 1;
         repos();
       },
+      /* La MÊLÉE, provoquée : on colle quatre pions des deux camps au
+         même endroit. C'est le go/no-go de l'étape A — trois corps qui
+         se croisent doivent rester lisibles là où trois disques
+         l'étaient. Instrumentation, comme `diagnostic`. */
+      entasser: (x, y) => {
+        const pris = [];
+        for (const camp of ["moi", "eux"]) {
+          listePions.filter((p) => p.camp === camp && !p.gardien).slice(0, 2)
+            .forEach((p, i) => {
+              p.x = x + (i - 0.5) * 0.9; p.y = y + (i - 0.5) * 0.9;
+              p.vx = 0; p.vy = 0; p.cx = p.x; p.cy = p.y;
+              pris.push(p);
+            });
+        }
+        if (pris.length) { ballon.vol = null; ballon.porteur = pris[0].cle; ballon.x = pris[0].x; ballon.y = pris[0].y; }
+        return pris.length;
+      },
       diagnostic: () => ({
         styles, regime, possession, situation: situationCourante,
         // R1 : le cadre du terrain — il ne doit JAMAIS bouger (caméra fixe)
@@ -2206,6 +2326,14 @@ const ONZE_SCENE = (() => {
         // décision 33 : l'échelle des pions, mesurée par la recette
         rayonPion: geo ? rayonPion() : null,
         rayonPionM: RAYON_PION_M,
+        /* étape A : la figurine. Sa hauteur est accrochée au diamètre du
+           pion — un seul rapport, donc elle suit le terrain élastique. */
+        figurine: geo ? {
+          active: reg.figurines !== false,
+          hauteur: HAUTEUR_FIGURINE * 2 * rayonPion(),
+          rapport: HAUTEUR_FIGURINE,           // × le diamètre du pion
+          partTete: PART_TETE,
+        } : null,
         ratioPion: geo ? (2 * rayonPion()) / geo.h : null,
         jauge: { affichee: jauge.affichee, cible: jauge.cible },
         possessionPct: { moi: possessionPct.moi, eux: possessionPct.eux },
