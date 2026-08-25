@@ -12,6 +12,7 @@
 
    API :
      ONZE_STADE.liste()            → [{id, nom, description}]
+     ONZE_STADE.sol(t)             → la couleur du sol, relevée ou dessinée
      ONZE_STADE.theme(id)          → l'objet thème (défaut si inconnu)
      ONZE_STADE.geometrie(l, h, t) → où vit le terrain dans le canvas
      ONZE_STADE.dessiner(ctx, geo, theme, temps)  → le décor complet
@@ -34,7 +35,7 @@ const ONZE_STADE = (() => {
       nom: "Stade Municipal",
       description: "Le stade par défaut d'ONZE : pelouse rayée, tribunes sombres, quatre projecteurs.",
       marge: 0.10,
-      gazon: { clair: "#1E6B2E", sombre: "#185A26", bandes: 14, usure: "rgba(0,0,0,0.10)" },
+      sol: null, gazon: { clair: "#1E6B2E", sombre: "#185A26", bandes: 14, usure: "rgba(0,0,0,0.10)" },
       lignes: { couleur: "rgba(253,248,234,0.62)", epaisseur: 1.6 },
       tribunes: {
         fond: "#0A1310", gradin: "#16241B", foule: ["#394C40", "#4E6355", "#26352C"],
@@ -49,7 +50,7 @@ const ONZE_STADE = (() => {
       nom: "Nocturne",
       description: "Match en nocturne : gazon profond, halos francs, tribunes noires.",
       marge: 0.10,
-      gazon: { clair: "#12512A", sombre: "#0D4222", bandes: 14, usure: "rgba(0,0,0,0.16)" },
+      sol: null, gazon: { clair: "#12512A", sombre: "#0D4222", bandes: 14, usure: "rgba(0,0,0,0.16)" },
       lignes: { couleur: "rgba(253,248,234,0.72)", epaisseur: 1.7 },
       tribunes: {
         fond: "#05090B", gradin: "#0D141B", foule: ["#26333F", "#33434F", "#1A242D"],
@@ -64,7 +65,7 @@ const ONZE_STADE = (() => {
       nom: "Le Bitume",
       description: "Le terrain de la Rue : stabilisé ocre, grillage au lieu des tribunes.",
       marge: 0.08,
-      gazon: { clair: "#8A5A32", sombre: "#7E522D", bandes: 6, usure: "rgba(0,0,0,0.14)" },
+      sol: null, gazon: { clair: "#8A5A32", sombre: "#7E522D", bandes: 6, usure: "rgba(0,0,0,0.14)" },
       lignes: { couleur: "rgba(253,248,234,0.50)", epaisseur: 1.4 },
       tribunes: {
         fond: "#14100C", gradin: "#1D1811", foule: ["#3A2E22", "#4A3B2B", "#2A2118"],
@@ -93,6 +94,9 @@ const ONZE_STADE = (() => {
       fond: "da/arenes/A02.webp",
       terrain: { gauche: 0.184, droite: 0.819, haut: 0.231, bas: 0.800 },
       fondTaille: { w: 900, h: 416 },
+      // le sol RELEVÉ sur l'image (le bitume mouillé) : c'est contre lui que
+      // la lisibilité des pions se mesure, pas contre le gazon dessiné
+      sol: "#1D2531",
       marge: 0.152,
       gazon: { clair: "#243330", sombre: "#1C2A27", bandes: 12, usure: "rgba(0,0,0,0.20)" },
       lignes: { couleur: "rgba(240,248,255,0.80)", epaisseur: 1.6 },
@@ -112,6 +116,9 @@ const ONZE_STADE = (() => {
       fond: "da/arenes/A12.webp",
       terrain: { gauche: 0.174, droite: 0.825, haut: 0.221, bas: 0.808 },
       fondTaille: { w: 900, h: 416 },
+      // le sol RELEVÉ sur l'image (le gazon givré) : c'est contre lui que
+      // la lisibilité des pions se mesure, pas contre le gazon dessiné
+      sol: "#39817B",
       marge: 0.152,
       gazon: { clair: "#1F5C33", sombre: "#194E2B", bandes: 14, usure: "rgba(0,0,0,0.16)" },
       lignes: { couleur: "rgba(253,248,234,0.74)", epaisseur: 1.7 },
@@ -131,6 +138,9 @@ const ONZE_STADE = (() => {
       fond: "da/arenes/A13.webp",
       terrain: { gauche: 0.174, droite: 0.823, haut: 0.224, bas: 0.810 },
       fondTaille: { w: 900, h: 416 },
+      // le sol RELEVÉ sur l'image (la pelouse en pleine lumière) : c'est contre lui que
+      // la lisibilité des pions se mesure, pas contre le gazon dessiné
+      sol: "#20A40A",
       marge: 0.152,
       gazon: { clair: "#2C8A3A", sombre: "#227430", bandes: 14, usure: "rgba(0,0,0,0.14)" },
       lignes: { couleur: "rgba(253,248,234,0.88)", epaisseur: 1.8 },
@@ -553,7 +563,12 @@ const ONZE_STADE = (() => {
     }
   }
 
-  return { liste, theme, geometrie, dessiner, dessinerCages, dessinerAmbiance,
+  /* La couleur du SOL d'un thème : celle relevée sur l'image quand il y
+     en a une, sinon le gazon dessiné. C'est la référence de contraste
+     des pions — un maillot ne se lit pas contre un gazon théorique. */
+  const sol = (t) => (t && t.sol) || (t && t.gazon ? t.gazon.sombre : "#185A26");
+
+  return { liste, theme, geometrie, dessiner, dessinerCages, dessinerAmbiance, sol,
     precharger, ballon, DEFAUT, THEMES };
 })();
 
