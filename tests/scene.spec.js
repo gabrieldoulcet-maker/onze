@@ -842,7 +842,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
           for (const c of ["moi", "eux"]) {
             // ramenée au terrain plein : c'est l'échelle du manuel
             e3.hauteurs.push(d.hauteurDepuisBut[c] * (104 / d.terrain.L));
-            e3.postures[d.posture[c]] = (e3.postures[d.posture[c]] || 0) + 1;
+
             const xs = d.positions.filter((p) => p.camp === c && p.role !== "gardien")
               .map((p) => p.x).sort((a, b) => a - b);
             let n = xs.length ? 1 : 0;
@@ -950,7 +950,8 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       marquagesVus, marquagesBons, marquagesTous, marquagesTousBons,
       tlTotal, tlMax, tlRecule, tlMalCompte, porteurAmbigu, matchsAvecHomonymes,
       // ÉTAPE 3 : les distributions du cerveau
-      etape3: { ...e3, appels: physique.appels || [], pressings: physique.pressings || [],
+      etape3: { ...e3, postures: physique.tiragesPosture || {},
+        appels: physique.appels || [], pressings: physique.pressings || [],
         options: physique.optionsPasse || [], dureesOption: physique.dureesOption || [] },
       // ÉTAPE 1 : la physique
       physique, vMaxPlusHaut,
@@ -1151,10 +1152,15 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   verifier(`Étape 3 — la ligne défensive vit à sa vraie hauteur : p10 ${q(H, 0.1).toFixed(1)} · médiane ${q(H, 0.5).toFixed(1)} · p90 ${q(H, 0.9).toFixed(1)} m de son but (réel 13,0 · 34,8 · 52,2 ; ${H.length} relevés)`,
     H.length >= 300 && ecart(q(H, 0.5), 34.8) <= 0.25 && ecart(q(H, 0.9), 52.2) <= 0.35);
   // 2. les quatre postures existent toutes, et aucune n'écrase les autres
+  /* On compte les TIRAGES, pas les frames : le manuel donne des parts DE
+     PHASES. Compter frame par frame pondère chaque posture par la durée
+     de son temps fort, et une poignée de temps forts longs suffit à
+     fausser la distribution — mesuré 59 % de bloc médian là où les
+     tirages en donnaient 41. */
   const partPost = e3.postures, totalP = Object.values(partPost).reduce((a, b) => a + b, 0) || 1;
   const quatre = ["bas", "median", "haut", "chaos"].every((k) => (partPost[k] || 0) / totalP >= 0.05);
-  verifier(`Étape 3 — les quatre postures se tirent vraiment (${Object.entries(partPost).map(([k, v]) => `${k} ${Math.round(100 * v / totalP)} %`).join(" · ")} ; réel bas 25 · médian 42 · haut 18 · chaos 15)`,
-    quatre && (partPost.median || 0) / totalP <= 0.62);
+  verifier(`Étape 3 — les quatre postures se tirent vraiment (${totalP} tirages : ${Object.entries(partPost).map(([k, v]) => `${k} ${Math.round(100 * v / totalP)} %`).join(" · ")} ; réel bas 25 · médian 42 · haut 18 · chaos 15)`,
+    totalP >= 40 && quatre && (partPost.median || 0) / totalP <= 0.62);
   // 3. le bloc a TROIS lignes (médiane du manuel)
   verifier(`Étape 3 — le bloc a trois lignes (médiane mesurée ${q(e3.lignes, 0.5)}, réel 3)`,
     e3.lignes.length >= 100 && q(e3.lignes, 0.5) >= 2 && q(e3.lignes, 0.5) <= 4);

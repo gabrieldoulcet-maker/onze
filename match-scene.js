@@ -641,11 +641,19 @@ const ONZE_SCENE = (() => {
       const poids = noms.map((n) => POSTURES[n].part * (p[n] !== undefined ? p[n] : 1));
       const total = poids.reduce((a, b) => a + b, 0);
       let tirage = Math.random() * total;
+      let choisie = "median";
       for (let i = 0; i < noms.length; i++) {
         tirage -= poids[i];
-        if (tirage <= 0) { posture[camp] = noms[i]; return; }
+        if (tirage <= 0) { choisie = noms[i]; break; }
       }
-      posture[camp] = "median";
+      posture[camp] = choisie;
+      /* On compte les TIRAGES, pas les frames. Le manuel donne des parts
+         DE PHASES ; compter frame par frame revient à pondérer chaque
+         posture par la durée de son temps fort, et une poignée de temps
+         forts longs suffit alors à faire dire n'importe quoi à la
+         distribution (mesuré : 59 % de bloc médian là où les tirages en
+         donnaient 41). */
+      mesures.tiragesPosture[choisie] = (mesures.tiragesPosture[choisie] || 0) + 1;
     }
     /* La hauteur de CE camp, en mètres depuis son propre but, mise à
        l'échelle du terrain (une posture haute à 49 m n'a pas de sens sur
@@ -2107,7 +2115,7 @@ const ONZE_SCENE = (() => {
        Coût : trois comparaisons par pion et par frame. */
     const mesures = { accelMax: 0, vitesseMax: 0, surVitesse: 0, surAccel: 0, nonFinis: 0, ticks: 0,
       // étape 3 : les ÉPISODES, relevés du début à la fin d'un rôle
-      appels: [], pressings: [], optionsPasse: [], dureesOption: [] };
+      appels: [], pressings: [], optionsPasse: [], dureesOption: [], tiragesPosture: {} };
     // le nombre d'options VIVANTES à cet instant — lu au moment de la passe
     let optionsVivantes = 0;
 
@@ -2322,7 +2330,8 @@ const ONZE_SCENE = (() => {
         // étapes 1 et 3 : les relevés, pris au tick
         mesures: { ...mesures,
           appels: mesures.appels.slice(), pressings: mesures.pressings.slice(),
-          optionsPasse: mesures.optionsPasse.slice(), dureesOption: mesures.dureesOption.slice() },
+          optionsPasse: mesures.optionsPasse.slice(), dureesOption: mesures.dureesOption.slice(),
+          tiragesPosture: { ...mesures.tiragesPosture } },
         // décision 33 : l'échelle des pions, mesurée par la recette
         rayonPion: geo ? rayonPion() : null,
         rayonPionM: RAYON_PION_M,
