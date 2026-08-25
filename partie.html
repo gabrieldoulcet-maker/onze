@@ -275,10 +275,17 @@
     /* LISIBILITÉ (brief) : un liseré et une ombre portée détachent le jeton
        du décor — clair sur les terrains sombres, sombre sur les clairs.
        Les couleurs SIGNIFIANTES (poste, coût) ne bougent jamais. */
-    .plateau.terrain-peint .jeton {
+    /* Le liseré de lisibilité des jetons sur décor peint — mais JAMAIS sur
+       la dalle du banc, qui a le sien (et dont c'est le sujet). Ces deux
+       règles, portées par le décor, sont plus spécifiques que la règle du
+       composant : sans le :not(), elles écrasaient tout l'habillage de la
+       dalle sur le Boxing Day, et aucune retouche de la dalle n'avait le
+       moindre effet là-bas — quatre relevés identiques au centième l'ont
+       montré avant que la cause ne soit trouvée. */
+    .plateau.terrain-peint .jeton:not(.sur-dalle) {
       box-shadow: 0 0 0 1.5px rgba(237, 245, 236, 0.30), 0 5px 12px rgba(0, 0, 0, 0.65);
     }
-    .plateau.terrain-peint.decor-clair .jeton {
+    .plateau.terrain-peint.decor-clair .jeton:not(.sur-dalle) {
       box-shadow: 0 0 0 1.5px rgba(6, 13, 8, 0.70), 0 5px 12px rgba(0, 0, 0, 0.45);
     }
     .plateau.terrain-peint .case-vide {
@@ -294,8 +301,15 @@
       box-shadow: inset 0 0 0 1.5px var(--gazon-electrique), inset 0 6px 10px rgba(0, 0, 0, 0.5);
     }
     /* --- LA SILHOUETTE NUE (brief habillage v2) --- */
-    .jeton.figurine { background: none; border: none; box-shadow: none; overflow: visible; }
-    .plateau.terrain-peint .jeton.figurine { box-shadow: none; }
+    /* Sur le gazon, la silhouette n'a NI fond NI ombre de boîte : il ne
+       reste qu'elle et son ombre au sol (décision 39). La dalle du banc,
+       elle, est un objet posé : elle garde la sienne — d'où le :not().
+       (Sans ce :not(), cette règle écrasait TOUTES les ombres de la
+       dalle, liseré compris : la dalle n'avait plus aucun bord, et la
+       recette de contraste ne trouvait rien à mesurer.) */
+    .jeton.figurine:not(.sur-dalle) { background: none; border: none; box-shadow: none; overflow: visible; }
+    .jeton.figurine { overflow: visible; }
+    .plateau.terrain-peint .jeton.figurine:not(.sur-dalle) { box-shadow: none; }
     .jeton.figurine {
       position: relative; display: flex; justify-content: center; align-items: flex-end; padding: 0;
     }
@@ -381,12 +395,58 @@
     }
     /* LA DALLE DU BANC : teintée du poste, franche mais assourdie —
        elle informe, elle ne concurrence ni le maillot ni les coûts */
+    /* LA DALLE DU BANC : un SOCLE, pas une tache.
+       Le poste était porté par un APLAT teinté — et un aplat posé sur un
+       fond de couleur libre n'a aucun contraste garanti : mesuré, la dalle
+       ressortait à 1,01:1 contre la pelouse du Grand Soir et 1,03:1 contre
+       le bitume du City Stade, là où deux surfaces ne se distinguent qu'à
+       partir d'environ 3:1. Et elle se lisait INÉGALEMENT selon le stade,
+       ce qui est pire qu'illisible : le vert du milieu disparaissait dans
+       la pelouse, le sombre du défenseur dans le bitume.
+       La dalle GARDE SA COULEUR — c'est elle qui dit le poste d'un coup
+       d'œil — mais elle cesse de dépendre du décor pour se détacher :
+         · la teinte de poste est posée sur une BASE SOMBRE CONSTANTE, la
+           même sur les trois terrains : la couleur reste, le fond ne
+           flotte plus à la luminosité du gazon ;
+         · la même teinte revient en LISERÉ FRANC sur le pourtour (la
+           couleur ne change jamais de valeur : elle est signifiante) ;
+         · un filet sombre court à l'extérieur du liseré.
+       Aucune valeur unique ne peut tenir 3:1 contre une pelouse ET contre
+       du bitume — la mesure le dit. Les deux bords se relaient donc : sur
+       un sol clair, c'est le filet sombre qui porte le contraste ; sur un
+       sol sombre, c'est le liseré de poste. La recette exige que l'un des
+       deux tienne, sur les trois décors et les quatre postes. */
     .jeton.figurine.sur-dalle {
+      /* PAS de bordure de coût ici : la dalle porte le POSTE, et le coût
+         vit sur la carte de boutique. Sans ce « none », le jeton gardait
+         la bordure de 2 px de sa couleur de coût, qui recouvrait à la fois
+         l'arête haute et le liseré de poste — la dalle affichait donc une
+         couleur qui n'était pas la bonne information, et aucun réglage de
+         l'une ou de l'autre n'avait d'effet visible. */
+      border: none;
       background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.20) 0%, rgba(255, 255, 255, 0) 46%),
-        linear-gradient(180deg, var(--teinte-poste, rgba(122, 138, 124, 0.6)) 0%, var(--teinte-basse, rgba(6, 13, 8, 0.85)) 100%);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 46%),
+        linear-gradient(180deg, var(--teinte-poste, rgba(122, 138, 124, 0.6)) 0%, var(--teinte-basse, rgba(6, 13, 8, 0.85)) 100%),
+        linear-gradient(180deg, rgba(6, 13, 8, 0.94), rgba(2, 6, 3, 0.97));   /* la base sombre CONSTANTE, sous la teinte */
       border-radius: 5px;
-      box-shadow: var(--arete-haute-forte), var(--elev-pose);
+      box-shadow:
+        /* L'ORDRE COMPTE : la première ombre est peinte PAR-DESSUS. L'arête
+           haute passe donc devant le liseré (sinon l'anneau de poste la
+           recouvrait entièrement et la lumière du haut n'existait pas —
+           elle était bien déclarée, simplement invisible). */
+        inset 0 2px 0 rgba(240, 255, 246, 0.90),         /* l'arête haute, franche */
+        inset 0 0 0 2px var(--teinte-pleine, #8FA492),   /* le liseré de poste, franc */
+        /* le filet est NOIR PLEIN, pas « presque noir » : sur le tablier du
+           Boxing Day (luminance 0,11), un filet à 96 % d'opacité plafonne
+           à 2,9:1 et un filet opaque passe à 3,2:1. C'est toute la marge
+           qui sépare « on devine la dalle » de « on la voit ». */
+        0 0 0 3px #000,
+        var(--elev-pose);
+      /* Pourquoi une arête plus marquée que le reste du chrome : la dalle
+         est posée DIRECTEMENT sur le décor, dont la couleur est libre. Le
+         filet sombre la détache d'un sol clair, l'arête claire d'un sol
+         sombre — mesuré, il faut les deux pour tenir 3:1 sur les trois
+         terrains ET les quatre postes. */
     }
     /* les quatre teintes de poste : franches (on doit les nommer d'un coup
        d'œil) mais assourdies — elles informent, elles ne concurrencent ni
