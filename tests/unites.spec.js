@@ -3,11 +3,11 @@
    figurines sur le terrain »).
    ------------------------------------------------------------
    Ce que cette recette garantit, et que rien d'autre ne dit :
-     1. la PASSE DE BORD — aucune image importée ne porte de ligne
-        parasite sur son bord (la signature du défaut de Marcus :
-        une ligne de bord opaque alors que sa voisine est
-        transparente) — ET la passe sort ROUGE sur ce défaut
-        reconstitué, sinon ce n'est pas un garde-fou ;
+     1. la PASSE DE BORD — aucune image importée ne porte d'alpha
+        sur sa ligne de bord (seuil 8/255, le bruit de
+        rééchantillonnage), ET elle sort ROUGE sur les deux défauts
+        qu'elle prétend attraper : la bande parasite de Marcus et
+        une figurine coupée par le canevas ;
      2. le jeu tourne avec une table d'ancrages VIDE, puis
         PARTIELLE — figurine absente, jeton d'aujourd'hui à la
         place, jamais d'écran cassé ;
@@ -44,45 +44,61 @@ const verifier = (nom, ok, detail) => {
       for (const f of fs.readdirSync(path.join(racine, d, fam))) fichiers.push(`${d}/${fam}/${f}`);
     }
   }
-  const detecteur = `(async (chemin, salir) => {
+  /* Le détecteur : un SEUIL, pas une signature. Aucune des 79 sources ne
+     touche son bord (elles s'arrêtent 4 px avant), donc tout alpha de
+     bord au-delà du bruit de rééchantillonnage est un défaut — quelle que
+     soit sa voisine intérieure. La première version cherchait « bord
+     opaque, voisine transparente » : elle décrivait bien le défaut de
+     Marcus, mais laissait passer le cas le plus grave, une figurine
+     RÉELLEMENT COUPÉE par le canevas, dont le bord et sa voisine sont
+     opaques tous les deux. Les deux sont contre-testés plus bas. */
+  const SEUIL_ALPHA = 8;
+  const detecteur = `(async (chemin, mode) => {
     const im = new Image(); im.src = chemin; await im.decode();
     const L = im.naturalWidth, H = im.naturalHeight;
     const c = document.createElement("canvas"); c.width = L; c.height = H;
     const g = c.getContext("2d", { willReadFrequently: true });
-    g.drawImage(im, 0, 0);
-    if (salir) { g.fillStyle = "rgba(200,200,200,1)"; g.fillRect(L - 1, 200, 1, 367); }
+    if (mode === "coupee") {
+      // une figurine coupée par le canevas : on la dessine trop grande,
+      // son corps déborde et les bords deviennent opaques des deux côtés
+      g.drawImage(im, -L * 0.3, -H * 0.3, L * 1.6, H * 1.6);
+    } else {
+      g.drawImage(im, 0, 0);
+      // le défaut d'origine de Marcus : 367 lignes de gris clair opaque
+      if (mode === "marcus") { g.fillStyle = "rgba(200,200,200,1)"; g.fillRect(L - 1, 200, 1, 367); }
+    }
     const d = g.getImageData(0, 0, L, H).data;
     const a = (x, y) => d[(y * L + x) * 4 + 3];
-    // parasite : bord opaque dont le voisin intérieur est transparent
-    let n = 0;
-    for (let x = 0; x < L; x++) {
-      if (a(x, 0) > 200 && a(x, 1) < 12) n++;
-      if (a(x, H - 1) > 200 && a(x, H - 2) < 12) n++;
-    }
-    for (let y = 0; y < H; y++) {
-      if (a(0, y) > 200 && a(1, y) < 12) n++;
-      if (a(L - 1, y) > 200 && a(L - 2, y) < 12) n++;
-    }
-    return { n, taille: [L, H] };
+    let n = 0, pire = 0;
+    const v = (x, y) => { const q = a(x, y); if (q > pire) pire = q; if (q > 8) n++; };
+    for (let x = 0; x < L; x++) { v(x, 0); v(x, H - 1); }
+    for (let y = 0; y < H; y++) { v(0, y); v(L - 1, y); }
+    return { n, pire, taille: [L, H] };
   })`;
   const sales = [];
-  let gabaritsFaux = 0;
+  let gabaritsFaux = 0, pireAlpha = 0;
   for (const f of fichiers) {
-    const r = await page.evaluate(([code, chemin]) => eval(code)(chemin, false), [detecteur, f]);
-    if (r.n) sales.push(`${f} (${r.n})`);
+    const r = await page.evaluate(([code, chemin]) => eval(code)(chemin, "brut"), [detecteur, f]);
+    if (r.n) sales.push(`${f} (${r.n} px, alpha max ${r.pire})`);
+    if (r.pire > pireAlpha) pireAlpha = r.pire;
     if (r.taille[0] !== 600 || r.taille[1] !== 900) gabaritsFaux++;
   }
-  verifier(`aucune des ${fichiers.length} images importées ne porte de ligne parasite sur un bord`,
+  verifier(`aucune des ${fichiers.length} images importées ne porte d'alpha sur sa ligne de bord ` +
+    `(seuil ${SEUIL_ALPHA}/255 · alpha de bord maximal relevé : ${pireAlpha})`,
     sales.length === 0, sales.slice(0, 5).join(" | "));
   verifier(`les ${fichiers.length} images sont au gabarit 600 × 900`, gabaritsFaux === 0, `${gabaritsFaux} hors gabarit`);
 
-  /* La même passe, sur le défaut RECONSTITUÉ (la bande d'1 px de gris
-     clair opaque de Marcus) : elle doit sortir rouge, sinon elle ne
-     garantit rien. */
+  /* LES DEUX CONTRE-TESTS. Une recette qui ne sort pas rouge sur le défaut
+     qu'elle prétend attraper n'est pas un garde-fou — et il y a DEUX
+     défauts à attraper, pas un. */
   const marcus = "da/unites/08_Internationaux/05_Marcus_unit_alpha.webp";
-  const sale = await page.evaluate(([code, chemin]) => eval(code)(chemin, true), [detecteur, marcus]);
-  verifier(`la passe de bord sort ROUGE sur le défaut de Marcus reconstitué (${sale.n} pixels parasites)`,
+  const sale = await page.evaluate(([code, chemin]) => eval(code)(chemin, "marcus"), [detecteur, marcus]);
+  verifier(`contre-test 1 : ROUGE sur le défaut de Marcus reconstitué (${sale.n} pixels de bord)`,
     sale.n === 367, String(sale.n));
+  const coupee = await page.evaluate(([code, chemin]) => eval(code)(chemin, "coupee"), [detecteur, marcus]);
+  verifier(`contre-test 2 : ROUGE sur une figurine coupée par le canevas (${coupee.n} pixels de bord, ` +
+    `bord ET voisine opaques — le cas que la version « signature » laissait passer)`,
+    coupee.n > 200, String(coupee.n));
 
   /* ---- 2. TABLE D'ANCRAGES VIDE, puis PARTIELLE ---- */
   const vide = await page.evaluate(async () => {
