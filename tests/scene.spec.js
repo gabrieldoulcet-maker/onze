@@ -441,12 +441,19 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
      chaque thème et chaque taille d'écran. */
   const cadrages = await page.evaluate(() => {
     const tailles = [[840, 269], [663, 200], [928, 297], [840, 227], [663, 180]];
-    const sortie = [];
+    const sortie = [], rapports = [];
+    /* TOUS les thèmes servis au joueur, pas seulement ceux qui ont un
+       décor peint. C'est ce filtre-là qui avait laissé la recette verte :
+       les trois thèmes DESSINÉS n'ont ni fond ni quadrilatère, leur
+       rectangle suivait la fenêtre — de 2,12 à 4,64 selon l'écran — et
+       ils ne suivaient donc aucune caméra (décision 51). */
     for (const { id } of ONZE_STADE.liste()) {
       const th = ONZE_STADE.theme(id);
-      if (!th || !th.fond || !th.terrain) continue;         // thème dessiné : pas d'image à rogner
+      if (!th) continue;
       for (const [L, H] of tailles) {
         const g = ONZE_STADE.geometrie(L, H, th, { L: 104, W: 68 });
+        rapports.push({ nom: th.nom, peint: !!(th.fond && th.terrain), L, H, rapport: g.w / g.h });
+        if (!th.fond || !th.terrain) continue;    // pas d'image : rien à rogner
         const f = g.fenetreImage;
         if (!f) { sortie.push({ nom: th.nom, L, H, ok: false, pourquoi: "aucune fenêtre" }); continue; }
         const q = th.terrain;
@@ -456,10 +463,20 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
           margePx: Math.round(marge * Math.min(L / (f.x1 - f.x0), H / (f.y1 - f.y0))) });
       }
     }
-    return sortie;
+    return { sortie, rapports, nbThemes: ONZE_STADE.liste().length };
   });
+  /* LA CAMÉRA, sur TOUS les thèmes et toutes les tailles. Décision 51 :
+     la scène de match voit à 2,40:1, le rapport relevé sur ses arènes.
+     Un thème qui laisse son rectangle suivre la fenêtre n'a pas de
+     caméra du tout — et cette recette sort rouge dessus. */
+  const rMin = Math.min(...cadrages.rapports.map((r) => r.rapport));
+  const rMax = Math.max(...cadrages.rapports.map((r) => r.rapport));
+  const horsCamera = cadrages.rapports.filter((r) => Math.abs(r.rapport - 2.40) > 0.12);
+  verifier(`Étape 2 — une seule caméra pour tous les stades : rapport ${rMin.toFixed(2)}-${rMax.toFixed(2)} sur ${cadrages.nbThemes} thèmes × 5 tailles (décision 51 : 2,40:1)${horsCamera.length ? ` — hors caméra : ${[...new Set(horsCamera.map((r) => r.nom))].join(", ")}` : ""}`,
+    cadrages.rapports.length >= 25 && horsCamera.length === 0);
+
   const pires = {};
-  for (const c of cadrages) {
+  for (const c of cadrages.sortie) {
     if (!pires[c.nom] || c.marge < pires[c.nom].marge) pires[c.nom] = c;
   }
   for (const nom in pires) {
@@ -467,8 +484,8 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     verifier(`Étape 2 — le cadrage « cover » ne rogne pas le terrain peint : « ${nom} », pire cas ${p.L}×${p.H} → marge ${(p.marge * 100).toFixed(1)} % de l'image (${p.margePx} px)`,
       p.ok);
   }
-  verifier(`Étape 2 — toutes les arènes contrôlées à toutes les tailles (${cadrages.length} cadrages, ${cadrages.filter((c) => !c.ok).length} fautif(s))`,
-    cadrages.length >= 9 && cadrages.every((c) => c.ok));
+  verifier(`Étape 2 — toutes les arènes contrôlées à toutes les tailles (${cadrages.sortie.length} cadrages, ${cadrages.sortie.filter((c) => !c.ok).length} fautif(s))`,
+    cadrages.sortie.length >= 9 && cadrages.sortie.every((c) => c.ok));
 
   verifier(`Étape 2 — le gazon zoome avec le terrain : la bande de tonte garde sa largeur réelle (${bandeMin.toFixed(1)}-${bandeMax.toFixed(1)} m) et on en voit ${nbBandes[0]} à 10 joueurs contre ${nbBandes[nbBandes.length - 1]} à 22`,
     bandeMax / bandeMin <= 1.15 && nbBandes[0] < nbBandes[nbBandes.length - 1]);

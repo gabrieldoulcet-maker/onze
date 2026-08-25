@@ -221,6 +221,20 @@ const ONZE_STADE = (() => {
   };
   const TERRAIN_PLEIN = { L: 104, W: 68 };
 
+  /* ============================================================
+     LA CAMÉRA DE LA SCÈNE DE MATCH (décision 51).
+     Relevée sur les trois arènes peintes : le rectangle de jeu y a un
+     rapport apparent de 2,41 · 2,40 · 2,39, soit une plongée d'environ
+     40°. (L'écran de placement a la sienne, 2,86 à 32° — les deux ne se
+     rencontrent jamais, voir la décision.)
+     Les thèmes DESSINÉS n'ont pas d'artwork pour leur dicter ce rapport :
+     sans consigne, leur rectangle suivait la fenêtre et allait de 2,12
+     à 4,64 selon l'écran — ils ne suivaient aucune caméra. On leur fige
+     donc celle-ci, pour que la scène ait le même point de vue quel que
+     soit le stade choisi.
+     ============================================================ */
+  const RAPPORT_CAMERA = 2.40;
+
   /* ---- Le cadrage « cover » d'une image de fond ----
      L'arène est dessinée à 900 × 416 (rapport 2,16) et le cadre du jeu
      fait plutôt 3,1 : l'étirer, c'était déformer le stade de 44 % en
@@ -270,10 +284,22 @@ const ONZE_STADE = (() => {
     const pose = cadre && t.fondTaille ? poseImage(largeur, hauteur, t.fondTaille, cadre) : null;
     const fx = (f) => (pose ? pose.ox + f * pose.iw : largeur * f);
     const fy = (f) => (pose ? pose.oy + f * pose.ih : hauteur * f);
-    const x = cadre ? Math.round(fx(cadre.gauche)) : 0;
-    const y = cadre ? Math.round(fy(cadre.haut)) : marge;
-    const w = Math.max((cadre ? Math.round(fx(cadre.droite)) : largeur) - x, 20);
-    const h = Math.max((cadre ? Math.round(fy(cadre.bas)) : hauteur - marge) - y, 20);
+    let x, y, w, h;
+    if (cadre) {
+      x = Math.round(fx(cadre.gauche));
+      y = Math.round(fy(cadre.haut));
+      w = Math.max(Math.round(fx(cadre.droite)) - x, 20);
+      h = Math.max(Math.round(fy(cadre.bas)) - y, 20);
+    } else {
+      /* Thème dessiné : aucun artwork ne dicte le cadre, on applique la
+         caméra de la scène. Le plus grand rectangle au bon rapport qui
+         tient dans la fenêtre, centré ; le reste est du décor. */
+      const dispoW = largeur, dispoH = Math.max(hauteur - marge * 2, 20);
+      w = Math.max(Math.round(Math.min(dispoW, dispoH * RAPPORT_CAMERA)), 20);
+      h = Math.max(Math.round(w / RAPPORT_CAMERA), 20);
+      x = Math.round((largeur - w) / 2);
+      y = Math.round((hauteur - h) / 2);
+    }
     /* Les dimensions RÉELLES du terrain de ce match, en mètres. Le
        rectangle de pixels ne change pas ; c'est l'échelle mètre → pixel
        qui bouge, et c'est elle qui rend le rétrécissement lisible. */
