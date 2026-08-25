@@ -492,7 +492,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
 
   /* ============================================================
      LES MAILLOTS DE MATCH — la couleur dit l'ÉQUIPE, la séparation
-     d'avec le sol vient d'un signal NON COLORÉ (décision 58).
+     d'avec le sol vient d'un signal NON COLORÉ (décision 61).
      ============================================================ */
   const couleurs = await page.evaluate(() => {
     const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
@@ -532,12 +532,12 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       familles: Object.keys(ONZE_SCENE.couleurFamille ? {} : {}).length,
     };
   });
-  verifier(`Décision 58 — bleu et rouge sont la meilleure paire (ΔE ${Math.round(couleurs.dEBleuRouge)} ; gardien à ΔE ${Math.round(couleurs.dEBleuJaune)} du bleu et ${Math.round(couleurs.dERougeJaune)} du rouge)`,
+  verifier(`Décision 61 — bleu et rouge sont la meilleure paire (ΔE ${Math.round(couleurs.dEBleuRouge)} ; gardien à ΔE ${Math.round(couleurs.dEBleuJaune)} du bleu et ${Math.round(couleurs.dERougeJaune)} du rouge)`,
     couleurs.dEBleuRouge >= 100 && couleurs.dEBleuJaune >= 60 && couleurs.dERougeJaune >= 60);
   const aucunMaillotNeTient = couleurs.maillotsContreSol.some((s) => s.moi < 3 || s.eux < 3);
   console.log(`   📐 aucun maillot ne tient 3:1 contre tous les sols — ${couleurs.maillotsContreSol.map((s) => `${s.nom} ${s.moi.toFixed(2)}/${s.eux.toFixed(2)}`).join(" · ")} (c'est pour ça que la séparation ne peut pas venir de la teinte)`);
   const signalOk = couleurs.signal.every((s) => Math.max(s.ombre, s.lisere) >= 3);
-  verifier(`Décision 58 — la séparation vient d'un signal NON COLORÉ : sur chaque sol, l'ombre de contact OU le liseré tient 3:1 (${couleurs.signal.map((s) => `${s.nom} ${s.ombre.toFixed(1)}/${s.lisere.toFixed(1)}`).join(" · ")})`,
+  verifier(`Décision 61 — la séparation vient d'un signal NON COLORÉ : sur chaque sol, l'ombre de contact OU le liseré tient 3:1 (${couleurs.signal.map((s) => `${s.nom} ${s.ombre.toFixed(1)}/${s.lisere.toFixed(1)}`).join(" · ")})`,
     signalOk && aucunMaillotNeTient);
 
   /* ============================================================

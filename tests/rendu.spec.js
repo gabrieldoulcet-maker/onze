@@ -9,7 +9,9 @@
    peuplé. Ses assertions sont donc géométriques et pixellaires :
      1. aucun texte ni pastille visible dans la zone terrain ;
      2. chaque joueur du banc porte une image RÉELLEMENT visible
-        (on mesure la variance des pixels de sa dalle) ;
+        (variance des pixels de sa dalle) et chaque joueur du
+        terrain peint sa silhouette sur le gazon (la même zone,
+        photographiée avec puis sans son visuel) ;
      3. aucun élément opaque de plus de 100 px ne recouvre le
         gazon en dehors des silhouettes ;
      4. l'achat se déclenche par un CLIC À DES COORDONNÉES au
@@ -59,11 +61,23 @@ async function ouvrirMercato(page) {
   await page.waitForTimeout(250);
 }
 
-// la variance des pixels d'une zone : une dalle vide est plate, une
-// silhouette ne l'est pas. On mesure DANS la page, sur la capture.
+/* DEUX MESURES DE PIXELS, pour deux questions différentes.
+
+   (a) la VARIANCE d'une zone : une dalle vide est plate, une carte de banc
+       ne l'est pas. Elle suffit au banc, où le visuel remplit sa dalle.
+
+   (b) l'EMPREINTE d'un visuel : on photographie la zone, on masque le seul
+       visuel du joueur, on rephotographie la MÊME zone, et on compte les
+       pixels qui ont changé. C'est la seule question honnête pour le
+       terrain : « ce joueur peint-il quelque chose là où il est censé
+       être ? ». La variance n'y répondait pas — une figurine du fond ne
+       fait que 20 × 30 px et le gazon a son propre grain, si bien qu'une
+       silhouette parfaitement visible (vérifiée à la loupe) était déclarée
+       absente une fois sur trois. Comparer la zone à elle-même supprime
+       d'un coup le grain du gazon, le décor, les voisines et la taille. */
 async function varianceZone(page, clip) {
   if (clip.width < 4 || clip.height < 4) return 0;
-  const png = (await page.screenshot({ clip })).toString("base64");
+  const png = (await page.screenshot({ clip, animations: "disabled" })).toString("base64");
   return page.evaluate(async (b64) => {
     const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode();
     const c = document.createElement("canvas"); c.width = im.width; c.height = im.height;
@@ -76,6 +90,57 @@ async function varianceZone(page, clip) {
     }
     return Math.sqrt(sommeCarres / n - (somme / n) ** 2);   // écart-type
   }, png);
+}
+
+/* Ce que peint UN visuel, mesuré sur toute la zone terrain : on
+   photographie la zone, on masque le seul visuel du joueur n° `indice`, on
+   rephotographie la MÊME zone, et on regarde les pixels qui ont changé —
+   combien, et où.
+
+   Pourquoi toute la zone plutôt que la boîte du joueur : cadrer sur sa
+   boîte oblige à la lire avant la photo, et une figurine peut encore se
+   déplacer de quelques pixels entre les deux (le plateau se redispose
+   quand une image finit d'arriver). La mesure lisait alors un morceau de
+   silhouette et annonçait un joueur absent qui était parfaitement là. En
+   photographiant large, le décalage devient une INFORMATION — la position
+   du nuage de pixels changés — au lieu d'être un piège. */
+/* Les captures GÈLENT les animations : l'aura des joueurs légendaires
+   pulse en boucle, et ses pixels changeaient entre les deux photos — la
+   mesure comptait alors l'aura d'un autre joueur dans l'empreinte de
+   celui-ci, ou la ratait. Deux photos d'une page figée, sinon on mesure
+   le temps qui passe. */
+const ECART_PIXEL = 24;          // un pixel « a changé » au-delà de cet écart
+/* Seuil déclaré : une silhouette doit peindre au moins un huitième de sa
+   propre boîte. Mesuré sur les cinq de départ, la plus discrète (une
+   figurine du fond, 20 × 30 px) en couvre un bon tiers ; le contre-test
+   plus bas vérifie qu'une silhouette absente tombe, elle, à zéro. */
+const PART_MINIMALE = 0.125;
+async function empreinteVisuel(page, indice, zone) {
+  const masquer = (n, v) => page.evaluate(([k, etat]) => {
+    const j = document.querySelectorAll(".ligne-terrain .jeton")[k];
+    if (j) j.querySelectorAll("img.frontale, svg.frontale").forEach((e) => { e.style.visibility = etat; });
+  }, [n, v]);
+  const avec = (await page.screenshot({ clip: zone, animations: "disabled" })).toString("base64");
+  await masquer(indice, "hidden");
+  const sans = (await page.screenshot({ clip: zone, animations: "disabled" })).toString("base64");
+  await masquer(indice, "");
+  const r = await page.evaluate(async ([a, b, seuil]) => {
+    const lire = async (b64) => {
+      const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode();
+      const c = document.createElement("canvas"); c.width = im.width; c.height = im.height;
+      const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(im, 0, 0);
+      return { d: g.getImageData(0, 0, c.width, c.height).data, L: c.width };
+    };
+    const [x, y] = [await lire(a), await lire(b)];
+    let n = 0, sx = 0, sy = 0;
+    for (let i = 0; i < x.d.length; i += 4) {
+      const e = Math.max(Math.abs(x.d[i] - y.d[i]), Math.abs(x.d[i + 1] - y.d[i + 1]),
+        Math.abs(x.d[i + 2] - y.d[i + 2]));
+      if (e > seuil) { const p = i / 4; n++; sx += p % x.L; sy += Math.floor(p / x.L); }
+    }
+    return { pixels: n, cx: n ? sx / n : 0, cy: n ? sy / n : 0 };
+  }, [avec, sans, ECART_PIXEL]);
+  return { pixels: r.pixels, centre: { x: zone.x + r.cx, y: zone.y + r.cy } };
 }
 
 (async () => {
@@ -152,8 +217,9 @@ async function varianceZone(page, clip) {
            couleur, ni DÉGRADÉ (c'est un dégradé qui faisait le rectangle
            sombre, et c'est pour ça qu'une lecture de la seule couleur de
            fond passait à côté), ni bordure, ni ombre portée ;
-       (b) chaque joueur du terrain occupe vraiment des pixels variés — une
-           silhouette n'est jamais un aplat. */
+       (b) chaque joueur du terrain PEINT vraiment sa silhouette là où sa
+           case dit qu'il est — mesuré en masquant son visuel et en
+           comparant la même zone avec et sans lui. */
     const peintures = await page.evaluate(() => {
       const alpha = (couleur) => {
         const m = couleur.match(/rgba?\(([^)]+)\)/);
@@ -185,17 +251,55 @@ async function varianceZone(page, clip) {
         charge: v ? (v.tagName === "IMG" ? v.naturalWidth > 0 : true) : false,
         visuel: rv ? { w: Math.round(rv.width), h: Math.round(rv.height) } : null };
     }));
+    /* la zone photographiée : toutes les lignes de jeu d'un seul tenant */
+    const zoneTerrain = await page.evaluate(() => {
+      const l = [...document.querySelectorAll(".ligne-terrain")].map((e) => e.getBoundingClientRect());
+      const x0 = Math.min(...l.map((r) => r.left)), x1 = Math.max(...l.map((r) => r.right));
+      const y0 = Math.min(...l.map((r) => r.top)), y1 = Math.max(...l.map((r) => r.bottom));
+      return { x: Math.max(0, Math.floor(x0)), y: Math.max(0, Math.floor(y0)),
+        width: Math.ceil(x1 - x0), height: Math.ceil(y1 - y0) };
+    });
+    zoneTerrain.width = Math.min(zoneTerrain.width, taille.l - zoneTerrain.x);
+    zoneTerrain.height = Math.min(zoneTerrain.height, taille.h - zoneTerrain.y);
+
     let terrainKO = 0;
-    for (const [i, j] of surLeGazon.entries()) {
-      const clip = { x: Math.max(0, Math.round(j.box.x)), y: Math.max(0, Math.round(j.box.y)),
-        width: Math.min(Math.round(j.box.width), taille.l - Math.round(j.box.x)),
-        height: Math.min(Math.round(j.box.height), taille.h - Math.round(j.box.y)) };
-      const ecartType = await varianceZone(page, clip);
-      const ok = j.charge && j.visuel && j.visuel.w >= 8 && j.visuel.h >= 12 && ecartType >= 12;
-      if (!ok) { terrainKO++; console.log(`   ↳ joueur ${i} : chargé ${j.charge}, visuel ${JSON.stringify(j.visuel)}, écart-type ${ecartType.toFixed(1)}`); }
+    const parts = [], ecarts = [];
+    for (const [k, j] of surLeGazon.entries()) {
+      const aire = Math.max(1, Math.round(j.box.width) * Math.round(j.box.height));
+      const emp = await empreinteVisuel(page, k, zoneTerrain);
+      const part = emp.pixels / aire;
+      // et ce qu'il peint tombe-t-il sur SA case ? (le défaut signalé :
+      // un joueur qui n'est pas là où son emplacement dit qu'il est)
+      const ecart = Math.hypot(emp.centre.x - (j.box.x + j.box.width / 2),
+        emp.centre.y - (j.box.y + j.box.height / 2));
+      parts.push(part); ecarts.push(ecart);
+      const ok = j.charge && j.visuel && j.visuel.w >= 8 && j.visuel.h >= 12 &&
+        part >= PART_MINIMALE && ecart <= Math.max(12, j.box.width * 0.5);
+      if (!ok) { terrainKO++; console.log(`   ↳ joueur ${k} : chargé ${j.charge}, visuel ${JSON.stringify(j.visuel)}, empreinte ${(part * 100).toFixed(0)} % de sa boîte, centre à ${ecart.toFixed(1)} px de sa case`); }
     }
-    verifier(`${taille.nom} : les ${surLeGazon.length} joueurs du terrain sont des silhouettes visibles (pixels mesurés)`,
+    const pire = parts.length ? Math.min(...parts) : 0;
+    const pireEcart = ecarts.length ? Math.max(...ecarts) : 0;
+    verifier(`${taille.nom} : les ${surLeGazon.length} joueurs du terrain peignent leur silhouette sur leur case ` +
+      `(la plus discrète couvre ${(pire * 100).toFixed(0)} % de sa boîte — seuil ${(PART_MINIMALE * 100).toFixed(0)} % ; ` +
+      `centre au plus à ${pireEcart.toFixed(1)} px de sa case)`,
       surLeGazon.length >= 4 && terrainKO === 0, `${terrainKO} joueur(s) sans silhouette visible`);
+
+    /* LE CONTRE-TEST. Une recette qui ne sort pas rouge sur le défaut
+       qu'elle prétend attraper n'est pas un garde-fou : on efface pour de
+       bon la silhouette du premier joueur du terrain, et la mesure doit la
+       déclarer absente. */
+    await page.evaluate(() => {
+      const v = document.querySelectorAll(".ligne-terrain .jeton")[0].querySelector("img.frontale, svg.frontale");
+      if (v) v.remove();
+    });
+    const empSans = await empreinteVisuel(page, 0, zoneTerrain);
+    const aireCobaye = Math.max(1, Math.round(surLeGazon[0].box.width) * Math.round(surLeGazon[0].box.height));
+    const partSans = empSans.pixels / aireCobaye;
+    verifier(`${taille.nom} : contre-test — silhouette retirée, la mesure la déclare absente ` +
+      `(${(partSans * 100).toFixed(0)} % < ${(PART_MINIMALE * 100).toFixed(0)} %)`,
+      partSans < PART_MINIMALE, `${(partSans * 100).toFixed(0)} %`);
+    await page.evaluate(() => afficher());
+    await page.waitForTimeout(150);
 
     verifier(`${taille.nom} : zéro erreur JS`, erreursJS.length === 0, erreursJS.slice(0, 2).join(" | "));
     await page.close();

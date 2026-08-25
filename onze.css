@@ -65,8 +65,34 @@
   --arete-basse: inset 0 -1px 0 rgba(0, 0, 0, 0.45);
   /* le dégradé vertical très léger que porte toute matière de chrome */
   --pente-lumiere: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(0, 0, 0, 0.06));
+  /* ---- LES VERTS DÉSATURÉS (phase 4) ----
+     Le vert néon est réservé aux ÉTATS INTERACTIFS : sélection, survol,
+     action possible, fusion. Tout le reste — bordures, fonds, textes
+     secondaires — prend ces verts-là, cohérents avec les pelouses des
+     décors et incapables de se faire passer pour une action. */
+  --vert-sourd: #2A4A31;      /* fonds de chrome */
+  --vert-bordure: #3E6046;    /* bordures et séparateurs */
+  --vert-texte: #8FA894;      /* texte secondaire sur matière */
   --relief-bouton: inset 0 -5px 0 rgba(0, 0, 0, 0.25);
   --relief-pion: inset 0 -6px 8px rgba(0, 0, 0, 0.4), 0 3px 6px rgba(0, 0, 0, 0.5);
+  /* ================= LES QUATRE MATIÈRES (phase 4) =================
+     Aucun composant de chrome n'est en dehors d'elles, et aucun n'invente
+     son fond : il DÉCLARE sa matière, et la matière fait le reste. Chaque
+     matière a une signature vérifiable — c'est ce qui rend la règle
+     « plus aucun aplat » testable au lieu d'être une intention.
+       verre  : panneaux, volets, fiches, bandeaux flottants
+       plaque : bandeau du haut, barre de boutique, en-têtes
+       jeton  : pastilles, cadres de coût, monnaies, écussons
+       creux  : emplacements vides, jauges, champs
+     ============================================================ */
+  --verre-fond: linear-gradient(180deg, rgba(16, 32, 20, 0.86), rgba(7, 16, 10, 0.90));
+  --verre-bord: 1px solid rgba(160, 200, 168, 0.22);
+  --plaque-fond: linear-gradient(180deg, #14281A 0%, #0C1B11 46%, #060F09 100%);
+  --plaque-bord: 1px solid rgba(214, 245, 222, 0.10);
+  --jeton-fond: linear-gradient(180deg, #1E3C26 0%, #12261890 62%, #0A170E 100%);
+  --creux-fond: linear-gradient(180deg, rgba(4, 10, 6, 0.82) 0%, rgba(6, 13, 8, 0.55) 62%, rgba(255, 255, 255, 0.05) 100%);
+  --creux-ombre: inset 0 6px 10px rgba(0, 0, 0, 0.58), inset 0 -1px 0 rgba(214, 245, 222, 0.13);
+
   /* ---- rayons & dimensions ---- */
   --r-carte: 10px; --r-carte-banc: 7px; --r-bouton: 12px; --r-tuile: 8px;
   --r-panneau: 16px; --r-pilule: 999px; --tap-min: 44px;
@@ -163,15 +189,29 @@ header p { color: var(--craie-sourde); margin: 4px 0 0; font-size: 0.85rem; }
 .effectif .ecole { color: var(--craie-sourde); font-size: 0.62rem; text-align: right; }
 
 /* ---- Boutons ---- */
+/* L'ACTION PRINCIPALE : elle garde le vert néon (c'est son rôle) mais
+   cesse d'être un aplat — dégradé vertical, arête haute allumée, tranche
+   et ombre portée, comme le bouton Jouer de l'accueil (phase 4). */
 button.principal {
   width: 100%; max-width: 420px;
-  background: var(--gazon-electrique); color: #04240E;
+  background: linear-gradient(180deg, #7BF5A6 0%, var(--gazon-electrique) 44%, #2CBB60 100%);
+  color: #04240E;
   border: none; border-radius: var(--r-bouton);
   padding: 14px; font-size: 1.05rem; font-weight: 800;
-  box-shadow: var(--relief-bouton);
+  box-shadow:
+    inset 0 1px 0 rgba(240, 255, 246, 0.9),
+    inset 0 -5px 0 rgba(4, 36, 14, 0.28),
+    var(--elev-panneau), 0 0 22px rgba(61, 226, 107, 0.28);
   cursor: pointer; margin-bottom: 14px;
+  transition: transform 0.08s, box-shadow 0.08s;
 }
-button.principal:disabled { background: #0C130D; color: #4A5A4C; box-shadow: none; }
+button.principal:active {
+  transform: translateY(3px);
+  box-shadow: inset 0 1px 0 rgba(240, 255, 246, 0.7), var(--elev-pose), 0 0 16px rgba(61, 226, 107, 0.28);
+}
+button.principal:disabled {
+  background: var(--creux-fond); color: #4A5A4C; box-shadow: var(--creux-ombre); transform: none;
+}
 
 /* ---- Récit du match ---- */
 .recit { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 8px; }
@@ -731,3 +771,33 @@ button.principal:disabled { background: #0C130D; color: #4A5A4C; box-shadow: non
   display: block; height: 100%; background: var(--gazon-electrique);
 }
 .scene-match .carton-cut .cut-jauge.droite i { background: var(--alerte, #E8503F); }
+
+/* ================= LES QUATRE MATIÈRES : les classes =================
+   Un composant déclare sa matière et n'écrit plus ni fond, ni ombre, ni
+   bordure : `class="volet-panneau matiere-verre"`. La recette
+   tests/matieres.spec.js vérifie que chaque composant de chrome en porte
+   une, et que sa signature est bien là dans le style calculé.
+   ============================================================ */
+.matiere-verre {
+  background: var(--verre-fond);
+  border: var(--verre-bord);
+  box-shadow: var(--arete-haute), var(--elev-panneau);
+  backdrop-filter: blur(4px);
+}
+.matiere-plaque {
+  background: var(--plaque-fond);
+  border: none; border-bottom: var(--plaque-bord);
+  box-shadow: var(--arete-haute-forte), var(--elev-panneau);
+}
+.matiere-jeton {
+  background: var(--jeton-fond);
+  border: 1px solid var(--vert-bordure);
+  box-shadow: var(--arete-haute-forte), var(--elev-pose);
+}
+.matiere-creux {
+  background: var(--creux-fond);
+  border: none;
+  box-shadow: var(--creux-ombre);
+}
+/* un jeton s'enfonce quand on appuie : c'est un objet, pas une image */
+.matiere-jeton:active { transform: translateY(2px); box-shadow: var(--arete-haute), 0 2px 6px rgba(0, 0, 0, 0.5); }
