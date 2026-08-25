@@ -15,6 +15,17 @@ const EXECUTABLE = process.env.CHROME || "/opt/pw-browsers/chromium-1194/chrome-
 
 let echecs = 0;
 const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if (!ok) echecs++; };
+/* UNE DETTE ASSUMÉE (règle M3) : un garde-fou qu'on SAIT rouge s'écrit
+   quand même — il porte la dette à l'écran et retombe vert tout seul le
+   jour où le défaut est réparé. Il ne compte pas dans les échecs, sans
+   quoi on ne distinguerait plus une dette connue d'une régression ; mais
+   il s'affiche en rouge, et il PRÉVIENT quand il devient vert pour qu'on
+   le promeuve en vraie assertion. */
+let dettes = 0, dettesPayees = 0;
+const dette = (nom, ok, quand) => {
+  if (ok) { dettesPayees++; console.log(`✅ ${nom} — DETTE PAYÉE, à promouvoir en assertion`); }
+  else { dettes++; console.log(`❌ ${nom}  ⟵ dette assumée, ${quand}`); }
+};
 
 (async () => {
   const browser = await chromium.launch({ executablePath: EXECUTABLE });
@@ -329,6 +340,22 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   verifier(`Décision 24 : deux copies du même joueur dans la même équipe (${jumeaux.memeNom}) gardent des clés distinctes (${jumeaux.doublons} doublon(s) sur ${jumeaux.total})`,
     jumeaux.memeNom >= 2 && jumeaux.doublons === 0);
 
+  /* M5 — LE DÉNOMINATEUR D'UNE SUITE SE DÉCLARE. « Suite complète
+     verte » n'est pas vérifiable tant que le nombre de recettes bouge :
+     deux conversations ont annoncé 13 et 14 le même jour pour 15
+     fichiers réels. Le nombre publié dans tests/RECETTES.md est comparé
+     au contenu du disque. */
+  const denominateur = await page.evaluate(async () => {
+    const md = await (await fetch("/tests/RECETTES.md")).text();
+    const annonce = (md.match(/\*\*(\d+) fichiers de recette\.?\*\*/) || [])[1];
+    const listes = (md.match(/`tests\/[a-z-]+\.spec\.js`/g) || [])
+      .map((x) => x.slice(8, -10)).filter((v, i, l) => l.indexOf(v) === i);
+    return { annonce: annonce ? Number(annonce) : null, listes: listes.length };
+  });
+  const surDisque = require("fs").readdirSync("tests").filter((f) => f.endsWith(".spec.js")).length;
+  verifier(`M5 — le dénominateur est déclaré et juste : ${denominateur.annonce} annoncé dans tests/RECETTES.md, ${denominateur.listes} listé(s), ${surDisque} sur le disque`,
+    denominateur.annonce === surDisque && denominateur.listes === surDisque);
+
   /* ---- R13 : le stade est une couche de thème, pas du dur ---- */
   const stade = await page.evaluate(async () => {
     const src = await (await fetch("/match-scene.js")).text();
@@ -584,7 +611,8 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       const dpr = cv.width / cv.clientWidth;
       const geo = sc.diagnostic().cadre;
       const cx = (geo.x + geo.w / 2) * dpr, cy = (geo.y + geo.h / 2) * dpr;
-      const cote = Math.round(70 * dpr);
+      // assez large pour contenir la mêlée même après la poussée (R4)
+      const cote = Math.round(95 * dpr);
       const im = g.getImageData(Math.round(cx - cote), Math.round(cy - cote), cote * 2, cote * 2).data;
       let bleus = 0, rouges = 0, clairs = 0;
       for (let i = 0; i < im.length; i += 4) {
@@ -628,9 +656,17 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   const tailleOk = figurines.tailles.every((t) => Math.abs(t.rapport - 1.2) < 0.02);
   verifier(`Étape A — la figurine mesure 1,2 × le diamètre du pion, à tous les effectifs et écrans (${figurines.tailles.map((t) => `${t.n}j ${t.L}×${t.H}: ${t.hauteur.toFixed(1)} px pour ${t.diametre.toFixed(1)}`).join(" · ")})`,
     tailleOk && figurines.tailles.every((t) => t.partTete >= 0.34 && t.partTete <= 0.38));
+  /* P5 — UN SEUIL ENTRE DEUX CAMPS EST RELATIF ET SYMÉTRIQUE. Un
+     plancher par équipe ne suffit pas : la recette resterait verte
+     pendant qu'un camp disparaît. Mesuré avant correctif : 325 px bleus
+     contre 203 rouges, soit 1,60× — et ce n'est pas un hasard de
+     cadrage, le rouge est à 1,00 de contraste contre le sol turquoise et
+     perd sur deux sols sur trois. On exige donc un plancher pour CHACUN
+     et un rapport borné entre les deux. */
   const m = figurines.melee;
-  verifier(`Étape A — la MÊLÉE reste lisible : ${m.bleus} px bleus et ${m.rouges} px rouges sur ${m.entasses} pions entassés, porteur repérable (${m.clairs} px clairs)`,
-    m.bleus > 40 && m.rouges > 40 && m.clairs > 20);
+  const rapportCamps = Math.max(m.bleus, m.rouges) / Math.max(1, Math.min(m.bleus, m.rouges));
+  verifier(`Étape A — la MÊLÉE reste lisible ET symétrique : ${m.bleus} px bleus contre ${m.rouges} rouges (rapport ${rapportCamps.toFixed(2)}, plafond 1,35) sur ${m.entasses} pions entassés, porteur repérable (${m.clairs} px clairs)`,
+    m.bleus > 40 && m.rouges > 40 && m.clairs > 20 && rapportCamps <= 1.35);
   verifier(`Étape A — le repli tient : figurines coupées, le match reste lisible (${figurines.repli.pions} disques, ${figurines.repli.bleus} px bleus / ${figurines.repli.rouges} px rouges)`,
     figurines.repli.figurines === false && figurines.repli.bleus > 40 && figurines.repli.rouges > 40);
 
@@ -681,8 +717,10 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     }
     // le relevé qui sert à TOUTES les autres mesures doit avoir de la matière
     if (!avecMatiere && releve.buts >= 1 && releve.misesEnPlace >= 2) avecMatiere = releve;
+    const tiragesPostures = Object.values(sacE3.postures).reduce((a, b) => a + b, 0);
     if (avecMatiere && sacMarquage.vus >= ECHANTILLON_MARQUAGE && sacPorteur.length >= 100
-        && sacE3.appels.length >= 15 && sacE3.pressings.length >= 12 && sacE3.dureesOption.length >= 30) break;
+        && sacE3.appels.length >= 15 && sacE3.pressings.length >= 12 && sacE3.dureesOption.length >= 30
+        && tiragesPostures >= 45) break;
     console.log(`   (relevé ${essai + 1} : ${releve.buts} but(s), ${releve.misesEnPlace} temps fort(s), ${releve.marquagesVus} marquage(s) en position — sac à ${sacMarquage.vus}/${ECHANTILLON_MARQUAGE}, on rejoue)`);
   }
   if (avecMatiere) releve = avecMatiere;
@@ -1159,8 +1197,20 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
      tirages en donnaient 41. */
   const partPost = e3.postures, totalP = Object.values(partPost).reduce((a, b) => a + b, 0) || 1;
   const quatre = ["bas", "median", "haut", "chaos"].every((k) => (partPost[k] || 0) / totalP >= 0.05);
-  verifier(`Étape 3 — les quatre postures se tirent vraiment (${totalP} tirages : ${Object.entries(partPost).map(([k, v]) => `${k} ${Math.round(100 * v / totalP)} %`).join(" · ")} ; réel bas 25 · médian 42 · haut 18 · chaos 15)`,
-    totalP >= 40 && quatre && (partPost.median || 0) / totalP <= 0.62);
+  /* LA RÉFÉRENCE N'EST PAS RENORMALISÉE, et c'est déclaré. Les mesures
+     d'origine donnent bas 22 · médian 37 · haut 16 · chaos 13, somme
+     88 % : les 12 % restants sont quatre autres postures réelles que la
+     scène ne modélise pas encore. Les diviser par 0,88 pour « faire
+     100 » revient à déplacer la RÉFÉRENCE au lieu du seuil — le même
+     geste, en moins visible — et l'hypothèse serait fausse : la défense
+     sur coup de pied arrêté a une médiane de 9,4 m, PLUS BASSE que notre
+     bloc bas, donc les 12 % écartés ne se répartissent pas au prorata.
+     On compare donc nos parts aux parts brutes, en disant que 12 % du
+     football réel n'a pas encore d'équivalent chez nous. */
+  const REF_POSTURES = { bas: 0.22, median: 0.37, haut: 0.16, chaos: 0.13 };  // somme 88 %
+  verifier(`Étape 3 — les quatre postures se tirent vraiment (${totalP} tirages : ${Object.entries(partPost).map(([k, v]) => `${k} ${Math.round(100 * v / totalP)} %`).join(" · ")} ; mesures brutes bas 22 · médian 37 · haut 16 · chaos 13 — les 12 % manquants sont quatre postures réelles non modélisées, dont la défense sur coup de pied arrêté à 9,4 m)`,
+    totalP >= 40 && quatre && (partPost.median || 0) / totalP <= 0.62
+    && Object.keys(REF_POSTURES).every((k) => (partPost[k] || 0) / totalP <= REF_POSTURES[k] * 2.2));
   // 3. le bloc a TROIS lignes (médiane du manuel)
   verifier(`Étape 3 — le bloc a trois lignes (médiane mesurée ${q(e3.lignes, 0.5)}, réel 3)`,
     e3.lignes.length >= 100 && q(e3.lignes, 0.5) >= 2 && q(e3.lignes, 0.5) <= 4);
@@ -1189,6 +1239,16 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   const AL = e3.appels.map((a) => a.longueur), PD = e3.pressings.map((p) => p.depart);
   const PM = e3.pressings.map((p) => p.mini), OP = e3.options;
   const dans13 = OP.length ? OP.filter((v) => v >= 1 && v <= 3).length / OP.length : 0;
+  /* M3 — UN GARDE-FOU CONNU ROUGE S'ÉCRIT QUAND MÊME. Les options à
+     l'instant de la passe restent sous la référence (médiane 2, et 88 %
+     des possessions entre une et trois) : c'est la chorégraphie qui
+     décide qui touche le ballon et quand, donc l'étape 4 qui en répond.
+     On écrit la recette et on la laisse ROUGE : un garde-fou déclaré
+     rouge porte la dette à l'écran et retombe vert tout seul le jour où
+     le défaut est réparé ; un garde-fou absent ne dit rien. */
+  dette(`Étape 3 — 1 à 3 options ouvertes dans 88 % des cas (mesuré ${Math.round((OP.length ? OP.filter((v) => v >= 1 && v <= 3).length / OP.length : 0) * 100)} %, médiane ${q(OP, 0.5)} contre 2, sur ${OP.length} passes)`,
+    OP.length >= 30 && (OP.filter((v) => v >= 1 && v <= 3).length / OP.length) >= 0.88,
+    "l'étape 4 en répond : c'est la chorégraphie qui décide qui touche le ballon et quand");
   console.log(`   📐 encore court, l'étape 4 en répond : longueur d'appel ${q(AL, 0.5).toFixed(1)} m (réel 10,7) · pressing de ${q(PD, 0.5).toFixed(1)} m à ${q(PM, 0.5).toFixed(1)} m (réel 5,9 → 2,6) · options à la passe médiane ${q(OP, 0.5)} (réel 2), ${Math.round(dans13 * 100)} % dans 1-3 (réel 88 %)`);
 
   verifier(`Décision 24 : le porteur est désigné sans ambiguïté, même avec des homonymes (${releve.porteurAmbigu} relevé(s) ambigu(s)${releve.matchsAvecHomonymes ? `, ${releve.matchsAvecHomonymes} relevé(s) AVEC homonymes sur le terrain` : ", aucun homonyme dans ce match"})`,
@@ -1231,6 +1291,9 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     issueMin >= 900);
 
   await browser.close();
+  if (dettes || dettesPayees) {
+    console.log(`\n${dettes} dette(s) assumée(s)${dettesPayees ? `, ${dettesPayees} payée(s) — à promouvoir` : ""}`);
+  }
   console.log(echecs ? `\n${echecs} échec(s)` : "\nFidélité de la scène ✅");
   process.exit(echecs ? 1 : 0);
 })().catch((e) => { console.error("ÉCHEC FATAL:", e.message); process.exit(1); });

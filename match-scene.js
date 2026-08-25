@@ -600,7 +600,14 @@ const ONZE_SCENE = (() => {
     function ligneOuverte(de, vers, camp) {
       for (const q of listePions) {
         if (q.camp === camp || q.gardien) continue;
-        if (distanceAuSegment(q, de, vers) < 2) return false;   // 2 m : la ligne est coupée
+        /* 2,6 m : une longueur de corps, la distance à laquelle le
+           football réel considère une ligne coupée — la même que le
+           minimum d'un pressing. À 2 m, les lignes restaient ouvertes
+           trop longtemps : la durée de vie d'une option sortait à
+           0,88 s en médiane et 2,9 au p90, contre 0,70 et 2,3 réels.
+           Le même facteur 1,26 aux DEUX quantiles : ce n'était pas un
+           écart, c'était une seule constante de temps trop grande. */
+        if (distanceAuSegment(q, de, vers) < 2.6) return false;
       }
       return true;
     }
@@ -617,11 +624,23 @@ const ONZE_SCENE = (() => {
        donc une posture au début de chaque temps fort et on la TIENT ; le
        ballon ne fait que moduler à l'intérieur de son étendue.
        ============================================================ */
+    /* Les parts sont celles MESURÉES, telles quelles : 22 + 37 + 16 + 13
+       = 88 %. Les 12 % restants sont quatre autres postures réelles que
+       nous ne modélisons pas encore — dont la défense sur coup de pied
+       arrêté, dont la médiane (9,4 m) est PLUS BASSE que notre bloc bas.
+       Les renormaliser à 100 reviendrait à déplacer la référence au lieu
+       du seuil : le même geste qu'un seuil desserré, en moins visible, et
+       ça sous-estimerait la fréquence des défenses très basses.
+       `biais` : à l'intérieur de sa fourchette, une posture ne vit pas au
+       milieu. Un bloc haut est haut — il vit dans le haut de sa plage ;
+       un bloc bas est écrasé. Sans ce biais, l'étendue p10→p90 de la
+       scène tombait à 85 % de la réelle et le p90 passait SOUS la médiane
+       d'un vrai bloc haut. */
     const POSTURES = {
-      bas:    { bas: 8.0,  haut: 25.4, part: 0.22 },
-      median: { bas: 25.0, haut: 47.1, part: 0.37 },
-      haut:   { bas: 41.0, haut: 55.7, part: 0.16 },
-      chaos:  { bas: 16.4, haut: 57.5, part: 0.13 },
+      bas:    { bas: 8.0,  haut: 25.4, part: 0.22, biais: [0.00, 0.62] },
+      median: { bas: 25.0, haut: 47.1, part: 0.37, biais: [0.10, 0.90] },
+      haut:   { bas: 41.0, haut: 55.7, part: 0.16, biais: [0.42, 1.00] },
+      chaos:  { bas: 16.4, haut: 57.5, part: 0.13, biais: [0.00, 1.00] },
     };
     /* Le penchant d'une École : le Catenaccio défend bas, La Grinta
        presse haut, l'École de la Rue vit dans le chaos. C'est ce qui
@@ -665,7 +684,8 @@ const ONZE_SCENE = (() => {
       const echelle = TERRAIN.L / 104;
       // le ballon module DANS la posture : il approche → la ligne descend
       const t = borne(Math.abs(refBloc.x - but) / TERRAIN.L, 0, 1);
-      const h = lerp(p.bas, p.haut, t) * echelle;
+      const [b0, b1] = p.biais || [0, 1];
+      const h = lerp(p.bas, p.haut, lerp(b0, b1, t)) * echelle;
       return but + sens * borne(h, 3, TERRAIN.L * 0.52);
     }
     // la hauteur d'une ligne AVANCÉE : le bloc réel fait trois lignes,
@@ -993,9 +1013,16 @@ const ONZE_SCENE = (() => {
                Celui qui est plus loin ne presse pas, il tient son bloc.
                MAIS le seuil ne vaut que pour ENTRER en pressing : une
                fois lancé, on suit son homme même s'il s'échappe. Sans ça
-               le porteur sortait des dix mètres et le presseur était
-               lâché au bout de 0,7 s, sans avoir jamais fermé. */
-            (q.pressJusqua > horloge || distance(q, ballon) < 10) &&
+               le porteur sortait du seuil et le presseur était lâché au
+               bout de 0,7 s, sans avoir jamais fermé.
+               LE SEUIL EST LA MÉDIANE RÉELLE (5,9 m), PAS LE P90 (9,5).
+               À dix mètres, notre pressing médian valait 9,9 m au départ
+               et 5,4 m au plus près : exactement ce que la réalité
+               appelle un pressing lointain et raté. À 5,4 m, personne
+               n'a l'air pressé — le vrai football ferme à 2,6 m, une
+               longueur de corps. C'est la différence entre « un défenseur
+               a couru vers lui » et « un défenseur est sur lui ». */
+            (q.pressJusqua > horloge || distance(q, ballon) < 6.5) &&
             !(zoneBasse && q.ligne === "ATT"));  // le point haut ne redescend pas presser
         // INERTIE : celui qui pressait déjà garde la mission (6 m de
         // bonus) — sinon les deux plus proches changent chaque frame
@@ -1019,7 +1046,12 @@ const ONZE_SCENE = (() => {
           .forEach((q) => {
             q.role = "pressing";
             if (!(q.pressJusqua > horloge)) {
-              q.pressJusqua = horloge + 1.6;
+              /* 2,0 s de mission : à 1,6 s le presseur partait de 6,4 m
+                 et s'arrêtait à 4,3 m — il courait vers l'homme sans
+                 jamais être SUR lui. Deux secondes lui laissent fermer
+                 la longueur de corps, et restent entre la médiane réelle
+                 (1,6 s) et son p90 (3,9). */
+              q.pressJusqua = horloge + 2.0;
               q.pressFin = horloge + 3.0 + 1.2;   // 3 s de mission, puis 1,2 s de repli
             }
             /* Il ferme À 2,6 M, côté but — la distance minimale mesurée.
@@ -1888,25 +1920,35 @@ const ONZE_SCENE = (() => {
        ============================================================ */
     const HAUTEUR_FIGURINE = 1.2;      // × le diamètre du pion
     const PART_TETE = 0.36;            // part de la hauteur totale
-    function dessinerFigurine(p, temps) {
+
+    /* LES DÉCALQUES AU SOL, dessinées en PREMIER PASSAGE pour TOUT LE
+       MONDE. L'ombre de contact et la couronne du porteur appartiennent
+       à la pelouse : les dessiner avec leur corps faisait repeindre par
+       une couronne les corps déjà posés, et la mêlée sortait à 1,68 de
+       déséquilibre entre les deux camps — un artefact d'ordre de dessin,
+       pas de lisibilité. */
+    function dessinerSolPion(p) {
       const r = rayonPion() * p.echelle;
-      const H = HAUTEUR_FIGURINE * 2 * r;
-      const Xp = X(p.x), Yp = Y(p.y);          // le point au SOL
-      const maillot = maillotDe(p);
+      const Xp = X(p.x), Yp = Y(p.y);
       ctx.save();
-      // 1. l'ombre de contact, sous les pieds — le signal non coloré qui
-      //    porte les sols clairs
       ctx.beginPath();
       ctx.ellipse(Xp, Yp, r * 0.95, r * 0.36, 0, 0, 6.283);
       ctx.fillStyle = `rgba(${OMBRE_CONTACT.rgb.join(",")},${OMBRE_CONTACT.alpha})`;
       ctx.fill();
-      // l'anneau du porteur : une couronne AU SOL, pas autour du corps
       if (ballon.porteur === p.cle) {
         ctx.beginPath();
         ctx.ellipse(Xp, Yp, r * 1.7, r * 0.66, 0, 0, 6.283);
         ctx.strokeStyle = "rgba(253,248,234,0.95)";
         ctx.lineWidth = Math.max(r * 0.30, 1.3); ctx.stroke();
       }
+      ctx.restore();
+    }
+    function dessinerFigurine(p, temps) {
+      const r = rayonPion() * p.echelle;
+      const H = HAUTEUR_FIGURINE * 2 * r;
+      const Xp = X(p.x), Yp = Y(p.y);          // le point au SOL
+      const maillot = maillotDe(p);
+      ctx.save();
       if (p.aura > 0) { ctx.shadowColor = p.auraCouleur; ctx.shadowBlur = 10; }
       else if (p.flash > 0) { ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 8; }
       ctx.strokeStyle = maillot.corps;
@@ -1963,13 +2005,6 @@ const ONZE_SCENE = (() => {
       const Xp = X(p.x), Yp = Y(p.y);
       const numeroLisible = r >= 4;      // en dessous, le chiffre ne rentre plus
       ctx.save();
-      /* L'OMBRE DE CONTACT — dense, pas décorative : c'est elle qui
-         détache le pion d'un sol clair, là où aucune teinte de maillot
-         ne tient 3:1. */
-      ctx.beginPath();
-      ctx.ellipse(Xp + r * 0.14, Yp + r * 0.52, r * 1.02, r * 0.40, 0, 0, 6.283);
-      ctx.fillStyle = `rgba(${OMBRE_CONTACT.rgb.join(",")},${OMBRE_CONTACT.alpha})`;
-      ctx.fill();
       if (p.aura > 0) { ctx.shadowColor = p.auraCouleur; ctx.shadowBlur = 10; }
       else if (p.flash > 0) { ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 8; }
       // le disque : aplat franc + liseré sombre, pour trancher sur le vert
@@ -2238,14 +2273,23 @@ const ONZE_SCENE = (() => {
         replay.indice += 0.45;
         if (replay.indice >= replay.etats.length) replay = null;
         if (etat) {
-          listePions.forEach((p, i) => dessinerPion({ ...p, x: etat.pos[i][0], y: etat.pos[i][1] }, temps));
+          const rejoues = listePions.map((p, i) => ({ ...p, x: etat.pos[i][0], y: etat.pos[i][1] }))
+            .sort((a, b) => a.y - b.y);
+          rejoues.forEach((p) => dessinerSolPion(p));
+          rejoues.forEach((p) => dessinerPion(p, temps));
           dessinerBallon(etat.bx, etat.by, etat.bz || 0, []);
           ctx.fillStyle = "rgba(6, 12, 8, 0.14)";
           ctx.fillRect(0, 0, largeur, hauteur);
         }
       } else {
         dessinerFigurants();          // sous les joueurs : ils ne masquent rien
-        for (const p of listePions) dessinerPion(p, temps);
+        /* Trié par PROFONDEUR. Tant que le pion était un disque, l'ordre
+           de la liste n'avait aucune conséquence ; une figurine a une
+           hauteur, donc un corps du fond peint par-dessus un corps de
+           devant se voit. On dessine du fond vers l'avant. */
+        const ordonnes = [...listePions].sort((a, b) => a.y - b.y);
+        for (const p of ordonnes) dessinerSolPion(p);
+        for (const p of ordonnes) dessinerPion(p, temps);
         dessinerEtiquettes();
         dessinerBallon(ballon.x, ballon.y, ballon.z, ballon.trainee);
         if (facteurTemps < 1) {  // le micro-ralenti : un voile et le ballon appuyé
@@ -2307,17 +2351,37 @@ const ONZE_SCENE = (() => {
          se croisent doivent rester lisibles là où trois disques
          l'étaient. Instrumentation, comme `diagnostic`. */
       entasser: (x, y) => {
+        /* Quatre corps VOISINS et alternés, pas deux paires superposées :
+           deux pions exactement au même point ne mesurent que l'ordre de
+           dessin, pas la lisibilité d'une mêlée. */
+        /* Un carré SYMÉTRIQUE : chaque camp occupe deux coins opposés,
+           donc les deux reçoivent exactement le même traitement par la
+           profondeur et par la poussée. Une disposition asymétrique
+           mesurait la disposition, pas la lisibilité (1,66 d'écart entre
+           les camps là où deux figurines isolées donnent 112 contre 108
+           pixels). */
+        const coins = [[-0.7, -0.7], [0.7, -0.7], [0.7, 0.7], [-0.7, 0.7]];
         const pris = [];
-        for (const camp of ["moi", "eux"]) {
-          listePions.filter((p) => p.camp === camp && !p.gardien).slice(0, 2)
-            .forEach((p, i) => {
-              p.x = x + (i - 0.5) * 0.9; p.y = y + (i - 0.5) * 0.9;
-              p.vx = 0; p.vy = 0; p.cx = p.x; p.cy = p.y;
-              pris.push(p);
-            });
+        const parCamp = { moi: listePions.filter((p) => p.camp === "moi" && !p.gardien),
+          eux: listePions.filter((p) => p.camp === "eux" && !p.gardien) };
+        coins.forEach((c, i) => {
+          const p = parCamp[i % 2 === 0 ? "moi" : "eux"][Math.floor(i / 2)];
+          if (!p) return;
+          p.x = x + c[0]; p.y = y + c[1];
+          p.vx = 0; p.vy = 0; p.cx = p.x; p.cy = p.y;
+          pris.push(p);
+        });
+        /* Tous les AUTRES pions sortent du cadre : la mesure doit porter
+           sur la mêlée seule, pas sur qui d'autre traînait dans la boîte
+           d'échantillonnage. */
+        for (const p of listePions) {
+          if (pris.includes(p)) continue;
+          p.x = (p.camp === "moi" ? -1 : 1) * (DEMI_L - 3);
+          p.y = (p.gardien ? 0 : (p.num % 2 ? -1 : 1) * (DEMI_W - 3));
+          p.vx = 0; p.vy = 0; p.cx = p.x; p.cy = p.y;
         }
         if (pris.length) { ballon.vol = null; ballon.porteur = pris[0].cle; ballon.x = pris[0].x; ballon.y = pris[0].y; }
-        return pris.length;
+        return pris.map((p) => p.cle);
       },
       diagnostic: () => ({
         styles, regime, possession, situation: situationCourante,
