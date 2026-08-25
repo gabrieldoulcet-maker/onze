@@ -377,7 +377,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     sacPorteur.push(...(releve.relevesPorteurSimule || []));
     // le relevé qui sert à TOUTES les autres mesures doit avoir de la matière
     if (!avecMatiere && releve.buts >= 1 && releve.misesEnPlace >= 2) avecMatiere = releve;
-    if (avecMatiere && sacMarquage.vus >= ECHANTILLON_MARQUAGE && sacPorteur.length >= 30) break;
+    if (avecMatiere && sacMarquage.vus >= ECHANTILLON_MARQUAGE && sacPorteur.length >= 100) break;
     console.log(`   (relevé ${essai + 1} : ${releve.buts} but(s), ${releve.misesEnPlace} temps fort(s), ${releve.marquagesVus} marquage(s) en position — sac à ${sacMarquage.vus}/${ECHANTILLON_MARQUAGE}, on rejoue)`);
   }
   if (avecMatiere) releve = avecMatiere;
@@ -777,15 +777,28 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     && releve.vitesseChampMax <= releve.vMaxPlusHaut + 0.1);
   verifier(`Étape 1 — un joueur vit SOUS son maximum : allure médiane ${Math.round(releve.allureMediane * 100)} % de la pointe (${releve.alluresVues} relevés — la scène d'avant était à 100 %)`,
     releve.alluresVues >= 500 && releve.allureMediane <= 0.75);
-  /* Le porteur : la mesure la plus contre-intuitive du document —
-     2,5 m/s en médiane (p10 0,8 · p90 5,0). On l'exige du porteur que
-     la SIMULATION pilote. Quand une chorégraphie tient encore le pion,
-     c'est l'étape 4 (les gabarits) qui en répondra : on le mesure et on
-     l'affiche plutôt que de le cacher dans une moyenne. */
+  /* LE PORTEUR — et une leçon de méthode qui vaut pour toutes les
+     distributions à venir. Le 2,5 m/s du document est la médiane sur
+     TOUT le football, construction comprise ; or nous ne rendons jamais
+     ça. Remesuré sur les dix mêmes matchs, par type de situation :
+     construction 1,87 · création 2,23 · jeu direct 2,26 · finition 2,59
+     · contre rapide 3,67 · transition 4,38 — et surtout, les possessions
+     qui mènent à un TIR sont à 3,40 m/s, celles qui mènent à un BUT à
+     3,52 (p90 : 7,0). Comme la scène ne rend que des buts et des
+     occasions chaudes, notre référence est **3,4 m/s**, pas 2,5. La
+     tolérance reste celle du document : médiane à ±25 %.
+     Règle générale : les chiffres du manuel décrivent le football
+     entier, nous n'en rendons que le sommet — chaque écart se signale
+     et se fait remesurer sur le sous-ensemble pertinent, il ne se
+     corrige pas en tordant le code.
+     On l'exige du porteur que la SIMULATION pilote. Quand une
+     chorégraphie tient encore le pion, c'est l'étape 4 (les gabarits)
+     qui en répondra : on le mesure et on l'affiche plutôt que de le
+     cacher dans une moyenne. */
   const porteurTrie = sacPorteur.slice().sort((a, b) => a - b);
   const porteurMed = porteurTrie.length ? porteurTrie[Math.floor(porteurTrie.length / 2)] : 0;
-  verifier(`Étape 1 — le porteur simulé n'est pas un sprinteur : médiane ${porteurMed.toFixed(2)} m/s sur ${porteurTrie.length} relevés cumulés (football réel : 2,5 m/s, p90 5,0)`,
-    porteurTrie.length >= 30 && porteurMed <= 4);
+  verifier(`Étape 1 — le porteur tient l'allure d'une occasion chaude : médiane ${porteurMed.toFixed(2)} m/s sur ${porteurTrie.length} relevés cumulés (référence 3,4 m/s ±25 % → 2,55-4,25 ; p90 réel 5,9)`,
+    porteurTrie.length >= 100 && porteurMed >= 2.55 && porteurMed <= 4.25);
   console.log(`   📐 porteur, tous rôles confondus (chorégraphie comprise) : ${releve.vitessePorteurMediane.toFixed(2)} m/s sur ${releve.porteursVus} relevés — la chorégraphie court encore, c'est l'étape 4 qui la remplace`);
   console.log(`   📐 braquage : p99 ${releve.braquageP99.toFixed(1)} rad/s, max ${releve.braquageMax.toFixed(1)} (${releve.braquagesVus} mesures sur les joueurs lancés)`);
   console.log(`   📐 allure : médiane à ${Math.round(releve.allureMediane * 100)} % de la vitesse max (${releve.alluresVues} relevés) — dans le vrai football, un joueur passe l'essentiel du match SOUS son maximum`);
