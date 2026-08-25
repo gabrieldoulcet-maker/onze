@@ -1236,9 +1236,23 @@ const dette = (nom, ok, quand) => {
      1,6 s), pas des amorces. La transformation est déclarée ici et dans
      le libellé, elle ne se cache pas dans le seuil. */
   const PMin = e3.pressings.filter((p) => p.duree >= 1).map((p) => p.mini);
-  verifier(`Étape 3 — le pressing tient ses trois grandeurs : départ ${q(PDep, 0.5).toFixed(1)} m · durée ${q(PU2, 0.5).toFixed(1)} s (${PU2.length} pressings) · minimum ${q(PMin, 0.5).toFixed(1)} m sur les ${PMin.length} qui ont duré ≥ 1 s — réel 5,9 · 1,6 · 2,6`,
-    PU2.length >= 30 && PMin.length >= 15 && ecart(q(PU2, 0.5), 1.6) <= 0.35
-    && ecart(q(PDep, 0.5), 5.9) <= 0.35 && ecart(q(PMin, 0.5), 2.61) <= 0.40);
+  /* CHAQUE GRANDEUR SA TOLÉRANCE, DÉCLARÉE, AVEC SA RAISON. Une seule
+     tolérance pour trois grandeurs revient à prendre la plus large, et à
+     ±20 % beaucoup de choses passent.
+       — DÉPART, ±35 % : c'est une condition de départ, pas ce que l'œil
+         lit. Personne ne mesure à l'écran d'où un défenseur s'est élancé.
+       — DURÉE, ±35 % : elle se ressent comme un rythme, pas comme une
+         valeur. Un pressing d'une seconde et demie et un de deux
+         secondes se ressemblent.
+       — MINIMUM, ±15 % : c'est LA grandeur que l'œil lit directement —
+         « un défenseur est-il SUR lui ? ». Une longueur de corps de trop
+         et l'action change de nature. Elle mérite la tolérance la plus
+         serrée du lot, et elle est aujourd'hui EN DETTE. */
+  verifier(`Étape 3 — le pressing : départ ${q(PDep, 0.5).toFixed(1)} m (réel 5,9 ; ±35 %, c'est une condition de départ) · durée ${q(PU2, 0.5).toFixed(1)} s (réel 1,6 ; ±35 %, ça se ressent comme un rythme) — ${PU2.length} pressings`,
+    PU2.length >= 30 && ecart(q(PU2, 0.5), 1.6) <= 0.35 && ecart(q(PDep, 0.5), 5.9) <= 0.35);
+  dette(`Étape 3 — le pressing ferme à une longueur de corps : minimum ${q(PMin, 0.5).toFixed(1)} m (cible 2,61 ; ±15 %, c'est ce que l'œil lit — « un défenseur est-il SUR lui ? ») sur les ${PMin.length} pressings qui ont duré ≥ 1 s`,
+    PMin.length >= 15 && ecart(q(PMin, 0.5), 2.61) <= 0.15,
+    "ÉCHÉANCE étape 4 — le test décisif est revenu PARTAGÉ : la mission à 1,6 s a réparé la durée exactement, le minimum n'a bougé que de 2,0 à 2,1. Le second nombre existe encore");
   /* 6. UNE OPTION EST UN ÉVÉNEMENT COURT. C'est la propriété qui
      distingue la bonne définition de la mauvaise : « un coéquipier à
      portée » reste disponible des dizaines de secondes, une option née

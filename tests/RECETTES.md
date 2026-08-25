@@ -1,13 +1,18 @@
 # Les recettes d'ONZE — le dénominateur
 
-**18 fichiers de recette.** Ce nombre est le dénominateur de « suite complète
+**19 fichiers de recette.** Ce nombre est le dénominateur de « suite complète
 verte » : une livraison le cite, et un écart entre le nombre cité et le nombre sur le
 disque est un **échec de livraison**, pas un détail de rédaction (règle M5).
 
 Deux conversations ont annoncé « 13 suites vertes » et « 14 recettes » le même jour, pour
-15 fichiers réels — puis ce fichier lui-même a dit 15 pendant que le disque en portait
-18. **Le mécanisme a fonctionné : la recette est sortie rouge à la fusion.** C'est
-exactement ce pour quoi elle est écrite, et c'est pour ça qu'on ne la désactive pas.
+15 fichiers réels — puis ce fichier a dit 15 quand le disque en portait 18, puis 18 quand
+il en portait 19. **Le mécanisme a fonctionné les deux fois : la recette est sortie
+rouge à la fusion.** C'est exactement ce pour quoi elle est écrite, et c'est pour ça qu'on
+ne la désactive pas.
+
+**Ce fichier est un inventaire, pas un compteur.** Mettre le nombre à jour sans écrire ce
+que garde la nouvelle recette le transformerait en compteur — précisément ce que la règle
+M5 veut empêcher. Une ligne s'ajoute avec sa raison d'être, ou elle ne s'ajoute pas.
 
 Deux garde-fous, complémentaires :
 
@@ -15,19 +20,20 @@ Deux garde-fous, complémentaires :
   Ajouter un `tests/*.spec.js` suffit à l'inclure ; en oublier un devient impossible.
   C'est le lanceur à utiliser.
 - **`tests/scene.spec.js`** compare le nombre et la liste **publiés ici** au contenu du
-  disque : si ce fichier prend du retard, il sort rouge.
+  disque : si cet inventaire prend du retard, il sort rouge.
 
 | Recette | Ce qu'elle garde |
 |---|---|
 | `tests/accueil.spec.js` | la home : contraste de chaque texte, invite d'installation, matière des composants |
 | `tests/achat.spec.js` | l'achat au tap, l'appui long, la modale de première partie |
 | `tests/da.spec.js` | la direction artistique : luminosité des illustrations, arène, épuration |
-| `tests/drag.spec.js` | le glisser-déposer JOUÉ AU POINTEUR, du pointerdown au pointerup (règle M1) |
+| `tests/drag.spec.js` | le glisser-déposer JOUÉ AU POINTEUR, du pointerdown au pointerup (M1) |
 | `tests/gardien.spec.js` | un seul gardien sur le terrain |
 | `tests/hierarchie.spec.js` | la hiérarchie visuelle : le banc ne dépasse jamais le terrain (P4) |
 | `tests/layout.spec.js` | la mise en page sur cinq écrans, l'échelle des pions, le portrait |
 | `tests/marathon.spec.js` | une partie entière, du premier tour au champion |
 | `tests/matieres.spec.js` | le système de matières : plus aucun aplat |
+| `tests/orbes.spec.js` | la cérémonie de butin : le match rangé AVANT (P2), la taille de l'orbe face à un joueur, sa place hors des colonnes sur 20 tirages — le Math.random() rend le défaut intermittent — et aucune attente muette (P3) |
 | `tests/parcours.spec.js` | le parcours complet du joueur, sans erreur JS |
 | `tests/perf.spec.js` | 60 fps tenus |
 | `tests/portraits.spec.js` | l'intégrité de la table de portraits |
@@ -46,8 +52,27 @@ dans les échecs — sans quoi on ne distinguerait plus une dette connue d'une r
 mais elle s'affiche en rouge et **prévient quand elle devient verte**, pour qu'on la
 promeuve en vraie assertion.
 
-**Une dette porte une échéance.** Un rouge toléré sans date devient du mobilier.
+**Une dette porte une échéance et sa cible chiffrée.** Un rouge toléré sans date devient
+du mobilier.
 
-| Dette | Échéance | Qui en répond |
-|---|---|---|
-| 1 à 3 options de passe ouvertes dans 88 % des cas | **étape 4** | les gabarits de situation : c'est la chorégraphie qui décide aujourd'hui qui touche le ballon et quand |
+| Dette | Mesuré | Cible | Échéance |
+|---|---|---|---|
+| 1 à 3 options de passe ouvertes | 49 % des passes | **88 %** (médiane 2) | étape 4 |
+| Distance minimale d'un pressing | 2,1 m | **2,61 m** (±15 %) | étape 4 |
+
+### La distance minimale du pressing : le second nombre existe encore
+
+Le test décisif est revenu **partagé**, pas unanime. Remettre la mission de pressing à
+1,6 s a réparé la **durée** exactement (2,0 → 1,6, cible 1,6) mais le **minimum** n'a bougé
+que de 2,0 à 2,1 pour une cible de 2,61 : il n'est pas remonté, il a frémi. Il reste à
+**−19,5 %**, autour du 40ᵉ centile réel. Un des deux nombres est trouvé, le second existe
+toujours — il n'est pas classé.
+
+### Deux tableaux qui ne se comparent plus
+
+La population de mesure du **minimum** a changé le 25 août 2026 : elle ne retient plus que
+les pressings **qui ont duré au moins une seconde** (les amorces ne sont pas des pressings
+ratés, ce sont des pressings qui n'ont pas eu lieu). Les chiffres relevés avant ce
+changement ne sont **pas lisibles** contre ceux d'après — notamment la durée « 0,8 s »
+citée dans un tableau antérieur, qui valait 1,6 s sur l'ancienne population. Règle M2 : la
+transformation se déclare à côté du chiffre.
