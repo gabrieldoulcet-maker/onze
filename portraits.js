@@ -22,11 +22,30 @@
    est cherchée d'abord, le nom nu ensuite. Un nom sans variante continue
    de marcher — c'est le cas des 71 du roster.
 
+   TROIS VISUELS POSSIBLES PAR JOUEUR, et deux repères. Les silhouettes
+   passent en vue de TROIS QUARTS ÉLEVÉE (la caméra du terrain est en
+   plongée : une frontale à hauteur d'œil se lit comme un autocollant
+   posé sur la photo). Deux conséquences, prévues ici avant que les
+   images n'arrivent :
+     · « ombre » : l'ombre au sol est un FICHIER À PART, pas un dégradé
+       CSS — elle se redimensionne avec le niveau d'étoiles comme la
+       silhouette, et le dessinateur garde la main sur sa forme ;
+     · « ancrage » : le POINT D'APPUI dans l'image, en parts de sa
+       largeur et de sa hauteur ({ x: 0.5, y: 1 } = les pieds au bas de
+       l'image, centrés). Une silhouette de trois quarts ne pose pas ses
+       pieds au même endroit qu'une silhouette de face : c'est ce point
+       qui est calé sur la ligne de sol, jamais le bord de l'image. Le
+       code n'a donc rien à réapprendre quand les proportions changent.
+   Les deux sont facultatifs : sans « ombre », l'ombre dessinée en CSS
+   reste ; sans « ancrage », on suppose les pieds au bas de l'image.
+
    API :
      ONZE_PORTRAITS.charger(url?)     → Promise (ne rejette jamais)
      ONZE_PORTRAITS.definir(objet)    → injecte une table (tests)
      ONZE_PORTRAITS.carte(fiche|nom)  → chemin ou null
      ONZE_PORTRAITS.frontale(f|nom)   → chemin ou null
+     ONZE_PORTRAITS.ombre(f|nom)      → chemin ou null
+     ONZE_PORTRAITS.ancrage(f|nom)    → { x, y } (défaut : pieds en bas)
      ONZE_PORTRAITS.nombre()          → nombre d'entrées lisibles
    ============================================================ */
 const ONZE_PORTRAITS = (() => {
@@ -47,12 +66,27 @@ const ONZE_PORTRAITS = (() => {
 
   const chemin = (v) => (typeof v === "string" && v.trim() ? v.trim() : null);
 
+  /* Le point d'appui, tel qu'il sera saisi à la main dans la table :
+     { x: 0.52, y: 0.93 } ou [0.52, 0.93]. Tout ce qui n'est pas un couple
+     de nombres entre 0 et 1 retombe sur le défaut — la table s'édite à la
+     main, elle n'a pas à être parfaite pour que le jeu tourne. */
+  const ANCRAGE_DEFAUT = { x: 0.5, y: 1 };
+  const part = (v) => (typeof v === "number" && isFinite(v) && v >= 0 && v <= 1 ? v : null);
+  function lireAncrage(brut) {
+    if (Array.isArray(brut)) brut = { x: brut[0], y: brut[1] };
+    if (!brut || typeof brut !== "object") return null;
+    const x = part(brut.x), y = part(brut.y);
+    if (x === null && y === null) return null;
+    return { x: x === null ? ANCRAGE_DEFAUT.x : x, y: y === null ? ANCRAGE_DEFAUT.y : y };
+  }
+
   function definir(table) {
     index = {};
     if (!table || typeof table !== "object") return 0;
     for (const [nom, entree] of Object.entries(table)) {
       if (!entree || typeof entree !== "object") continue;   // ligne abîmée : ignorée
-      index[normaliser(nom)] = { carte: chemin(entree.carte), frontale: chemin(entree.frontale) };
+      index[normaliser(nom)] = { carte: chemin(entree.carte), frontale: chemin(entree.frontale),
+        ombre: chemin(entree.ombre), ancrage: lireAncrage(entree.ancrage) };
     }
     return Object.keys(index).length;
   }
@@ -87,8 +121,10 @@ const ONZE_PORTRAITS = (() => {
   }
   const carte = (cible) => (entree(cible) || {}).carte || null;
   const frontale = (cible) => (entree(cible) || {}).frontale || null;
+  const ombre = (cible) => (entree(cible) || {}).ombre || null;
+  const ancrage = (cible) => (entree(cible) || {}).ancrage || ANCRAGE_DEFAUT;
   const nombre = () => Object.keys(index).length;
 
-  return { charger, definir, carte, frontale, entree, normaliser, nombre };
+  return { charger, definir, carte, frontale, ombre, ancrage, entree, normaliser, nombre, ANCRAGE_DEFAUT };
 })();
 if (typeof module !== "undefined") module.exports = ONZE_PORTRAITS;

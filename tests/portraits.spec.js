@@ -92,16 +92,45 @@ const identiteDe = (cle) => {
 };
 
 const entrees = Object.entries(table);
+
+/* ---- LES DEUX CHAMPS FACULTATIFS (silhouettes de trois quarts) ----
+   « ombre » : l'ombre au sol servie en fichier à part.
+   « ancrage » : le point d'appui dans l'image, en parts de sa largeur et
+   de sa hauteur — c'est lui qu'on pose sur la ligne de sol.
+   Ils sont facultatifs, mais dès qu'ils sont là ils doivent être justes :
+   un ancrage aberrant ne casse rien à l'écran, il décale silencieusement
+   un joueur, et c'est exactement la classe de défaut que cette recette
+   existe pour rendre impossible. */
+const ombres = entrees.filter(([, v]) => v.ombre);
+const ancrages = entrees.filter(([, v]) => v.ancrage !== undefined);
+const ancrageInvalide = [];
+for (const [cle, v] of ancrages) {
+  const a = Array.isArray(v.ancrage) ? { x: v.ancrage[0], y: v.ancrage[1] } : v.ancrage;
+  const bon = a && typeof a === "object" &&
+    typeof a.x === "number" && a.x >= 0.2 && a.x <= 0.8 &&      // les pieds ne sont pas dans un coin
+    typeof a.y === "number" && a.y >= 0.5 && a.y <= 1;          // ni au-dessus de la ceinture
+  if (!bon) ancrageInvalide.push(`${cle} : ${JSON.stringify(v.ancrage)}`);
+}
+verifier(`les ${ancrages.length} ancrages déclarés sont plausibles (x 0,2-0,8 · y 0,5-1)`,
+  ancrageInvalide.length === 0, ancrageInvalide.slice(0, 5).join(" | "));
+console.log(`   trois quarts : ${ombres.length} ombre(s) en fichier, ${ancrages.length} ancrage(s) déclaré(s)` +
+  (ombres.length === 0 ? " — les visuels de trois quarts ne sont pas encore arrivés, le code les attend" : ""));
 // pas de nombre magique : la table grandit quand Gabriel produit un visuel.
 // Ce qui doit tenir, c'est que chaque entrée soit COMPLÈTE (les deux visuels).
 const incompletes = entrees.filter(([, v]) => !v.carte || !v.frontale).map(([nom]) => nom);
+// les chemins à vérifier : les deux obligatoires + l'ombre quand elle est là
+const cheminsDe = (v) => {
+  const c = { carte: v.carte, frontale: v.frontale };
+  if (v.ombre) c.ombre = v.ombre;
+  return c;
+};
 verifier(`les ${entrees.length} entrées de la table ont leurs deux visuels`,
   incompletes.length === 0, "sans les deux : " + incompletes.join(", "));
 
 // ---- 1. chaque chemin référencé existe sur le disque ----
 const introuvables = [];
 for (const [nom, v] of entrees) {
-  for (const [cle, chemin] of Object.entries(v)) {
+  for (const [cle, chemin] of Object.entries(cheminsDe(v))) {
     if (!fs.existsSync(path.join(racine, chemin))) introuvables.push(`${nom}/${cle} → ${chemin}`);
   }
 }
@@ -111,7 +140,7 @@ verifier("chaque chemin de la table existe sur le disque", introuvables.length =
 const proprietaire = new Map();
 const doublons = [];
 for (const [nom, v] of entrees) {
-  for (const chemin of Object.values(v)) {
+  for (const chemin of Object.values(cheminsDe(v))) {
     if (proprietaire.has(chemin)) doublons.push(`${chemin} : ${proprietaire.get(chemin)} et ${nom}`);
     else proprietaire.set(chemin, nom);
   }
@@ -129,9 +158,9 @@ const identifiantsMeles = [];
 for (const [cle, v] of entrees) {
   const ident = identiteDe(cle);
   const idsDeLEntree = new Set();
-  for (const [type, chemin] of Object.entries(v)) {
+  for (const [type, chemin] of Object.entries(cheminsDe(v))) {
     const fichier = path.basename(chemin).replace(/\.(webp|png|jpg)$/i, "");
-    const m = /^ONZE_([A-Za-z0-9]+)_(.+?)(_frontale)?$/.exec(fichier);
+    const m = /^ONZE_([A-Za-z0-9]+)_(.+?)(_frontale|_ombre)?$/.exec(fichier);
     if (!m) { mauvaisNom.push(`${cle}/${type} : « ${fichier} » hors convention ONZE_<id>_<Nom>`); continue; }
     const [, numero, nomFichier] = m;
     // le NOM doit se reconnaître dans les deux sens (Álvaro ⊂ Don_Álvaro,

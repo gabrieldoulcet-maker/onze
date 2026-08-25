@@ -290,13 +290,34 @@
     }
     .ligne-terrain .jeton.figurine { min-height: 0; flex: 0 0 auto; }
     .jeton.figurine .frontale {
-      position: absolute; left: 50%; transform: translateX(-50%);
+      position: absolute; left: 50%;
+      /* LE POINT D'APPUI SUR LA LIGNE DE SOL. Les pourcentages d'une
+         translation se comptent sur l'élément lui-même : décaler de
+         (1 − ancrage-y) de sa hauteur revient exactement à poser le point
+         d'appui de l'image là où le bas de l'image se posait avant. Une
+         silhouette de trois quarts, ou recadrée autrement, garde donc les
+         pieds au même endroit — il suffit de déclarer son ancrage. */
+      transform: translate(calc(var(--ancrage-x, 0.5) * -100%),
+        calc((1 - var(--ancrage-y, 1)) * 100%));
       height: var(--h-figurine, 82%);   /* la TAILLE dit le niveau d'étoiles */
       bottom: var(--sol, 2px);          /* la LIGNE DE SOL ne bouge jamais */
       width: auto; max-width: none; object-fit: contain; object-position: bottom center;
       pointer-events: none; z-index: 1;
       filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.55));
     }
+    /* L'OMBRE AU SOL SERVIE EN FICHIER : elle se cale sur le même point
+       d'appui et grandit avec la silhouette (donc avec les étoiles). Sa
+       largeur est une part de la HAUTEUR de la figurine, pas de la boîte :
+       c'est ce qui la garde juste quand la boîte change. */
+    .jeton.figurine .ombre-sol {
+      position: absolute; left: 50%; bottom: var(--sol, 2px);
+      width: calc(var(--h-figurine, 40px) * var(--ratio-ombre, 0.95));
+      height: auto; transform: translate(-50%, 50%);
+      pointer-events: none; z-index: 0; opacity: var(--opacite-ombre, 0.9);
+    }
+    /* dès qu'une ombre de fichier est là, l'ombre DESSINÉE s'efface :
+       jamais les deux, sinon le joueur porte deux ombres */
+    .jeton.figurine.avec-ombre::before { content: none; }
     /* la SILHOUETTE NEUTRE : même gabarit, même ligne de sol qu'une
        illustration — teintée du poste pour qu'elle reste informative */
     .jeton.figurine .frontale.silhouette {
@@ -3185,8 +3206,25 @@
           ? `<img class="frontale" src="${frontale}" alt="" loading="lazy" decoding="async"
                onerror="this.closest('.jeton').classList.add('sans-portrait'); this.remove()">`
           : SILHOUETTE_NEUTRE;
-        return `<div ${ouverture(` figurine ${decor}${frontale ? "" : " sans-portrait"}${etoiles >= 3 ? " legende" : ""}`)}
-          aria-label="${fiche.nom}, ${poste}${etoiles > 1 ? ", " + etoiles + " étoiles" : ""}">${corps}</div>`;
+        /* L'OMBRE AU SOL EN FICHIER (silhouettes de trois quarts) : quand
+           la table en fournit une, c'est elle qui pose le joueur, et
+           l'ombre dessinée en CSS s'efface. Elle grandit avec la
+           silhouette, donc avec le niveau d'étoiles. Si le fichier
+           manque à l'appel, on retombe sur l'ombre dessinée sans qu'il
+           n'arrive rien. */
+        const ombre = frontale ? ONZE_PORTRAITS.ombre(fiche) : null;
+        const solOmbre = ombre
+          ? `<img class="ombre-sol" src="${ombre}" alt="" aria-hidden="true" loading="lazy" decoding="async"
+               onerror="this.closest('.jeton').classList.remove('avec-ombre'); this.remove()">`
+          : "";
+        /* LE POINT D'APPUI : c'est lui qu'on cale sur la ligne de sol, pas
+           le bas de l'image. Une silhouette de trois quarts, ou recadrée
+           autrement, garde donc les pieds au même endroit. */
+        const ancrage = frontale ? ONZE_PORTRAITS.ancrage(fiche) : ONZE_PORTRAITS.ANCRAGE_DEFAUT;
+        const repere = ` style="--ancrage-x:${ancrage.x};--ancrage-y:${ancrage.y}"`;
+        return `<div ${ouverture(` figurine ${decor}${frontale ? "" : " sans-portrait"}` +
+          `${ombre ? " avec-ombre" : ""}${etoiles >= 3 ? " legende" : ""}`)}${repere}
+          aria-label="${fiche.nom}, ${poste}${etoiles > 1 ? ", " + etoiles + " étoiles" : ""}">${solOmbre}${corps}</div>`;
       }
       return `<div ${ouverture()}>
         <span class="nom-jeton">${fiche.nom}</span>
@@ -3239,7 +3277,11 @@
       // sol ne bouge pas, le joueur grandit vers le haut ; le 3★ allume en
       // plus le sol en or (l'or reste réservé au légendaire)
       etoiles: { 1: 1, 2: 1.18, 3: 1.38 },
-      ombre: { terrain: "72%", banc: "70%", hauteurBanc: 0.42, solBanc: 0.18 },
+      /* ombre.fichier : la largeur d'une ombre SERVIE EN FICHIER, en part
+         de la hauteur de la silhouette — elle suit donc le niveau
+         d'étoiles sans réglage supplémentaire. Les autres valeurs pilotent
+         l'ombre dessinée, qui reste le repli. */
+      ombre: { terrain: "72%", banc: "70%", hauteurBanc: 0.42, solBanc: 0.18, fichier: 0.95, opacite: 0.9 },
     };
     const TAILLE_ETOILE = ECHELLE.etoiles;
     const facteurEtoile = (f) => TAILLE_ETOILE[Math.min(3, (f && f.etoiles) || 1)] || 1;
@@ -3291,6 +3333,9 @@
       const terrain = el("terrain-scene");
       terrain.style.height = Math.max(40, hautBanc - 2) + "px";
 
+      // les réglages d'ombre-fichier, posés une fois sur le plateau
+      plateau.style.setProperty("--ratio-ombre", ECHELLE.ombre.fichier);
+      plateau.style.setProperty("--opacite-ombre", ECHELLE.ombre.opacite);
       // la marge du haut : sous le bandeau flottant, avec un filet d'air
       const margeHaut = (haut ? haut.offsetHeight : 26) + 4;
       // ---- les 4 lignes de jeu, projetées dans le terrain peint ----
