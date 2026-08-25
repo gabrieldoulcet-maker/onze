@@ -105,6 +105,12 @@
     /* le chrono n'est pas une action : vert DÉSATURÉ (phase 4) */
     .chrono-barre > div { height: 100%; width: 100%; background: var(--vert-bordure); border-radius: 2px; transition: width 0.2s linear; }
     .chrono-barre.urgent > div { background: var(--alerte); animation: pulseUrgent 0.5s ease infinite; }
+    .chrono-libelle {
+      font-size: 0.46rem; font-weight: 700; letter-spacing: 0.04em;
+      color: var(--craie-sourde); text-transform: lowercase; line-height: 1;
+    }
+    .chrono-libelle.masque { display: none; }
+    .chrono-barre.urgent + .chrono-libelle { color: var(--alerte-claire); }
     @keyframes pulseUrgent { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
     .pastille-manche {
       position: relative; cursor: pointer; text-align: center;
@@ -166,10 +172,19 @@
     /* UN NOM NE SE COUPE PAS. Il rétrécit en police, et passe à la ligne
        s'il le faut — jamais d'ellipse : « Royal To… » ne dit pas quel
        club c'est. La police suit la largeur réelle de la colonne. */
+    /* UN NOM TIENT SUR UNE LIGNE, sans jamais être coupé. Deux raisons de
+       ne pas le laisser passer à la ligne : « La Masia Rebelle » cassait
+       en deux avec son icône orpheline en fin de première ligne, et un
+       classement de huit clubs ne tenait plus dans sa colonne — les deux
+       derniers devenaient invisibles. La police suit donc la largeur de la
+       colonne (`cqw`), avec un plancher assez bas pour le nom le plus
+       long. L'ellipse reste interdite : elle ne dirait pas quel club c'est. */
+    #app.scene-pleine .col-classement,
+    #app.scene-pleine .col-synergies { container-type: inline-size; }
     #app.scene-pleine .col-classement .coach-ligne,
     #app.scene-pleine .col-synergies .badge {
-      font-size: clamp(0.46rem, 1.15vw, 0.6rem); line-height: 1.25;
-      white-space: normal; overflow-wrap: anywhere; text-overflow: clip;
+      font-size: clamp(0.40rem, 8.2cqw, 0.6rem); line-height: 1.15;
+      white-space: nowrap; overflow: visible; text-overflow: clip;
     }
     #app.scene-pleine .col-synergies > *,
     #app.scene-pleine .col-classement > * { pointer-events: auto; }
@@ -201,10 +216,23 @@
     }
     #app.scene-pleine .col-classement > div:first-child::-webkit-scrollbar { width: 0; }
     #app.scene-pleine .col-classement .principal { flex: 0 0 auto; }
-    #app.scene-pleine .col-classement .coach-ligne { padding: 2px 6px; }
+    /* LES HUIT CLUBS TIENNENT DANS LA COLONNE. Ils débordaient : la liste
+       défilait, donc les deux derniers étaient simplement invisibles — et
+       un classement qu'on ne voit pas en entier n'est pas un classement.
+       Les lignes se resserrent jusqu'à ce que huit entrent dans la
+       hauteur disponible ; la recette le vérifie, elle ne le suppose pas. */
+    #app.scene-pleine .col-classement { gap: 2px; }
+    #app.scene-pleine .col-classement > div:first-child { gap: 2px; }
+    #app.scene-pleine .col-classement .coach-ligne {
+      padding: 1px 5px; line-height: 1.15;
+    }
+    #app.scene-pleine .col-classement .barre-prestige { height: 3px; margin-top: 1px; }
     /* le bouton de manche reste l'action principale : il flotte en bas à droite */
-    #app.scene-pleine .col-classement .principal {
-      margin-top: auto; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6), 0 0 22px rgba(61, 226, 107, 0.28);
+    /* Dans la bande basse, l'action principale garde sa lueur mais prend
+       le gabarit des boutons voisins. */
+    .bloc-droite .principal {
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      box-shadow: var(--arete-haute), var(--elev-pose), 0 0 16px rgba(61, 226, 107, 0.30);
     }
     /* les deux chips du haut de colonne (légende, bascule staff) : plus
        petites, en verre, elles ouvrent des volets escamotables */
@@ -336,6 +364,21 @@
        elles sont parties, et pouvoir les rappeler. */
     #app.scene-pleine .col-synergies,
     #app.scene-pleine .col-classement { transition: transform 0.28s ease; }
+    /* HORS CADRE, pour de bon : `translateX(-100%)` sort la colonne de sa
+       propre largeur, mais elle commence au bord gauche de l'écran — donc
+       elle en sortait bien. Ce qui restait lisible, c'étaient les
+       PASTILLES qui débordent d'elle (les infobulles, les badges plus
+       larges que la colonne). On masque donc le débordement pendant le
+       retrait, et on coupe les événements pour qu'aucune ne se dessine
+       par-dessus la scène. */
+    #app.scene-pleine.match-en-scene .col-synergies,
+    #app.scene-pleine.match-en-scene .col-classement {
+      overflow: hidden; pointer-events: none; visibility: hidden;
+    }
+    #app.scene-pleine.match-en-scene.colonnes-rappelees .col-synergies,
+    #app.scene-pleine.match-en-scene.colonnes-rappelees .col-classement {
+      overflow-y: auto; pointer-events: none; visibility: visible;
+    }
     #app.scene-pleine.match-en-scene .col-synergies { transform: translateX(calc(-100% - 8px)); }
     #app.scene-pleine.match-en-scene .col-classement { transform: translateX(calc(100% + 8px)); }
     #app.scene-pleine.match-en-scene.colonnes-rappelees .col-synergies,
@@ -415,20 +458,25 @@
     .plateau.terrain-peint .case-vide {
       border: none; background: none; box-shadow: none; color: transparent;
     }
-    .plateau.terrain-peint .case-vide::before {
+    /* UNE PLACE VERROUILLÉE N'EST PAS UN EMPLACEMENT LIBRE. Sans le
+       `:not()`, l'ovale de sol se peignait aussi sous les places qu'on ne
+       peut pas encore débloquer : sur une équipe complète (5/5), deux
+       taches sombres sur la pelouse dessinaient l'ombre d'un joueur qu'on
+       ne peut pas recruter. */
+    .plateau.terrain-peint .case-vide:not(.verrouillee)::before {
       content: ""; position: absolute; left: 50%; bottom: 0;
       width: var(--l-repere, 18px); height: var(--h-repere, 6px);
       transform: translateX(-50%); border-radius: 50%;
       background: radial-gradient(ellipse at center,
         rgba(0, 0, 0, 0.50) 0%, rgba(0, 0, 0, 0.28) 55%, rgba(0, 0, 0, 0) 78%);
     }
-    .plateau.terrain-peint.decor-clair .case-vide::before {
+    .plateau.terrain-peint.decor-clair .case-vide:not(.verrouillee)::before {
       background: radial-gradient(ellipse at center,
         rgba(0, 0, 0, 0.38) 0%, rgba(0, 0, 0, 0.18) 55%, rgba(0, 0, 0, 0) 78%);
     }
     /* elle ne s'ALLUME que quand elle est une cible possible — pendant un
        glisser, et à ce moment-là seulement */
-    .plateau.terrain-peint .ligne-terrain.cible .case-vide::before {
+    .plateau.terrain-peint .ligne-terrain.cible .case-vide:not(.verrouillee)::before {
       background: radial-gradient(ellipse at center,
         rgba(61, 226, 107, 0.55) 0%, rgba(61, 226, 107, 0.22) 60%, rgba(61, 226, 107, 0) 80%);
       box-shadow: 0 0 0 1.5px var(--gazon-electrique), 0 0 12px rgba(61, 226, 107, 0.5);
@@ -727,6 +775,9 @@
       box-shadow: var(--arete-haute-forte), var(--elev-pose), 0 0 14px rgba(242, 193, 78, 0.35);
     }
     .medaillon-or .piece {
+      /* le jeton reste une pièce, mais il s'écarte du chiffre : collé, il
+         formait « M 0 M » et se lisait « Man of the Match » */
+      margin-right: 3px;
       width: 16px; height: 16px; border-radius: 50%; background: var(--orbe-or);
       color: #1A1405; font-size: 0.58rem; font-weight: 800;
       display: flex; align-items: center; justify-content: center;
@@ -773,7 +824,15 @@
     .bloc-xp button:disabled, .bloc-droite button:disabled { box-shadow: var(--creux-ombre); transform: none; }
     .bloc-xp button { flex: 1; }
     .bloc-xp button:disabled, .bloc-droite button:disabled { color: #5F7A64; }
-    .bloc-droite { flex: 0 0 46px; display: flex; flex-direction: column; gap: 4px; }
+    /* DEUX COLONNES, PAS QUATRE ÉTAGES. En accueillant l'action principale
+       (qui vivait dans la colonne de classement et en recouvrait les deux
+       derniers clubs), ce bloc passait à quatre boutons empilés : la barre
+       de boutique gagnait 54 px et les reprenait au terrain. Une grille
+       2 × 2 les loge à hauteur constante. */
+    .bloc-droite {
+      flex: 0 0 84px; display: grid; gap: 3px;
+      grid-template-columns: repeat(2, 40px); align-content: start;
+    }
     .bloc-droite button { flex: 1; font-size: 0.72rem; }
     .rangee-boutique { flex: 1; display: flex; gap: 5px; overflow-x: auto; overflow-y: visible; padding-top: 7px; }
     /* ---- LA CARTE BLASON (DA S1, Lot 3 · 1a) ----
@@ -904,7 +963,10 @@
       /* « Le Douzième Homme » se faisait couper sur un petit téléphone :
          le nom d'École rétrécit avec la carte plutôt que de disparaître
          dans une ellipse — c'est lui qui dit la synergie. */
-      padding: 1px 6px 1px 1px; font-size: clamp(0.38rem, 3.6cqw, 0.46rem); font-weight: 700;
+      /* le plancher descend avec la largeur des cartes : le bloc de boutons
+         de la bande basse leur a repris quelques pixels en accueillant
+         l'action principale, et « Le Douzième Homme » ne tenait plus */
+      padding: 1px 6px 1px 1px; font-size: clamp(0.34rem, 3.6cqw, 0.46rem); font-weight: 700;
       color: #FFFFFF; line-height: 1.25;
     }
     .carte-boutique { container-type: inline-size; }
@@ -1013,7 +1075,15 @@
     .fleche-vestiaire { flex: 0 0 34px; background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
       border-radius: 7px; font-size: 0.9rem; padding: 6px 0; cursor: pointer; }
     .tag-visite { font-size: 0.6rem; color: var(--or-trophee); font-weight: 700; vertical-align: middle; }
-    .fiche-joueur .retour-fixe { position: sticky; bottom: 0; background: #24425E; color: #9CC4EF; }
+    /* LE RETOUR NE COUVRE PLUS LE CONTENU. En `sticky` il flottait sur la
+       fiche pendant le défilement — on lisait « Physique » et « Mental »
+       DERRIÈRE lui. Et son bleu saturé ne venait d'aucune palette du jeu.
+       Il reprend sa place dans le flux, avec les couleurs du chrome. */
+    .fiche-joueur .retour-fixe {
+      position: static; background: var(--verre-fond); color: var(--craie-claire);
+      border: var(--verre-bord); box-shadow: var(--arete-haute), var(--elev-pose);
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
     .bandeau-scouting { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; margin: 6px 0; }
     .bandeau-scouting button { background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
       border-radius: 6px; font-size: 0.62rem; padding: 3px 7px; cursor: pointer; }
@@ -1170,7 +1240,13 @@
       <span id="serie">—</span> · <svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-staff"></use></svg> <span id="staff">0</span> · <span style="color:var(--alerte-claire)"><svg class="ic-sys" width="12" height="12" viewBox="0 0 48 48"><use href="#is-flamme"></use></svg></span> <span id="ferveur">0</span><span class="masque" id="manche">1</span></span>
     <div class="progression">
       <div class="rangee-pastilles" id="progression"></div>
-      <div class="chrono-barre masque" id="chrono-barre"><div id="chrono-remplissage"></div></div>
+      <!-- Une barre qui ne dit pas ce qu'elle mesure ne mesure rien pour le
+           joueur : elle porte maintenant son nom et son décompte. -->
+      <div class="chrono-barre masque" id="chrono-barre" role="timer"
+           aria-label="Temps de mercato restant avant la prochaine manche">
+        <div id="chrono-remplissage"></div>
+      </div>
+      <small class="chrono-libelle masque" id="chrono-libelle">mercato · <span id="chrono-secondes">0</span> s</small>
     </div>
     <button id="btn-calepin" aria-label="Le calepin du recruteur"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-calepin"></use></svg></button>
     <button id="btn-plein-ecran" aria-label="Plein écran"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-plein-ecran"></use></svg></button>
@@ -1227,14 +1303,16 @@
     </div>
     <div class="col-classement" id="col-classement">
       <div id="classement-liste"></div>
-      <button class="principal" id="btn-match" aria-label="Lancer le match"><svg class="ic-sys" width="20" height="20" viewBox="0 0 48 48"><use href="#is-ballon"></use></svg></button>
     </div>
   </div>
 
   <!-- ===== Barre boutique du bas (copie TFT) ===== -->
   <div class="boutique-barre" id="boutique-barre" style="position:relative">
     <div class="zone-vente" id="zone-vente"></div>
-    <div class="medaillon-or" id="medaillon-or"><span class="piece">M</span><span id="or">0</span>M</div>
+    <!-- « M » + « 0 » + « M » se lisait « M O M », soit Man of the Match.
+         Le jeton porte donc le montant lui-même, et l'unité reste une
+         seule fois, collée au chiffre. -->
+    <div class="medaillon-or" id="medaillon-or" aria-label="Or disponible"><span class="piece">M</span><span><span id="or">0</span> M</span></div>
     <div class="bloc-xp">
       <div class="niveau-affiche">NIV <span id="niveau-boutique">3</span> <small><span id="xp-boutique">0/6</span></small></div>
       <div class="xp-jauge"><div id="xp-jauge-remplissage" style="width:0%"></div></div>
@@ -1243,6 +1321,12 @@
     </div>
     <div class="rangee-boutique" id="boutique"></div>
     <div class="bloc-droite">
+      <!-- L'ACTION PRINCIPALE VIT DANS LA BANDE BASSE (décision 64 · P1).
+           Posée au bas de la colonne de classement, elle en recouvrait les
+           deux derniers clubs — et huit clubs ne tenaient de toute façon
+           pas dans la hauteur restante. Elle rejoint les autres boutons
+           d'action ; le classement récupère sa colonne entière. -->
+      <button class="principal" id="btn-match" aria-label="Lancer le match"><svg class="ic-sys" width="18" height="18" viewBox="0 0 48 48"><use href="#is-ballon"></use></svg></button>
       <button id="btn-refresh" aria-label="Relancer la boutique (2M)"><svg class="ic-sys" width="15" height="15" viewBox="0 0 48 48"><use href="#is-refresh"></use></svg><br>2M</button>
       <button class="btn-verrou-carte" id="btn-verrou" aria-label="Verrouiller la boutique"><svg class="ic-sys" width="16" height="16" viewBox="0 0 48 48"><use href="#is-cadenas-ouvert"></use></svg></button>
       <button class="btn-sac" id="btn-sac" title="Replier / déplier la boutique" aria-label="Replier ou déplier la boutique"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-piece"></use></svg></button>
@@ -1888,9 +1972,40 @@
     /* Le ramassage façon TFT : les orbes tombent sur le terrain, puis se
        ramassent toutes seules l'une après l'autre — chaque contenu passe
        en petite bannière. `apresButin` enchaîne (le bilan de manche). */
+    /* LA CÉRÉMONIE ATTEND QUE L'ÉCRAN SOIT REVENU (décision 64 · P2).
+       Le calcul de la bande libre était juste, et une orbe tombait quand
+       même sur le classement. Mesuré : au moment du tirage les colonnes
+       sont encore à x = −88 et x = 852 (rétractées pour le match), et
+       elles reviennent à 0 et 764 une seconde plus tard — leur transition
+       dure 0,28 s. Le tirage voyait donc un écran large, et les colonnes
+       retombaient par-dessus. On laisse la scène se ranger POUR DE BON
+       avant de faire tomber quoi que ce soit. */
+    const RETOUR_COLONNES = 340;   // la transition (280 ms) plus un filet
+    /* La file des annonces de butin : une seule à l'écran à la fois. */
+    const fileButin = { attente: [], enCours: false };
+    function annoncerButin(banc, html, rarete) {
+      fileButin.attente.push({ html, rarete });
+      if (fileButin.enCours) return;
+      const suivante = () => {
+        const item = fileButin.attente.shift();
+        if (!item) { fileButin.enCours = false; return; }
+        fileButin.enCours = true;
+        banc.innerHTML = "";
+        const b = document.createElement("div");
+        b.className = "banniere-orbe " + item.rarete;
+        b.innerHTML = item.html;
+        banc.appendChild(b);
+        setTimeout(() => { b.remove(); suivante(); }, 1300);
+      };
+      suivante();
+    }
     function ramasserOrbes(apresButin) {
       const orbes = partie.orbesEnAttente;
       if (!orbes.length) return apresButin();
+      const enScene = el("app").classList.contains("match-en-scene");
+      if (enScene || (el("couche-match") && !el("couche-match").classList.contains("masque"))) {
+        return setTimeout(() => ramasserOrbes(apresButin), RETOUR_COLONNES);
+      }
       /* LE VOILE SE VOIT, ET UN TAP L'ACCÉLÈRE (décision 64 · P3).
          C'était un rectangle plein écran TOTALEMENT TRANSPARENT qui
          avalait les touches 900 + n × 900 ms — 2 700 ms en coupe. Un
@@ -1917,10 +2032,22 @@
          totalement — et comme il y a un `Math.random()`, le défaut était
          INTERMITTENT, donc invisible pour qui teste trois fois. */
       const rt = terrain.getBoundingClientRect();
-      const bord = (sel) => { const e = document.querySelector(sel); if (!e) return null;
+      /* LA POSITION DE MISE EN PAGE, pas la position animée. Une colonne
+         qui revient de son retrait est en pleine transition : son
+         `getBoundingClientRect()` rend une position INTERMÉDIAIRE, et la
+         bande calculée dessus laisse tomber une orbe là où la colonne
+         finira. On lit donc `offsetLeft`, que le `transform` n'affecte
+         pas — c'est la place que la colonne OCCUPERA. */
+      const bord = (sel) => {
+        const e = document.querySelector(sel);
+        if (!e) return null;
         const st = getComputedStyle(e);
-        if (st.display === "none" || st.visibility === "hidden") return null;
-        const q = e.getBoundingClientRect(); return q.width > 1 ? q : null; };
+        if (st.display === "none" || !e.offsetWidth) return null;
+        const parent = e.offsetParent || document.body;
+        const rp = parent.getBoundingClientRect();
+        const gauche = rp.left + e.offsetLeft;
+        return { left: gauche, right: gauche + e.offsetWidth, width: e.offsetWidth };
+      };
       const cg = bord(".col-synergies"), cd = bord(".col-classement");
       const marge = diametre / 2 + 4;
       const xMin = Math.max(0, (cg ? cg.right - rt.left : 0) + marge);
@@ -1950,11 +2077,12 @@
         pastilles[i].classList.add("ramassee");
         setTimeout(() => pastilles[i].remove(), 450);
         ONZE_JUICE.jouer("achat");
-        const banniere = document.createElement("div");
-        banniere.className = "banniere-orbe " + orbe.rarete;
-        banniere.innerHTML = resoudreOrbe(orbe);
-        banc.appendChild(banniere);
-        setTimeout(() => banniere.remove(), 3600);
+        /* UNE FILE, PAS UNE PILE (décision 64 · P1 et P2). Les bannières
+           duraient 3 600 ms pour une cadence de 900 : jusqu'à quatre se
+           chevauchaient, chacune posée sur la précédente, avec les icônes
+           orphelines des lignes coupées. Elles passent maintenant l'une
+           APRÈS l'autre — celle qui arrive chasse celle qui part. */
+        annoncerButin(banc, resoudreOrbe(orbe), orbe.rarete);
         afficher();
         tutoNotifier("orbe");
       };
@@ -2174,6 +2302,17 @@
         el("app").classList.remove("colonnes-rappelees");
         el("onglet-gauche").classList.remove("masque");
         el("onglet-droite").classList.remove("masque");
+        /* ET LA BOUTIQUE SE REPLIE. Mesuré sur 390 px de haut pendant un
+           match : bandeau 45, scène 173, banc 55, barre de boutique 117 —
+           la plus grande chose à l'écran était une barre noire et vide.
+           La scène n'avait que 44 % du cadre. Le mécanisme existait déjà
+           (`.boutique-barre.repliee`, décision 19) : on s'en sert, un tap
+           sur le sac la rouvre, et elle revient d'elle-même au coup de
+           sifflet. */
+        if (!el("boutique-barre").classList.contains("repliee")) {
+          el("boutique-barre").classList.add("repliee", "repliee-par-le-match");
+          el("btn-sac").textContent = "👜";
+        }
         el("recit").classList.add("replie");
       }
       el("bandeau-recit").innerHTML = "";
@@ -2425,6 +2564,12 @@
       el("app").classList.remove("match-en-scene", "colonnes-rappelees");
       el("onglet-gauche").classList.add("masque");
       el("onglet-droite").classList.add("masque");
+      // la boutique ne se rouvre que si c'est LE MATCH qui l'avait repliée :
+      // un joueur qui l'avait rangée lui-même la retrouve rangée
+      if (el("boutique-barre").classList.contains("repliee-par-le-match")) {
+        el("boutique-barre").classList.remove("repliee", "repliee-par-le-match");
+        el("btn-sac").textContent = "🪙";
+      }
     }
 
     /* UN MOMENT, UN ÉCRAN (décision 64 · P2). Le rangement VISUEL du match
@@ -2952,6 +3097,8 @@
       if (etape.cible && el(etape.cible)) el(etape.cible).classList.add("tuto-cible");
       const bulle = document.createElement("div");
       bulle.className = "bulle-tuto " + etape.position;
+      // une infobulle n'a rien à dire par-dessus un match en cours
+      if (partie && partie.matchEnCours && sceneMatch) return;
       bulle.innerHTML = `<div>${etape.texte}</div>
         <div style="margin-top:6px;display:flex;gap:6px;justify-content:center">
           ${etape.attend === "ok" ? `<button class="tuto-ok">OK !</button>` : ""}
@@ -3081,7 +3228,10 @@
             const classe = valeur === maxAxe && maxAxe > minAxe ? "forte" : valeur === minAxe && maxAxe > minAxe ? "faible" : "";
             return `<div class="axe"><span class="nom-axe">${axe}</span><span class="barre-axe"><div class="${classe}" style="width:${valeur}%"></div></span><span class="valeur-axe">${valeur}</span></div>`;
           }).join("")}</div>
-          <button class="fermer retour-fixe">🔙 Retour à mon club</button>
+          <!-- 🔙 est l'emoji « BACK arrow » : il DESSINE le mot BACK, d'où le
+               libellé fantôme sous le texte français. On prend l'icône
+               système, comme partout ailleurs dans le chrome. -->
+          <button class="fermer retour-fixe"><span aria-hidden="true">←</span> Retour à mon club</button>
         </div>`;
         marquerVisite();
       };
@@ -3534,11 +3684,14 @@
       if (modeDetente) return;
       chrono.restant = secondes; chrono.total = secondes; chrono.action = action; chrono.dernierBip = -1;
       el("chrono-barre").classList.remove("masque", "urgent");
+      el("chrono-libelle").classList.remove("masque");
+      el("chrono-secondes").textContent = Math.ceil(secondes);
       chrono.intervalle = setInterval(() => {
         if (document.hidden) return; // l'arrière-plan met en pause
         chrono.restant -= 0.2;
         const part = Math.max(0, chrono.restant / chrono.total);
         el("chrono-remplissage").style.width = (part * 100) + "%";
+        el("chrono-secondes").textContent = Math.max(0, Math.ceil(chrono.restant));
         if (chrono.restant <= 5) {
           el("chrono-barre").classList.add("urgent");
           const seconde = Math.ceil(chrono.restant);
@@ -3556,6 +3709,7 @@
       chrono.intervalle = null; chrono.action = null;
       el("chrono-barre").classList.add("masque");
       el("chrono-barre").classList.remove("urgent");
+      el("chrono-libelle").classList.add("masque");
     }
     /* Le chrono de mercato ne part que si aucun écran d'événement n'est ouvert */
     function lancerChronoMercato() {
@@ -3664,7 +3818,16 @@
          l'écran ». Ici c'est le bon drapeau (on ne veut pas de figurines
          tant que le bilan n'est pas fermé) ; pour « la scène est rendue »,
          c'est l'existence de `sceneMatch` qu'il faut regarder. */
-      if (!partie.matchEnCours) {
+      /* ET C'EST BIEN `sceneMatch` QU'IL FAUT REGARDER, pas le drapeau —
+         la décision 55 le disait, et voilà le cas qui le prouve. Depuis
+         que le match se range AVANT la cérémonie de butin (décision 64 ·
+         P2), `matchEnCours` vaut encore true pendant que la scène n'existe
+         plus : les joueurs redevenaient des cartes-jetons — rectangles
+         sombres avec nom, badge de poste et note — au milieu des orbes.
+         Un seul chemin de rendu hors match (décision 39) veut dire : hors
+         SCÈNE, pas hors drapeau. */
+      const sceneAlEcran = partie.matchEnCours && !!sceneMatch;
+      if (!sceneAlEcran) {
         const frontale = ONZE_PORTRAITS.frontale(fiche);   // la fiche, pas le nom : elle porte la variante d'École
         /* PLUS AUCUN HABILLAGE (brief habillage v2) : ni cadre, ni nom, ni
            étoiles, ni pastille. Sur le gazon il ne reste que la silhouette
@@ -3868,7 +4031,7 @@
 
       /* La plus petite figurine du TERRAIN, accumulée pendant la passe des
          quatre lignes : c'est elle qui plafonnera le banc, plus bas. */
-      let plusPetitTerrain = 0;
+      const hauteursTerrain = [];
 
       // les réglages d'ombre-fichier, posés une fois sur le plateau
       plateau.style.setProperty("--ratio-ombre", ECHELLE.ombre.fichier);
@@ -3955,8 +4118,8 @@
           c.style.minHeight = "0";
           const hFigurine = base * facteurEtoile(fiche);
           c.style.setProperty("--h-figurine", hFigurine + "px");
-          // la plus petite figurine du terrain : elle fixera le plafond du banc
-          if (!vide && (plusPetitTerrain === 0 || hFigurine < plusPetitTerrain)) plusPetitTerrain = hFigurine;
+          // les hauteurs du terrain : elles encadreront celle du banc
+          if (!vide) hauteursTerrain.push(hFigurine);
           c.style.setProperty("--sol", "0px");                 // ligne de sol commune
           c.style.setProperty("--l-ombre", ECHELLE.ombre.terrain);
           c.style.setProperty("--h-ombre", Math.max(4, base * 0.16) + "px");
@@ -3992,10 +4155,25 @@
          fixe. Le plancher de lisibilité reste prioritaire — on préfère
          un banc lisible à une hiérarchie parfaite sur un écran minuscule,
          et la recette le dit. */
-      const plafondBanc = plusPetitTerrain > 0
-        ? Math.min(ECHELLE.banc.max, plusPetitTerrain / ECHELLE.etoiles[3])
+      /* UN ENCADREMENT, PAS UN PLAFOND SEUL (décision 64 · P4, corrigée).
+         Plafonner le banc sur la PLUS PETITE figurine du terrain l'a rendu
+         minuscule : la plus petite est celle du FOND, et le banc est au
+         PREMIER PLAN — il héritait d'une taille d'arrière-plan alors qu'il
+         est devant. Il est donc borné des deux côtés : jamais plus grand
+         que la plus GRANDE figurine du terrain, jamais plus petit que la
+         MÉDIANE. */
+      hauteursTerrain.sort((a, b) => a - b);
+      const medianeTerrain = hauteursTerrain.length
+        ? hauteursTerrain[hauteursTerrain.length >> 1] : 0;
+      const plusGrandTerrain = hauteursTerrain.length
+        ? hauteursTerrain[hauteursTerrain.length - 1] : 0;
+      const plafondBanc = plusGrandTerrain > 0
+        ? Math.min(ECHELLE.banc.max, plusGrandTerrain / ECHELLE.etoiles[3])
         : ECHELLE.banc.max;
-      const baseBanc = Math.max(ECHELLE.banc.minLisible,
+      const plancherBanc = medianeTerrain > 0
+        ? Math.max(ECHELLE.banc.minLisible, medianeTerrain / ECHELLE.etoiles[3])
+        : ECHELLE.banc.minLisible;
+      const baseBanc = Math.max(Math.min(plancherBanc, plafondBanc),
         Math.min(plafondBanc, (largeurs[largeurs.length >> 1] || 34) * ECHELLE.banc.part));
       places.forEach((c, n) => {
         /* Plus de joueurs que de mats peints ne devrait jamais arriver
@@ -4798,7 +4976,10 @@
         el("odds-affiche").addEventListener("click", ouvrirStatsBoutique);
         el("btn-sac").addEventListener("click", () => {
           const replie = el("boutique-barre").classList.toggle("repliee");
+          // dès que le joueur y touche, c'est lui qui commande
+          el("boutique-barre").classList.remove("repliee-par-le-match");
           el("btn-sac").textContent = replie ? "👜" : "🪙";
+          if (typeof disposerPlateau === "function") disposerPlateau();
         });
         // Le journal complet du match, replié derrière 📜 pendant la scène
         el("btn-journal").addEventListener("click", () => el("recit").classList.toggle("replie"));
