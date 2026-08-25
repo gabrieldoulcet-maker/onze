@@ -1,22 +1,30 @@
 # Les recettes d'ONZE — le dénominateur
 
-**15 fichiers de recette.** Ce nombre est le dénominateur de « suite complète
+**18 fichiers de recette.** Ce nombre est le dénominateur de « suite complète
 verte » : une livraison le cite, et un écart entre le nombre cité et le nombre sur le
 disque est un **échec de livraison**, pas un détail de rédaction (règle M5).
 
 Deux conversations ont annoncé « 13 suites vertes » et « 14 recettes » le même jour, pour
-15 fichiers réels. Tant que le dénominateur bouge, « tout est vert » n'est pas
-vérifiable.
+15 fichiers réels — puis ce fichier lui-même a dit 15 pendant que le disque en portait
+18. **Le mécanisme a fonctionné : la recette est sortie rouge à la fusion.** C'est
+exactement ce pour quoi elle est écrite, et c'est pour ça qu'on ne la désactive pas.
 
-La liste fait foi et se vérifie toute seule : `tests/scene.spec.js` compare ce nombre au
-contenu du dossier et sort rouge s'ils divergent.
+Deux garde-fous, complémentaires :
+
+- **`tests/lancer-tout.js`** lit la liste **sur le disque** et annonce N/N avec le détail.
+  Ajouter un `tests/*.spec.js` suffit à l'inclure ; en oublier un devient impossible.
+  C'est le lanceur à utiliser.
+- **`tests/scene.spec.js`** compare le nombre et la liste **publiés ici** au contenu du
+  disque : si ce fichier prend du retard, il sort rouge.
 
 | Recette | Ce qu'elle garde |
 |---|---|
 | `tests/accueil.spec.js` | la home : contraste de chaque texte, invite d'installation, matière des composants |
 | `tests/achat.spec.js` | l'achat au tap, l'appui long, la modale de première partie |
 | `tests/da.spec.js` | la direction artistique : luminosité des illustrations, arène, épuration |
+| `tests/drag.spec.js` | le glisser-déposer JOUÉ AU POINTEUR, du pointerdown au pointerup (règle M1) |
 | `tests/gardien.spec.js` | un seul gardien sur le terrain |
+| `tests/hierarchie.spec.js` | la hiérarchie visuelle : le banc ne dépasse jamais le terrain (P4) |
 | `tests/layout.spec.js` | la mise en page sur cinq écrans, l'échelle des pions, le portrait |
 | `tests/marathon.spec.js` | une partie entière, du premier tour au champion |
 | `tests/matieres.spec.js` | le système de matières : plus aucun aplat |
@@ -28,6 +36,7 @@ contenu du dossier et sort rouge s'ils divergent.
 | `tests/terrains.spec.js` | les terrains d'entraînement et leur géométrie |
 | `tests/tirs-au-but.spec.js` | la séance de tirs au but |
 | `tests/unites.spec.js` | les figurines de l'écran de mise en place |
+| `tests/zones.spec.js` | la grille de zones : rien ne flotte, rien n'en recouvre une autre (P1) |
 
 ## Les dettes assumées
 
@@ -37,6 +46,8 @@ dans les échecs — sans quoi on ne distinguerait plus une dette connue d'une r
 mais elle s'affiche en rouge et **prévient quand elle devient verte**, pour qu'on la
 promeuve en vraie assertion.
 
-| Dette | Qui en répond |
-|---|---|
-| 1 à 3 options de passe ouvertes dans 88 % des cas | étape 4 (les gabarits) : c'est la chorégraphie qui décide qui touche le ballon et quand |
+**Une dette porte une échéance.** Un rouge toléré sans date devient du mobilier.
+
+| Dette | Échéance | Qui en répond |
+|---|---|---|
+| 1 à 3 options de passe ouvertes dans 88 % des cas | **étape 4** | les gabarits de situation : c'est la chorégraphie qui décide aujourd'hui qui touche le ballon et quand |

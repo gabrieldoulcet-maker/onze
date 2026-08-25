@@ -183,6 +183,21 @@ const ONZE_SCENE = (() => {
      constante du terrain, il ne se voyait pas du tout. */
   const RAYON_PION_M = 1.84;
 
+  /* LA LONGUEUR DE CORPS — 2,6 m, et c'est une constante DU MOTEUR.
+     Elle vient d'une mesure : la distance minimale qu'atteint un
+     pressing réel (design/football-chiffre.md §5, médiane 2,61 m).
+     Elle sert partout où le football dit « à une longueur de corps » :
+     la distance à laquelle un adversaire COUPE une ligne de passe, celle
+     à laquelle un presseur est SUR le porteur, et celle à laquelle un
+     défenseur se tient goal-side de son homme.
+     C'est ce partage qui la rend légitime. Calibrer un paramètre
+     géométrique sur un résultat temporel — la ligne coupée réglée pour
+     que la durée de vie d'une option tombe à 0,70 s — n'est honnête que
+     si le nombre est mesuré ailleurs et utilisé partout. Un nombre qui
+     ne servirait qu'à un seul endroit serait une constante ajustée
+     déguisée en football. */
+  const LONGUEUR_CORPS = 2.6;
+
   const ligneDuJoueur = (j) => j.ligne || j.poste;
   const lerp = (a, b, t) => a + (b - a) * t;
   /* Borne NaN-safe : dans une couche de rendu, un seul NaN se propage à
@@ -600,14 +615,12 @@ const ONZE_SCENE = (() => {
     function ligneOuverte(de, vers, camp) {
       for (const q of listePions) {
         if (q.camp === camp || q.gardien) continue;
-        /* 2,6 m : une longueur de corps, la distance à laquelle le
-           football réel considère une ligne coupée — la même que le
-           minimum d'un pressing. À 2 m, les lignes restaient ouvertes
-           trop longtemps : la durée de vie d'une option sortait à
-           0,88 s en médiane et 2,9 au p90, contre 0,70 et 2,3 réels.
-           Le même facteur 1,26 aux DEUX quantiles : ce n'était pas un
-           écart, c'était une seule constante de temps trop grande. */
-        if (distanceAuSegment(q, de, vers) < 2.6) return false;
+        /* Une LONGUEUR DE CORPS coupe la ligne. À 2 m les lignes
+           restaient ouvertes trop longtemps : la durée de vie d'une
+           option sortait à 0,88 s en médiane et 2,9 au p90, contre 0,70
+           et 2,3 réels — le même facteur 1,26 aux DEUX quantiles, donc
+           une seule constante de temps trop grande, pas deux écarts. */
+        if (distanceAuSegment(q, de, vers) < LONGUEUR_CORPS) return false;
       }
       return true;
     }
@@ -881,7 +894,7 @@ const ONZE_SCENE = (() => {
                      y: homme.y + (homme.vy || 0) * 0.35 };
       const dx = but.x - vise.x, dy = but.y - vise.y;
       const n = Math.hypot(dx, dy) || 1;
-      let x = vise.x + (dx / n) * 2.5;
+      let x = vise.x + (dx / n) * LONGUEUR_CORPS;
       /* GOAL-SIDE, TOUJOURS. L'anticipation peut retourner la règle : un
          homme qui court VERS le but adverse à 8 m/s se voit anticipé de
          2,8 m dans ce sens, ce qui annule les 2,5 m de couverture et pose
@@ -893,7 +906,7 @@ const ONZE_SCENE = (() => {
       const limite = homme.x + sens * 1.5;      // 1,5 m derrière lui, côté SON but à lui
       x = sens > 0 ? Math.min(x, limite) : Math.max(x, limite);
       return { x: borne(x, -DEMI_L + 1, DEMI_L - 1),
-               y: dansLaLargeur(vise.y + (dy / n) * 2.5) };
+               y: dansLaLargeur(vise.y + (dy / n) * LONGUEUR_CORPS) };
     }
 
     /* --- 7. L'ÉQUILIBRE : la forme du bloc (coulissement, compression,
@@ -1046,12 +1059,7 @@ const ONZE_SCENE = (() => {
           .forEach((q) => {
             q.role = "pressing";
             if (!(q.pressJusqua > horloge)) {
-              /* 2,0 s de mission : à 1,6 s le presseur partait de 6,4 m
-                 et s'arrêtait à 4,3 m — il courait vers l'homme sans
-                 jamais être SUR lui. Deux secondes lui laissent fermer
-                 la longueur de corps, et restent entre la médiane réelle
-                 (1,6 s) et son p90 (3,9). */
-              q.pressJusqua = horloge + 2.0;
+              q.pressJusqua = horloge + 1.6;   // la médiane réelle
               q.pressFin = horloge + 3.0 + 1.2;   // 3 s de mission, puis 1,2 s de repli
             }
             /* Il ferme À 2,6 M, côté but — la distance minimale mesurée.
@@ -1059,7 +1067,7 @@ const ONZE_SCENE = (() => {
                recovery press) : on ne la lui impose pas, la physique du
                pion s'en charge. Et on ne compose jamais départ, minimum
                et durée en un quotient (décision 57). */
-            q.cible = { x: borne(ballon.x - sens * 2.6, -DEMI_L + 1, DEMI_L - 1),
+            q.cible = { x: borne(ballon.x - sens * LONGUEUR_CORPS, -DEMI_L + 1, DEMI_L - 1),
                         y: dansLaLargeur(ballon.y + (q.y > ballon.y ? 1 : -1)) };
           });
       }

@@ -719,7 +719,7 @@ const dette = (nom, ok, quand) => {
     if (!avecMatiere && releve.buts >= 1 && releve.misesEnPlace >= 2) avecMatiere = releve;
     const tiragesPostures = Object.values(sacE3.postures).reduce((a, b) => a + b, 0);
     if (avecMatiere && sacMarquage.vus >= ECHANTILLON_MARQUAGE && sacPorteur.length >= 100
-        && sacE3.appels.length >= 15 && sacE3.pressings.length >= 12 && sacE3.dureesOption.length >= 30
+        && sacE3.appels.length >= 15 && sacE3.pressings.length >= 30 && sacE3.dureesOption.length >= 30
         && tiragesPostures >= 45) break;
     console.log(`   (relevé ${essai + 1} : ${releve.buts} but(s), ${releve.misesEnPlace} temps fort(s), ${releve.marquagesVus} marquage(s) en position — sac à ${sacMarquage.vus}/${ECHANTILLON_MARQUAGE}, on rejoue)`);
   }
@@ -1218,10 +1218,19 @@ const dette = (nom, ok, quand) => {
   const AD = e3.appels.map((a) => a.duree);
   verifier(`Étape 3 — un appel dure ${q(AD, 0.5).toFixed(1)} s (réel 2,1 ; ${AD.length} appels relevés)`,
     AD.length >= 15 && ecart(q(AD, 0.5), 2.1) <= 0.25);
-  // 5. un pressing DURE ce que dure un pressing : 1,6 s
-  const PU2 = e3.pressings.map((p) => p.duree);
-  verifier(`Étape 3 — un pressing dure ${q(PU2, 0.5).toFixed(1)} s (réel 1,6 ; ${PU2.length} pressings)`,
-    PU2.length >= 12 && ecart(q(PU2, 0.5), 1.6) <= 0.35);
+  /* 5. LE PRESSING : les trois grandeurs, chacune contre SA référence,
+     jamais leur quotient (décision 57). La distance minimale est celle
+     qui dit qu'un défenseur est SUR le porteur et pas seulement qu'il a
+     couru vers lui — c'est elle qui a fait tomber deux réglages faux
+     coup sur coup : un seuil d'entrée à 10 m donnait 5,4 m (le p90
+     réel), puis une mission de 2 s donnait 2,0 m (entre le p10 et la
+     médiane). Les deux se réglaient par un seul nombre : la mission à
+     1,6 s, la médiane réelle. */
+  const PU2 = e3.pressings.map((p) => p.duree), PMin = e3.pressings.map((p) => p.mini);
+  const PDep = e3.pressings.map((p) => p.depart);
+  verifier(`Étape 3 — le pressing tient ses trois grandeurs : départ ${q(PDep, 0.5).toFixed(1)} m · minimum ${q(PMin, 0.5).toFixed(1)} · durée ${q(PU2, 0.5).toFixed(1)} s (réel 5,9 · 2,6 · 1,6 ; ${PU2.length} pressings)`,
+    PU2.length >= 30 && ecart(q(PU2, 0.5), 1.6) <= 0.35
+    && ecart(q(PDep, 0.5), 5.9) <= 0.35 && ecart(q(PMin, 0.5), 2.61) <= 0.40);
   /* 6. UNE OPTION EST UN ÉVÉNEMENT COURT. C'est la propriété qui
      distingue la bonne définition de la mauvaise : « un coéquipier à
      portée » reste disponible des dizaines de secondes, une option née
@@ -1236,8 +1245,7 @@ const dette = (nom, ok, quand) => {
      remplace : elle décide qui touche le ballon et quand, donc la
      longueur des courses, la densité du bloc autour du porteur et le
      nombre de solutions ouvertes au moment de la passe. */
-  const AL = e3.appels.map((a) => a.longueur), PD = e3.pressings.map((p) => p.depart);
-  const PM = e3.pressings.map((p) => p.mini), OP = e3.options;
+  const AL = e3.appels.map((a) => a.longueur), OP = e3.options;
   const dans13 = OP.length ? OP.filter((v) => v >= 1 && v <= 3).length / OP.length : 0;
   /* M3 — UN GARDE-FOU CONNU ROUGE S'ÉCRIT QUAND MÊME. Les options à
      l'instant de la passe restent sous la référence (médiane 2, et 88 %
@@ -1248,8 +1256,8 @@ const dette = (nom, ok, quand) => {
      le défaut est réparé ; un garde-fou absent ne dit rien. */
   dette(`Étape 3 — 1 à 3 options ouvertes dans 88 % des cas (mesuré ${Math.round((OP.length ? OP.filter((v) => v >= 1 && v <= 3).length / OP.length : 0) * 100)} %, médiane ${q(OP, 0.5)} contre 2, sur ${OP.length} passes)`,
     OP.length >= 30 && (OP.filter((v) => v >= 1 && v <= 3).length / OP.length) >= 0.88,
-    "l'étape 4 en répond : c'est la chorégraphie qui décide qui touche le ballon et quand");
-  console.log(`   📐 encore court, l'étape 4 en répond : longueur d'appel ${q(AL, 0.5).toFixed(1)} m (réel 10,7) · pressing de ${q(PD, 0.5).toFixed(1)} m à ${q(PM, 0.5).toFixed(1)} m (réel 5,9 → 2,6) · options à la passe médiane ${q(OP, 0.5)} (réel 2), ${Math.round(dans13 * 100)} % dans 1-3 (réel 88 %)`);
+    "ÉCHÉANCE étape 4 (les gabarits) — c'est la chorégraphie qui décide aujourd'hui qui touche le ballon et quand");
+  console.log(`   📐 encore court, l'étape 4 en répond : longueur d'appel ${q(AL, 0.5).toFixed(1)} m (réel 10,7) · options à la passe médiane ${q(OP, 0.5)} (réel 2), ${Math.round(dans13 * 100)} % dans 1-3 (réel 88 %)`);
 
   verifier(`Décision 24 : le porteur est désigné sans ambiguïté, même avec des homonymes (${releve.porteurAmbigu} relevé(s) ambigu(s)${releve.matchsAvecHomonymes ? `, ${releve.matchsAvecHomonymes} relevé(s) AVEC homonymes sur le terrain` : ", aucun homonyme dans ce match"})`,
     releve.porteurAmbigu === 0);
