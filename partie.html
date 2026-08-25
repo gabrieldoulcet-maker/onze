@@ -138,7 +138,8 @@
        Elles commencent SOUS le bandeau et s'arrêtent AU-DESSUS du banc. */
     #app.scene-pleine .col-synergies,
     #app.scene-pleine .col-classement {
-      position: absolute; top: var(--haut-bandeau, 30px); bottom: 4px; z-index: 20;
+      position: absolute; top: var(--haut-bandeau, 30px);
+      bottom: var(--haut-banc, 4px); z-index: 20;
       background: none; border: none; padding: 0;
       /* quand les familles s'accumulent, la colonne DÉFILE au lieu de
          déborder du cadre — sans barre visible, on est sur un décor */
@@ -320,6 +321,20 @@
       object-fit: cover; object-position: bottom center;
       border-radius: 10px; z-index: 0; pointer-events: none;
     }
+    /* La couche prend EXACTEMENT le rectangle du décor peint, moins la
+       bande du banc : le banc reste visible, c'est une demande explicite
+       de Gabriel (« le banc ne s'affiche pas pendant les match » est
+       signalé comme un manque, pas comme un choix). Sa géométrie est
+       écrite par disposerPlateau(), comme celle du reste. */
+    .couche-match {
+      position: absolute; z-index: 4; overflow: hidden; border-radius: 10px;
+      pointer-events: none;
+    }
+    .couche-match.masque { display: none; }
+    /* Pendant le match, le conteneur de mise en place DISPARAÎT — ses
+       lignes et ses jetons ne doivent plus exister à l'écran, même
+       couverts : c'est ce qui faisait « un terrain ajouté au-dessus ». */
+    #terrain-scene.masque-match { display: none; }
     .plateau.terrain-peint .terrain { background: none; border-color: rgba(255, 255, 255, 0.10); }
     .plateau.terrain-peint .ligne-terrain,
     .plateau.terrain-peint .rangee-banc { position: absolute; }
@@ -811,9 +826,13 @@
     .carte-boutique .fam {
       display: flex; align-items: center; gap: 3px; max-width: 100%;
       background: rgba(6, 13, 8, 0.74); border-radius: var(--r-pilule);
-      padding: 1px 6px 1px 1px; font-size: 0.46rem; font-weight: 700;
+      /* « Le Douzième Homme » se faisait couper sur un petit téléphone :
+         le nom d'École rétrécit avec la carte plutôt que de disparaître
+         dans une ellipse — c'est lui qui dit la synergie. */
+      padding: 1px 6px 1px 1px; font-size: clamp(0.38rem, 3.6cqw, 0.46rem); font-weight: 700;
       color: #FFFFFF; line-height: 1.25;
     }
+    .carte-boutique { container-type: inline-size; }
     .carte-boutique .fam span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .carte-boutique .barre-nom {
       position: relative; z-index: 2; margin-top: auto;
@@ -1098,6 +1117,12 @@
     </div>
     <div class="plateau" id="plateau">
       <img class="fond-terrain masque" id="fond-terrain" alt="" decoding="async">
+      <!-- LA COUCHE DE MATCH : soeur du conteneur de mise en place, jamais
+           dedans. Trois symptômes venaient de ce seul défaut — deux
+           terrains empilés, un liseré de 2 px, et 53 des 55 px du banc
+           recouverts par la scène. Le contrat de couture vit dans
+           design/contrat-scene.md. -->
+      <div class="couche-match masque" id="couche-match"></div>
       <div class="terrain" id="terrain-scene">
         <div class="ligne-terrain" id="ligne-GAR"></div>
         <div class="ligne-terrain" id="ligne-DÉF"></div>
@@ -1980,7 +2005,10 @@
       el("nom-adversaire-match").textContent = "⚔️ " + (monAdversaire ? monAdversaire.nom : partie.appariement.nomAdversaire);
       el("btn-vitesse").classList.remove("masque");
       el("btn-match").disabled = true;
-      el("btn-match").innerHTML = `${ONZE_ICONES_SYS.ic("chrono", 13)} Match…`;
+      /* Pas d'ellipse dans un libellé : « Match… » ne dit pas ce qui
+         manque, et c'était le quatrième des textes coupés relevés par
+         Gabriel. Le chrono et l'état désactivé disent déjà « en cours ». */
+      el("btn-match").innerHTML = `${ONZE_ICONES_SYS.ic("chrono", 13)} Match`;
       el("recit").innerHTML = "";
       // La scène animée (phase 3) : le terrain devient la scène, le
       // récit complet se replie derrière 📜, le bandeau prend le relais.
@@ -1989,10 +2017,23 @@
       if (sceneMatch) sceneMatch.detruire();
       if (modeCommentaire) {
         sceneMatch = null;
+        rangerCoucheMatch();
         el("recit").classList.remove("replie");
       } else {
-        sceneMatch = ONZE_SCENE.creer(el("terrain-scene"), monEquipe, equipeAdverse,
+        /* La scène reçoit UN CONTENEUR — elle ne suppose jamais lequel.
+           C'est la clause (a) du contrat de couture : la couche est à moi,
+           l'intérieur de `.scene-match` est à la conversation scène. */
+        const couche = el("couche-match");
+        couche.classList.remove("masque");
+        el("terrain-scene").classList.add("masque-match");
+        sceneMatch = ONZE_SCENE.creer(couche, monEquipe, equipeAdverse,
           { chrono: el("chrono"), jauge: el("jauge-dom") });
+        // le tableau de score et le journal restent visibles : on les
+        // remonte dans la couche, ils appartiennent au chrome du match
+        couche.appendChild(el("tableau-match"));
+        couche.appendChild(el("recit"));
+        couche.appendChild(el("bandeau-recit"));
+        couche.style.pointerEvents = "auto";
         el("recit").classList.add("replie");
       }
       el("bandeau-recit").innerHTML = "";
@@ -2222,9 +2263,27 @@
       partie.manche++;
     }
 
+    /* On range le match : la couche se vide et disparaît, le conteneur de
+       mise en place revient. Le chrome du match (tableau, journal,
+       bandeau) rentre à sa place d'origine — il n'appartient pas à la
+       couche, il y était seulement invité. */
+    function rangerCoucheMatch() {
+      const couche = el("couche-match"), terrain = el("terrain-scene");
+      if (!couche || !terrain) return;
+      for (const id of ["tableau-match", "recit", "bandeau-recit"]) {
+        const e = el(id);
+        if (e && e.parentElement === couche) terrain.appendChild(e);
+      }
+      couche.querySelectorAll(".scene-match").forEach((x) => x.remove());
+      couche.classList.add("masque");
+      couche.style.pointerEvents = "";
+      terrain.classList.remove("masque-match");
+    }
+
     function continuer() {
       partie.matchEnCours = false;
       if (sceneMatch) { sceneMatch.detruire(); sceneMatch = null; }
+      rangerCoucheMatch();
       el("recit").classList.remove("replie");
       el("bandeau-recit").innerHTML = "";
       el("terrain-scene").style.paddingTop = "";
@@ -3591,6 +3650,21 @@
       banc.style.height = Math.max(12, zoneH - hautBanc) + "px";
       const terrain = el("terrain-scene");
       terrain.style.height = Math.max(40, hautBanc - 2) + "px";
+      /* LA COUCHE DE MATCH prend le rectangle du décor à l'unité près en
+         largeur — c'est le liseré de 2 px que Gabriel voyait « dépasser »
+         — et s'arrête AU-DESSUS du banc, qui reste visible. */
+      /* La hauteur du banc, publiée comme celle du bandeau : les colonnes
+         flottantes s'y arrêtent. Sans ça elles descendaient jusqu'en bas
+         du cadre et leurs dernières pastilles tombaient sur le banc puis
+         sur la boutique — « on ne voit pas l'intégralité du banc car les
+         staff, 1/3 famille etc le cachent ». */
+      el("app").style.setProperty("--haut-banc", Math.round(zoneH - hautBanc + 4) + "px");
+      const couche = el("couche-match");
+      if (couche) {
+        couche.style.left = "0px"; couche.style.top = "0px";
+        couche.style.width = zoneL + "px";
+        couche.style.height = Math.max(40, hautBanc) + "px";
+      }
 
       /* La plus petite figurine du TERRAIN, accumulée pendant la passe des
          quatre lignes : c'est elle qui plafonnera le banc, plus bas. */

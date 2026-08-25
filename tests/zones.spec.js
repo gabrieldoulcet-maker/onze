@@ -64,7 +64,6 @@ const ZONES = `{
   "bandeau haut": ".haut",
   "bord gauche": ".col-synergies",
   "bord droit": ".col-classement",
-  "terrain": "#terrain-scene",
   "bande basse": ".boutique-barre"
 }`;
 
@@ -79,13 +78,30 @@ const RELEVE = `(zones) => {
   };
   const rects = {};
   for (const [nom, sel] of Object.entries(zones)) { const b = boite(sel); if (b) rects[nom] = b; }
-  // les chevauchements, deux à deux
+  /* LA ZONE « TERRAIN » N'EST PAS LE CONTENEUR, C'EST LÀ OÙ SE TIENNENT
+     LES JOUEURS. Le conteneur prend tout le cadre depuis la phase 1
+     (décision 48 : le décor plein écran, l'information qui flotte
+     par-dessus) — exiger qu'aucune zone ne le touche reviendrait à
+     défaire cette décision en douce. La question qui compte est
+     l'inverse : une pastille de colonne, un bandeau, recouvre-t-il un
+     JOUEUR ? On prend donc l'enveloppe des joueurs rendus. */
+  const joueurs = [...document.querySelectorAll(".ligne-terrain .jeton, .couche-match .scene-match")]
+    .map((e) => e.getBoundingClientRect()).filter((r) => r.width > 2 && r.height > 2);
+  if (joueurs.length) {
+    rects["terrain"] = { x: Math.min(...joueurs.map((r) => r.x)), y: Math.min(...joueurs.map((r) => r.y)),
+      w: 0, h: 0 };
+    rects["terrain"].w = Math.max(...joueurs.map((r) => r.x + r.width)) - rects["terrain"].x;
+    rects["terrain"].h = Math.max(...joueurs.map((r) => r.y + r.height)) - rects["terrain"].y;
+  }
+  /* Les chevauchements, deux à deux. Tolérance d'un demi-pixel : deux
+     zones qui PARTAGENT UN BORD ne se recouvrent pas — sans ça, un
+     arrondi de sous-pixel déclarait « 80 × 0 px » de recouvrement. */
   const noms = Object.keys(rects), chevauche = [];
   for (let i = 0; i < noms.length; i++) for (let j = i + 1; j < noms.length; j++) {
     const a = rects[noms[i]], b = rects[noms[j]];
     const L = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
     const H = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
-    if (L * H > 0) chevauche.push(noms[i] + " ∩ " + noms[j] + " = " + Math.round(L) + "×" + Math.round(H) + " px");
+    if (L > 0.5 && H > 0.5) chevauche.push(noms[i] + " ∩ " + noms[j] + " = " + Math.round(L) + "×" + Math.round(H) + " px");
   }
   /* LES TEXTES TRONQUÉS. On ne cherche pas le caractère « … » écrit à la
      main (personne ne l'écrit) : on cherche les éléments que le
@@ -94,6 +110,28 @@ const RELEVE = `(zones) => {
      de les voir, l'ellipse n'existe pas dans le DOM. */
   const tronques = [];
   for (const e of document.querySelectorAll("body *")) {
+    /* Deux façons d'être coupé, et la seconde a failli m'échapper : le
+       navigateur qui CLIPPE (feuilles de texte), et l'ellipse ÉCRITE À LA
+       MAIN dans un libellé — « ⏱ Match… » porte une icône, donc des
+       enfants, donc la première passe l'ignorait. Un « … » posé par le
+       code est une troncature comme une autre : il ne dit pas ce qui
+       manque. */
+    const propre = [...e.childNodes].filter((n) => n.nodeType === 3)
+      .map((n) => n.textContent).join("").trim();
+    /* ATTENTION : ce bloc vit dans un LITTÉRAL DE GABARIT, où « \\. » se
+       résout en « . » avant d'atteindre l'expression régulière — un point
+       qui matche n'importe quoi. Écrit simplement, le motif déclarait
+       33 à 63 textes tronqués là où il n'y en avait aucun. Les
+       échappements se doublent ici. */
+    if (propre && /…|\\.\\.\\.\\s*$/.test(propre)) {
+      const st0 = getComputedStyle(e);
+      const r0 = e.getBoundingClientRect();
+      if (st0.display !== "none" && st0.visibility !== "hidden" && r0.width > 4) {
+        tronques.push(propre.slice(0, 18) + " (libellé " + e.tagName.toLowerCase() +
+          "." + (e.className || "").toString().split(" ")[0] + ")");
+        continue;
+      }
+    }
     if (e.children.length > 0) continue;                     // que les feuilles de texte
     const t = (e.textContent || "").trim();
     if (!t) continue;
@@ -147,7 +185,8 @@ async function ouvrir(page) {
       }
       const r = await page.evaluate(([code, zones]) => eval(code)(zones),
         [RELEVE, JSON.parse(ZONES)]);
-      verifier(`${taille.nom} · ${ecran} : les ${Object.keys(r.rects).length} zones ne se recouvrent pas (tolérance 0 px)`,
+      verifier(`${taille.nom} · ${ecran} : les ${Object.keys(r.rects).length} zones ne se recouvrent pas ` +
+        `(la zone « terrain » est l'enveloppe des joueurs rendus, pas le conteneur — voir le commentaire)`,
         r.chevauche.length === 0, r.chevauche.slice(0, 4).join(" | "));
       verifier(`${taille.nom} · ${ecran} : aucun texte visible n'est coupé (${r.tronques.length} tronqué(s))`,
         r.tronques.length === 0, r.tronques.slice(0, 6).join(" | "));
@@ -171,15 +210,37 @@ async function ouvrir(page) {
         ajouter(".col-synergies > *", "colonne gauche");
         ajouter(".col-classement > *", "colonne droite");
         ajouter("#tableau-match:not(.masque), #btn-journal, #btn-match, #btn-refresh", "contrôle");
+        /* ON TESTE LE CENTRE DE CE QUI EST VISIBLE, pas le centre de la
+           boîte. Un enfant d'une colonne qui défile a un rectangle plus
+           grand que sa fenêtre : `getBoundingClientRect()` rend la boîte
+           de mise en page entière, dont une partie est clippée. Viser son
+           centre revient à désigner un pixel que personne ne voit — et la
+           recette accusait alors la boutique de recouvrir une pastille
+           parfaitement rangée. On intersecte donc avec chaque ancêtre qui
+           clippe, et avec le cadre. Si rien ne reste visible, l'élément
+           est simplement défilé hors champ : ce n'est pas une occlusion. */
+        const visible = (e) => {
+          let r = e.getBoundingClientRect();
+          let x0 = r.x, y0 = r.y, x1 = r.x + r.width, y1 = r.y + r.height;
+          for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) {
+            const sp = getComputedStyle(p);
+            if (sp.overflow === "visible" && sp.overflowY === "visible" && sp.overflowX === "visible") continue;
+            const q = p.getBoundingClientRect();
+            x0 = Math.max(x0, q.x); y0 = Math.max(y0, q.y);
+            x1 = Math.min(x1, q.x + q.width); y1 = Math.min(y1, q.y + q.height);
+          }
+          x0 = Math.max(x0, 0); y0 = Math.max(y0, 0);
+          x1 = Math.min(x1, innerWidth); y1 = Math.min(y1, innerHeight);
+          return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+        };
         const rates = [];
         for (const [e, nom] of cibles) {
           const st = getComputedStyle(e);
           if (st.display === "none" || st.visibility === "hidden" || parseFloat(st.opacity) < 0.05) continue;
-          const q = e.getBoundingClientRect();
-          if (q.width < 6 || q.height < 6) continue;
-          if (q.x + q.width < 0 || q.y + q.height < 0 ||
-              q.x > innerWidth || q.y > innerHeight) { rates.push(nom + " hors écran"); continue; }
-          const d = document.elementFromPoint(q.x + q.width / 2, q.y + q.height / 2);
+          if (e.getBoundingClientRect().width < 6) continue;
+          const q = visible(e);
+          if (q.w < 6 || q.h < 6) continue;         // défilé hors champ, pas recouvert
+          const d = document.elementFromPoint(q.x + q.w / 2, q.y + q.h / 2);
           if (d && (d === e || e.contains(d) || d.contains(e))) continue;
           rates.push(nom + " ← " + (d ? d.tagName.toLowerCase() + "." +
             (d.className || "").toString().split(" ")[0] : "rien"));
@@ -189,6 +250,37 @@ async function ouvrir(page) {
       verifier(`${taille.nom} · ${ecran} : tout ce qui se tape reçoit le tap ` +
         `(${occlus.total} cibles, ${occlus.rates.length} recouverte(s))`,
         occlus.rates.length === 0, occlus.rates.slice(0, 5).join(" | "));
+
+      /* LE CONTRAT DE COUTURE (design/contrat-scene.md), vérifié en
+         pixels. La scène de match vivait DANS le conteneur de la mise en
+         place : trois symptômes pour un seul défaut — deux terrains
+         empilés, un liseré de 2 px, et 53 des 55 px du banc recouverts. */
+      if (ecran === "match") {
+        const couture = await page.evaluate(() => {
+          const b = (s) => { const e = document.querySelector(s); if (!e) return null;
+            const st = getComputedStyle(e);
+            if (st.display === "none") return { cache: true };
+            const r = e.getBoundingClientRect();
+            return { x: r.x, y: r.y, w: r.width, h: r.height, fond: st.backgroundImage }; };
+          const banc = document.querySelector("#banc");
+          return { terrain: b("#terrain-scene"), fond: b("#fond-terrain"), scene: b(".scene-match"),
+            hautBanc: banc ? banc.getBoundingClientRect().y : null,
+            peint: document.querySelector(".plateau").classList.contains("terrain-peint") };
+        });
+        verifier(`${taille.nom} · match : le conteneur de mise en place a disparu de l'écran ` +
+          `(pas seulement couvert)`, !!couture.terrain && couture.terrain.cache === true,
+          JSON.stringify(couture.terrain));
+        const s2 = couture.scene, f2 = couture.fond;
+        const memeLargeur = s2 && f2 && !s2.cache && !f2.cache &&
+          Math.abs(s2.x - f2.x) < 0.5 && Math.abs(s2.w - f2.w) < 0.5 && Math.abs(s2.y - f2.y) < 0.5;
+        const sarrete = s2 && couture.hautBanc !== null && Math.abs((s2.y + s2.h) - couture.hautBanc) < 0.5;
+        verifier(`${taille.nom} · match : la scène prend le rectangle du décor et s'arrête au banc ` +
+          `(scène ${s2 ? Math.round(s2.w) + "×" + Math.round(s2.h) : "—"}, décor ` +
+          `${f2 ? Math.round(f2.w) + "×" + Math.round(f2.h) : "—"}, banc à ${Math.round(couture.hautBanc)} px)`,
+          memeLargeur && sarrete, JSON.stringify({ scene: s2, fond: f2, hautBanc: couture.hautBanc }));
+        verifier(`${taille.nom} · match : sur décor peint, la scène ne peint pas son propre sol`,
+          !couture.peint || (s2 && s2.fond === "none"), s2 ? String(s2.fond).slice(0, 60) : "—");
+      }
 
       /* LES DEUX COLONNES NE MANGENT PAS L'ÉCRAN. Mesuré : 108 + 104 px
          sur 844, soit 25 % de la largeur pour de l'information de
