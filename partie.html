@@ -138,7 +138,8 @@
        Elles commencent SOUS le bandeau et s'arrêtent AU-DESSUS du banc. */
     #app.scene-pleine .col-synergies,
     #app.scene-pleine .col-classement {
-      position: absolute; top: var(--haut-bandeau, 30px); bottom: 4px; z-index: 20;
+      position: absolute; top: var(--haut-bandeau, 30px);
+      bottom: var(--haut-banc, 4px); z-index: 20;
       background: none; border: none; padding: 0;
       /* quand les familles s'accumulent, la colonne DÉFILE au lieu de
          déborder du cadre — sans barre visible, on est sur un décor */
@@ -146,10 +147,30 @@
       display: flex; flex-direction: column; gap: 3px;
       pointer-events: none;                 /* le décor reste attrapable dessous */
     }
-    #app.scene-pleine .col-synergies { left: max(6px, env(safe-area-inset-left)); width: 108px; }
+    /* LA LARGEUR DES COLONNES EST UN PLAFOND, PAS UNE CONSTANTE.
+       Mesuré avant correctif : 108 + 104 px, soit 25 % de la largeur sur
+       un grand téléphone et 32 % sur un petit — de l'information de
+       CONSULTATION qui mange un tiers de l'écran pendant que le terrain,
+       le sujet, se serre au milieu. Une largeur en pixels est d'autant
+       plus grosse que l'écran est petit : c'est l'inverse de ce qu'on
+       veut. D'où `min()` — 80 px au plus, et jamais plus de 9,5 % de la
+       largeur, ce qui tient les deux colonnes sous 20 % partout.
+       Et elles se COLLENT au bord : la marge de sécurité vient du seul
+       safe-area, pas d'un padding de confort. */
+    #app.scene-pleine .col-synergies,
+    #app.scene-pleine .col-classement { width: min(80px, 9.5vw); }
+    #app.scene-pleine .col-synergies { left: env(safe-area-inset-left, 0px); }
     #app.scene-pleine .col-synergies::-webkit-scrollbar,
     #app.scene-pleine .col-classement::-webkit-scrollbar { width: 0; height: 0; }
-    #app.scene-pleine .col-classement { right: max(6px, env(safe-area-inset-right)); width: 104px; }
+    #app.scene-pleine .col-classement { right: env(safe-area-inset-right, 0px); }
+    /* UN NOM NE SE COUPE PAS. Il rétrécit en police, et passe à la ligne
+       s'il le faut — jamais d'ellipse : « Royal To… » ne dit pas quel
+       club c'est. La police suit la largeur réelle de la colonne. */
+    #app.scene-pleine .col-classement .coach-ligne,
+    #app.scene-pleine .col-synergies .badge {
+      font-size: clamp(0.46rem, 1.15vw, 0.6rem); line-height: 1.25;
+      white-space: normal; overflow-wrap: anywhere; text-overflow: clip;
+    }
     #app.scene-pleine .col-synergies > *,
     #app.scene-pleine .col-classement > * { pointer-events: auto; }
     /* LES PASTILLES FLOTTANTES : chacune porte sa propre plaque de verre —
@@ -167,7 +188,19 @@
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
       font-weight: 700;
     }
-    #app.scene-pleine .col-classement { display: flex; flex-direction: column; gap: 3px; }
+    #app.scene-pleine .col-classement { display: flex; flex-direction: column; gap: 3px; overflow: visible; }
+    /* C'EST LA LISTE QUI DÉFILE, PAS LE BOUTON. En rétrécissant les
+       colonnes, les noms de clubs sont passés à la ligne — la liste a
+       grandi et le bouton Match, qui vivait dans le même conteneur
+       défilant, s'est retrouvé POUSSÉ SOUS le bas de la colonne : hors
+       cadre, sans fond, mesuré à 1,0:1 de contraste. L'action principale
+       ne défile pas avec la consultation ; elle garde sa place. */
+    #app.scene-pleine .col-classement > div:first-child {
+      flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: none;
+      display: flex; flex-direction: column; gap: 3px;
+    }
+    #app.scene-pleine .col-classement > div:first-child::-webkit-scrollbar { width: 0; }
+    #app.scene-pleine .col-classement .principal { flex: 0 0 auto; }
     #app.scene-pleine .col-classement .coach-ligne { padding: 2px 6px; }
     /* le bouton de manche reste l'action principale : il flotte en bas à droite */
     #app.scene-pleine .col-classement .principal {
@@ -252,8 +285,17 @@
       background: var(--fond-carte); border: 2px solid var(--couleur-cout, var(--ligne-forte));
       text-align: left; cursor: pointer; font-size: 0.54rem; color: var(--craie-claire); line-height: 1.2;
     }
-    .jeton .nom-jeton { font-family: var(--police-display); font-weight: 400; font-size: 0.58rem;
-      transform: var(--pente); color: var(--craie); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+    /* UN NOM DE JOUEUR NE SE COUPE PAS. Il était clippé à l'ellipse
+       (« Marce… ») dès que la carte se resserrait — mesuré : 10 à 14 noms
+       tronqués pendant un match. Un nom coupé ne dit plus de qui il
+       s'agit, et c'est précisément l'information que la carte porte.
+       Il rétrécit donc en police jusqu'à un plancher lisible, et la
+       largeur du conteneur commande. */
+    .jeton .nom-jeton { font-family: var(--police-display); font-weight: 400;
+      font-size: clamp(0.42rem, 2.6cqw, 0.58rem);
+      transform: var(--pente); color: var(--craie); white-space: nowrap;
+      overflow: visible; text-overflow: clip; display: block; }
+    .jeton { container-type: inline-size; }
     .jeton .note-jeton { font-weight: 800; font-size: 0.62rem; color: var(--craie); }
     .jeton .etoiles { font-size: 0.54rem; text-shadow: 0 0 5px rgba(242, 193, 78, 0.8); }
     .jeton.vide { border: 2px dashed var(--ligne); color: #ffffff55; background: transparent; min-height: 30px;
@@ -279,6 +321,20 @@
       object-fit: cover; object-position: bottom center;
       border-radius: 10px; z-index: 0; pointer-events: none;
     }
+    /* La couche prend EXACTEMENT le rectangle du décor peint, moins la
+       bande du banc : le banc reste visible, c'est une demande explicite
+       de Gabriel (« le banc ne s'affiche pas pendant les match » est
+       signalé comme un manque, pas comme un choix). Sa géométrie est
+       écrite par disposerPlateau(), comme celle du reste. */
+    .couche-match {
+      position: absolute; z-index: 4; overflow: hidden; border-radius: 10px;
+      pointer-events: none;
+    }
+    .couche-match.masque { display: none; }
+    /* Pendant le match, le conteneur de mise en place DISPARAÎT — ses
+       lignes et ses jetons ne doivent plus exister à l'écran, même
+       couverts : c'est ce qui faisait « un terrain ajouté au-dessus ». */
+    #terrain-scene.masque-match { display: none; }
     .plateau.terrain-peint .terrain { background: none; border-color: rgba(255, 255, 255, 0.10); }
     .plateau.terrain-peint .ligne-terrain,
     .plateau.terrain-peint .rangee-banc { position: absolute; }
@@ -302,13 +358,34 @@
     .plateau.terrain-peint.decor-clair .jeton:not(.sur-dalle) {
       box-shadow: 0 0 0 1.5px rgba(6, 13, 8, 0.70), 0 5px 12px rgba(0, 0, 0, 0.45);
     }
-    .plateau.terrain-peint .case-vide {                        /* matière CREUX */
-      border-color: rgba(237, 245, 236, 0.55); background: var(--creux-fond);
-      color: rgba(237, 245, 236, 0.75); text-shadow: 0 1px 2px #000;
-      box-shadow: var(--creux-ombre);
+    /* SUR TERRAIN PEINT, UNE CASE VIDE EST UN REPÈRE DE SOL, PAS UNE
+       BOÎTE. Trois rectangles gris à bord pointillé, sans ombre et sans
+       ligne de sol, posés au milieu d'une pelouse où tout le reste est
+       POSÉ par une ombre : ils ne ressemblaient pas à des emplacements
+       libres, ils ressemblaient à des images qui n'avaient pas chargé.
+       L'élément garde sa boîte — c'est la surface que le doigt vise —
+       mais ne peint plus rien ; c'est son ::before qui dessine l'ovale
+       d'ombre à l'endroit des pieds. */
+    .plateau.terrain-peint .case-vide {
+      border: none; background: none; box-shadow: none; color: transparent;
     }
-    .plateau.terrain-peint.decor-clair .case-vide {
-      border-color: rgba(6, 13, 8, 0.55); background: rgba(6, 13, 8, 0.18);
+    .plateau.terrain-peint .case-vide::before {
+      content: ""; position: absolute; left: 50%; bottom: 0;
+      width: var(--l-repere, 18px); height: var(--h-repere, 6px);
+      transform: translateX(-50%); border-radius: 50%;
+      background: radial-gradient(ellipse at center,
+        rgba(0, 0, 0, 0.50) 0%, rgba(0, 0, 0, 0.28) 55%, rgba(0, 0, 0, 0) 78%);
+    }
+    .plateau.terrain-peint.decor-clair .case-vide::before {
+      background: radial-gradient(ellipse at center,
+        rgba(0, 0, 0, 0.38) 0%, rgba(0, 0, 0, 0.18) 55%, rgba(0, 0, 0, 0) 78%);
+    }
+    /* elle ne s'ALLUME que quand elle est une cible possible — pendant un
+       glisser, et à ce moment-là seulement */
+    .plateau.terrain-peint .ligne-terrain.cible .case-vide::before {
+      background: radial-gradient(ellipse at center,
+        rgba(61, 226, 107, 0.55) 0%, rgba(61, 226, 107, 0.22) 60%, rgba(61, 226, 107, 0) 80%);
+      box-shadow: 0 0 0 1.5px var(--gazon-electrique), 0 0 12px rgba(61, 226, 107, 0.5);
     }
     /* pendant un glisser, les dalles libres s'allument */
     .plateau.terrain-peint .rangee-banc.cible .place-banc {
@@ -749,9 +826,13 @@
     .carte-boutique .fam {
       display: flex; align-items: center; gap: 3px; max-width: 100%;
       background: rgba(6, 13, 8, 0.74); border-radius: var(--r-pilule);
-      padding: 1px 6px 1px 1px; font-size: 0.46rem; font-weight: 700;
+      /* « Le Douzième Homme » se faisait couper sur un petit téléphone :
+         le nom d'École rétrécit avec la carte plutôt que de disparaître
+         dans une ellipse — c'est lui qui dit la synergie. */
+      padding: 1px 6px 1px 1px; font-size: clamp(0.38rem, 3.6cqw, 0.46rem); font-weight: 700;
       color: #FFFFFF; line-height: 1.25;
     }
+    .carte-boutique { container-type: inline-size; }
     .carte-boutique .fam span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .carte-boutique .barre-nom {
       position: relative; z-index: 2; margin-top: auto;
@@ -1036,6 +1117,12 @@
     </div>
     <div class="plateau" id="plateau">
       <img class="fond-terrain masque" id="fond-terrain" alt="" decoding="async">
+      <!-- LA COUCHE DE MATCH : soeur du conteneur de mise en place, jamais
+           dedans. Trois symptômes venaient de ce seul défaut — deux
+           terrains empilés, un liseré de 2 px, et 53 des 55 px du banc
+           recouverts par la scène. Le contrat de couture vit dans
+           design/contrat-scene.md. -->
+      <div class="couche-match masque" id="couche-match"></div>
       <div class="terrain" id="terrain-scene">
         <div class="ligne-terrain" id="ligne-GAR"></div>
         <div class="ligne-terrain" id="ligne-DÉF"></div>
@@ -1918,7 +2005,10 @@
       el("nom-adversaire-match").textContent = "⚔️ " + (monAdversaire ? monAdversaire.nom : partie.appariement.nomAdversaire);
       el("btn-vitesse").classList.remove("masque");
       el("btn-match").disabled = true;
-      el("btn-match").innerHTML = `${ONZE_ICONES_SYS.ic("chrono", 13)} Match…`;
+      /* Pas d'ellipse dans un libellé : « Match… » ne dit pas ce qui
+         manque, et c'était le quatrième des textes coupés relevés par
+         Gabriel. Le chrono et l'état désactivé disent déjà « en cours ». */
+      el("btn-match").innerHTML = `${ONZE_ICONES_SYS.ic("chrono", 13)} Match`;
       el("recit").innerHTML = "";
       // La scène animée (phase 3) : le terrain devient la scène, le
       // récit complet se replie derrière 📜, le bandeau prend le relais.
@@ -1927,10 +2017,23 @@
       if (sceneMatch) sceneMatch.detruire();
       if (modeCommentaire) {
         sceneMatch = null;
+        rangerCoucheMatch();
         el("recit").classList.remove("replie");
       } else {
-        sceneMatch = ONZE_SCENE.creer(el("terrain-scene"), monEquipe, equipeAdverse,
+        /* La scène reçoit UN CONTENEUR — elle ne suppose jamais lequel.
+           C'est la clause (a) du contrat de couture : la couche est à moi,
+           l'intérieur de `.scene-match` est à la conversation scène. */
+        const couche = el("couche-match");
+        couche.classList.remove("masque");
+        el("terrain-scene").classList.add("masque-match");
+        sceneMatch = ONZE_SCENE.creer(couche, monEquipe, equipeAdverse,
           { chrono: el("chrono"), jauge: el("jauge-dom") });
+        // le tableau de score et le journal restent visibles : on les
+        // remonte dans la couche, ils appartiennent au chrome du match
+        couche.appendChild(el("tableau-match"));
+        couche.appendChild(el("recit"));
+        couche.appendChild(el("bandeau-recit"));
+        couche.style.pointerEvents = "auto";
         el("recit").classList.add("replie");
       }
       el("bandeau-recit").innerHTML = "";
@@ -2160,9 +2263,27 @@
       partie.manche++;
     }
 
+    /* On range le match : la couche se vide et disparaît, le conteneur de
+       mise en place revient. Le chrome du match (tableau, journal,
+       bandeau) rentre à sa place d'origine — il n'appartient pas à la
+       couche, il y était seulement invité. */
+    function rangerCoucheMatch() {
+      const couche = el("couche-match"), terrain = el("terrain-scene");
+      if (!couche || !terrain) return;
+      for (const id of ["tableau-match", "recit", "bandeau-recit"]) {
+        const e = el(id);
+        if (e && e.parentElement === couche) terrain.appendChild(e);
+      }
+      couche.querySelectorAll(".scene-match").forEach((x) => x.remove());
+      couche.classList.add("masque");
+      couche.style.pointerEvents = "";
+      terrain.classList.remove("masque-match");
+    }
+
     function continuer() {
       partie.matchEnCours = false;
       if (sceneMatch) { sceneMatch.detruire(); sceneMatch = null; }
+      rangerCoucheMatch();
       el("recit").classList.remove("replie");
       el("bandeau-recit").innerHTML = "";
       el("terrain-scene").style.paddingTop = "";
@@ -3456,8 +3577,20 @@
          joueur). C'est ce rentré qui fait la promesse du brief : « la zone
          de jeu reste centrée et dégagée ». */
       zone: { u0: 0.15, u1: 0.90, v0: 0.26, v1: 0.93 },
-      terrain: { part: 1.28, recouvrement: 1.45, minLisible: 26, max: 72, largeur: 0.88, bande: 0.9, vide: 0.8 },
-      banc: { part: 1.5, minLisible: 30, max: 58 },
+      /* `vide` et `videLargeur` ne décrivent plus une BOÎTE mais un REPÈRE
+         DE SOL — l'ovale d'ombre posé à l'emplacement des pieds. Mesuré
+         avant correctif : une case vide occupait 112 à 134 % de la
+         surface d'une figurine voisine, c'est-à-dire PLUS qu'un joueur,
+         alors qu'elle ne représente rien. La surface de TAP, elle, ne
+         bouge pas : c'est le dessin qui rétrécit, pas la cible du doigt. */
+      terrain: { part: 1.28, recouvrement: 1.45, minLisible: 26, max: 72, largeur: 0.88, bande: 0.9,
+        vide: 0.8, repereH: 0.20, repereL: 0.52, cibleDoigt: 34 },
+      /* Le plancher du banc était PLUS HAUT que celui du terrain (30
+         contre 26) : à lui seul il garantissait qu'un remplaçant finisse
+         plus grand qu'un titulaire du fond. Rien ne justifie qu'une
+         figurine soit lisible à 26 px sur la pelouse et pas au banc —
+         les deux planchers sont désormais le même. */
+      banc: { part: 1.5, minLisible: 26, max: 58 },
       // le niveau d'étoiles se lit dans la TAILLE (façon TFT) : la ligne de
       // sol ne bouge pas, le joueur grandit vers le haut ; le 3★ allume en
       // plus le sol en or (l'or reste réservé au légendaire)
@@ -3517,6 +3650,25 @@
       banc.style.height = Math.max(12, zoneH - hautBanc) + "px";
       const terrain = el("terrain-scene");
       terrain.style.height = Math.max(40, hautBanc - 2) + "px";
+      /* LA COUCHE DE MATCH prend le rectangle du décor à l'unité près en
+         largeur — c'est le liseré de 2 px que Gabriel voyait « dépasser »
+         — et s'arrête AU-DESSUS du banc, qui reste visible. */
+      /* La hauteur du banc, publiée comme celle du bandeau : les colonnes
+         flottantes s'y arrêtent. Sans ça elles descendaient jusqu'en bas
+         du cadre et leurs dernières pastilles tombaient sur le banc puis
+         sur la boutique — « on ne voit pas l'intégralité du banc car les
+         staff, 1/3 famille etc le cachent ». */
+      el("app").style.setProperty("--haut-banc", Math.round(zoneH - hautBanc + 4) + "px");
+      const couche = el("couche-match");
+      if (couche) {
+        couche.style.left = "0px"; couche.style.top = "0px";
+        couche.style.width = zoneL + "px";
+        couche.style.height = Math.max(40, hautBanc) + "px";
+      }
+
+      /* La plus petite figurine du TERRAIN, accumulée pendant la passe des
+         quatre lignes : c'est elle qui plafonnera le banc, plus bas. */
+      let plusPetitTerrain = 0;
 
       // les réglages d'ombre-fichier, posés une fois sur le plateau
       plateau.style.setProperty("--ratio-ombre", ECHELLE.ombre.fichier);
@@ -3585,18 +3737,36 @@
               * ONZE_TERRAINS.echelleProfondeur(v));
           const vide = c.classList.contains("case-vide");
           const fiche = vide ? null : partie.terrain[Number(c.dataset.indice)];
-          const boite = vide ? base * ECHELLE.terrain.vide : base * ECHELLE.etoiles[3];   // la boîte tient le plus grand
-          const l = Math.min(base * ECHELLE.terrain.largeur,
-            (Math.max(...xs) - Math.min(...xs)) * ECHELLE.terrain.bande);
+          /* La boîte d'une case vide est une CIBLE DE DOIGT, pas un
+             dessin : depuis qu'elle ne peint plus qu'un ovale de sol,
+             rien ne la retient d'être minuscule — mesuré 24 px de côté
+             sur un petit téléphone, sous le seuil du doigt. Elle garde
+             donc un plancher, invisible et confortable. */
+          const boite = vide
+            ? Math.max(ECHELLE.terrain.cibleDoigt, base * ECHELLE.terrain.vide)
+            : base * ECHELLE.etoiles[3];   // la boîte tient le plus grand
+          const l = vide
+            ? Math.max(ECHELLE.terrain.cibleDoigt, Math.min(base * ECHELLE.terrain.largeur,
+              (Math.max(...xs) - Math.min(...xs)) * ECHELLE.terrain.bande))
+            : Math.min(base * ECHELLE.terrain.largeur,
+              (Math.max(...xs) - Math.min(...xs)) * ECHELLE.terrain.bande);
           c.style.width = l + "px";
           c.style.height = boite + "px";
           c.style.left = (x - zone.offsetLeft - l / 2) + "px";
           c.style.top = (y - zone.offsetTop - boite) + "px";   // les PIEDS sur le point projeté
           c.style.minHeight = "0";
-          c.style.setProperty("--h-figurine", (base * facteurEtoile(fiche)) + "px");
+          const hFigurine = base * facteurEtoile(fiche);
+          c.style.setProperty("--h-figurine", hFigurine + "px");
+          // la plus petite figurine du terrain : elle fixera le plafond du banc
+          if (!vide && (plusPetitTerrain === 0 || hFigurine < plusPetitTerrain)) plusPetitTerrain = hFigurine;
           c.style.setProperty("--sol", "0px");                 // ligne de sol commune
           c.style.setProperty("--l-ombre", ECHELLE.ombre.terrain);
           c.style.setProperty("--h-ombre", Math.max(4, base * 0.16) + "px");
+          if (vide) {
+            // le repère de sol : un ovale aux pieds, pas un rectangle
+            c.style.setProperty("--l-repere", Math.max(10, l * ECHELLE.terrain.repereL) + "px");
+            c.style.setProperty("--h-repere", Math.max(4, base * ECHELLE.terrain.repereH) + "px");
+          }
         });
       }
 
@@ -3613,8 +3783,22 @@
       largeurs.sort((a, b) => a - b);
       hauteurs.sort((a, b) => a - b);
       const hauteurMediane = hauteurs[hauteurs.length >> 1] || 16;
+      /* LE BANC RESTE SOUS LE TERRAIN. Mesuré à effectif plein : les
+         remplaçants montaient à 80 px (le plafond `banc.max` de 58,
+         multiplié par les étoiles) pendant que le plus petit titulaire
+         tombait à 27 px, au plancher de lisibilité. La hiérarchie était
+         exactement à l'envers — la zone secondaire servie à son plafond,
+         la zone principale écrasée au plancher.
+         Le plafond du banc n'est donc plus une constante : c'est la plus
+         petite figurine du terrain, mesurée juste au-dessus, qui le
+         fixe. Le plancher de lisibilité reste prioritaire — on préfère
+         un banc lisible à une hiérarchie parfaite sur un écran minuscule,
+         et la recette le dit. */
+      const plafondBanc = plusPetitTerrain > 0
+        ? Math.min(ECHELLE.banc.max, plusPetitTerrain / ECHELLE.etoiles[3])
+        : ECHELLE.banc.max;
       const baseBanc = Math.max(ECHELLE.banc.minLisible,
-        Math.min(ECHELLE.banc.max, (largeurs[largeurs.length >> 1] || 34) * ECHELLE.banc.part));
+        Math.min(plafondBanc, (largeurs[largeurs.length >> 1] || 34) * ECHELLE.banc.part));
       places.forEach((c, n) => {
         /* Plus de joueurs que de mats peints ne devrait jamais arriver
            (le banc et les mats font tous les deux 9, et l'invariant du
@@ -4010,6 +4194,19 @@
     const drag = { actif: false, depasse: false, fiche: null, nomListe: null, indice: null, fantome: null };
     const SEUIL_DRAG = 8;
 
+    /* Un fantôme est un CLONE : il emporte les styles EN LIGNE que
+       disposerPlateau() a posés sur le jeton (`left`, `top`), et seuls
+       des styles en ligne peuvent les battre. On remet donc son
+       positionnement à plat à la main — la feuille de style ne suffit
+       pas. Vaut pour les deux drags (joueur et staff). */
+    function neutraliserFantome(f, source) {
+      f.style.position = "fixed";
+      f.style.left = "0"; f.style.top = "0";
+      f.style.right = "auto"; f.style.bottom = "auto";
+      f.style.margin = "0";
+      if (source) f.style.height = source.offsetHeight + "px";
+    }
+
     function malusPourLigne(fiche, ligne) {
       if (!ligne || ligne === fiche.poste) return null;
       if (ligne === "GAR" && fiche.poste !== "GAR") return "😱 −50 %";
@@ -4037,7 +4234,14 @@
     document.addEventListener("pointerdown", (e) => {
       const jeton = e.target.closest(".jeton[data-liste]");
       if (!jeton || e.button > 0) return;
-      drag.candidat = { jeton, x: e.clientX, y: e.clientY };
+      /* L'ÉCART DE PRISE, mémorisé dès l'appui : où le doigt se trouve
+         DANS la carte. C'est lui qu'on conserve pendant tout le geste —
+         la carte reste sous le doigt là où on l'a saisie, et c'est ça qui
+         donne la sensation de tenir un objet. L'ancien code translatait
+         d'un écart codé en dur (−30, −46), le même pour tout le monde. */
+      const r = jeton.getBoundingClientRect();
+      drag.candidat = { jeton, x: e.clientX, y: e.clientY,
+        dxPrise: e.clientX - r.left, dyPrise: e.clientY - r.top };
     });
     document.addEventListener("pointermove", (e) => {
       if (drag.candidat && !drag.actif) {
@@ -4051,11 +4255,20 @@
         if (!drag.fiche) { drag.actif = false; return; }
         jeton.classList.add("source-drag");
         drag.source = jeton;
+        drag.dxPrise = drag.candidat.dxPrise; drag.dyPrise = drag.candidat.dyPrise;
         drag.fantome = jeton.cloneNode(true);
         drag.fantome.classList.remove("source-drag");
         drag.fantome.classList.add("fantome");
         drag.fantome.style.width = jeton.offsetWidth + "px";
-        el("app").appendChild(drag.fantome);
+        neutraliserFantome(drag.fantome, jeton);
+        /* DANS LE BODY, pas dans le plateau : sur terrain peint, la règle
+           `.plateau.terrain-peint .jeton { position: absolute }` (0-3-0)
+           bat `.fantome { position: fixed }` (0-1-0) et le fantôme se
+           retrouvait posé AUX COORDONNÉES DU JETON, puis translaté au
+           pointeur — d'où un écart égal au `left` du jeton attrapé,
+           jusqu'à 672 px sur le dernier remplaçant. Hors du plateau, plus
+           aucune règle de décor ne peut le viser. */
+        document.body.appendChild(drag.fantome);
         const valeurVente = drag.fiche.cout * Math.pow(3, (drag.fiche.etoiles || 1) - 1);
         const zone = el("zone-vente");
         zone.textContent = `💰 Vendre ${drag.fiche.nom} — ${valeurVente}M`;
@@ -4063,7 +4276,7 @@
       }
       if (!drag.actif) return;
       e.preventDefault();
-      drag.fantome.style.transform = `translate3d(${e.clientX - 30}px, ${e.clientY - 46}px, 0) rotate(-4deg) scale(1.06)`;
+      drag.fantome.style.transform = `translate3d(${e.clientX - drag.dxPrise}px, ${e.clientY - drag.dyPrise}px, 0) rotate(-4deg) scale(1.06)`;
       // cibles + malus prévisualisé (au rythme du rendu)
       if (drag.rafPrevu) return;
       drag.rafPrevu = true;
@@ -4212,7 +4425,9 @@
     document.addEventListener("pointerdown", (e) => {
       const badge = e.target.closest(".badge-staff");
       if (!badge) return;
-      dragStaff.candidat = { x: e.clientX, y: e.clientY, indice: Number(badge.dataset.staff) };
+      const rb = badge.getBoundingClientRect();
+      dragStaff.candidat = { x: e.clientX, y: e.clientY, indice: Number(badge.dataset.staff),
+        dxPrise: e.clientX - rb.left, dyPrise: e.clientY - rb.top };
     });
     document.addEventListener("pointermove", (e) => {
       if (dragStaff.candidat && !dragStaff.actif &&
@@ -4224,12 +4439,15 @@
         const f = document.createElement("div");
         f.className = "fantome";
         f.innerHTML = `<span class="badge" style="font-size:0.72rem">🧰 ${carte}</span>`;
-        el("app").appendChild(f);
+        neutraliserFantome(f, null);
+        document.body.appendChild(f);
         dragStaff.fantome = f;
+        dragStaff.dxPrise = dragStaff.candidat.dxPrise;
+        dragStaff.dyPrise = dragStaff.candidat.dyPrise;
       }
       if (!dragStaff.actif) return;
       e.preventDefault();
-      dragStaff.fantome.style.transform = `translate3d(${e.clientX - 24}px, ${e.clientY - 34}px, 0) rotate(-4deg)`;
+      dragStaff.fantome.style.transform = `translate3d(${e.clientX - dragStaff.dxPrise}px, ${e.clientY - dragStaff.dyPrise}px, 0) rotate(-4deg)`;
       document.querySelectorAll(".jeton.cible-staff").forEach((x) => x.classList.remove("cible-staff"));
       const dessous = document.elementFromPoint(e.clientX, e.clientY);
       const jeton = dessous && dessous.closest(".jeton[data-liste]");
