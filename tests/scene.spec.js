@@ -432,6 +432,44 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   const largeursBande = elastique.tracesEtPions.map((t) => t.L / t.bandes);
   const bandeMin = Math.min(...largeursBande), bandeMax = Math.max(...largeursBande);
   const nbBandes = elastique.tracesEtPions.map((t) => t.bandes);
+  /* LE COVER ROGNE — et il ne doit jamais rogner du TERRAIN. Une arène
+     de rapport 2,16 posée sur un cadre de 3,1 perd 15 % de sa hauteur en
+     haut et autant en bas. Perdre des tribunes est sans conséquence ;
+     perdre un bout de surface de réparation fausserait la géométrie
+     qu'on vient de relever sur ces mêmes images. On vérifie donc que le
+     quadrilatère relevé tient ENTIÈREMENT dans la fenêtre visible, sur
+     chaque thème et chaque taille d'écran. */
+  const cadrages = await page.evaluate(() => {
+    const tailles = [[840, 269], [663, 200], [928, 297], [840, 227], [663, 180]];
+    const sortie = [];
+    for (const { id } of ONZE_STADE.liste()) {
+      const th = ONZE_STADE.theme(id);
+      if (!th || !th.fond || !th.terrain) continue;         // thème dessiné : pas d'image à rogner
+      for (const [L, H] of tailles) {
+        const g = ONZE_STADE.geometrie(L, H, th, { L: 104, W: 68 });
+        const f = g.fenetreImage;
+        if (!f) { sortie.push({ nom: th.nom, L, H, ok: false, pourquoi: "aucune fenêtre" }); continue; }
+        const q = th.terrain;
+        const marge = Math.min(q.gauche - f.x0, f.x1 - q.droite, q.haut - f.y0, f.y1 - q.bas);
+        sortie.push({ nom: th.nom, L, H, ok: marge >= 0, marge,
+          // la marge la plus faible, en pixels du cadre
+          margePx: Math.round(marge * Math.min(L / (f.x1 - f.x0), H / (f.y1 - f.y0))) });
+      }
+    }
+    return sortie;
+  });
+  const pires = {};
+  for (const c of cadrages) {
+    if (!pires[c.nom] || c.marge < pires[c.nom].marge) pires[c.nom] = c;
+  }
+  for (const nom in pires) {
+    const p = pires[nom];
+    verifier(`Étape 2 — le cadrage « cover » ne rogne pas le terrain peint : « ${nom} », pire cas ${p.L}×${p.H} → marge ${(p.marge * 100).toFixed(1)} % de l'image (${p.margePx} px)`,
+      p.ok);
+  }
+  verifier(`Étape 2 — toutes les arènes contrôlées à toutes les tailles (${cadrages.length} cadrages, ${cadrages.filter((c) => !c.ok).length} fautif(s))`,
+    cadrages.length >= 9 && cadrages.every((c) => c.ok));
+
   verifier(`Étape 2 — le gazon zoome avec le terrain : la bande de tonte garde sa largeur réelle (${bandeMin.toFixed(1)}-${bandeMax.toFixed(1)} m) et on en voit ${nbBandes[0]} à 10 joueurs contre ${nbBandes[nbBandes.length - 1]} à 22`,
     bandeMax / bandeMin <= 1.15 && nbBandes[0] < nbBandes[nbBandes.length - 1]);
 

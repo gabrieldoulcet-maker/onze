@@ -226,10 +226,38 @@ const ONZE_STADE = (() => {
      fait plutôt 3,1 : l'étirer, c'était déformer le stade de 44 % en
      largeur. On la pose donc en COVER — elle remplit le cadre sans se
      déformer, et c'est le débord qui est rogné. */
-  function poseImage(largeur, hauteur, taille) {
-    const e = Math.max(largeur / taille.w, hauteur / taille.h);
+  function poseImage(largeur, hauteur, taille, cadre) {
+    let e = Math.max(largeur / taille.w, hauteur / taille.h);
+    /* LE TERRAIN PASSE AVANT LE REMPLISSAGE. Sur un cadre très plat, le
+       cover rogne assez de hauteur pour manger un bout de surface de
+       réparation — mesuré à 840 × 227 sur deux des trois arènes. Dans ce
+       cas on RÉDUIT l'échelle jusqu'à ce que le terrain peint tienne
+       entier (avec 1 % de garde), quitte à laisser une frange de fond au
+       bord : perdre des tribunes est sans conséquence, perdre du terrain
+       fausserait toute la géométrie. */
+    if (cadre) {
+      const garde = 1.02;
+      const larg = (cadre.droite - cadre.gauche) * taille.w * garde;
+      const haut = (cadre.bas - cadre.haut) * taille.h * garde;
+      e = Math.min(e, largeur / larg, hauteur / haut);
+    }
     const iw = taille.w * e, ih = taille.h * e;
-    return { e, iw, ih, ox: (largeur - iw) / 2, oy: (hauteur - ih) / 2 };
+    /* Le COVER rogne : sur un cadre plus large que l'image, c'est le haut
+       et le bas qui partent. Centrer l'IMAGE ferait perdre un bout de
+       surface de réparation dès que le terrain peint n'est pas au milieu
+       de son arène ; on centre donc sur le TERRAIN PEINT, puis on borne
+       pour ne jamais laisser de vide au bord. Perdre des tribunes est
+       sans conséquence, perdre du terrain fausserait la géométrie. */
+    const borner = (v, min, max) => (min > max ? (min + max) / 2 : Math.min(max, Math.max(min, v)));
+    let ox = (largeur - iw) / 2, oy = (hauteur - ih) / 2;
+    if (cadre) {
+      const cx = (cadre.gauche + cadre.droite) / 2, cy = (cadre.haut + cadre.bas) / 2;
+      ox = borner(largeur / 2 - cx * iw, largeur - iw, 0);
+      oy = borner(hauteur / 2 - cy * ih, hauteur - ih, 0);
+    }
+    return { e, iw, ih, ox, oy,
+      // la fenêtre réellement visible de l'image, en fractions de l'image
+      fenetre: { x0: -ox / iw, y0: -oy / ih, x1: (largeur - ox) / iw, y1: (hauteur - oy) / ih } };
   }
 
   function geometrie(largeur, hauteur, t, terrain) {
@@ -239,7 +267,7 @@ const ONZE_STADE = (() => {
        sa géométrie à la scène : le décor commande, pas l'inverse.
        Sans image, comportement d'origine exact. */
     const cadre = t && t.terrain;
-    const pose = cadre && t.fondTaille ? poseImage(largeur, hauteur, t.fondTaille) : null;
+    const pose = cadre && t.fondTaille ? poseImage(largeur, hauteur, t.fondTaille, cadre) : null;
     const fx = (f) => (pose ? pose.ox + f * pose.iw : largeur * f);
     const fy = (f) => (pose ? pose.oy + f * pose.ih : hauteur * f);
     const x = cadre ? Math.round(fx(cadre.gauche)) : 0;
@@ -262,6 +290,8 @@ const ONZE_STADE = (() => {
       /* l'échelle du tracé : 1 sur un terrain plein, et plus GÉNÉREUSE
          que le prorata sur un terrain réduit (voir TRACE_M) */
       kTrace: Math.sqrt(m.L / TERRAIN_PLEIN.L),
+      // la fenêtre visible de l'image de fond (fractions de l'image)
+      fenetreImage: pose ? pose.fenetre : null,
       /* LE ZOOM. Le rectangle de pixels ne bouge jamais (R1, caméra
          fixe) : un terrain plus petit est donc la MÊME fenêtre sur une
          portion plus petite du monde. Tout ce qui a une taille réelle
@@ -323,10 +353,14 @@ const ONZE_STADE = (() => {
     const { x, y, w, h } = geo;
     // 1. le fond (ce qui dépasse du terrain) — une ARÈNE le remplace
     const arene = image(t.fond);
+    // toujours un fond sous l'image : elle peut ne pas couvrir tout le
+    // cadre quand on a réduit l'échelle pour garder le terrain entier
+    ctx.fillStyle = t.tribunes.fond;
+    ctx.fillRect(0, 0, geo.largeur, geo.hauteur);
     if (arene) {
       // même pose que la géométrie : l'arène ne se déforme jamais
       const p = poseImage(geo.largeur, geo.hauteur,
-        t.fondTaille || { w: arene.naturalWidth || 900, h: arene.naturalHeight || 416 });
+        t.fondTaille || { w: arene.naturalWidth || 900, h: arene.naturalHeight || 416 }, t.terrain);
       ctx.drawImage(arene, p.ox, p.oy, p.iw, p.ih);
     } else {
       ctx.fillStyle = t.tribunes.fond;
