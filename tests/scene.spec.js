@@ -702,8 +702,17 @@ const dette = (nom, ok, quand) => {
      une moyenne (décision 43). */
   const sacFormats = [];
   let releve = null, avecMatiere = null;
+  let matchsHorsDelai = 0;
   for (let essai = 0; essai < 9; essai++) {
     releve = await mesurerUnMatch(page);
+    if (releve.horsDelai) {
+      /* Un match qui n'a pas rendu la main dans les deux minutes : on le
+         SIGNALE et on s'arrête là. En relancer un par-dessus mélangeait
+         deux scènes et faisait tomber trois assertions étrangères au
+         défaut. */
+      matchsHorsDelai++;
+      break;
+    }
     sacMarquage.vus += releve.marquagesVus; sacMarquage.bons += releve.marquagesBons;
     sacMarquage.tous += releve.marquagesTous; sacMarquage.tousBons += releve.marquagesTousBons;
     sacMarquage.matchs++;
@@ -774,10 +783,16 @@ const dette = (nom, ok, quand) => {
     const med = (l) => pct(l, 0.5);
     let physique = { accelMax: 0, vitesseMax: 0, surVitesse: 0, surAccel: 0, ticks: 0 };
     let vMaxPlusHaut = 0;
+    let sceneVue = false, horsDelai = false;
     await new Promise((fini) => {
       const tic = setInterval(() => {
         const sc = typeof sceneMatch !== "undefined" ? sceneMatch : null;
-        if (!sc) return;
+        if (sc) sceneVue = true;
+        if (!sc) {
+          // la scène a vécu puis disparu : le match est terminé
+          if (sceneVue) { clearInterval(tic); fini(); }
+          return;
+        }
         const d = sc.diagnostic();
         regimes.push(d.regime);
         if (d.positions.some((p) => !isFinite(p.x) || !isFinite(p.y)) ||
@@ -918,9 +933,19 @@ const dette = (nom, ok, quand) => {
           ballonPrec = { x: d.ballon.x, y: d.ballon.y };
         } else ballonPrec = null;
         if (d.etiquettes.length >= d.nbDisques) etiqBut++;
+        /* LE MATCH EST FINI QUAND LA SCÈNE EST DÉTRUITE, pas quand le
+           bilan s'ouvre. Depuis que la cérémonie de butin s'intercale
+           entre les deux (P2 : le match se range d'abord), attendre
+           « btn-continuer » revenait à mesurer le match PLUS la
+           cérémonie — et si l'un des deux traîne, l'échantillonneur
+           tapait son plafond de 120 s, le match suivant démarrait par
+           dessus, et la timeline de la scène neuve « reculait » par
+           rapport à l'ancienne. Trois assertions tombaient pour une
+           seule cause, et aucune ne la nommait. */
+        if (sceneVue && !sceneMatch) { clearInterval(tic); fini(); return; }
         if (document.getElementById("btn-continuer")) { clearInterval(tic); fini(); }
       }, 50);
-      setTimeout(() => { clearInterval(tic); fini(); }, 120000);
+      setTimeout(() => { clearInterval(tic); horsDelai = true; fini(); }, 120000);
     });
     ONZE_SCENE.creer = creerOriginal;
     const duree = performance.now() - debut;
@@ -929,7 +954,7 @@ const dette = (nom, ok, quand) => {
     const ecarts = jeu.slice(1).map((x, i) => x.t - jeu[i].t)
       .filter((e) => e < 2500); // on ignore les sauts de cut / mise en place
     return {
-      duree, regimes: [...new Set(regimes)], nbRegimes: regimes.length,
+      duree, horsDelai, regimes: [...new Set(regimes)], nbRegimes: regimes.length,
       cuts: journal.cuts, misesEnPlace: journal.misesEnPlace,
       nbTemps: journal.temps.filter((t) => t.type !== "_miseEnPlace").length,
       // la durée RÉELLE d'une mise en place à l'écran : de son départ au
@@ -1034,6 +1059,8 @@ const dette = (nom, ok, quand) => {
      (tous les buts rendus) impose un plancher qui le dépasse — on le dit
      au lieu de le cacher. */
   const plafondDur = releve.buts >= 6 ? 65000 : 54000;
+  verifier(`Fiabilité de la mesure : aucun match n'a dépassé le plafond de l'échantillonneur (${matchsHorsDelai} hors délai)`,
+    matchsHorsDelai === 0);
   verifier(`R9 : plafond dur de ~50 s tenu (${(releve.duree / 1000).toFixed(1)} s pour ${releve.misesEnPlace} rendus dont ${releve.buts} buts, limite ${(plafondDur / 1000).toFixed(0)} s)`,
     releve.duree > 20000 && releve.duree < plafondDur);
   /* Règle 3 : la patience. Le GRAND format tient ses temps décisifs à
