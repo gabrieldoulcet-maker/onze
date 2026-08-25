@@ -61,42 +61,49 @@ du mobilier ; un rouge sans cible ne dit pas quand il sera payé.
 
 | Dette | Mesuré | Cible | Échéance |
 |---|---|---|---|
-| 1 à 3 options de passe ouvertes | 45-62 % des passes | **88 %** (médiane 2) | étape 4 |
+| 1 à 3 options de passe ouvertes | 45-66 % des passes | **88 %** (médiane 2) | étape 4 |
+| Part des pressings fermant sous 3 m | 54 % | **65,9 %** (épisodes ≥ 1 s, ±15 %) | étape 4 — *bloquée par l'échantillon : 120 épisodes nécessaires, 31 disponibles* |
 
-### La dette du pressing est CLOSE — elle était adossée à une mauvaise référence
+### Le pressing : la dette change d'instrument, et son blocage est l'ÉCHANTILLON
 
-Elle disait : *minimum 2,1 m contre une cible de 2,61*. Mais 2,61 est la médiane sur la
-population **entière** des pressings, amorces comprises — or nous mesurons depuis le
-25 août les **épisodes d'au moins une seconde**. Recalculées sur cette population, les
-références valent **départ 6,41 · minimum 2,27 · durée 2,10 s**. Notre 2,1 est donc à
-**−7,5 %**, dans la tolérance : *la dette n'existait pas*. Le changement de population
-avait bien été déclaré, dans une section dédiée — et la comparaison se faisait quand même
-contre l'ancien chiffre. **Une note à côté d'un chiffre faux laisse le chiffre faux**
-(règle M2, complétée).
+**La dette « minimum 2,1 contre 2,61 » est close** — 2,61 est la médiane sur la population
+**entière**, or nous mesurons les **épisodes ≥ 1 s**, dont la médiane réelle vaut **2,27**.
+Notre 2,1 est à −7,5 %, dans la tolérance. Le changement de population avait été déclaré,
+et la comparaison se faisait quand même contre l'ancien chiffre : *une note à côté d'un
+chiffre faux laisse le chiffre faux* (M2 bis). Trois conséquences, toutes dans le code : la
+**mission de pressing revient à 2,0 s** (elle avait été ramenée à 1,6 contre le mauvais
+repère, alors que 2,0 était juste — un *épisode* réel dure 2,10 s, pas 1,60) ; le **départ
+était exact** (6,4 contre 6,41) ; la **durée passe à ±15 %** parce que son erreur se propage
+dans le minimum, pas parce qu'un rythme se ressent.
 
-Trois conséquences, toutes dans le code :
+**Une nouvelle dette la remplace, et elle peut décider** : la **part des épisodes qui
+ferment sous 3 m**. Référence **65,9 %** — sur les pressings ≥ 1 s, la population que nous
+mesurons ; ce serait 58,7 % sur la population entière, et l'écrire serait refaire la même
+faute. Nous sommes à **54-55 %**, soit −17 % en relatif : la dette existe.
 
-- la **mission de pressing revient à 2,0 s**. Elle avait été ramenée à 1,6 s contre le
-  mauvais repère, alors que 2,0 était juste — la médiane réelle d'un *épisode* vaut 2,10 s,
-  pas 1,60 ;
-- le **départ était exact** (6,4 contre 6,41), pas +8,5 % comme annoncé ;
-- la **durée passe à ±15 %**, et pour la vraie raison : son erreur se propage dans le
-  minimum. À ±35 % la fourchette allait de 1,04 à 2,16 s et **laissait passer la régression
-  qui a lancé tout l'échange**.
+Pourquoi la proportion et plus la médiane : le bruit se chiffre.
 
-### Le minimum du pressing : la mesure est bonne, l'échantillon ne l'est pas
+| n | bruit d'une médiane | bruit d'une proportion |
+|---:|---:|---:|
+| 30 | ±27 % | ±21,7 % |
+| 60 | ±19,6 % | ±16,4 % |
+| 120 | ±14,1 % | **±10,7 %** |
+| 240 | ±10,3 % | ±7,6 % |
 
-Sur la bonne référence, nos relevés valent 2,0 · 2,1 · 2,2 · 2,6 · 3,1 · 3,7 m selon
-l'exécution. Le point central tombe dans la tolérance, mais **la dispersion est plus large
-que la tolérance elle-même** : à n ≈ 28 épisodes, une médiane ne se stabilise pas à ±15 %.
-Il faudrait environ quatre fois plus d'épisodes — une trentaine de matchs — pour conclure,
-ce qu'une recette ne peut pas jouer.
+**Ce qui bloque n'est plus le code, c'est le nombre d'épisodes.** Il en faut **120** pour
+que le bruit (±10,7 %) passe sous la tolérance (±15 %) — règle M6 bis. Or le rendement
+mesuré est de **3,4 épisodes de pressing par match** (31 épisodes sur 9 matchs, relevé le
+26 août), pas la trentaine espérée : atteindre 120 demande donc **~35 matchs, soit ~26
+minutes** de recette. La recette de scène en dure aujourd'hui 7.
 
-On ne fabrique donc **ni un vert** avec une tolérance complaisante, **ni un rouge** sur une
-dette qui n'existe pas (règle M7). La recette affiche la mesure, sa dispersion et sa limite
-d'échantillon. **Ce qui la rendrait assertive** : la **part des épisodes qui ferment sous
-trois mètres**, mesurée sur les dix matchs — une proportion se stabilise bien plus vite
-qu'une médiane. Nous en sommes à **54 %** ; la référence reste à mesurer.
+Un banc dédié — jouer des temps à la chaîne sans cut ni célébration — a été prototypé et
+**écarté** : sans le séquenceur réel, le rôle « pressing » ne s'allume jamais (48 temps
+joués, 0 épisode). Il aurait mesuré autre chose (M6).
+
+**La décision est donc un arbitrage de temps de recette, pas de code**, et elle appartient
+à Gabriel : soit une recette longue dédiée, lancée à la demande plutôt qu'à chaque
+livraison, soit on garde la dette affichée avec son échéance à l'étape 4 — les gabarits
+changeront de toute façon la fréquence des pressings, et le rendement par match avec elle.
 
 ### Deux tableaux qui ne se comparent plus
 

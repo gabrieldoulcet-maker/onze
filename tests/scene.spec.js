@@ -733,7 +733,7 @@ const dette = (nom, ok, quand) => {
         // sur eux que portent les trois références recalculées
         && sacE3.pressings.filter((p) => p.duree >= 1).length >= 25
         && tiragesPostures >= 45) break;
-    console.log(`   (relevé ${essai + 1} : ${releve.buts} but(s), ${releve.misesEnPlace} temps fort(s), ${releve.marquagesVus} marquage(s) en position — sac à ${sacMarquage.vus}/${ECHANTILLON_MARQUAGE}, on rejoue)`);
+    console.log(`   (relevé ${essai + 1} : ${releve.buts} but(s), ${releve.misesEnPlace} temps fort(s), ${releve.marquagesVus} marquage(s) en position — sac à ${sacMarquage.vus}/${ECHANTILLON_MARQUAGE} · épisodes de pressing ≥1 s cumulés : ${sacE3.pressings.filter((p) => p.duree >= 1).length}, on rejoue)`);
   }
   if (avecMatiere) releve = avecMatiere;
 
@@ -1295,23 +1295,24 @@ const dette = (nom, ok, quand) => {
          et l'action change de nature. */
   verifier(`Étape 3 — le pressing, sur les ${PU2.length} épisodes ≥ 1 s : départ ${q(PDep, 0.5).toFixed(1)} m (réel 6,41 ; ±35 %, condition de départ) · durée ${q(PU2, 0.5).toFixed(1)} s (réel 2,10 ; ±15 %, son erreur se propage dans le minimum)`,
     PU2.length >= 25 && ecart(q(PDep, 0.5), 6.41) <= 0.35 && ecart(q(PU2, 0.5), 2.10) <= 0.15);
-  /* LE MINIMUM : LA MESURE EST BONNE, L'ÉCHANTILLON NE L'EST PAS (M7).
-     Sur la bonne référence — 2,27 m, recalculée sur NOTRE population —
-     nos relevés valent 2,0 · 2,1 · 2,2 · 2,6 · 3,1 · 3,7 selon
-     l'exécution. Le point central tombe dans la tolérance, mais la
-     dispersion d'une exécution à l'autre est plus large que la tolérance
-     elle-même : à n ≈ 28 épisodes, une médiane ne se stabilise pas à
-     ±15 %. Il faudrait environ quatre fois plus d'épisodes — une
-     trentaine de matchs — pour conclure, ce qu'une recette ne peut pas
-     jouer.
-     On ne fabrique donc NI un vert avec une tolérance complaisante, NI
-     un rouge sur une dette qui n'existe pas. On affiche la mesure, sa
-     dispersion et sa limite d'échantillon, et on dit ce qui manque : la
-     PART des épisodes qui ferment sous trois mètres — une proportion se
-     stabilise bien plus vite qu'une médiane — mesurée sur les dix
-     matchs. Avec ce chiffre, elle redevient une assertion. */
+  /* LE MINIMUM : LA PROPORTION, PAS LA MÉDIANE — ET LA TOLÉRANCE DOIT
+     RESTER AU-DESSUS DU BRUIT (M6 bis).
+     Le bruit d'une mesure se chiffre. Rééchantillonné sur la vraie
+     distribution (6 306 pressings ≥ 1 s), l'intervalle à 90 % d'une
+     MÉDIANE vaut ±27 % à n=30, ±19,6 % à n=60, ±14,1 % à n=120 : à trente
+     épisodes, une tolérance de ±15 % tire le rouge et le vert au sort.
+     La PART sous un seuil se tient mieux — ±21,7 % à n=28, ±16,4 % à
+     n=60, ±10,7 % à n=120 — et c'est la même information de football :
+     « le défenseur est-il vraiment venu sur lui ? ».
+     LA RÉFÉRENCE EST CELLE DE LA POPULATION MESURÉE (M2 bis) : sur les
+     pressings ≥ 1 s, 65,9 % ferment sous 3 m. (Sur la population entière
+     ce serait 58,7 % — et l'écrire ici serait la même faute que
+     comparer à 2,61 m.) La population est nommée DANS LE LIBELLÉ, parce
+     que c'est là qu'on la relit quand la ligne sort rouge. */
   const sous3 = PMin.length ? PMin.filter((v) => v <= 3).length / PMin.length : 0;
-  console.log(`   📐 minimum du pressing : médiane ${q(PMin, 0.5).toFixed(1)} m sur ${PMin.length} épisodes (réel 2,27) — dispersion d'exécution 2,0 à 3,7, plus large que la tolérance : l'échantillon ne permet pas de conclure. ${Math.round(sous3 * 100)} % ferment sous 3 m (référence à mesurer)`);
+  dette(`Étape 3 — le pressing ferme vraiment : ${Math.round(sous3 * 100)} % des épisodes ≥ 1 s ferment sous 3 m (référence 65,9 % SUR CETTE MÊME POPULATION — 58,7 % serait celle de la population entière ; ±15 %) — ${PMin.length} épisodes, médiane ${q(PMin, 0.5).toFixed(1)} m contre 2,27`,
+    PMin.length >= 120 && ecart(sous3, 0.659) <= 0.15,
+    `ÉCHÉANCE étape 4 — et l'échantillon BLOQUE la décision : ${PMin.length} épisodes ici, il en faut 120 pour que le bruit (±10,7 %) passe sous la tolérance. Mesuré : 3,4 épisodes par match, donc ~35 matchs — voir tests/RECETTES.md`);
   /* 6. UNE OPTION EST UN ÉVÉNEMENT COURT. C'est la propriété qui
      distingue la bonne définition de la mauvaise : « un coéquipier à
      portée » reste disponible des dizaines de secondes, une option née
