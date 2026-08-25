@@ -328,8 +328,16 @@ const ONZE_SCENE = (() => {
             role: null, etiquette: false, aura: 0, auraCouleur: null, flash: 0,
             echelle: 1, phase: Math.random() * 6.28, plonge: 0,
           };
-          p.cle = camp + "|" + j.nom;
-          pions[p.cle] = p;
+          /* Une clé DOIT désigner un seul pion. « camp|nom » ne suffit
+             pas : un club peut aligner deux copies non fusionnées du
+             même joueur (le pool en contient plusieurs). Le second
+             reçoit donc un suffixe, et c'est le PREMIER que la
+             résolution par nom renvoie — le moteur, lui, ne connaît que
+             les noms, on ne peut pas être plus fin que lui. */
+          let cle = camp + "|" + j.nom;
+          for (let n = 2; pions[cle]; n++) cle = camp + "|" + j.nom + "#" + n;
+          p.cle = cle;
+          pions[cle] = p;
           listePions.push(p);
         }
       }
@@ -1595,6 +1603,20 @@ const ONZE_SCENE = (() => {
         const vVoulue = Math.min(p.vMax, dist * 4.2);
         const vxVoulu = dist > 0.02 ? (dx / dist) * vVoulue : 0;
         const vyVoulu = dist > 0.02 ? (dy / dist) * vVoulue : 0;
+        /* LE BRAQUAGE : on ne change pas de cap à pleine vitesse. Un
+           joueur lancé décrit une COURBE ; il ne pivote pas sur place.
+           Le rayon de braquage se resserre quand il ralentit — d'où un
+           plafond angulaire inversement proportionnel à la vitesse.
+           (Valeur provisoire : à recalibrer sur les chiffres de
+           design/football-chiffre.md dès qu'il est au dépôt.) */
+        /* LE BRAQUAGE — mesuré, puis RETIRÉ (voir le compte rendu).
+           Un plafond angulaire explicite s'est révélé soit inutile, soit
+           nuisible : réservé aux joueurs lancés et loin de leur cible,
+           il ne change rien (p99 mesuré 2,2 rad/s avec, 2,4 sans —
+           l'accélération bornée fait déjà la courbe) ; appliqué aussi
+           aux corrections de placement, il empêche un marqueur de se
+           replacer goal-side (24 % au lieu de 81). Le bon réglage
+           demande les chiffres réels de design/football-chiffre.md. */
         const ax = vxVoulu - p.vx, ay = vyVoulu - p.vy;
         const norme = Math.hypot(ax, ay);
         const budget = p.accel * dtBrut;            // ce qu'il peut gagner cette frame
@@ -1712,6 +1734,8 @@ const ONZE_SCENE = (() => {
           assistants: assistants.map((a) => ({ x: a.x, y: a.y })) },
         positions: listePions.map((p) => ({ nom: p.nom, cle: p.cle, camp: p.camp, x: p.x, y: p.y, base: p.baseX,
           vitesse: Math.hypot(p.vx, p.vy),
+          cap: Math.atan2(p.vy, p.vx),   // pour mesurer le braquage
+          vMax: p.vMax,
           // décision 33 : « pourquoi es-tu là ? » — la raison, et la cible
           role: p.role, marque: p.marque || null,
           cible: p.cible ? { x: p.cible.x, y: p.cible.y } : null,

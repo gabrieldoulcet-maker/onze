@@ -299,6 +299,29 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   verifier(`Décision 24 : un seul des deux homonymes est étiqueté (${homonymes.etiquetes})`,
     homonymes.etiquetes === 1);
 
+  /* Le second cas d'homonymie, plus sournois : DEUX COPIES du même
+     joueur dans la MÊME équipe (le pool en contient plusieurs, et deux
+     copies non fusionnées coexistent). Aucune clé ne doit alors être
+     partagée, sinon l'anneau du porteur s'allume deux fois. */
+  const jumeaux = await page.evaluate(() => {
+    const j = tousLesJoueurs.find((x) => x.poste !== "GAR");
+    const fiches = [j, { ...j }, ...tousLesJoueurs.slice(1, 5)].map((f) => ({ ...f, etoiles: 1 }));
+    const eq = ONZE.equipeDepuisFiches("Jumeaux", "Jumeaux", fiches);
+    const bac = document.createElement("div");
+    bac.style.cssText = "position:fixed;left:-2000px;width:800px;height:360px";
+    document.body.appendChild(bac);
+    const sc = ONZE_SCENE.creer(bac, eq, ONZE.equipeDepuisFiches("B", "B",
+      tousLesJoueurs.slice(10, 15).map((f) => ({ ...f, etoiles: 1 }))), {});
+    const d = sc.diagnostic();
+    const memeNom = d.positions.filter((p) => p.nom === j.nom && p.camp === "moi").length;
+    const cles = d.positions.map((p) => p.cle);
+    const doublons = cles.filter((c, i) => cles.indexOf(c) !== i);
+    sc.detruire(); bac.remove();
+    return { memeNom, doublons: doublons.length, total: cles.length };
+  });
+  verifier(`Décision 24 : deux copies du même joueur dans la même équipe (${jumeaux.memeNom}) gardent des clés distinctes (${jumeaux.doublons} doublon(s) sur ${jumeaux.total})`,
+    jumeaux.memeNom >= 2 && jumeaux.doublons === 0);
+
   /* ---- R13 : le stade est une couche de thème, pas du dur ---- */
   const stade = await page.evaluate(async () => {
     const src = await (await fetch("/match-scene.js")).text();
@@ -383,6 +406,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     // R12 : la timeline des temps forts
     let tlTotal = 0, tlMax = -1, tlRecule = 0, tlMalCompte = 0;
     let porteurAmbigu = 0, matchsAvecHomonymes = 0;
+    let capPrec = null; const braquages = []; const allures = [];
     await new Promise((fini) => {
       const tic = setInterval(() => {
         const sc = typeof sceneMatch !== "undefined" ? sceneMatch : null;
@@ -414,6 +438,32 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
           if (points.length !== d.timeline.total ||
               courants.length !== (d.timeline.courant >= 0 ? 1 : 0)) tlMalCompte++;
         }
+        /* --- ÉTAPE 1 : LE BRAQUAGE. Un joueur lancé décrit une courbe ;
+           il ne pivote pas sur place. On mesure la rotation du cap par
+           seconde, sur les seuls pions qui COURENT vraiment (au-dessus
+           de 6 %/s) — à l'arrêt, tourner est gratuit et normal. --- */
+        if (capPrec) {
+          for (const p of d.positions) {
+            /* On ne mesure QUE la population que la règle gouverne :
+               un joueur LANCÉ (> 12 %/s, là où le plafond angulaire mord
+               vraiment) et qui a de la route devant lui
+               (> 4 % de terrain). Mesurer plus large diluait le signal
+               au point que la recette passait même braquage coupé — un
+               garde-fou qui ne sort pas rouge sur son propre défaut n'en
+               est pas un. */
+            if (p.vitesse < 12 || (p.ecartCible !== null && p.ecartCible <= 4)) continue;
+            const avant = capPrec[p.cle];
+            if (avant === undefined || avant.v < 12 || avant.loin === false) continue;
+            let ecart = p.cap - avant.cap;
+            while (ecart > Math.PI) ecart -= 2 * Math.PI;
+            while (ecart < -Math.PI) ecart += 2 * Math.PI;
+            const parSeconde = Math.abs(ecart) / 0.05;   // le pas d'échantillonnage
+            braquages.push(parSeconde);
+          }
+        }
+        capPrec = {};
+        for (const p of d.positions) capPrec[p.cle] = { cap: p.cap, v: p.vitesse,
+          loin: p.ecartCible === null || p.ecartCible > 4 };
         // --- décision 33 : le cerveau ---
         const champ = d.positions.filter((p) => p.role !== "gardien");
         if (champ.some((p) => !p.role)) sansRaison++;
@@ -453,6 +503,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
             marquagesVus++; if (bon) marquagesBons++;
           }
         }
+        for (const p of d.positions) if (p.role !== "gardien") allures.push(p.vitesse / p.vMax);
         if (d.regime === "action") {
           vitesses.push(d.positions.reduce((t, p) => t + p.vitesse, 0) / d.positions.length);
           etiqAction.push(d.etiquettes.length);
@@ -533,6 +584,13 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
       lignesVues, ecartTypeLigne: lignesVues ? sommeEcartType / lignesVues : 0,
       marquagesVus, marquagesBons, marquagesTous, marquagesTousBons,
       tlTotal, tlMax, tlRecule, tlMalCompte, porteurAmbigu, matchsAvecHomonymes,
+      braquageP99: braquages.length ? braquages.slice().sort((a, b) => a - b)[Math.floor(braquages.length * 0.99)] : 0,
+      braquageMax: braquages.length ? Math.max(...braquages) : 0,
+      braquagesVus: braquages.length,
+      // la part de sa vitesse max qu'un joueur utilise : la distribution
+      // sera recalibrée sur design/football-chiffre.md
+      allureMediane: allures.length ? allures.slice().sort((a, b) => a - b)[Math.floor(allures.length / 2)] : 0,
+      alluresVues: allures.length,
       etiqMax: etiqAction.length ? Math.max(...etiqAction) : 0,
       etiqMed: etiqAction.length ? etiqAction.slice().sort((a, b) => a - b)[Math.floor(etiqAction.length / 2)] : 0,
       etiqBut,
@@ -642,6 +700,14 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
      taille qui est garantie, plus la durée d'un match. */
   verifier(`Décision 33 — le marquage se voit : EN POSITION, le marqueur est goal-side ${Math.round(tauxGoalSide * 100)} % du temps (${sacMarquage.bons}/${sacMarquage.vus} relevés cumulés sur ${sacMarquage.matchs} match(s)) — ${Math.round(tauxBrut * 100)} % en comptant ceux qui courent encore`,
     sacMarquage.vus >= ECHANTILLON_MARQUAGE && tauxGoalSide >= 0.7);
+
+  /* ---- ÉTAPE 1 : LA PHYSIQUE DU PION ---- */
+  /* Deux MESURES, pas encore des assertions : elles attendent les
+     chiffres réels de design/football-chiffre.md pour devenir des
+     bornes. Les afficher tout de suite donne le point de départ, et
+     évite de poser un seuil inventé qu'aucun défaut ne ferait rougir. */
+  console.log(`   📐 braquage : p99 ${releve.braquageP99.toFixed(1)} rad/s, max ${releve.braquageMax.toFixed(1)} (${releve.braquagesVus} mesures sur les joueurs lancés)`);
+  console.log(`   📐 allure : médiane à ${Math.round(releve.allureMediane * 100)} % de la vitesse max (${releve.alluresVues} relevés) — dans le vrai football, un joueur passe l'essentiel du match SOUS son maximum`);
 
   verifier(`Décision 24 : le porteur est désigné sans ambiguïté, même avec des homonymes (${releve.porteurAmbigu} relevé(s) ambigu(s)${releve.matchsAvecHomonymes ? `, ${releve.matchsAvecHomonymes} relevé(s) AVEC homonymes sur le terrain` : ", aucun homonyme dans ce match"})`,
     releve.porteurAmbigu === 0);
