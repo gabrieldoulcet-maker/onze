@@ -51,7 +51,9 @@ C'est la mesure la plus contre-intuitive du lot, et celle qui va le plus changer
 | Durée d'une possession individuelle | 0,0 s | **1,0 s** | 3,4 s |
 | Distance parcourue avec le ballon | 0,0 m | **1,75 m** | 11,3 m |
 | Vitesse du porteur | 0,8 m/s | **2,5 m/s** | 5,0 m/s |
-| Options de passe disponibles | 0 | **2** | 4 |
+| Options de passe disponibles | 1 | **2** | 3 |
+
+*(Correction d'août 2026 : les options de passe avaient d'abord été publiées à 0 · 2 · 4. Remesurées, elles valent **1 · 2 · 3**, avec **39 % des possessions à exactement deux options** et **88 % entre une et trois**. Un p10 à 0 laissait croire qu'un porteur sur dix n'a aucune solution, ce qui n'arrive pratiquement jamais.)*
 
 **Un joueur garde le ballon une seconde et parcourt moins de deux mètres.** Trente pour cent des possessions sont jouées en une touche, et 47 % comportent une conduite — mais une conduite courte. Le football réel est un jeu de remise, pas de dribble.
 
@@ -107,11 +109,26 @@ Deux chiffres décisifs pour la scène :
 | Mesure | p10 | médiane | p90 |
 |---|---|---|---|
 | Nombre de lignes défensives | 2 | **3** | 3 |
-| Hauteur de la dernière ligne (depuis son but) | 0,3 m | **17,7 m** | 39,5 m |
+| Hauteur de la dernière ligne (depuis son but) | 13,0 m | **34,8 m** | 52,2 m |
 | Distance du presseur au départ | 2,7 m | **5,9 m** | 9,5 m |
+| Vitesse de fermeture d'un pressing (par événement) | 0,42 m/s | **1,83 m/s** | 3,99 m/s |
+| Vitesse propre du presseur (recovery press) | — | **4,94 m/s** | — |
 | Distance minimale atteinte par le presseur | 0,9 m | **2,6 m** | 5,2 m |
 | Durée d'un pressing | 0,5 s | **1,6 s** | 3,9 s |
 | Longueur d'une chaîne de pressing | 2 | **3** | 6 |
+
+**Correction d'août 2026 — la hauteur de la dernière ligne.** La valeur publiée d'abord (0,3 · 17,7 · 39,5 m) lisait `last_defensive_line_x_start`, une **abscisse signée d'origine centre**, en la prenant pour une hauteur. La bonne colonne est `last_defensive_line_height_start` : **13,0 · 34,8 · 52,2 m** depuis son propre but (vérification : 52,5 − 17,7 = 34,8). Et le p10 à 13 m et le p90 à 52 ne sont pas du bruit autour de 35 — ce sont des **postures distinctes**, mesurées phase par phase :
+
+| Posture | Hauteur médiane | Étendue mesurée | Part des phases |
+|---|---:|---:|---:|
+| Bloc bas | **16,6 m** | 8,0 – 25,4 | 22 % |
+| Bloc médian | **35,6 m** | 25,0 – 47,1 | 37 % |
+| Bloc haut | **49,4 m** | 41,0 – 55,7 | 16 % |
+| Chaos | **40,0 m** | 16,4 – 57,5 | 13 % |
+
+Une scène qui calcule la hauteur de ligne par une fonction continue du ballon produira une bande étroite autour de la médiane et paraîtra écrite. Il faut **tirer une posture par phase** et la tenir.
+
+**Et la vitesse du pressing ne se compose pas.** Les trois grandeurs du tableau (départ, minimum, durée) sont trois distributions indépendantes : diviser une médiane par une autre donne 2,06 m/s, un chiffre qui ne décrit aucun pressing réel (les extrêmes donneraient 17,2 m/s d'un côté et −0,64 de l'autre). Mesurée **par événement**, la vitesse de fermeture vaut 0,42 · **1,83** · 3,99 m/s — et c'est une borne basse, le minimum étant souvent atteint avant la fin de l'épisode. Le chiffre à donner à un presseur qui court, c'est sa **vitesse propre** : recovery press **4,94 m/s**, pressing 4,69, contre-pressing 4,25, mise sous pression 3,91, autre 3,02. Réussite mesurée : **regain 12 %, perturbation 4 %, sans effet 84 %**.
 
 La défense est **organisée 48 % du temps** — le reste, c'est du replacement ou du chaos. Les structures les plus fréquentes : 4-4-2 (14 %), 4-2-4 (7 %), 5-4-1 (6 %), 5-2-3 (4 %).
 
@@ -181,14 +198,14 @@ Douze conséquences directes, chacune vérifiable.
 
 1. **Nos actions sont trop longues.** Une phase réelle dure 4,7 s et compte deux passes. Même en ne rendant que les transitions (10,9 s, cinq passes), nos rendus doivent viser **trois à cinq temps**, pas huit.
 2. **Le porteur ne garde pas le ballon.** Une seconde, moins de deux mètres. Toute conduite de plus de quatre secondes est irréaliste.
-3. **Deux options de passe, pas dix.** La scène montre deux solutions, et le choix se voit.
+3. **Deux options de passe, pas dix** (1 · 2 · 3 ; 88 % des possessions entre une et trois). La scène montre deux solutions, et le choix se voit.
 4. **Un seul appel tranchant à la fois.** Les autres se replacent.
 5. **Les trois quarts des appels ne sont pas servis.** C'est la source principale du suspense, et elle est gratuite.
 6. **Plus d'une passe sur deux est latérale, une sur cinq recule.** La progression est un résultat d'ensemble.
 7. **Le tempo signe la situation** : construction 0 m/s, création 1,3, contre 4,2, transition 5,4, jeu direct 13. Un seul paramètre pilote les gabarits.
 8. **Le danger converge vers l'axe** : de 20 m d'écart pour une action banale à 6 m pour un but.
-9. **La défense a trois lignes**, sa dernière ligne vit à 18 m de son but, et elle n'est organisée qu'une fois sur deux.
-10. **Le pressing part de 6 m, ferme à 2,6 m, dure 1,6 s, et échoue quatre fois sur cinq.**
+9. **La défense a trois lignes**, sa dernière ligne vit à **35 m** de son but *en médiane* — mais c'est un mélange de postures (bloc bas 17 m, bloc médian 36, bloc haut 49), et elle n'est organisée qu'une fois sur deux. Une hauteur calculée par une fonction continue paraîtra écrite : il faut tirer une posture par phase.
+10. **Le pressing part de 6 m, ferme à 2,6 m, dure 1,6 s, et échoue quatre fois sur cinq** (84 % sans effet, 12 % de regain, 4 % de perturbation). Sa vitesse de fermeture par événement vaut 1,83 m/s en médiane, mais le presseur, lui, **court à 4,9 m/s** — ne jamais composer les trois médianes du tableau.
 11. **Seules les situations rares sont dangereuses.** Reconnaître la situation suffit à doser le danger.
 12. **Les vitesses réelles sont modestes** : un appel court à 5 m/s, un porteur avance à 2,5 m/s. Nos pions ne doivent pas filer.
 
