@@ -47,6 +47,24 @@
   --lueur-horsposte: 0 0 0 2.5px #FF9D3C, 0 0 12px rgba(255, 157, 60, 0.8);
   --ombre-carte: 0 6px 16px rgba(0, 0, 0, 0.5);
   --ombre-panneau: 0 20px 60px rgba(0, 0, 0, 0.7);
+  /* ---- LA LUMIÈRE VIENT DU HAUT (phase 3 de l'habillage) ----
+     Une seule direction d'éclairage pour tout le jeu : les décors sont
+     éclairés par les projecteurs, donc tout objet d'interface prend un
+     liseré clair sur son arête HAUTE et pose son ombre VERS LE BAS.
+     Trois niveaux d'élévation, et trois seulement — un composant déclare
+     son niveau, il n'invente jamais son ombre :
+       posé    : sur la scène (jetons, dalles, pastilles flottantes)
+       panneau : ce qui se pose par-dessus la scène (barres, volets)
+       modale  : ce qui prend la main (fiches, bannières, voiles)
+     L'arête haute est le même liseré partout, à trois intensités. */
+  --elev-pose: 0 4px 10px rgba(0, 0, 0, 0.50);
+  --elev-panneau: 0 8px 22px rgba(0, 0, 0, 0.58);
+  --elev-modale: 0 20px 60px rgba(0, 0, 0, 0.70);
+  --arete-haute: inset 0 1px 0 rgba(214, 245, 222, 0.16);
+  --arete-haute-forte: inset 0 1px 0 rgba(226, 250, 232, 0.34);
+  --arete-basse: inset 0 -1px 0 rgba(0, 0, 0, 0.45);
+  /* le dégradé vertical très léger que porte toute matière de chrome */
+  --pente-lumiere: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(0, 0, 0, 0.06));
   --relief-bouton: inset 0 -5px 0 rgba(0, 0, 0, 0.25);
   --relief-pion: inset 0 -6px 8px rgba(0, 0, 0, 0.4), 0 3px 6px rgba(0, 0, 0, 0.5);
   /* ---- rayons & dimensions ---- */

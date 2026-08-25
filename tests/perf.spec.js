@@ -77,6 +77,58 @@ const verifier = (nom, ok, detail) => {
   const scenes = await page.evaluate(() => document.querySelectorAll(".scene-match").length);
   verifier("une seule scène vivante au plus", scenes <= 1, String(scenes));
 
+  /* ---- L'ÉCRAN DE PLACEMENT, sur les trois décors (phase 3) ----
+     Le décor occupe désormais les trois quarts de l'écran : un flou en
+     temps réel y coûterait cher sur mobile. Le recul de la distance est
+     donc CUIT DANS LES IMAGES — cette recette le vérifie (aucun filtre de
+     flou sur la couche de décor) et mesure les images par seconde sur les
+     trois terrains, effectif complet à l'écran. */
+  for (const [id, nom] of [["emeraude", "Grand Soir"], ["theatre", "Boxing Day"], ["bitumeNeon", "City Stade"]]) {
+    const page = await (await browser.newContext({ viewport: { width: 844, height: 390 } })).newPage();
+    await page.addInitScript((s2) => { try {
+      localStorage.setItem("onze-tutoriel-vu", "1");
+      localStorage.setItem("onze-reglages-match", JSON.stringify({ stade: s2 }));
+    } catch (e) {} }, id);
+    await page.goto("http://localhost:8123/partie.html");
+    await page.waitForSelector("#boutique .carte-boutique", { timeout: 15000 });
+    const mesure = await page.evaluate(async () => {
+      arreterChrono();
+      partie.niveau = 10;
+      const art = tousLesJoueurs.filter((j) => ONZE_PORTRAITS.frontale(j));
+      partie.terrain = art.slice(0, 11).map((f, i) => ({ ...f, etoiles: (i % 3) + 1, uid: "P" + i,
+        ligne: ["GAR", "DÉF", "MIL", "ATT"][i === 0 ? 0 : 1 + (i % 3)] }));
+      partie.banc = art.slice(11, 20).map((f, i) => ({ ...f, etoiles: (i % 3) + 1, uid: "B" + i }));
+      afficher();
+      const im = document.getElementById("fond-terrain");
+      if (im && !im.complete) await new Promise((r) => { im.onload = r; im.onerror = r; });
+      await new Promise((r) => setTimeout(r, 400));
+      // aucun flou EN TEMPS RÉEL sur la grande surface de décor
+      const st = getComputedStyle(im);
+      const flouDecor = /blur/.test(st.filter) || /blur/.test(st.backdropFilter || "");
+      const plateau = getComputedStyle(document.getElementById("plateau"));
+      const flouPlateau = /blur/.test(plateau.filter) || /blur/.test(plateau.backdropFilter || "");
+      // les trames, pendant que l'aura du 3★ anime la scène
+      const trames = [];
+      await new Promise((fini) => {
+        let precedent = performance.now(), n = 0;
+        const tic = (t) => {
+          trames.push(t - precedent); precedent = t;
+          if (++n < 150) requestAnimationFrame(tic); else fini();
+        };
+        requestAnimationFrame(tic);
+      });
+      trames.sort((a, b) => a - b);
+      return { flouDecor, flouPlateau, figurines: document.querySelectorAll(".jeton.figurine").length,
+        p50: trames[Math.floor(trames.length * 0.5)], p95: trames[Math.floor(trames.length * 0.95)] };
+    });
+    verifier(`${nom} : aucun flou en temps réel sur le décor (il est cuit dans l'image)`,
+      !mesure.flouDecor && !mesure.flouPlateau, JSON.stringify(mesure));
+    verifier(`${nom} : écran de placement fluide avec ${mesure.figurines} figurines ` +
+      `(p50 ${mesure.p50.toFixed(1)} ms · p95 ${mesure.p95.toFixed(1)} ms ≤ 20)`,
+      mesure.p95 <= 20, `p95 ${mesure.p95.toFixed(1)} ms`);
+    await page.close();
+  }
+
   await browser.close();
   console.log(echecs ? `\n${echecs} échec(s)` : "\nProfiling ✅");
   process.exit(echecs ? 1 : 0);
