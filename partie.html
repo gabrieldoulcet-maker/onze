@@ -79,7 +79,9 @@
        moitié de la surface : des DÉGRADÉS, pas des boîtes. */
     .haut {
       flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
-      gap: 8px; padding: 4px 10px; background: var(--nuit-profonde); border-bottom: 1px solid var(--ligne);
+      gap: 8px; padding: 4px 10px;
+      background: var(--plaque-fond); border-bottom: var(--plaque-bord);   /* matière PLAQUE */
+      box-shadow: var(--arete-haute-forte), var(--elev-panneau);
       font-size: 0.72rem; color: var(--craie-sourde);
     }
     /* sur un décor peint, le bandeau devient une PLAQUE fine et translucide
@@ -91,13 +93,17 @@
       padding-left: max(10px, env(safe-area-inset-left));
       padding-right: max(10px, env(safe-area-inset-right));
     }
-    .haut .manche-info { cursor: pointer; white-space: nowrap; }
+    .haut .manche-info {
+      cursor: pointer; white-space: nowrap; font-weight: 700;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);              /* halo obligatoire */
+    }
     /* La ligne de progression des manches (la barre de stage de TFT) :
        « qu'est-ce qui arrive, et dans combien de manches ? » d'un regard. */
     .progression { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; overflow: hidden; }
     .rangee-pastilles { display: flex; justify-content: center; align-items: center; gap: 3px; }
     .chrono-barre { width: 90%; max-width: 300px; height: 4px; background: var(--surface-1); border-radius: 2px; overflow: hidden; }
-    .chrono-barre > div { height: 100%; width: 100%; background: var(--gazon-electrique); border-radius: 2px; transition: width 0.2s linear; }
+    /* le chrono n'est pas une action : vert DÉSATURÉ (phase 4) */
+    .chrono-barre > div { height: 100%; width: 100%; background: var(--vert-bordure); border-radius: 2px; transition: width 0.2s linear; }
     .chrono-barre.urgent > div { background: var(--alerte); animation: pulseUrgent 0.5s ease infinite; }
     @keyframes pulseUrgent { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
     .pastille-manche {
@@ -107,14 +113,18 @@
     }
     .pastille-manche small { display: block; font-size: 0.5rem; color: var(--craie-sourde); }
     .pastille-manche.passee { opacity: 0.25; }
-    .pastille-manche.courante {
-      background: var(--surface-2); border: 1.5px solid var(--or-trophee); opacity: 1;
-      box-shadow: 0 0 12px rgba(242, 193, 78, 0.6); font-size: 0.82rem;
+    .pastille-manche.courante {                                /* matière JETON */
+      background: var(--jeton-fond); border: 1.5px solid var(--or-trophee); opacity: 1;
+      box-shadow: var(--arete-haute-forte), var(--elev-pose), 0 0 12px rgba(242, 193, 78, 0.6);
+      font-size: 0.82rem;
     }
-    .haut button {
-      background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
-      border-radius: 7px; padding: 3px 8px; font-size: 0.68rem; font-weight: 700; cursor: pointer;
+    .haut button {                                             /* matière JETON */
+      background: var(--jeton-fond); color: var(--craie-claire);
+      border: 1px solid var(--vert-bordure); border-radius: 8px;
+      box-shadow: var(--arete-haute-forte), var(--elev-pose);
+      padding: 3px 7px; font-size: 0.7rem; cursor: pointer; line-height: 1;
     }
+    .haut button:active { transform: translateY(2px); box-shadow: var(--arete-haute), 0 2px 6px rgba(0, 0, 0, 0.5); }
 
     /* ---- Le centre : synergies | plateau | classement ---- */
     .centre { flex: 1 1 0; display: flex; min-height: 90px; }
@@ -147,11 +157,15 @@
        flou léger, arête haute claire : la matière VERRE du brief. */
     #app.scene-pleine .col-synergies .badge,
     #app.scene-pleine .col-classement .coach-ligne {
-      background: linear-gradient(180deg, rgba(9, 20, 12, 0.86), rgba(5, 12, 7, 0.90));
-      border: 1px solid rgba(160, 200, 168, 0.22); border-radius: 8px;
+      /* matière VERRE : les pastilles flottantes prennent le gabarit
+         commun, plus le halo sombre obligatoire sur un texte clair posé
+         sur une image (phase 4, typographie) */
+      background: var(--verre-fond);
+      border: var(--verre-bord); border-radius: 8px;
       box-shadow: var(--arete-haute), var(--elev-pose);
       backdrop-filter: blur(4px);
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+      font-weight: 700;
     }
     #app.scene-pleine .col-classement { display: flex; flex-direction: column; gap: 3px; }
     #app.scene-pleine .col-classement .coach-ligne { padding: 2px 6px; }
@@ -162,21 +176,21 @@
     /* les deux chips du haut de colonne (légende, bascule staff) : plus
        petites, en verre, elles ouvrent des volets escamotables */
     #app.scene-pleine .col-synergies > button {
-      background: linear-gradient(180deg, rgba(9, 20, 12, 0.88), rgba(5, 12, 7, 0.92)) !important;
-      border: 1px solid rgba(160, 200, 168, 0.22) !important; border-radius: 999px !important;
+      background: var(--verre-fond) !important;
+      border: var(--verre-bord) !important; border-radius: 999px !important;
       box-shadow: var(--arete-haute), var(--elev-pose);
       color: var(--craie-claire) !important; backdrop-filter: blur(4px);
     }
     .indice-synergies { color: var(--craie-sourde); font-size: 0.62rem; display: block; line-height: 1.35; }
     #app.scene-pleine .indice-synergies {
-      background: linear-gradient(180deg, rgba(9, 20, 12, 0.86), rgba(5, 12, 7, 0.90));
-      border: 1px solid rgba(160, 200, 168, 0.20); border-radius: 8px; padding: 5px 7px;
+      background: var(--verre-fond);
+      border: var(--verre-bord); border-radius: 8px; padding: 5px 7px;
       box-shadow: var(--arete-haute), var(--elev-pose);
       backdrop-filter: blur(4px); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
     }
     #app.scene-pleine #page-staff {
-      background: linear-gradient(180deg, rgba(9, 20, 12, 0.90), rgba(5, 12, 7, 0.93));
-      border: 1px solid rgba(160, 200, 168, 0.20); border-radius: 10px; padding: 6px 7px;
+      background: var(--verre-fond);
+      border: var(--verre-bord); border-radius: 10px; padding: 6px 7px;
       box-shadow: var(--arete-haute), var(--elev-panneau);
       backdrop-filter: blur(5px); max-height: 100%; overflow-y: auto;
     }
@@ -288,10 +302,10 @@
     .plateau.terrain-peint.decor-clair .jeton:not(.sur-dalle) {
       box-shadow: 0 0 0 1.5px rgba(6, 13, 8, 0.70), 0 5px 12px rgba(0, 0, 0, 0.45);
     }
-    .plateau.terrain-peint .case-vide {
-      border-color: rgba(237, 245, 236, 0.55); background: rgba(6, 13, 8, 0.30);
+    .plateau.terrain-peint .case-vide {                        /* matière CREUX */
+      border-color: rgba(237, 245, 236, 0.55); background: var(--creux-fond);
       color: rgba(237, 245, 236, 0.75); text-shadow: 0 1px 2px #000;
-      box-shadow: inset 0 6px 10px rgba(0, 0, 0, 0.35), inset 0 -1px 0 rgba(214, 245, 222, 0.10);
+      box-shadow: var(--creux-ombre);
     }
     .plateau.terrain-peint.decor-clair .case-vide {
       border-color: rgba(6, 13, 8, 0.55); background: rgba(6, 13, 8, 0.18);
@@ -467,10 +481,10 @@
        le glisser-déposer lisible */
     /* UN VIDE SE LIT COMME UN TROU (matière « creux ») : ombre interne en
        haut, lumière en bas — l'inverse exact d'un objet posé. */
-    .place-banc {
+    .place-banc {                                             /* matière CREUX */
       flex: 0 0 56px; min-height: 52px; border: none; border-radius: 5px;
-      background: linear-gradient(180deg, rgba(6, 13, 8, 0.80) 0%, rgba(6, 13, 8, 0.62) 58%, rgba(255, 255, 255, 0.06) 100%);
-      box-shadow: inset 0 7px 11px rgba(0, 0, 0, 0.62), inset 0 -1px 0 rgba(214, 245, 222, 0.14);
+      background: var(--creux-fond);
+      box-shadow: var(--creux-ombre);
     }
     /* l'ombre au sol : ce qui POSE la silhouette sur le gazon */
     .plateau.terrain-peint .jeton.figurine:not(.avec-ombre)::before {
@@ -499,10 +513,19 @@
       background: var(--surface-1); border: 1px solid var(--ligne); border-radius: 7px;
       padding: 3px 6px; font-size: 0.6rem; cursor: pointer; color: #C9D6C9;
     }
-    .col-classement .coach-ligne.moi { color: var(--gazon-electrique); font-weight: 700; border-color: var(--ligne-forte); }
+    /* « Mon Club » est une IDENTITÉ, pas une action : le texte reste clair
+       et c'est un liseré au bord qui marque l'appartenance (phase 4) */
+    .col-classement .coach-ligne.moi {
+      color: var(--craie); font-weight: 800; border-color: var(--vert-bordure);
+      border-left: 3px solid var(--gazon-electrique);
+    }
     .col-classement .coach-ligne.mort { color: #5F7A64; text-decoration: line-through; }
-    .col-classement .barre-prestige { height: 4px; background: var(--nuit-profonde); border-radius: 2px; overflow: hidden; margin-top: 2px; }
-    .col-classement .barre-prestige > div { height: 100%; background: var(--gazon-electrique); }
+    .col-classement .barre-prestige {                          /* matière CREUX */
+      height: 5px; background: var(--creux-fond); border-radius: 3px; overflow: hidden; margin-top: 2px;
+      box-shadow: var(--creux-ombre);
+    }
+    /* une jauge de prestige INFORME, elle n'invite pas à cliquer */
+    .col-classement .barre-prestige > div { height: 100%; background: #4FA86A; }
     .col-classement .principal {
       margin: auto 0 0; padding: 10px 4px; font-size: 0.78rem; width: 100%;
     }
@@ -550,15 +573,18 @@
     .boutique-barre {
       flex: 0 0 auto; display: flex; gap: 6px; align-items: stretch;
       min-height: max(96px, 30vh);
-      background: linear-gradient(180deg, #0A150C 0%, var(--nuit-profonde) 42%, #040905 100%);
-      border-top: 1px solid rgba(214, 245, 222, 0.10);
+      background: var(--plaque-fond);                          /* matière PLAQUE */
+      border-top: var(--plaque-bord);
       box-shadow: var(--arete-haute-forte), 0 -10px 24px rgba(0, 0, 0, 0.55);
       padding: 10px 8px calc(6px + env(safe-area-inset-bottom));
     }
     .medaillon-or {
       position: absolute; top: -13px; left: 50%; transform: translateX(-50%); z-index: 6;
       display: flex; align-items: center; gap: 5px;
-      background: var(--nuit-profonde); border: 1.5px solid var(--or-trophee);
+      /* matière JETON, en or : c'est une MONNAIE, elle doit avoir une
+         tranche et un reflet, pas être un aplat sombre cerclé */
+      background: linear-gradient(180deg, #2A2410 0%, #171205 62%, #0B0903 100%);
+      border: 1.5px solid var(--or-trophee);
       border-radius: var(--r-pilule); padding: 2px 12px;
       font-weight: 800; font-size: 0.85rem; font-variant-numeric: tabular-nums; color: var(--or-trophee);
       box-shadow: var(--arete-haute-forte), var(--elev-pose), 0 0 14px rgba(242, 193, 78, 0.35);
@@ -572,16 +598,31 @@
     .bloc-xp .niveau-affiche { font-weight: 800; font-size: 0.72rem; color: var(--craie);
       display: flex; justify-content: space-between; align-items: baseline; }
     .bloc-xp .niveau-affiche small { color: var(--craie-sourde); font-weight: 700; font-size: 0.58rem; }
-    .xp-jauge { height: 5px; background: var(--surface-1); border-radius: 3px; overflow: hidden; }
+    .xp-jauge {                                                /* matière CREUX */
+      height: 6px; background: var(--creux-fond); border-radius: 3px; overflow: hidden;
+      box-shadow: var(--creux-ombre);
+    }
     .xp-jauge > div { height: 100%; background: var(--poste-d); border-radius: 3px; transition: width 0.3s; }
     .odds-affiche { display: flex; gap: 3px; font-size: 0.6rem; font-weight: 800; cursor: pointer;
       padding: 2px 0; justify-content: space-between; }
-    .odds-affiche span { flex: 1; text-align: center; border-radius: 4px; padding: 1px 0; background: var(--surface-1); }
+    .odds-affiche span {                                       /* matière JETON */
+      flex: 1; text-align: center; border-radius: 4px; padding: 1px 0;
+      background: var(--jeton-fond); border: 1px solid var(--vert-bordure);
+      box-shadow: var(--arete-haute), 0 1px 3px rgba(0, 0, 0, 0.5);
+    }
+    /* matière JETON : tranche visible, reflet en haut, ombre courte —
+       c'est la grammaire des jetons de TFT, et le détail qui fait la
+       qualité perçue. Un bouton n'invente plus son fond. */
     .bloc-xp button, .bloc-droite button {
-      background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
+      background: var(--jeton-fond); color: var(--craie-claire); border: 1px solid var(--vert-bordure);
+      box-shadow: var(--arete-haute-forte), var(--elev-pose);
       border-radius: 7px; font-size: 0.6rem; font-weight: 700; cursor: pointer; padding: 3px;
       line-height: 1.25;
     }
+    .bloc-xp button:active, .bloc-droite button:active {
+      transform: translateY(2px); box-shadow: var(--arete-haute), 0 2px 6px rgba(0, 0, 0, 0.5);
+    }
+    .bloc-xp button:disabled, .bloc-droite button:disabled { box-shadow: var(--creux-ombre); transform: none; }
     .bloc-xp button { flex: 1; }
     .bloc-xp button:disabled, .bloc-droite button:disabled { color: #5F7A64; }
     .bloc-droite { flex: 0 0 46px; display: flex; flex-direction: column; gap: 4px; }
@@ -842,10 +883,13 @@
     .tab-recit { min-height: 36px; font-size: 0.8rem; color: var(--craie-claire); margin-top: 8px; }
 
     /* Le compteur de titulaires : toujours visible, alerte si état illégal */
-    .compteur-titulaires {
+    .compteur-titulaires {                                     /* matière VERRE */
       position: absolute; left: 6px; bottom: 4px; z-index: 5;
       font-size: 0.56rem; font-weight: 800; letter-spacing: 0.5px;
-      color: var(--craie-sourde); background: rgba(6, 13, 8, 0.65);
+      color: var(--craie-claire); background: var(--verre-fond);
+      border: var(--verre-bord);
+      box-shadow: var(--arete-haute), var(--elev-pose);
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);              /* halo obligatoire sur le décor */
       padding: 2px 7px; border-radius: 999px; pointer-events: none;
     }
     .compteur-titulaires.alerte {
@@ -903,14 +947,17 @@
     }
     /* Le GABARIT COMMUN des panneaux (Lot 4) : même matière, même
        rayon, même ombre — seule la couleur de bord dit le contexte. */
+    /* matière VERRE (phase 4) : le gabarit commun des neuf volets */
     .volet .panneau {
-      background: linear-gradient(165deg, #152A19, #0A160D);
-      border: 2px solid var(--ligne-forte); border-radius: var(--r-panneau);
+      background: var(--verre-fond);
+      border: var(--verre-bord); border-radius: var(--r-panneau);
+      backdrop-filter: blur(5px);
       width: 100%; max-width: 420px; max-height: 92vh; overflow-y: auto;
       padding: 14px; animation: apparait 0.25s ease; font-size: 0.8rem;
       /* niveau MODALE : elle prend la main, elle porte l'ombre la plus
          franche — et la même arête haute que tout le reste */
       box-shadow: var(--arete-haute-forte), var(--elev-modale);
+      color: var(--craie-claire);
     }
     .volet .panneau > strong:first-child { font-family: var(--police-display); font-weight: 400;
       font-size: 0.95rem; display: inline-block; transform: var(--pente); }
@@ -949,7 +996,7 @@
   <!-- ===== Barre du haut ===== -->
   <div class="haut">
     <span class="manche-info" id="btn-historique" role="button" aria-label="Classement et historique du club"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-parchemin"></use></svg>
-      <span style="color:var(--gazon-electrique)"><svg class="ic-sys" width="12" height="12" viewBox="0 0 48 48"><use href="#is-coeur"></use></svg></span> <span id="prestige">40</span> · Niv <span id="niveau">3</span> ·
+      <span style="color:#4FA86A"><svg class="ic-sys" width="12" height="12" viewBox="0 0 48 48"><use href="#is-coeur"></use></svg></span> <span id="prestige">40</span> · Niv <span id="niveau">3</span> ·
       XP <span id="xp">0</span>/<span id="xp-suivant">6</span> ·
       <span id="serie">—</span> · <svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-staff"></use></svg> <span id="staff">0</span> · <span style="color:var(--alerte-claire)"><svg class="ic-sys" width="12" height="12" viewBox="0 0 48 48"><use href="#is-flamme"></use></svg></span> <span id="ferveur">0</span><span class="masque" id="manche">1</span></span>
     <div class="progression">
