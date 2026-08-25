@@ -340,6 +340,8 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
     let reposDepuis = 0, vitesseReposCourante = 0; const finsDeRepos = [];
     let lignesVues = 0, sommeEcartType = 0;
     let marquagesVus = 0, marquagesBons = 0, marquagesTous = 0, marquagesTousBons = 0;
+    // R12 : la timeline des temps forts
+    let tlTotal = 0, tlMax = -1, tlRecule = 0, tlMalCompte = 0;
     await new Promise((fini) => {
       const tic = setInterval(() => {
         const sc = typeof sceneMatch !== "undefined" ? sceneMatch : null;
@@ -348,6 +350,17 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
         regimes.push(d.regime);
         if (d.positions.some((p) => !isFinite(p.x) || !isFinite(p.y)) ||
             !isFinite(d.ballon.x) || !isFinite(d.ballon.y)) nonFinies++;
+        // --- Règle 12 de la spec : la timeline ---
+        if (d.timeline) {
+          tlTotal = d.timeline.total;
+          if (d.timeline.courant < tlMax) tlRecule++;      // elle ne revient jamais en arrière
+          tlMax = Math.max(tlMax, d.timeline.courant);
+          const points = document.querySelectorAll(".timeline-tf .point-tf");
+          const courants = document.querySelectorAll(".timeline-tf .point-tf.courant");
+          // un point par temps fort, et un seul courant dès qu'un est ouvert
+          if (points.length !== d.timeline.total ||
+              courants.length !== (d.timeline.courant >= 0 ? 1 : 0)) tlMalCompte++;
+        }
         // --- décision 33 : le cerveau ---
         const champ = d.positions.filter((p) => p.role !== "gardien");
         if (champ.some((p) => !p.role)) sansRaison++;
@@ -466,6 +479,7 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
         ? finsDeRepos.slice().sort((a, b) => a - b)[Math.floor(finsDeRepos.length / 2)] : 0,
       lignesVues, ecartTypeLigne: lignesVues ? sommeEcartType / lignesVues : 0,
       marquagesVus, marquagesBons, marquagesTous, marquagesTousBons,
+      tlTotal, tlMax, tlRecule, tlMalCompte,
       etiqMax: etiqAction.length ? Math.max(...etiqAction) : 0,
       etiqMed: etiqAction.length ? etiqAction.slice().sort((a, b) => a - b)[Math.floor(etiqAction.length / 2)] : 0,
       etiqBut,
@@ -575,6 +589,17 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
      taille qui est garantie, plus la durée d'un match. */
   verifier(`Décision 33 — le marquage se voit : EN POSITION, le marqueur est goal-side ${Math.round(tauxGoalSide * 100)} % du temps (${sacMarquage.bons}/${sacMarquage.vus} relevés cumulés sur ${sacMarquage.matchs} match(s)) — ${Math.round(tauxBrut * 100)} % en comptant ceux qui courent encore`,
     sacMarquage.vus >= ECHANTILLON_MARQUAGE && tauxGoalSide >= 0.7);
+
+  /* ---- Règle 12 de la spec : LA TIMELINE DES TEMPS FORTS ----
+     (à ne pas confondre avec le repère interne « R12 » du code, qui
+     désigne la fidélité au moteur — table de correspondance dans
+     design/decisions.md, décision 26.) */
+  verifier(`Règle 12 : un point par temps fort rendu (${releve.tlTotal} points pour ${releve.misesEnPlace} temps forts)`,
+    releve.tlTotal === releve.misesEnPlace);
+  verifier(`Règle 12 : un seul point courant à la fois (${releve.tlMalCompte} relevé(s) fautif(s))`,
+    releve.tlMalCompte === 0);
+  verifier(`Règle 12 : la timeline avance jusqu'au bout et ne recule jamais (arrivée au point ${releve.tlMax + 1}/${releve.tlTotal}, ${releve.tlRecule} recul(s))`,
+    releve.tlRecule === 0 && releve.tlMax + 1 === releve.tlTotal);
 
   const mepMin = releve.misesEnPlaceMs.length ? Math.min(...releve.misesEnPlaceMs) : 0;
   verifier(`R3 : la mise en place a le temps de se jouer (la plus courte ${Math.round(mepMin)} ms ≥ 1200)`,

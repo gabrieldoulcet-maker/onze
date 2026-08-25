@@ -258,6 +258,14 @@ const ONZE_SCENE = (() => {
     bande.innerHTML = `<span class="texte-commentaire"></span>`;
     racine.appendChild(bande);
     const texteCommentaire = bande.querySelector(".texte-commentaire");
+    /* RÈGLE 12 de design/scene-fm.md : LA TIMELINE DES TEMPS FORTS —
+       une rangée de points en haut,
+       un par temps fort rendu du match, le courant en surbrillance.
+       C'est le fil du match d'un coup d'œil : combien de moments, où on
+       en est. Placée à droite du tableau de score, comme chez FM. */
+    const timeline = document.createElement("div");
+    timeline.className = "timeline-tf";
+    racine.appendChild(timeline);
     // la barre de possession, qui prend la place du commentaire au repos
     const barrePossession = document.createElement("div");
     barrePossession.className = "barre-possession";
@@ -806,9 +814,34 @@ const ONZE_SCENE = (() => {
       possessionPct.eux = 100 - possessionPct.moi;
     }
 
+    /* Règle 12 : la timeline. `programmer` pose les points au coup d'envoi
+       (on connaît le nombre de temps forts dès la planification),
+       `avancer` allume le courant et éteint les précédents. */
+    let tfCourant = -1, tfTotal = 0;
+    function programmerTimeline(nb) {
+      tfTotal = Math.max(0, nb | 0);
+      tfCourant = -1;
+      timeline.innerHTML = "";
+      for (let i = 0; i < tfTotal; i++) {
+        const point = document.createElement("span");
+        point.className = "point-tf";
+        point.dataset.tf = String(i);
+        timeline.appendChild(point);
+      }
+      timeline.classList.toggle("visible", tfTotal > 0);
+    }
+    function avancerTimeline() {
+      tfCourant = Math.min(tfCourant + 1, tfTotal - 1);
+      timeline.querySelectorAll(".point-tf").forEach((p, i) => {
+        p.classList.toggle("passe", i < tfCourant);
+        p.classList.toggle("courant", i === tfCourant);
+      });
+    }
+
     /* ---- LE CUT (R2) : carton sec minute + score entre deux temps forts ---- */
     function cut(info, duree = 900) {
       regime = "cut";
+      avancerTimeline();        // le cut ouvre un temps fort : le point s'allume
       bande.classList.remove("visible");
       barrePossession.classList.remove("visible");
       const carte = document.createElement("div");
@@ -1515,6 +1548,7 @@ const ONZE_SCENE = (() => {
        ============================================================ */
     return {
       racine, cut, miseEnPlace, jouerTemps, repos, commentaire, majPossession,
+      timeline: programmerTimeline,
       majJaugeCible, reglerMinute, dominationDe,
       /* Les autres scores du lobby, en toast discret pendant les temps
          morts (le lobby vit pendant ton match). */
@@ -1550,6 +1584,7 @@ const ONZE_SCENE = (() => {
         minute: minute.affichee, porteur: ballon.porteur,
         etiquettes: listePions.filter((p) => p.etiquette).map((p) => p.nom),
         theme: theme.nom, replayEnCours: !!replay,
+        timeline: { total: tfTotal, courant: tfCourant },
         positions: listePions.map((p) => ({ nom: p.nom, camp: p.camp, x: p.x, y: p.y, base: p.baseX,
           vitesse: Math.hypot(p.vx, p.vy),
           // décision 33 : « pourquoi es-tu là ? » — la raison, et la cible

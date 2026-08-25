@@ -34,6 +34,7 @@ const ONZE_UI = (() => {
   const DELAI_EVENEMENT_MS = 1400; // les actions d'une phase s'égrènent
   let vitesse = 1;                 // 1 = direct, 2 = accéléré
   let evenementsJoues = [];        // le fil du match EN COURS (recap live, sans spoiler)
+  let tempsFortsDuMatch = [];      // R12 : les temps forts rendus, pour la timeline du recap ⚔️
 
   function basculerVitesse() { vitesse = vitesse === 1 ? 2 : 1; return vitesse; }
 
@@ -75,6 +76,7 @@ const ONZE_UI = (() => {
   function blocPhase(recit, minute, numero, total) {
     const bloc = document.createElement("div");
     bloc.className = "phase";
+    bloc.id = "phase-" + numero;   // l'ancre où la timeline du recap ⚔️ saute
     bloc.innerHTML = `<div class="titre-phase">${minute}ᵉ — Phase ${numero}</div>`;
     recit.appendChild(bloc);
     bloc.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -318,6 +320,7 @@ const ONZE_UI = (() => {
     elements.scoreA.textContent = "0";
     elements.scoreB.textContent = "0";
     evenementsJoues = [];
+    tempsFortsDuMatch = [];
     const scores = { a: 0, b: 0 };
     const etapes = [];
     let blocCourant = null;
@@ -363,6 +366,20 @@ const ONZE_UI = (() => {
         delaiPhase, vitesse, resume: reg.filtre === "resume",
       });
       const { actions, rendues, courtes, miseEnPlaceMs, dureeMorte } = plan;
+      /* Règle 12 : la timeline connaît le nombre de temps forts dès le coup
+         d'envoi — c'est le fil du match d'un coup d'œil. Et on retient
+         de quoi les REJOUER au recap ⚔️ une fois le match fini. */
+      options.scene.timeline(rendues.size);
+      tempsFortsDuMatch = resultat.phases
+        .filter((ph) => rendues.has(ph))
+        .map((ph, i) => {
+          const fin = ph.evenements.find((ev) => ev.but) ||
+            ph.evenements.find((ev) => ev.type === "arret" || ev.type === "blocage");
+          return { numero: ph.numero, minute: ph.minute, rang: i,
+            but: !!(fin && fin.but), pres: !!(fin && fin.pres),
+            equipe: fin ? fin.equipe : null,
+            format: courtes.has(ph) ? "court" : "grand" };
+        });
       const scoresLobby = (options.scoresLobby || []).slice();
       // la possession affichée vient des VRAIS gains de balle du moteur
       const comptePossession = { moi: 0, eux: 0 };
@@ -457,6 +474,8 @@ const ONZE_UI = (() => {
       // le dernier pas déclaré doit vivre sa durée avant le coup de sifflet
       etapes.push({ delai: attente.duree, mort: attente.mort, action: () => {} });
     } else resultat.phases.forEach((phase) => {
+      // mode « Commentaires seuls » : aucun temps fort n'est mis en
+      // scène, donc aucune timeline — elle n'aurait rien à désigner.
       // ---- Sans scène (match.html, draft.html) : le tempo historique ----
       etapes.push({
         delai: 400,
@@ -529,6 +548,11 @@ const ONZE_UI = (() => {
       voile.innerHTML = `<div class="fiche-joueur" style="max-width:460px">
         <h3>⚔️ Le recap du match${opts.enCours ? " <small style='color:var(--craie-sourde)'>(en direct)</small>" : ""}</h3>
         <div class="sous-titre">${hdm ? `🌟 Homme du match${opts.enCours ? " provisoire" : ""} : <strong>${hdm.nom}</strong> (${hdm.equipe})` : "Personne ne s'est encore illustré…"}</div>
+        ${tempsFortsDuMatch.length ? `<div class="timeline-recap" role="group" aria-label="Les temps forts du match">
+          ${tempsFortsDuMatch.map((tf) => `<button class="point-recap${tf.but ? " but" : tf.pres ? " presque" : ""}"
+            data-phase="${tf.numero}" aria-label="Revoir la ${tf.minute}ᵉ minute${tf.but ? " — but" : ""}">
+            <span class="minute-recap">${tf.minute}'</span></button>`).join("")}
+        </div>` : ""}
         <div style="margin:6px 0">
           ${[equipeA, equipeB].map((eq) =>
             `<button class="onglet-recap" data-camp="${eq.nom.replace(/"/g, "&quot;")}" aria-label="Voir les notes de ${eq.nom.replace(/"/g, "&quot;")}" style="width:auto;margin:0 4px 0 0;padding:5px 10px;font-size:0.7rem;${eq.nom === campActif ? "background:var(--ligne-forte);border-color:var(--gazon-electrique)" : ""}">${eq.nom}</button>`).join("")}
@@ -548,6 +572,21 @@ const ONZE_UI = (() => {
     };
     rendre();
     voile.addEventListener("click", (e) => {
+      /* Règle 12 : la timeline est NAVIGABLE — un point ouvre le journal 📜
+         à la minute de son temps fort. */
+      const point = e.target.closest(".point-recap");
+      if (point) {
+        const recit = document.getElementById("recit");
+        const bloc = document.getElementById("phase-" + point.dataset.phase);
+        if (recit && bloc) {
+          recit.classList.remove("replie");
+          voile.remove();
+          bloc.scrollIntoView({ behavior: "smooth", block: "center" });
+          bloc.classList.add("vise");
+          setTimeout(() => bloc.classList.remove("vise"), 1600);
+        }
+        return;
+      }
       const onglet = e.target.closest(".onglet-recap");
       if (onglet) { campActif = onglet.dataset.camp; rendre(); return; }
       if (e.target === voile || e.target.classList.contains("fermer")) voile.remove();
