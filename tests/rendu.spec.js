@@ -49,7 +49,14 @@ async function ouvrirMercato(page) {
     if (typeof attribuerUids === "function") attribuerUids();
     afficher();
   });
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(600);
+  /* On attend que TOUTES les images soient décodées : depuis l'arrivée
+     des 79 unités et de leurs ombres, une figurine pouvait encore être en
+     vol au moment de la capture — la recette lisait alors du gazon et
+     annonçait une silhouette manquante qui existait très bien. */
+  await page.evaluate(() => Promise.all([...document.images]
+    .filter((i) => i.src && !i.complete).map((i) => i.decode().catch(() => {}))));
+  await page.waitForTimeout(250);
 }
 
 // la variance des pixels d'une zone : une dalle vide est plate, une
@@ -166,9 +173,14 @@ async function varianceZone(page, clip) {
       peintures.length === 0, JSON.stringify(peintures).slice(0, 260));
 
     const surLeGazon = await page.evaluate(() => [...document.querySelectorAll(".ligne-terrain .jeton")].map((j) => {
-      const r = j.getBoundingClientRect();
       const v = j.querySelector("img.frontale, svg.frontale");
       const rv = v ? v.getBoundingClientRect() : null;
+      /* On photographie la BOÎTE DU VISUEL, pas celle du jeton : depuis
+         que les figurines sont des unités de trois quarts, la silhouette
+         n'occupe qu'une partie de sa case, et mesurer la case revient à
+         mesurer surtout du gazon — la variance chutait sans que rien ne
+         soit cassé. */
+      const r = rv || j.getBoundingClientRect();
       return { box: { x: r.x, y: r.y, width: r.width, height: r.height },
         charge: v ? (v.tagName === "IMG" ? v.naturalWidth > 0 : true) : false,
         visuel: rv ? { w: Math.round(rv.width), h: Math.round(rv.height) } : null };
@@ -322,10 +334,12 @@ async function varianceZone(page, clip) {
     const erreursJS = [];
     page.on("pageerror", (e) => erreursJS.push(e.message));
     await ouvrirMercato(page);
-    const OMBRE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30'%3E" +
-      "%3Cellipse cx='50' cy='15' rx='48' ry='13' fill='%23000' opacity='0.6'/%3E%3C/svg%3E";
-    const mesures = await page.evaluate(async (OMBRE2) => {
-      const source = ONZE_PORTRAITS.frontale({ nom: "Sékou" });     // une vraie silhouette du dépôt
+    const mesures = await page.evaluate(async () => {
+      /* On prend une VRAIE paire du lot (unité + ombre cadrées ensemble) :
+         c'est elle qu'il faut mesurer, une ombre bricolée d'un autre
+         format ne dirait rien du partage de transformation. */
+      const source = ONZE_PORTRAITS.frontale({ nom: "Sékou" });
+      const OMBRE2 = ONZE_PORTRAITS.ombre({ nom: "Sékou" });
       // trois joueurs : ancrage par défaut, ancrage décalé, et 3★ avec ombre
       ONZE_PORTRAITS.definir({
         Aplomb: { carte: source, frontale: source },
@@ -358,6 +372,9 @@ async function varianceZone(page, clip) {
           jeton: { centre: rj.x + rj.width / 2, bas: rj.bottom },
           hauteurVisuel: ri ? ri.height : 0,
           ombre: ro ? { l: ro.width, y: ro.y + ro.height / 2, centre: ro.x + ro.width / 2 } : null,
+          // la comparaison exacte des deux boîtes, au dixième de pixel
+          memeBoite: !!(ri && ro) && ["x", "y", "width", "height"].every((k) => Math.abs(ri[k] - ro[k]) < 0.5),
+          ecarts: ri && ro ? ["x", "y", "width", "height"].map((k) => Math.round((ro[k] - ri[k]) * 10) / 10) : null,
           // l'ombre DESSINÉE vit dans le ::before : on lit le pseudo-élément
           // lui-même, sinon on ne mesure rien (la première version lisait
           // le « content » de l'élément, qui ne veut rien dire ici)
@@ -365,7 +382,7 @@ async function varianceZone(page, clip) {
           avecOmbre: j.classList.contains("avec-ombre"),
         };
       });
-    }, OMBRE);
+    });
 
     // 1. tous les points d'appui sur la MÊME ligne de sol, ancrages différents compris
     const lignes = mesures.map((m) => Math.round(m.appui.y * 10) / 10);
@@ -393,16 +410,21 @@ async function varianceZone(page, clip) {
     verifier("une seule ombre au sol par joueur : le fichier chasse l'ombre dessinée, jamais les deux",
       avecOmbre.every((m) => !m.ombreDessinee) && sansOmbre.every((m) => m.ombreDessinee),
       JSON.stringify(mesures.map((m) => [m.avecOmbre, m.ombreDessinee])));
-    const un = avecOmbre.find((m) => Math.round(m.hauteurVisuel) > 0 && m.ombre && m.ancrage.y === 0.82 && m.hauteurVisuel < 60);
+    const un = avecOmbre.find((m) => m.ancrage.y === 0.82 && m.hauteurVisuel < 60);
     const trois = avecOmbre[avecOmbre.length - 1];
-    const rapport = un && trois ? trois.ombre.l / un.ombre.l : 0;
-    verifier(`ombre en fichier : elle grandit avec les étoiles (1★ ${un ? Math.round(un.ombre.l) : "?"} px → ` +
-      `3★ ${trois ? Math.round(trois.ombre.l) : "?"} px, rapport ${rapport.toFixed(2)} ≈ 1,38)`,
+    const rapport = un && trois ? trois.hauteurVisuel / un.hauteurVisuel : 0;
+    verifier(`ombre et unité grandissent ensemble avec les étoiles (1★ ${un ? Math.round(un.hauteurVisuel) : "?"} px → ` +
+      `3★ ${trois ? Math.round(trois.hauteurVisuel) : "?"} px, rapport ${rapport.toFixed(2)} ≈ 1,38)`,
       Math.abs(rapport - 1.38) < 0.06, String(rapport));
-    // 4. l'ombre est posée SOUS le point d'appui, pas ailleurs
-    const malPosees = avecOmbre.filter((m) => Math.abs(m.ombre.y - m.appui.y) > 2 || Math.abs(m.ombre.centre - m.jeton.centre) > 2);
-    verifier("ombre en fichier : elle est centrée sur le point d'appui", malPosees.length === 0,
-      JSON.stringify(malPosees.map((m) => [Math.round(m.ombre.y - m.appui.y), Math.round(m.ombre.centre - m.jeton.centre)])));
+    /* 4. L'OMBRE ET L'UNITÉ PARTAGENT LA MÊME TRANSFORMATION.
+       Les deux images sont cadrées ensemble (600 × 900) : l'ombre est
+       déjà dessinée à sa place dedans. Elle ne doit donc recevoir NI
+       taille propre, NI translation propre — même boîte, même pivot,
+       même échelle que l'unité. Si elles divergent à l'écran, c'est le
+       code qui décale, pas les images. */
+    const divergentes = avecOmbre.filter((m) => !m.memeBoite);
+    verifier("ombre et unité : même boîte, même pivot, même échelle (aucune transformation propre)",
+      divergentes.length === 0, JSON.stringify(divergentes.map((m) => m.ecarts)));
     /* La sélection doit rester visible AU SOL même quand l'ombre dessinée
        a disparu : sans ça, un joueur à ombre de fichier n'aurait plus
        aucun retour visuel quand on le choisit. */

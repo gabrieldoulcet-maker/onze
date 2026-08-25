@@ -101,7 +101,14 @@ const verifier = (nom, ok, detail) => {
       afficher();
       const im = document.getElementById("fond-terrain");
       if (im && !im.complete) await new Promise((r) => { im.onload = r; im.onerror = r; });
-      await new Promise((r) => setTimeout(r, 400));
+      /* On attend le décodage de TOUTES les figurines et de leurs ombres
+         avant de compter les trames : ce qu'on mesure est la fluidité en
+         régime établi, pas le coût du premier décodage — une image qui
+         finit d'arriver pendant le relevé produisait une trame à 33 ms et
+         une recette qui échoue une fois sur trois. */
+      await Promise.all([...document.images].filter((i) => i.src && !i.complete)
+        .map((i) => i.decode().catch(() => {})));
+      await new Promise((r) => setTimeout(r, 500));
       // aucun flou EN TEMPS RÉEL sur la grande surface de décor
       const st = getComputedStyle(im);
       const flouDecor = /blur/.test(st.filter) || /blur/.test(st.backdropFilter || "");

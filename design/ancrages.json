@@ -1,0 +1,574 @@
+{
+  "_defaut": {
+    "x": 0.4585,
+    "y": 0.9701,
+    "_note": "Ancrage de repli quand une entree manque. Mesure : milieu des deux contacts sombres de l'ombre, a la hauteur du contact le plus bas, en parts de l'image."
+  },
+  "ancrages": {
+    "Malandro": {
+      "x": 0.4864,
+      "y": 0.9544,
+      "famille": "01 Ecole de la Rue",
+      "ombre": "shadows/01_Ecole_de_la_Rue/01_Malandro_shadow_alpha.png",
+      "jeu": "Malandro",
+      "controle": "hors tolerance 2%"
+    },
+    "Brahim": {
+      "x": 0.4668,
+      "y": 0.9779,
+      "famille": "01 Ecole de la Rue",
+      "ombre": "shadows/01_Ecole_de_la_Rue/02_Brahim_shadow_alpha.png",
+      "jeu": "Brahim"
+    },
+    "Rodrigo": {
+      "x": 0.458,
+      "y": 0.9557,
+      "famille": "01 Ecole de la Rue",
+      "ombre": "shadows/01_Ecole_de_la_Rue/03_Rodrigo_shadow_alpha.png",
+      "jeu": "Rodrigo"
+    },
+    "Denilson": {
+      "x": 0.4526,
+      "y": 0.9648,
+      "famille": "01 Ecole de la Rue",
+      "ombre": "shadows/01_Ecole_de_la_Rue/04_Denilson_shadow_alpha.png",
+      "jeu": "Denilson"
+    },
+    "Rafinha": {
+      "x": 0.4707,
+      "y": 0.9629,
+      "famille": "01 Ecole de la Rue",
+      "ombre": "shadows/01_Ecole_de_la_Rue/05_Rafinha_shadow_alpha.png",
+      "jeu": "Rafinha"
+    },
+    "Tiago": {
+      "x": 0.4736,
+      "y": 0.9544,
+      "famille": "01 Ecole de la Rue",
+      "ombre": "shadows/01_Ecole_de_la_Rue/06_Tiago_shadow_alpha.png",
+      "jeu": "Tiago"
+    },
+    "Nino": {
+      "x": 0.4429,
+      "y": 0.9635,
+      "famille": "01 Ecole de la Rue",
+      "ombre": "shadows/01_Ecole_de_la_Rue/07_Nino_shadow_alpha.png",
+      "jeu": "Nino"
+    },
+    "Caio": {
+      "x": 0.4663,
+      "y": 0.9622,
+      "famille": "01 Ecole de la Rue",
+      "ombre": "shadows/01_Ecole_de_la_Rue/08_Caio_shadow_alpha.png",
+      "jeu": "Caio"
+    },
+    "Jairzao": {
+      "x": 0.4595,
+      "y": 0.9635,
+      "famille": "01 Ecole de la Rue",
+      "ombre": "shadows/01_Ecole_de_la_Rue/09_Jairzao_shadow_alpha.png",
+      "jeu": "Jairzão"
+    },
+    "Didico": {
+      "x": 0.4683,
+      "y": 0.9544,
+      "famille": "01 Ecole de la Rue",
+      "ombre": "shadows/01_Ecole_de_la_Rue/10_Didico_shadow_alpha.png",
+      "jeu": "Didico"
+    },
+    "Mattia": {
+      "x": 0.4609,
+      "y": 0.9512,
+      "famille": "02 Catenaccio",
+      "ombre": "shadows/02_Catenaccio/01_Mattia_shadow_alpha.png",
+      "jeu": "Mattia"
+    },
+    "Gianluca": {
+      "x": 0.4585,
+      "y": 0.9616,
+      "famille": "02 Catenaccio",
+      "ombre": "shadows/02_Catenaccio/02_Gianluca_shadow_alpha.png",
+      "jeu": "Gianluca"
+    },
+    "Dino": {
+      "x": 0.4614,
+      "y": 0.9714,
+      "famille": "02 Catenaccio",
+      "ombre": "shadows/02_Catenaccio/03_Dino_shadow_alpha.png",
+      "jeu": "Dino"
+    },
+    "Vito": {
+      "x": 0.4385,
+      "y": 0.9857,
+      "famille": "02 Catenaccio",
+      "ombre": "shadows/02_Catenaccio/04_Vito_shadow_alpha.png",
+      "jeu": "Vito"
+    },
+    "Tommaso": {
+      "x": 0.4634,
+      "y": 0.9531,
+      "famille": "02 Catenaccio",
+      "ombre": "shadows/02_Catenaccio/05_Tommaso_shadow_alpha.png",
+      "jeu": "Tommaso"
+    },
+    "Federico": {
+      "x": 0.4482,
+      "y": 0.9648,
+      "famille": "02 Catenaccio",
+      "ombre": "shadows/02_Catenaccio/06_Federico_shadow_alpha.png",
+      "jeu": "Federico"
+    },
+    "Aurelio": {
+      "x": 0.4404,
+      "y": 0.9603,
+      "famille": "02 Catenaccio",
+      "ombre": "shadows/02_Catenaccio/07_Aurelio_shadow_alpha.png",
+      "jeu": "Aurelio"
+    },
+    "Salvatore": {
+      "x": 0.4619,
+      "y": 0.9714,
+      "famille": "02 Catenaccio",
+      "ombre": "shadows/02_Catenaccio/08_Salvatore_shadow_alpha.png",
+      "jeu": "Salvatore"
+    },
+    "Unai": {
+      "x": 0.4683,
+      "y": 0.9616,
+      "famille": "03 Tiki Taka",
+      "ombre": "shadows/03_Tiki_Taka/01_Unai_shadow_alpha.png",
+      "jeu": "Unai"
+    },
+    "Andoni": {
+      "x": 0.4556,
+      "y": 0.9564,
+      "famille": "03 Tiki Taka",
+      "ombre": "shadows/03_Tiki_Taka/02_Andoni_shadow_alpha.png",
+      "jeu": "Andoni"
+    },
+    "Xabi": {
+      "x": 0.4644,
+      "y": 0.9883,
+      "famille": "03 Tiki Taka",
+      "ombre": "shadows/03_Tiki_Taka/03_Xabi_shadow_alpha.png",
+      "jeu": "Xabi"
+    },
+    "Ruben": {
+      "x": 0.4346,
+      "y": 0.9648,
+      "famille": "03 Tiki Taka",
+      "ombre": "shadows/03_Tiki_Taka/04_Ruben_shadow_alpha.png",
+      "jeu": "Rubén",
+      "controle": "hors tolerance 2%"
+    },
+    "Inaki": {
+      "x": 0.4751,
+      "y": 0.9655,
+      "famille": "03 Tiki Taka",
+      "ombre": "shadows/03_Tiki_Taka/05_Inaki_shadow_alpha.png",
+      "jeu": "Iñaki"
+    },
+    "Aitor": {
+      "x": 0.4731,
+      "y": 0.959,
+      "famille": "03 Tiki Taka",
+      "ombre": "shadows/03_Tiki_Taka/06_Aitor_shadow_alpha.png",
+      "jeu": "Aitor"
+    },
+    "Don Alvaro": {
+      "x": 0.4468,
+      "y": 0.9642,
+      "famille": "03 Tiki Taka",
+      "ombre": "shadows/03_Tiki_Taka/07_Don_Alvaro_shadow_alpha.png",
+      "jeu": "Álvaro"
+    },
+    "Jonah": {
+      "x": 0.4443,
+      "y": 0.9863,
+      "famille": "04 Kick and Rush",
+      "ombre": "shadows/04_Kick_and_Rush/01_Jonah_shadow_alpha.png",
+      "jeu": "Jonah"
+    },
+    "Billy": {
+      "x": 0.4326,
+      "y": 0.9714,
+      "famille": "04 Kick and Rush",
+      "ombre": "shadows/04_Kick_and_Rush/02_Billy_shadow_alpha.png",
+      "jeu": "Billy",
+      "controle": "hors tolerance 2%"
+    },
+    "Callum": {
+      "x": 0.4712,
+      "y": 0.9701,
+      "famille": "04 Kick and Rush",
+      "ombre": "shadows/04_Kick_and_Rush/03_Callum_shadow_alpha.png",
+      "jeu": "Callum"
+    },
+    "Jamie": {
+      "x": 0.4663,
+      "y": 0.9824,
+      "famille": "04 Kick and Rush",
+      "ombre": "shadows/04_Kick_and_Rush/04_Jamie_shadow_alpha.png",
+      "jeu": "Jamie"
+    },
+    "Joe": {
+      "x": 0.4565,
+      "y": 0.9922,
+      "famille": "04 Kick and Rush",
+      "ombre": "shadows/04_Kick_and_Rush/05_Joe_shadow_alpha.png",
+      "jeu": "Joe",
+      "controle": "hors tolerance 2%"
+    },
+    "Duncan": {
+      "x": 0.4756,
+      "y": 0.9714,
+      "famille": "04 Kick and Rush",
+      "ombre": "shadows/04_Kick_and_Rush/06_Duncan_shadow_alpha.png",
+      "jeu": "Duncan"
+    },
+    "Luuk": {
+      "x": 0.4502,
+      "y": 0.9876,
+      "famille": "05 Football Total",
+      "ombre": "shadows/05_Football_Total/01_Luuk_shadow_alpha.png",
+      "jeu": "Luuk"
+    },
+    "Pieter": {
+      "x": 0.4722,
+      "y": 0.9766,
+      "famille": "05 Football Total",
+      "ombre": "shadows/05_Football_Total/02_Pieter_shadow_alpha.png",
+      "jeu": "Pieter"
+    },
+    "Kees": {
+      "x": 0.4487,
+      "y": 0.9883,
+      "famille": "05 Football Total",
+      "ombre": "shadows/05_Football_Total/03_Kees_shadow_alpha.png",
+      "jeu": "Kees"
+    },
+    "Joost": {
+      "x": 0.4697,
+      "y": 0.9564,
+      "famille": "05 Football Total",
+      "ombre": "shadows/05_Football_Total/04_Joost_shadow_alpha.png",
+      "jeu": "Joost"
+    },
+    "Bram": {
+      "x": 0.4668,
+      "y": 0.9922,
+      "famille": "05 Football Total",
+      "ombre": "shadows/05_Football_Total/05_Bram_shadow_alpha.png",
+      "jeu": "Bram",
+      "controle": "hors tolerance 2%"
+    },
+    "Jasper": {
+      "x": 0.4546,
+      "y": 0.9674,
+      "famille": "05 Football Total",
+      "ombre": "shadows/05_Football_Total/06_Jasper_shadow_alpha.png",
+      "jeu": "Jasper"
+    },
+    "Sven": {
+      "x": 0.4409,
+      "y": 0.9447,
+      "famille": "05 Football Total",
+      "ombre": "shadows/05_Football_Total/07_Sven_shadow_alpha.png",
+      "jeu": "Sven",
+      "controle": "hors tolerance 2%"
+    },
+    "Timo": {
+      "x": 0.4585,
+      "y": 0.9759,
+      "famille": "05 Football Total",
+      "ombre": "shadows/05_Football_Total/08_Timo_shadow_alpha.png",
+      "jeu": "Timo"
+    },
+    "Ruud": {
+      "x": 0.4512,
+      "y": 0.9583,
+      "famille": "05 Football Total",
+      "ombre": "shadows/05_Football_Total/09_Ruud_shadow_alpha.png",
+      "jeu": "Ruud"
+    },
+    "Joaquin El Santo": {
+      "x": 0.4609,
+      "y": 0.9805,
+      "famille": "06 La Grinta",
+      "ombre": "shadows/06_La_Grinta/01_Joaquin_El_Santo_shadow_alpha.png",
+      "jeu": "Joaquín"
+    },
+    "Nico": {
+      "x": 0.4585,
+      "y": 0.9922,
+      "famille": "06 La Grinta",
+      "ombre": "shadows/06_La_Grinta/02_Nico_shadow_alpha.png",
+      "jeu": "Nico",
+      "controle": "hors tolerance 2%"
+    },
+    "Esteban": {
+      "x": 0.4404,
+      "y": 0.974,
+      "famille": "06 La Grinta",
+      "ombre": "shadows/06_La_Grinta/03_Esteban_shadow_alpha.png",
+      "jeu": "Esteban"
+    },
+    "Emiliano": {
+      "x": 0.4575,
+      "y": 0.9681,
+      "famille": "06 La Grinta",
+      "ombre": "shadows/06_La_Grinta/04_Emiliano_shadow_alpha.png",
+      "jeu": "Emiliano"
+    },
+    "Santiago": {
+      "x": 0.4678,
+      "y": 0.9753,
+      "famille": "06 La Grinta",
+      "ombre": "shadows/06_La_Grinta/05_Santiago_shadow_alpha.png",
+      "jeu": "Santiago"
+    },
+    "Ezequiel": {
+      "x": 0.4556,
+      "y": 0.9915,
+      "famille": "06 La Grinta",
+      "ombre": "shadows/06_La_Grinta/06_Ezequiel_shadow_alpha.png",
+      "jeu": "Ezequiel",
+      "controle": "hors tolerance 2%"
+    },
+    "Bakary": {
+      "x": 0.4385,
+      "y": 0.9746,
+      "famille": "07 Academie",
+      "ombre": "shadows/07_Academie/01_Bakary_shadow_alpha.png",
+      "jeu": "Bakary"
+    },
+    "Theo": {
+      "x": 0.4614,
+      "y": 0.9824,
+      "famille": "07 Academie",
+      "ombre": "shadows/07_Academie/02_Theo_shadow_alpha.png",
+      "jeu": "Théo"
+    },
+    "Adama": {
+      "x": 0.4536,
+      "y": 0.9668,
+      "famille": "07 Academie",
+      "ombre": "shadows/07_Academie/03_Adama_shadow_alpha.png",
+      "jeu": "Adama"
+    },
+    "Dennis": {
+      "x": 0.4634,
+      "y": 0.9902,
+      "famille": "08 Internationaux",
+      "ombre": "shadows/08_Internationaux/01_Dennis_shadow_alpha.png",
+      "jeu": "Dennis",
+      "controle": "hors tolerance 2%"
+    },
+    "Milan": {
+      "x": 0.4507,
+      "y": 0.9863,
+      "famille": "08 Internationaux",
+      "ombre": "shadows/08_Internationaux/02_Milan_shadow_alpha.png",
+      "jeu": "Milan"
+    },
+    "Yannick": {
+      "x": 0.4629,
+      "y": 0.9837,
+      "famille": "08 Internationaux",
+      "ombre": "shadows/08_Internationaux/03_Yannick_shadow_alpha.png",
+      "jeu": "Yannick"
+    },
+    "Djibril": {
+      "x": 0.4521,
+      "y": 0.9909,
+      "famille": "08 Internationaux",
+      "ombre": "shadows/08_Internationaux/04_Djibril_shadow_alpha.png",
+      "jeu": "Djibril",
+      "controle": "hors tolerance 2%"
+    },
+    "Marcus": {
+      "x": 0.5796,
+      "y": 0.9753,
+      "famille": "08 Internationaux",
+      "ombre": "shadows/08_Internationaux/05_Marcus_shadow_alpha.png",
+      "jeu": "Marcus",
+      "controle": "un seul contact detecte | hors tolerance 2%"
+    },
+    "Le Fidele": {
+      "x": 0.4507,
+      "y": 0.9674,
+      "famille": "09 Douzieme Homme",
+      "ombre": "shadows/09_Douzieme_Homme/01_Le_Fidele_shadow_alpha.png"
+    },
+    "Sekou": {
+      "x": 0.5181,
+      "y": 0.9824,
+      "famille": "09 Douzieme Homme",
+      "ombre": "shadows/09_Douzieme_Homme/02_Sekou_shadow_alpha.png",
+      "jeu": "Sékou",
+      "controle": "hors tolerance 2%"
+    },
+    "Ratko": {
+      "x": 0.4585,
+      "y": 0.9922,
+      "famille": "09 Douzieme Homme",
+      "ombre": "shadows/09_Douzieme_Homme/03_Ratko_shadow_alpha.png",
+      "jeu": "Ratko",
+      "controle": "hors tolerance 2%"
+    },
+    "Facundo": {
+      "x": 0.4438,
+      "y": 0.9824,
+      "famille": "09 Douzieme Homme",
+      "ombre": "shadows/09_Douzieme_Homme/04_Facundo_shadow_alpha.png",
+      "jeu": "Facundo"
+    },
+    "Titi": {
+      "x": 0.5249,
+      "y": 0.9453,
+      "famille": "09 Douzieme Homme",
+      "ombre": "shadows/09_Douzieme_Homme/05_Titi_shadow_alpha.png",
+      "controle": "hors tolerance 2%"
+    },
+    "Harry": {
+      "x": 0.5323,
+      "y": 0.9967,
+      "famille": "10 Les Pros",
+      "ombre": "shadows/10_Les_Pros/01_Harry_shadow_alpha.png",
+      "jeu": "Harry",
+      "controle": "un seul contact detecte | hors tolerance 2%"
+    },
+    "Gorka": {
+      "x": 0.4736,
+      "y": 0.9609,
+      "famille": "10 Les Pros",
+      "ombre": "shadows/10_Les_Pros/02_Gorka_shadow_alpha.png",
+      "jeu": "Gorka"
+    },
+    "Ciro": {
+      "x": 0.4644,
+      "y": 0.9395,
+      "famille": "10 Les Pros",
+      "ombre": "shadows/10_Les_Pros/03_Ciro_shadow_alpha.png",
+      "jeu": "Ciro",
+      "controle": "hors tolerance 2%"
+    },
+    "Abdou": {
+      "x": 0.4644,
+      "y": 0.9902,
+      "famille": "10 Les Pros",
+      "ombre": "shadows/10_Les_Pros/04_Abdou_shadow_alpha.png",
+      "jeu": "Abdou",
+      "controle": "hors tolerance 2%"
+    },
+    "Joris": {
+      "x": 0.4556,
+      "y": 0.9714,
+      "famille": "10 Les Pros",
+      "ombre": "shadows/10_Les_Pros/05_Joris_shadow_alpha.png",
+      "jeu": "Joris"
+    },
+    "Lorenzo": {
+      "x": 0.4526,
+      "y": 0.9798,
+      "famille": "10 Les Pros",
+      "ombre": "shadows/10_Les_Pros/06_Lorenzo_shadow_alpha.png",
+      "jeu": "Lorenzo"
+    },
+    "Sam": {
+      "x": 0.5444,
+      "y": 0.9941,
+      "famille": "11 Les Revanchards",
+      "ombre": "shadows/11_Les_Revanchards/01_Sam_shadow_alpha.png",
+      "jeu": "Sam",
+      "controle": "un seul contact detecte | hors tolerance 2%"
+    },
+    "Karim": {
+      "x": 0.4438,
+      "y": 0.9622,
+      "famille": "11 Les Revanchards",
+      "ombre": "shadows/11_Les_Revanchards/02_Karim_shadow_alpha.png",
+      "jeu": "Karim"
+    },
+    "Moussa": {
+      "x": 0.4492,
+      "y": 0.9622,
+      "famille": "11 Les Revanchards",
+      "ombre": "shadows/11_Les_Revanchards/03_Moussa_shadow_alpha.png",
+      "jeu": "Moussa"
+    },
+    "Wim": {
+      "x": 0.4478,
+      "y": 0.9909,
+      "famille": "11 Les Revanchards",
+      "ombre": "shadows/11_Les_Revanchards/04_Wim_shadow_alpha.png",
+      "jeu": "Wim",
+      "controle": "hors tolerance 2%"
+    },
+    "Enzo": {
+      "x": 0.4561,
+      "y": 0.9668,
+      "famille": "11 Les Revanchards",
+      "ombre": "shadows/11_Les_Revanchards/05_Enzo_shadow_alpha.png",
+      "jeu": "Enzo"
+    },
+    "Tiemoko": {
+      "x": 0.4604,
+      "y": 0.9629,
+      "famille": "12 Sans Ecole",
+      "ombre": "shadows/12_Sans_Ecole/01_Tiemoko_shadow_alpha.png",
+      "jeu": "Tiémoko"
+    },
+    "Kwame": {
+      "x": 0.4536,
+      "y": 0.9701,
+      "famille": "12 Sans Ecole",
+      "ombre": "shadows/12_Sans_Ecole/02_Kwame_shadow_alpha.png",
+      "jeu": "Kwame"
+    },
+    "Enfant du Pays": {
+      "x": 0.46,
+      "y": 0.9668,
+      "famille": "12 Sans Ecole",
+      "ombre": "shadows/12_Sans_Ecole/03_Enfant_du_Pays_shadow_alpha.png",
+      "jeu": "L'Enfant du Pays"
+    },
+    "Gus": {
+      "x": 0.4502,
+      "y": 0.9811,
+      "famille": "12 Sans Ecole",
+      "ombre": "shadows/12_Sans_Ecole/04_Gus_shadow_alpha.png"
+    },
+    "Gus Club": {
+      "x": 0.4399,
+      "y": 0.9531,
+      "famille": "13 Copains du Club",
+      "ombre": "shadows/13_Copains_du_Club/01_Gus_Club_shadow_alpha.png"
+    },
+    "Marcel": {
+      "x": 0.4614,
+      "y": 0.9714,
+      "famille": "13 Copains du Club",
+      "ombre": "shadows/13_Copains_du_Club/02_Marcel_shadow_alpha.png"
+    },
+    "Rachid": {
+      "x": 0.4668,
+      "y": 0.9622,
+      "famille": "13 Copains du Club",
+      "ombre": "shadows/13_Copains_du_Club/03_Rachid_shadow_alpha.png"
+    },
+    "Momo": {
+      "x": 0.4629,
+      "y": 0.9714,
+      "famille": "13 Copains du Club",
+      "ombre": "shadows/13_Copains_du_Club/04_Momo_shadow_alpha.png"
+    },
+    "Titi Club": {
+      "x": 0.4551,
+      "y": 0.9427,
+      "famille": "13 Copains du Club",
+      "ombre": "shadows/13_Copains_du_Club/05_Titi_Club_shadow_alpha.png",
+      "controle": "hors tolerance 2%"
+    }
+  }
+}

@@ -334,11 +334,19 @@
        d'appui et grandit avec la silhouette (donc avec les étoiles). Sa
        largeur est une part de la HAUTEUR de la figurine, pas de la boîte :
        c'est ce qui la garde juste quand la boîte change. */
+    /* L'OMBRE PARTAGE EXACTEMENT LA TRANSFORMATION DE L'UNITÉ : même
+       hauteur, même pivot, même ancrage. Les deux images sont cadrées
+       ensemble (600 × 900), l'ombre est déjà dessinée à sa place dedans —
+       lui donner sa propre taille ou sa propre translation, c'est
+       justement la décaler. Le contact tombe sous le pied avant à 1 px
+       près en médiane : si l'écart est plus grand à l'écran, c'est le
+       code qui décale, pas les images. */
     .jeton.figurine .ombre-sol {
       position: absolute; left: 50%; bottom: var(--sol, 2px);
-      width: calc(var(--h-figurine, 40px) * var(--ratio-ombre, 0.95));
-      height: auto; transform: translate(-50%, 50%);
-      pointer-events: none; z-index: 0; opacity: var(--opacite-ombre, 0.9);
+      height: var(--h-figurine, 82%); width: auto; max-width: none;
+      transform: translate(calc(var(--ancrage-x, 0.5) * -100%),
+        calc((1 - var(--ancrage-y, 1)) * 100%));
+      pointer-events: none; z-index: 0; opacity: var(--opacite-ombre, 0.92);
     }
     /* dès qu'une ombre de fichier est là, l'ombre DESSINÉE s'efface :
        jamais les deux, sinon le joueur porte deux ombres */
@@ -4259,7 +4267,9 @@
     // manque ou est illisible, le jeu démarre quand même (cartes Blason)
     Promise.all([
       fetch("design/joueurs.json").then((rep) => rep.json()),
-      ONZE_PORTRAITS.charger(),
+      // les key arts d'abord, puis les 79 FIGURINES qui remplacent les
+      // silhouettes sur l'écran de mise en place (elles se posent par-dessus)
+      ONZE_PORTRAITS.charger().then(() => ONZE_PORTRAITS.chargerUnites()),
       ONZE_TERRAINS.charger(),
     ])
       .then(([donnees]) => {

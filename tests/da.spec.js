@@ -14,23 +14,22 @@
    ============================================================ */
 const { chromium } = require("playwright-core");
 const EXECUTABLE = process.env.CHROME || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-/* LE PLAFOND ANNONCÉ : 1,3 Mo à l'ouverture de l'écran de mercato, décor
-   d'entraînement compris (il est désormais peint par DÉFAUT).
-   Pire cas recalculé après l'arrivée des cinq de départ :
+/* LE PLAFOND ANNONCÉ : 1,5 Mo à l'ouverture de l'écran de mercato, décor
+   d'entraînement compris (peint par DÉFAUT), figurines de trois quarts et
+   leurs ombres comprises.
+   Pire cas recalculé à l'arrivée des 79 unités :
      ~520 Ko de socle (polices auto-hébergées, scripts, CSS, roster + tables)
    + les 5 key arts les plus lourds de la boutique (365 Ko)
-   + le terrain d'entraînement (93 Ko en jeu/)
-   + les 5 silhouettes des titulaires de départ, qui s'affichent d'emblée
-     sur le gazon (199 Ko — c'est ce que ce lot a ajouté)
-   + une silhouette de remplaçant (~60 Ko) ≈ 1237 Ko.
-   ATTENTION, ce poids n'est PAS un nombre fixe : il dépend des 5 cartes
-   tirées en boutique. Mesuré sur six ouvertures : 1088 à 1216 Ko en
-   densité 1, 1383 à 1486 en densité 2. Le plafond borne donc le PIRE
-   tirage, pas le tirage moyen — un plafond calé sur une bonne pioche
-   passerait au vert par chance.
-   Le reste des 8 Mo de visuels ne se charge QUE quand il s'affiche
-   (loading="lazy" sur chaque illustration et chaque silhouette). */
-const PLAFOND_OUVERTURE_KO = 1300;
+   + le terrain d'entraînement (79 Ko en jeu/, le flou de distance ayant
+     allégé les décors)
+   + les 5 titulaires de départ en UNITÉ + OMBRE (5 × 71 Ko = 355 Ko —
+     c'est ce que ce lot ajoute : l'unité pèse 60 Ko, son ombre 11)
+   + une figurine de remplaçant (71 Ko) ≈ 1390 Ko.
+   Le poids n'est PAS un nombre fixe : il dépend des 5 cartes tirées.
+   Mesuré sur six ouvertures : 1276 à 1412 Ko en densité 1, 1407 à 1532 en
+   densité 2. Le plafond borne le PIRE tirage, jamais le tirage moyen.
+   Le reste des 14 Mo de visuels ne se charge QUE quand il s'affiche. */
+const PLAFOND_OUVERTURE_KO = 1500;
 
 let echecs = 0;
 const verifier = (nom, ok, detail) => {
@@ -201,9 +200,16 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
     afficher();
     const teinte = (j) => getComputedStyle(j).getPropertyValue("--teinte-poste").trim();
     const jetons = [...document.querySelectorAll("#banc .jeton.figurine")];
+    /* La LIGNE DE SOL, c'est le POINT D'APPUI, plus le bas de l'image :
+       depuis que chaque figurine déclare son ancrage, deux unités posées
+       sur la même ligne n'ont plus le même bas d'image — et c'est
+       exactement ce qu'on veut. */
     const mesure = (j) => {
+      const st = getComputedStyle(j);
+      const ay = parseFloat(st.getPropertyValue("--ancrage-y")) || 1;
       const im = j.querySelector(".frontale").getBoundingClientRect();
-      return { h: Math.round(im.height * 10) / 10, sol: Math.round(im.bottom * 10) / 10 };
+      return { h: Math.round(im.height * 10) / 10,
+        sol: Math.round((im.bottom - (1 - ay) * im.height) * 10) / 10 };
     };
     const m = jetons.map(mesure);
     const parEtoile = partie.banc.map((f, i) => ({ etoiles: f.etoiles, ...m[i], poste: f.poste, teinte: teinte(jetons[i]),
@@ -223,7 +229,7 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
   const trois = scene.banc.find((b) => b.etoiles === 3);
   verifier(`banc : hauteur commune à niveau d'étoile égal (${un.length} joueurs 1★ à ${un[0].h} px)`,
     new Set(un.map((b) => b.h)).size === 1, JSON.stringify(un.map((b) => b.h)));
-  verifier(`banc : la ligne de sol est la même pour tous (étoiles comprises)`,
+  verifier(`banc : la ligne de sol (le point d'appui) est la même pour tous, étoiles et ancrages compris`,
     new Set(scene.banc.map((b) => b.sol)).size === 1, JSON.stringify(scene.banc.map((b) => b.sol)));
   const r2 = deux.h / un[0].h, r3 = trois.h / un[0].h;
   verifier(`étoiles dans la taille : 1★ 100 % · 2★ ${Math.round(r2 * 100)} % · 3★ ${Math.round(r3 * 100)} %`,
@@ -260,7 +266,11 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
      poste et dessinée en SVG : un seul chemin de rendu hors match, quelle
      que soit la table. Côté boutique, le repli Blason ne bouge pas. */
   const vide = await page.evaluate(() => {
+    // « table vide » veut dire les DEUX tables : les key arts ET les 79
+    // figurines de terrain, qui vivent dans leur propre table depuis le
+    // lot des unités. Vider l'une sans l'autre ne teste rien.
     ONZE_PORTRAITS.definir({});
+    ONZE_PORTRAITS.definirUnites("", null);
     afficher();
     const jetons = [...document.querySelectorAll("#terrain-scene .jeton, #banc .jeton")];
     return { cartes: document.querySelectorAll("#boutique .carte-boutique").length,
@@ -286,6 +296,7 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
   const partielle = await page.evaluate(() => {
     const nom = partie.boutique.find(Boolean).nom;
     ONZE_PORTRAITS.definir({ [nom]: { carte: "da/keyarts/ONZE_01_Sam.webp" } });  // carte seule, pas de frontale
+    ONZE_PORTRAITS.definirUnites("", null);                                       // et aucune figurine
     afficher();
     const jetons = [...document.querySelectorAll("#terrain-scene .jeton, #banc .jeton")];
     return { illustrees: document.querySelectorAll(".carte-boutique.illustree").length,
