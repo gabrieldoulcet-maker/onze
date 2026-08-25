@@ -1,6 +1,6 @@
 # Les recettes d'ONZE — le dénominateur
 
-**18 fichiers de recette.** Ce nombre est le dénominateur de « suite complète
+**19 fichiers de recette.** Ce nombre est le dénominateur de « suite complète
 verte » : une livraison le cite, et un écart entre le nombre cité et le nombre sur le
 disque est un **échec de livraison**, pas un détail de rédaction (règle M5).
 
@@ -8,6 +8,11 @@ Deux conversations ont annoncé « 13 suites vertes » et « 14 recettes » le m
 15 fichiers réels — puis ce fichier lui-même a dit 15 pendant que le disque en portait
 18. **Le mécanisme a fonctionné : la recette est sortie rouge à la fusion.** C'est
 exactement ce pour quoi elle est écrite, et c'est pour ça qu'on ne la désactive pas.
+
+Il a fonctionné une seconde fois le même jour : `tests/orbes.spec.js` est arrivée par
+l'autre côté et ce fichier annonçait encore 18. **Deux fois en une journée, sur deux
+conversations différentes** — c'est la démonstration que le dénominateur ne se tient pas
+à la main.
 
 Deux garde-fous, complémentaires :
 
@@ -28,6 +33,7 @@ Deux garde-fous, complémentaires :
 | `tests/layout.spec.js` | la mise en page sur cinq écrans, l'échelle des pions, le portrait |
 | `tests/marathon.spec.js` | une partie entière, du premier tour au champion |
 | `tests/matieres.spec.js` | le système de matières : plus aucun aplat |
+| `tests/orbes.spec.js` | la cérémonie de butin : un moment un écran (P2), aucune attente muette (P3) |
 | `tests/parcours.spec.js` | le parcours complet du joueur, sans erreur JS |
 | `tests/perf.spec.js` | 60 fps tenus |
 | `tests/portraits.spec.js` | l'intégrité de la table de portraits |
