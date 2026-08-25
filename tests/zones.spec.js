@@ -159,6 +159,9 @@ async function ouvrir(page) {
     arreterChrono();
     document.querySelectorAll(".volet").forEach((v) => v.remove());
     partie.niveau = 9;
+    // un emplacement de boutique VIDE, pour que l'assertion qui le vise
+    // s'exécute vraiment : un contrôle qui ne tourne pas ne dit rien
+    if (partie.boutique && partie.boutique.length > 2) partie.boutique[2] = null;
     const art = tousLesJoueurs.filter((j) => ONZE_PORTRAITS.frontale(j));
     partie.banc = art.slice(0, 9).map((f, i) => ({ ...f, etoiles: (i % 3) + 1, uid: "Z" + i }));
     if (typeof attribuerUids === "function") attribuerUids();
@@ -329,6 +332,61 @@ async function ouvrir(page) {
           retrait.rappele.gDroite > retrait.range.gDroite + 20,
           JSON.stringify(retrait.rappele));
       }
+
+      /* LE MOBILIER TIENT DANS SA ZONE (§9.6, décision 64 · P1). Chaque
+         meuble a une place réservée ; aucun ne vit à cheval sur une
+         couture. Trois qui l'étaient :
+           · le médaillon d'or, à `top: -13px`, dont 12 des 22 px
+             dépassaient au-dessus de la barre de boutique — coupé en deux
+             par son bord, on n'en voyait que la moitié haute ;
+           · le toast, à `bottom: 110px`, posé sur la couture — Gabriel l'a
+             vu « en plein milieu des cartes de boutique ». À dire tel
+             quel (règle M3 bis) : **le contre-test de celui-là ne mord
+             pas** — remis à `bottom: 110px`, il ne recouvre aucune carte
+             aux trois formats testés, la capture d'origine étant plus
+             large. Il est déplacé sur le principe (un message ne se pose
+             pas sur ce qu'on regarde), et l'assertion garde l'avenir sans
+             prouver le passé ;
+           · l'emplacement libre de la boutique, un grand rectangle sombre
+             portant un tiret — la troisième forme de placeholder de
+             l'écran, et celle qui lisait le plus comme une image cassée. */
+      const meubles = await page.evaluate(() => {
+        const dedans = (sel, parent) => {
+          const e = document.querySelector(sel), p = document.querySelector(parent);
+          if (!e || !p) return null;
+          const st = getComputedStyle(e);
+          if (st.display === "none" || st.visibility === "hidden") return { absent: true };
+          const r = e.getBoundingClientRect(), q = p.getBoundingClientRect();
+          return { sel, hautDehors: Math.round(q.top - r.top), basDehors: Math.round(r.bottom - q.bottom),
+            gaucheDehors: Math.round(q.left - r.left), droiteDehors: Math.round(r.right - q.right) };
+        };
+        // un toast, provoqué pour de bon
+        if (typeof signaler === "function") signaler("💾 Partie reprise — manche 12.");
+        const t = document.querySelector(".message-flottant");
+        const cartes = [...document.querySelectorAll(".carte-boutique")].map((e) => e.getBoundingClientRect());
+        let surCartes = 0;
+        if (t) { const rt = t.getBoundingClientRect();
+          for (const c of cartes) {
+            const L = Math.max(0, Math.min(rt.right, c.right) - Math.max(rt.left, c.left));
+            const H = Math.max(0, Math.min(rt.bottom, c.bottom) - Math.max(rt.top, c.top));
+            if (L * H > 4) surCartes++;
+          } }
+        // l'emplacement libre ne porte plus de caractère
+        const vide = document.querySelector(".carte-boutique.vendue");
+        return { medaillon: dedans("#medaillon-or", ".boutique-barre"), toastSurCartes: surCartes,
+          videTexte: vide ? (vide.textContent || "").trim() : null, videExiste: !!vide };
+      });
+      const m = meubles.medaillon;
+      const deborde = m && !m.absent && Math.max(m.hautDehors, m.basDehors, m.gaucheDehors, m.droiteDehors) > 0;
+      verifier(`${taille.nom} · ${ecran} : le médaillon d'or tient dans la bande basse ` +
+        `(dépassements haut ${m && m.hautDehors} · bas ${m && m.basDehors} px)`,
+        !!m && !deborde, JSON.stringify(m));
+      verifier(`${taille.nom} · ${ecran} : le toast ne se pose pas sur les cartes de boutique ` +
+        `(${meubles.toastSurCartes} carte(s) recouverte(s))`, meubles.toastSurCartes === 0);
+      verifier(`${taille.nom} · ${ecran} : l'emplacement libre de la boutique ne porte pas de caractère ` +
+        `(« ${meubles.videTexte === null ? "—" : meubles.videTexte} »)`,
+        meubles.videExiste && meubles.videTexte === "",
+        meubles.videExiste ? meubles.videTexte : "aucun emplacement vide à mesurer");
 
       /* LES DEUX COLONNES NE MANGENT PAS L'ÉCRAN. Mesuré : 108 + 104 px
          sur 844, soit 25 % de la largeur pour de l'information de

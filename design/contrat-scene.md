@@ -74,3 +74,14 @@ Deux issues, et c'est un arbitrage de jeu, pas de code :
 
 L'assertion reste **rouge** en attendant : un garde-fou déclaré rouge est honnête, un
 garde-fou absent ne dit rien.
+
+## Un chiffre à vérifier, côté scène
+
+Relevé en lançant la suite complète le 25 août : `tests/scene.spec.js` sort **rouge sur
+son propre contrôle de marquage** — « EN POSITION, le marqueur est goal-side **68 %** du
+temps (100/146 relevés cumulés sur 5 matchs), 74 % en comptant ceux qui courent encore ».
+L'annonce après avoir borné l'anticipation à 1,5 m était **81 %**.
+
+Soit la fusion a fait régresser, soit c'est l'échantillon — la recette dit elle-même que
+la dispersion est forte. **C'est à la conversation scène de le trancher, pas à moi de le
+supposer** : le chiffre est reporté ici, pas interprété.
