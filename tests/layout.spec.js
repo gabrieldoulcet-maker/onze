@@ -80,11 +80,21 @@ const TAILLES = [
       const po = d.ballon.porteur && d.positions.find((p) => p.cle === d.ballon.porteur);
       const anneau = po ? balayer(px(po), (r * 2 + 8) * dpr,
         (R, V, B) => R > 205 && V > 205 && B > 195) : null;
-      return { ratio: d.ratioPion, rayon: r, hauteur: geo.h, gardienOr, anneau };
+      return { ratio: d.ratioPion, rayon: r, hauteur: geo.h, gardienOr, anneau,
+        terrain: d.terrain, rayonM: d.rayonPionM };
     });
+    /* L'ÉCHELLE DU PION — attendue, pas devinée (étape 2). Le pion a une
+       taille RÉELLE (1,84 m de rayon) ; sa part de la hauteur affichée
+       vaut donc son diamètre divisé par la largeur du terrain de CE
+       match. Sur un terrain complet ça redonne les ~5,4 % de FM ; sur un
+       terrain réduit ça monte, et c'est voulu — un joueur ne rétrécit pas
+       quand le terrain rétrécit. Un seuil figé à 4,5-6,5 % mesurait
+       l'ancienne règle (rayon en fraction du terrain), pas celle-ci. */
     const ratioPct = echelle.ratio * 100;
-    const ratioOk = ratioPct >= 4.5 && ratioPct <= 6.5;
-    console.log(`${ratioOk ? "✅" : "❌"} ${taille.nom} : pions à ${ratioPct.toFixed(1)} % de la hauteur du terrain (rayon ${echelle.rayon.toFixed(1)} px, terrain ${echelle.hauteur.toFixed(0)} px) — bornes 4,5-6,5 %`);
+    const attendu = (2 * echelle.rayonM / echelle.terrain.W) * 100;
+    const ratioOk = Math.abs(ratioPct - attendu) / attendu <= 0.10
+      && ratioPct >= 4 && ratioPct <= 9 && echelle.rayon >= 2.4;
+    console.log(`${ratioOk ? "✅" : "❌"} ${taille.nom} : pions à ${ratioPct.toFixed(1)} % de la hauteur du terrain (attendu ${attendu.toFixed(1)} % pour un terrain de ${echelle.terrain.L}×${echelle.terrain.W} m — rayon ${echelle.rayon.toFixed(1)} px, terrain ${echelle.hauteur.toFixed(0)} px)`);
     if (!ratioOk) total++;
     const identifiable = echelle.gardienOr !== false && echelle.anneau !== false;
     console.log(`${identifiable ? "✅" : "❌"} ${taille.nom} : gardien (or ${echelle.gardienOr}) et porteur (anneau ${echelle.anneau}) identifiables à cette taille`);

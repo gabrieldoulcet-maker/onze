@@ -91,7 +91,8 @@ const ONZE_STADE = (() => {
       nom: "Bitume Néon",
       description: "Le city-stade sous les néons : bitume mouillé, métro aérien, façades roses et bleues.",
       fond: "da/arenes/A02.webp",
-      terrain: { gauche: 0.088, droite: 0.912, haut: 0.152, bas: 0.848 },
+      terrain: { gauche: 0.184, droite: 0.819, haut: 0.231, bas: 0.800 },
+      fondTaille: { w: 900, h: 416 },
       marge: 0.152,
       gazon: { clair: "#243330", sombre: "#1C2A27", bandes: 12, usure: "rgba(0,0,0,0.20)" },
       lignes: { couleur: "rgba(240,248,255,0.80)", epaisseur: 1.6 },
@@ -109,7 +110,8 @@ const ONZE_STADE = (() => {
       nom: "Le Chaudron",
       description: "Grande enceinte en nocturne, tribunes pleines et halos chauds — le stade des grands soirs.",
       fond: "da/arenes/A12.webp",
-      terrain: { gauche: 0.088, droite: 0.912, haut: 0.152, bas: 0.848 },
+      terrain: { gauche: 0.174, droite: 0.825, haut: 0.221, bas: 0.808 },
+      fondTaille: { w: 900, h: 416 },
       marge: 0.152,
       gazon: { clair: "#1F5C33", sombre: "#194E2B", bandes: 14, usure: "rgba(0,0,0,0.16)" },
       lignes: { couleur: "rgba(253,248,234,0.74)", epaisseur: 1.7 },
@@ -127,7 +129,8 @@ const ONZE_STADE = (() => {
       nom: "L'Émeraude",
       description: "Pelouse éclatante sous les projecteurs bleus, sièges cerclés de vert — la carte postale.",
       fond: "da/arenes/A13.webp",
-      terrain: { gauche: 0.088, droite: 0.912, haut: 0.152, bas: 0.848 },
+      terrain: { gauche: 0.174, droite: 0.823, haut: 0.224, bas: 0.810 },
+      fondTaille: { w: 900, h: 416 },
       marge: 0.152,
       gazon: { clair: "#2C8A3A", sombre: "#227430", bandes: 14, usure: "rgba(0,0,0,0.14)" },
       lignes: { couleur: "rgba(253,248,234,0.88)", epaisseur: 1.8 },
@@ -218,15 +221,31 @@ const ONZE_STADE = (() => {
   };
   const TERRAIN_PLEIN = { L: 104, W: 68 };
 
+  /* ---- Le cadrage « cover » d'une image de fond ----
+     L'arène est dessinée à 900 × 416 (rapport 2,16) et le cadre du jeu
+     fait plutôt 3,1 : l'étirer, c'était déformer le stade de 44 % en
+     largeur. On la pose donc en COVER — elle remplit le cadre sans se
+     déformer, et c'est le débord qui est rogné. */
+  function poseImage(largeur, hauteur, taille) {
+    const e = Math.max(largeur / taille.w, hauteur / taille.h);
+    const iw = taille.w * e, ih = taille.h * e;
+    return { e, iw, ih, ox: (largeur - iw) / 2, oy: (hauteur - ih) / 2 };
+  }
+
   function geometrie(largeur, hauteur, t, terrain) {
     const marge = Math.round(hauteur * (t ? t.marge : 0.10));
-    // `terrain` (thèmes à image) resserre le rectangle de jeu pour laisser
-    // voir les angles de l'arène ; sans lui, comportement d'origine exact.
+    /* `terrain` = le rectangle de jeu PEINT dans l'arène, relevé sur
+       l'image (fractions de l'image, pas du canvas). C'est lui qui donne
+       sa géométrie à la scène : le décor commande, pas l'inverse.
+       Sans image, comportement d'origine exact. */
     const cadre = t && t.terrain;
-    const x = cadre ? Math.round(largeur * cadre.gauche) : 0;
-    const y = cadre ? Math.round(hauteur * cadre.haut) : marge;
-    const w = Math.max((cadre ? Math.round(largeur * cadre.droite) : largeur) - x, 20);
-    const h = Math.max((cadre ? Math.round(hauteur * cadre.bas) : hauteur - marge) - y, 20);
+    const pose = cadre && t.fondTaille ? poseImage(largeur, hauteur, t.fondTaille) : null;
+    const fx = (f) => (pose ? pose.ox + f * pose.iw : largeur * f);
+    const fy = (f) => (pose ? pose.oy + f * pose.ih : hauteur * f);
+    const x = cadre ? Math.round(fx(cadre.gauche)) : 0;
+    const y = cadre ? Math.round(fy(cadre.haut)) : marge;
+    const w = Math.max((cadre ? Math.round(fx(cadre.droite)) : largeur) - x, 20);
+    const h = Math.max((cadre ? Math.round(fy(cadre.bas)) : hauteur - marge) - y, 20);
     /* Les dimensions RÉELLES du terrain de ce match, en mètres. Le
        rectangle de pixels ne change pas ; c'est l'échelle mètre → pixel
        qui bouge, et c'est elle qui rend le rétrécissement lisible. */
@@ -305,7 +324,10 @@ const ONZE_STADE = (() => {
     // 1. le fond (ce qui dépasse du terrain) — une ARÈNE le remplace
     const arene = image(t.fond);
     if (arene) {
-      ctx.drawImage(arene, 0, 0, geo.largeur, geo.hauteur);
+      // même pose que la géométrie : l'arène ne se déforme jamais
+      const p = poseImage(geo.largeur, geo.hauteur,
+        t.fondTaille || { w: arene.naturalWidth || 900, h: arene.naturalHeight || 416 });
+      ctx.drawImage(arene, p.ox, p.oy, p.iw, p.ih);
     } else {
       ctx.fillStyle = t.tribunes.fond;
       ctx.fillRect(0, 0, geo.largeur, geo.hauteur);
