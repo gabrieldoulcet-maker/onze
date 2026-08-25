@@ -1059,7 +1059,13 @@ const ONZE_SCENE = (() => {
           .forEach((q) => {
             q.role = "pressing";
             if (!(q.pressJusqua > horloge)) {
-              q.pressJusqua = horloge + 1.6;   // la médiane réelle
+              /* 2,0 s. La médiane réelle d'un ÉPISODE de pressing — la
+                 population que nous mesurons, celle des pressings qui ont
+                 duré au moins une seconde — vaut 2,10 s, pas 1,60 : le
+                 1,60 est la médiane sur TOUTE la population, amorces
+                 comprises. Le retour à 1,6 s avait été décidé contre ce
+                 mauvais repère (décision 63 · M2). */
+              q.pressJusqua = horloge + 2.0;
               q.pressFin = horloge + 3.0 + 1.2;   // 3 s de mission, puis 1,2 s de repli
             }
             /* Il ferme À 2,6 M, côté but — la distance minimale mesurée.

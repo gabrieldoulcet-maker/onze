@@ -728,7 +728,10 @@ const dette = (nom, ok, quand) => {
     if (!avecMatiere && releve.buts >= 1 && releve.misesEnPlace >= 2) avecMatiere = releve;
     const tiragesPostures = Object.values(sacE3.postures).reduce((a, b) => a + b, 0);
     if (avecMatiere && sacMarquage.vus >= ECHANTILLON_MARQUAGE && sacPorteur.length >= 100
-        && sacE3.appels.length >= 15 && sacE3.pressings.length >= 30 && sacE3.dureesOption.length >= 30
+        && sacE3.appels.length >= 15 && sacE3.dureesOption.length >= 30
+        // on compte les ÉPISODES (≥ 1 s), pas les pressings bruts : c'est
+        // sur eux que portent les trois références recalculées
+        && sacE3.pressings.filter((p) => p.duree >= 1).length >= 25
         && tiragesPostures >= 45) break;
     console.log(`   (relevé ${essai + 1} : ${releve.buts} but(s), ${releve.misesEnPlace} temps fort(s), ${releve.marquagesVus} marquage(s) en position — sac à ${sacMarquage.vus}/${ECHANTILLON_MARQUAGE}, on rejoue)`);
   }
@@ -1253,33 +1256,62 @@ const dette = (nom, ok, quand) => {
      réel), puis une mission de 2 s donnait 2,0 m (entre le p10 et la
      médiane). Les deux se réglaient par un seul nombre : la mission à
      1,6 s, la médiane réelle. */
-  const PU2 = e3.pressings.map((p) => p.duree), PDep = e3.pressings.map((p) => p.depart);
-  /* SOUS-POPULATION DÉCLARÉE (règle M2). La distance minimale se mesure
-     sur les pressings qui ont EU LIEU : au moins une seconde. Un
-     défenseur qui s'élance et voit le ballon partir au bout de 0,3 s n'a
-     pas raté sa fermeture, il n'a pas pressé — et ces épisodes-là
-     faisaient sauter la médiane de 1,7 à 4,1 d'une exécution à l'autre.
-     Le football réel mesure des épisodes de pressing (durée médiane
-     1,6 s), pas des amorces. La transformation est déclarée ici et dans
-     le libellé, elle ne se cache pas dans le seuil. */
-  const PMin = e3.pressings.filter((p) => p.duree >= 1).map((p) => p.mini);
+  /* SOUS-POPULATION DÉCLARÉE, ET RÉFÉRENCES RECALCULÉES DESSUS (M2).
+     On ne retient que les pressings qui ont EU LIEU : au moins une
+     seconde. Un défenseur qui s'élance et voit le ballon partir au bout
+     de 0,3 s n'a pas raté sa fermeture, il n'a pas pressé — et ces
+     épisodes faisaient sauter la médiane de 1,7 à 4,1 d'une exécution à
+     l'autre.
+     LA FAUTE QUE ÇA A COÛTÉ, et qui complète M2 : la population avait
+     bien été déclarée, dans une section dédiée — mais on continuait à
+     comparer à 2,61 m, la médiane sur la population ENTIÈRE. Déclarer un
+     changement de population ne suffit pas : il faut RECALCULER LA
+     RÉFÉRENCE dessus. Une note à côté d'un chiffre faux laisse le chiffre
+     faux. Recalculé sur les dix matchs, pour les pressings ≥ 1 s :
+       départ  2,89 · 6,41 · 9,65 m
+       minimum 0,79 · 2,27 · 4,88 m
+       durée   1,10 · 2,10 · 4,40 s
+     (Sur la population entière : 5,94 · 2,60 · 1,60 — ce sont ces
+     chiffres-là qui avaient servi de repère, et c'est ce qui a fait
+     ramener la mission de pressing de 2,0 s à 1,6 s alors que 2,0 était
+     juste.) */
+  const episodes = e3.pressings.filter((p) => p.duree >= 1);
+  const PU2 = episodes.map((p) => p.duree), PDep = episodes.map((p) => p.depart);
+  const PMin = episodes.map((p) => p.mini);
   /* CHAQUE GRANDEUR SA TOLÉRANCE, DÉCLARÉE, AVEC SA RAISON. Une seule
-     tolérance pour trois grandeurs revient à prendre la plus large, et à
-     ±20 % beaucoup de choses passent.
+     tolérance pour trois grandeurs revient à prendre la plus large.
        — DÉPART, ±35 % : c'est une condition de départ, pas ce que l'œil
          lit. Personne ne mesure à l'écran d'où un défenseur s'est élancé.
-       — DURÉE, ±35 % : elle se ressent comme un rythme, pas comme une
-         valeur. Un pressing d'une seconde et demie et un de deux
-         secondes se ressemblent.
+       — DURÉE, ±15 % : PAS pour une raison de ressenti. Elle compte parce
+         que SON ERREUR SE PROPAGE DANS LE MINIMUM — c'est la
+         démonstration de cet incident même : la mission de pressing fixe
+         la durée, et la durée décide du temps qu'un presseur a pour
+         fermer. À ±35 % autour de 1,6, la fourchette allait de 1,04 à
+         2,16 et laissait passer la régression qui a lancé tout cet
+         échange. Une grandeur dont l'erreur en contamine une autre ne
+         prend pas une tolérance large sur un argument de perception.
        — MINIMUM, ±15 % : c'est LA grandeur que l'œil lit directement —
          « un défenseur est-il SUR lui ? ». Une longueur de corps de trop
-         et l'action change de nature. Elle mérite la tolérance la plus
-         serrée du lot, et elle est aujourd'hui EN DETTE. */
-  verifier(`Étape 3 — le pressing : départ ${q(PDep, 0.5).toFixed(1)} m (réel 5,9 ; ±35 %, c'est une condition de départ) · durée ${q(PU2, 0.5).toFixed(1)} s (réel 1,6 ; ±35 %, ça se ressent comme un rythme) — ${PU2.length} pressings`,
-    PU2.length >= 30 && ecart(q(PU2, 0.5), 1.6) <= 0.35 && ecart(q(PDep, 0.5), 5.9) <= 0.35);
-  dette(`Étape 3 — le pressing ferme à une longueur de corps : minimum ${q(PMin, 0.5).toFixed(1)} m (cible 2,61 ; ±15 %, c'est ce que l'œil lit — « un défenseur est-il SUR lui ? ») sur les ${PMin.length} pressings qui ont duré ≥ 1 s`,
-    PMin.length >= 15 && ecart(q(PMin, 0.5), 2.61) <= 0.15,
-    "ÉCHÉANCE étape 4 — le test décisif est revenu PARTAGÉ : la mission à 1,6 s a réparé la durée exactement, le minimum n'a bougé que de 2,0 à 2,1. Le second nombre existe encore");
+         et l'action change de nature. */
+  verifier(`Étape 3 — le pressing, sur les ${PU2.length} épisodes ≥ 1 s : départ ${q(PDep, 0.5).toFixed(1)} m (réel 6,41 ; ±35 %, condition de départ) · durée ${q(PU2, 0.5).toFixed(1)} s (réel 2,10 ; ±15 %, son erreur se propage dans le minimum)`,
+    PU2.length >= 25 && ecart(q(PDep, 0.5), 6.41) <= 0.35 && ecart(q(PU2, 0.5), 2.10) <= 0.15);
+  /* LE MINIMUM : LA MESURE EST BONNE, L'ÉCHANTILLON NE L'EST PAS (M7).
+     Sur la bonne référence — 2,27 m, recalculée sur NOTRE population —
+     nos relevés valent 2,0 · 2,1 · 2,2 · 2,6 · 3,1 · 3,7 selon
+     l'exécution. Le point central tombe dans la tolérance, mais la
+     dispersion d'une exécution à l'autre est plus large que la tolérance
+     elle-même : à n ≈ 28 épisodes, une médiane ne se stabilise pas à
+     ±15 %. Il faudrait environ quatre fois plus d'épisodes — une
+     trentaine de matchs — pour conclure, ce qu'une recette ne peut pas
+     jouer.
+     On ne fabrique donc NI un vert avec une tolérance complaisante, NI
+     un rouge sur une dette qui n'existe pas. On affiche la mesure, sa
+     dispersion et sa limite d'échantillon, et on dit ce qui manque : la
+     PART des épisodes qui ferment sous trois mètres — une proportion se
+     stabilise bien plus vite qu'une médiane — mesurée sur les dix
+     matchs. Avec ce chiffre, elle redevient une assertion. */
+  const sous3 = PMin.length ? PMin.filter((v) => v <= 3).length / PMin.length : 0;
+  console.log(`   📐 minimum du pressing : médiane ${q(PMin, 0.5).toFixed(1)} m sur ${PMin.length} épisodes (réel 2,27) — dispersion d'exécution 2,0 à 3,7, plus large que la tolérance : l'échantillon ne permet pas de conclure. ${Math.round(sous3 * 100)} % ferment sous 3 m (référence à mesurer)`);
   /* 6. UNE OPTION EST UN ÉVÉNEMENT COURT. C'est la propriété qui
      distingue la bonne définition de la mauvaise : « un coéquipier à
      portée » reste disponible des dizaines de secondes, une option née

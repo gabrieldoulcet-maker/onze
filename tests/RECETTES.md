@@ -61,17 +61,42 @@ du mobilier ; un rouge sans cible ne dit pas quand il sera payé.
 
 | Dette | Mesuré | Cible | Échéance |
 |---|---|---|---|
-| 1 à 3 options de passe ouvertes | 54-62 % des passes | **88 %** (médiane 2) | étape 4 |
-| Distance minimale d'un pressing | 2,1-3,1 m selon l'exécution | **2,61 m** (±15 %) | étape 4 |
+| 1 à 3 options de passe ouvertes | 45-62 % des passes | **88 %** (médiane 2) | étape 4 |
 
-### La distance minimale du pressing : le second nombre existe encore
+### La dette du pressing est CLOSE — elle était adossée à une mauvaise référence
 
-Le test décisif est revenu **partagé**, pas unanime. Remettre la mission de pressing à
-1,6 s a réparé la **durée** exactement (2,0 → 1,6, cible 1,6) mais le **minimum** n'a bougé
-que de 2,0 à 2,1 pour une cible de 2,61 : il n'est pas remonté, il a frémi. Il **oscille
-autour du seuil** d'une exécution à l'autre (2,1 · 2,2 · 3,1 mesurés), donc la dette
-s'affiche verte certains jours — ce n'est pas une dette payée, c'est une dette instable.
-Un des deux nombres est trouvé, le second existe toujours : il n'est pas classé.
+Elle disait : *minimum 2,1 m contre une cible de 2,61*. Mais 2,61 est la médiane sur la
+population **entière** des pressings, amorces comprises — or nous mesurons depuis le
+25 août les **épisodes d'au moins une seconde**. Recalculées sur cette population, les
+références valent **départ 6,41 · minimum 2,27 · durée 2,10 s**. Notre 2,1 est donc à
+**−7,5 %**, dans la tolérance : *la dette n'existait pas*. Le changement de population
+avait bien été déclaré, dans une section dédiée — et la comparaison se faisait quand même
+contre l'ancien chiffre. **Une note à côté d'un chiffre faux laisse le chiffre faux**
+(règle M2, complétée).
+
+Trois conséquences, toutes dans le code :
+
+- la **mission de pressing revient à 2,0 s**. Elle avait été ramenée à 1,6 s contre le
+  mauvais repère, alors que 2,0 était juste — la médiane réelle d'un *épisode* vaut 2,10 s,
+  pas 1,60 ;
+- le **départ était exact** (6,4 contre 6,41), pas +8,5 % comme annoncé ;
+- la **durée passe à ±15 %**, et pour la vraie raison : son erreur se propage dans le
+  minimum. À ±35 % la fourchette allait de 1,04 à 2,16 s et **laissait passer la régression
+  qui a lancé tout l'échange**.
+
+### Le minimum du pressing : la mesure est bonne, l'échantillon ne l'est pas
+
+Sur la bonne référence, nos relevés valent 2,0 · 2,1 · 2,2 · 2,6 · 3,1 · 3,7 m selon
+l'exécution. Le point central tombe dans la tolérance, mais **la dispersion est plus large
+que la tolérance elle-même** : à n ≈ 28 épisodes, une médiane ne se stabilise pas à ±15 %.
+Il faudrait environ quatre fois plus d'épisodes — une trentaine de matchs — pour conclure,
+ce qu'une recette ne peut pas jouer.
+
+On ne fabrique donc **ni un vert** avec une tolérance complaisante, **ni un rouge** sur une
+dette qui n'existe pas (règle M7). La recette affiche la mesure, sa dispersion et sa limite
+d'échantillon. **Ce qui la rendrait assertive** : la **part des épisodes qui ferment sous
+trois mètres**, mesurée sur les dix matchs — une proportion se stabilise bien plus vite
+qu'une médiane. Nous en sommes à **54 %** ; la référence reste à mesurer.
 
 ### Deux tableaux qui ne se comparent plus
 
