@@ -4010,6 +4010,19 @@
     const drag = { actif: false, depasse: false, fiche: null, nomListe: null, indice: null, fantome: null };
     const SEUIL_DRAG = 8;
 
+    /* Un fantôme est un CLONE : il emporte les styles EN LIGNE que
+       disposerPlateau() a posés sur le jeton (`left`, `top`), et seuls
+       des styles en ligne peuvent les battre. On remet donc son
+       positionnement à plat à la main — la feuille de style ne suffit
+       pas. Vaut pour les deux drags (joueur et staff). */
+    function neutraliserFantome(f, source) {
+      f.style.position = "fixed";
+      f.style.left = "0"; f.style.top = "0";
+      f.style.right = "auto"; f.style.bottom = "auto";
+      f.style.margin = "0";
+      if (source) f.style.height = source.offsetHeight + "px";
+    }
+
     function malusPourLigne(fiche, ligne) {
       if (!ligne || ligne === fiche.poste) return null;
       if (ligne === "GAR" && fiche.poste !== "GAR") return "😱 −50 %";
@@ -4037,7 +4050,14 @@
     document.addEventListener("pointerdown", (e) => {
       const jeton = e.target.closest(".jeton[data-liste]");
       if (!jeton || e.button > 0) return;
-      drag.candidat = { jeton, x: e.clientX, y: e.clientY };
+      /* L'ÉCART DE PRISE, mémorisé dès l'appui : où le doigt se trouve
+         DANS la carte. C'est lui qu'on conserve pendant tout le geste —
+         la carte reste sous le doigt là où on l'a saisie, et c'est ça qui
+         donne la sensation de tenir un objet. L'ancien code translatait
+         d'un écart codé en dur (−30, −46), le même pour tout le monde. */
+      const r = jeton.getBoundingClientRect();
+      drag.candidat = { jeton, x: e.clientX, y: e.clientY,
+        dxPrise: e.clientX - r.left, dyPrise: e.clientY - r.top };
     });
     document.addEventListener("pointermove", (e) => {
       if (drag.candidat && !drag.actif) {
@@ -4051,11 +4071,20 @@
         if (!drag.fiche) { drag.actif = false; return; }
         jeton.classList.add("source-drag");
         drag.source = jeton;
+        drag.dxPrise = drag.candidat.dxPrise; drag.dyPrise = drag.candidat.dyPrise;
         drag.fantome = jeton.cloneNode(true);
         drag.fantome.classList.remove("source-drag");
         drag.fantome.classList.add("fantome");
         drag.fantome.style.width = jeton.offsetWidth + "px";
-        el("app").appendChild(drag.fantome);
+        neutraliserFantome(drag.fantome, jeton);
+        /* DANS LE BODY, pas dans le plateau : sur terrain peint, la règle
+           `.plateau.terrain-peint .jeton { position: absolute }` (0-3-0)
+           bat `.fantome { position: fixed }` (0-1-0) et le fantôme se
+           retrouvait posé AUX COORDONNÉES DU JETON, puis translaté au
+           pointeur — d'où un écart égal au `left` du jeton attrapé,
+           jusqu'à 672 px sur le dernier remplaçant. Hors du plateau, plus
+           aucune règle de décor ne peut le viser. */
+        document.body.appendChild(drag.fantome);
         const valeurVente = drag.fiche.cout * Math.pow(3, (drag.fiche.etoiles || 1) - 1);
         const zone = el("zone-vente");
         zone.textContent = `💰 Vendre ${drag.fiche.nom} — ${valeurVente}M`;
@@ -4063,7 +4092,7 @@
       }
       if (!drag.actif) return;
       e.preventDefault();
-      drag.fantome.style.transform = `translate3d(${e.clientX - 30}px, ${e.clientY - 46}px, 0) rotate(-4deg) scale(1.06)`;
+      drag.fantome.style.transform = `translate3d(${e.clientX - drag.dxPrise}px, ${e.clientY - drag.dyPrise}px, 0) rotate(-4deg) scale(1.06)`;
       // cibles + malus prévisualisé (au rythme du rendu)
       if (drag.rafPrevu) return;
       drag.rafPrevu = true;
@@ -4212,7 +4241,9 @@
     document.addEventListener("pointerdown", (e) => {
       const badge = e.target.closest(".badge-staff");
       if (!badge) return;
-      dragStaff.candidat = { x: e.clientX, y: e.clientY, indice: Number(badge.dataset.staff) };
+      const rb = badge.getBoundingClientRect();
+      dragStaff.candidat = { x: e.clientX, y: e.clientY, indice: Number(badge.dataset.staff),
+        dxPrise: e.clientX - rb.left, dyPrise: e.clientY - rb.top };
     });
     document.addEventListener("pointermove", (e) => {
       if (dragStaff.candidat && !dragStaff.actif &&
@@ -4224,12 +4255,15 @@
         const f = document.createElement("div");
         f.className = "fantome";
         f.innerHTML = `<span class="badge" style="font-size:0.72rem">🧰 ${carte}</span>`;
-        el("app").appendChild(f);
+        neutraliserFantome(f, null);
+        document.body.appendChild(f);
         dragStaff.fantome = f;
+        dragStaff.dxPrise = dragStaff.candidat.dxPrise;
+        dragStaff.dyPrise = dragStaff.candidat.dyPrise;
       }
       if (!dragStaff.actif) return;
       e.preventDefault();
-      dragStaff.fantome.style.transform = `translate3d(${e.clientX - 24}px, ${e.clientY - 34}px, 0) rotate(-4deg)`;
+      dragStaff.fantome.style.transform = `translate3d(${e.clientX - dragStaff.dxPrise}px, ${e.clientY - dragStaff.dyPrise}px, 0) rotate(-4deg)`;
       document.querySelectorAll(".jeton.cible-staff").forEach((x) => x.classList.remove("cible-staff"));
       const dessous = document.elementFromPoint(e.clientX, e.clientY);
       const jeton = dessous && dessous.closest(".jeton[data-liste]");
