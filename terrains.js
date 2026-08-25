@@ -23,6 +23,8 @@
      ONZE_TERRAINS.cadre(l, h, t)     → où l'image atterrit dans la zone
      ONZE_TERRAINS.projeter(t, c, u, v) → un point du terrain → px
      ONZE_TERRAINS.tuile(t, c, n)     → le rectangle du nᵉ emplacement
+     ONZE_TERRAINS.cadre(L, H, r, a)  → le mapping image → zone (a = ancrage
+                                        vertical : 1 en bas, 0 en haut)
    ============================================================ */
 const ONZE_TERRAINS = (() => {
   const NB_TUILES = 9;
@@ -62,14 +64,22 @@ const ONZE_TERRAINS = (() => {
   /* Où l'image atterrit dans une zone : elle la COUVRE, calée en bas —
      le bas de l'image (le banc) doit toujours rester visible ; c'est le
      ciel qu'on rogne si la zone est plus large que le format 2,16. */
-  function cadre(largeur, hauteur, ratioImage = 844 / 390) {
+  /* ANCRAGE VERTICAL : 1 = calé en bas (on perd le ciel), 0 = calé en
+     haut (on perd le premier plan). Depuis que la scène occupe tout le
+     cadre (phase 1 de l'habillage), la zone est bien plus large que le
+     format de l'image : le « cover » zoome, et c'est cet ancrage qui
+     décide de ce qu'on garde. Un peu moins de 1 laisse voir une tranche
+     de tribune sans jamais faire sortir les mats peints du cadre. */
+  const ANCRAGE_DEFAUT = 0.92;
+
+  function cadre(largeur, hauteur, ratioImage = 844 / 390, ancrage = ANCRAGE_DEFAUT) {
     // rendu « cover » : l'image remplit la zone, on ne rogne jamais la
-    // largeur (le banc va d'un bord à l'autre) et on cale EN BAS —
-    // c'est le ciel qu'on perd si la zone est plus large que le format.
+    // largeur (le banc va d'un bord à l'autre) et l'ancrage décide de ce
+    // qu'on garde en haut et en bas.
     const rendueL = Math.max(largeur, hauteur * ratioImage);
     const rendueH = rendueL / ratioImage;
     const dx = (largeur - rendueL) / 2;
-    const dy = hauteur - rendueH;
+    const dy = (hauteur - rendueH) * Math.min(1, Math.max(0, ancrage));
     return {
       largeur: rendueL, hauteur: rendueH, dx, dy, zoneL: largeur, zoneH: hauteur,
       versZone: (fx, fy) => [dx + fx * rendueL, dy + fy * rendueH],
@@ -102,6 +112,6 @@ const ONZE_TERRAINS = (() => {
      terrain ils sont plus petits qu'au premier plan. */
   const echelleProfondeur = (v) => 0.86 + 0.28 * v;
 
-  return { charger, definir, pour, liste, cadre, projeter, tuile, echelleProfondeur, NB_TUILES, A_PLAT };
+  return { charger, definir, pour, liste, cadre, projeter, tuile, echelleProfondeur, NB_TUILES, A_PLAT, ANCRAGE_DEFAUT };
 })();
 if (typeof module !== "undefined") module.exports = ONZE_TERRAINS;

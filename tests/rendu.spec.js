@@ -289,8 +289,12 @@ async function varianceZone(page, clip) {
        illisibles. La recette exige alors que la plus petite soit
        effectivement AU PLANCHER : sans quoi le dépassement viendrait
        d'ailleurs, et ce serait un vrai défaut. */
+    /* « Au plancher » se juge sur la hauteur RENDUE, qui porte encore le
+       facteur de profondeur (0,86 à 1,14 selon la rangée) : une silhouette
+       calée sur la borne de 26 px sort donc entre 22 et 30 px à l'écran.
+       La marge de 1,15 est cette plage, pas une tolérance de confort. */
     const trop = lignes.filter(([, v]) =>
-      v.pireMorsure > budget && v.plusPetite > plein.conf.minLisible * 1.05);
+      v.pireMorsure > budget && v.plusPetite > plein.conf.minLisible * 1.15);
     const auPlancher = lignes.filter(([, v]) => v.pireMorsure > budget).map(([k]) => k);
     verifier(`${L}×${H} · onze titulaires : le recouvrement tient le budget déclaré (${plein.conf.recouvrement}) ou bute sur la borne de lisibilité ` +
       lignes.map(([k, v]) => `${k} ${v.n}→${v.pireMorsure.toFixed(2)}`).join(" · ") +
