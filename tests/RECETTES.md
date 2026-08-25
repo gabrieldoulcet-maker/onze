@@ -14,6 +14,23 @@ l'autre côté et ce fichier annonçait encore 18. **Deux fois en une journée, 
 conversations différentes** — c'est la démonstration que le dénominateur ne se tient pas
 à la main.
 
+## Ce qui est écarté, et pourquoi
+
+**« 18 lancées sur 19 » sans dire laquelle rouvre exactement ce que M5 avait fermé.**
+Un dénominateur n'est complet que si les absences sont nommées. Le lanceur imprime la
+ligne à recopier telle quelle dans tout compte rendu :
+
+```
+19 recette(s) sur le disque · 1 écartée(s) : scene
+```
+
+| Recette | Écartée quand | Pourquoi | Qui la lance |
+|---|---|---|---|
+| `tests/scene.spec.js` | quand la livraison ne touche ni `match-scene.js`, ni `stade.js`, ni la couche de match | elle appartient à la **conversation scène**, dure ~6 min, et porte ses propres dettes (le marquage à 68 %) — la lancer depuis l'écran de placement mélangerait deux verdicts | la conversation scène à chaque étape, et **toute livraison qui touche à la couture** (`design/contrat-scene.md`) |
+
+Écarter n'est pas ignorer : `--sauf=scene` doit apparaître dans le rapport, et une
+livraison qui touche à la scène ou à sa couche la relance **sans l'option**.
+
 Deux garde-fous, complémentaires :
 
 - **`tests/lancer-tout.js`** lit la liste **sur le disque** et annonce N/N avec le détail.

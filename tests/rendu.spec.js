@@ -373,10 +373,21 @@ async function empreinteVisuel(page, indice, zone) {
        image source, même taille, même gazon. Les comparer côte à côte,
        chacun à sa place, revenait à mesurer la profondeur.
 
-       Relevé, et le contre-test avec : **87 à 95 %** des pixels peints
-       changent ; **0 % sur les six** quand on neutralise le filtre. Un
-       plancher à 60 % laisse la marge pour un traitement plus doux, sans
-       laisser passer un traitement absent. */
+       LE PLANCHER EST CALIBRÉ, pas choisi. Deux points ne suffisaient pas :
+       avec 87-95 % « avec » et 0 % « sans », n'importe quelle valeur entre
+       1 et 87 aurait passé exactement les mêmes deux tests, et 60 % ne
+       voulait encore rien dire. On a donc mesuré un troisième point — un
+       traitement volontairement AFFAIBLI (filtre à moitié, liseré deux
+       fois plus fin) :
+
+         · traitement absent  →  0 %  (les six, aux deux formats)
+         · traitement à moitié →  47 à 87 %  (le plus faible : 47 %)
+         · traitement entier   →  87 à 95 %  (le plus faible : 87 %)
+
+       Le plancher à **60 %** tombe donc entre les deux : il REJETTE un
+       traitement de moitié à son point le plus faible (47 % et 50 % et
+       55 % sortent rouges) et accepte le traitement entier avec 27 points
+       de marge. C'est un seuil mesuré, plus un pari. */
     const PART_ANONYME = 0.60;
     const corpsAnonymes = await page.evaluate(async () => {
       arreterChrono();
