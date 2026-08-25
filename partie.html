@@ -331,6 +331,30 @@
       pointer-events: none;
     }
     .couche-match.masque { display: none; }
+    /* LES COLONNES SE RÉTRACTENT PENDANT LE MATCH (décision 65). Elles
+       GLISSENT, elles ne disparaissent pas d'un coup : on doit voir où
+       elles sont parties, et pouvoir les rappeler. */
+    #app.scene-pleine .col-synergies,
+    #app.scene-pleine .col-classement { transition: transform 0.28s ease; }
+    #app.scene-pleine.match-en-scene .col-synergies { transform: translateX(calc(-100% - 8px)); }
+    #app.scene-pleine.match-en-scene .col-classement { transform: translateX(calc(100% + 8px)); }
+    #app.scene-pleine.match-en-scene.colonnes-rappelees .col-synergies,
+    #app.scene-pleine.match-en-scene.colonnes-rappelees .col-classement { transform: none; }
+    .onglet-colonne {
+      position: absolute; top: 50%; width: 12px; height: 46px; z-index: 21;
+      transform: translateY(-50%); padding: 0; cursor: pointer;
+      background: var(--verre-fond); border: var(--verre-bord);
+      box-shadow: var(--arete-haute), var(--elev-pose); backdrop-filter: blur(4px);
+    }
+    .onglet-colonne.masque { display: none; }
+    .onglet-colonne.gauche { left: 0; border-radius: 0 8px 8px 0; }
+    .onglet-colonne.droite { right: 0; border-radius: 8px 0 0 8px; }
+    /* trois traits : l'objet dit « il y a quelque chose ici, tire-le » */
+    .onglet-colonne::before {
+      content: ""; position: absolute; inset: 0; margin: auto; width: 2px; height: 18px;
+      background: var(--craie-sourde); border-radius: 2px;
+      box-shadow: 0 -6px 0 var(--craie-sourde), 0 6px 0 var(--craie-sourde);
+    }
     /* Pendant le match, le conteneur de mise en place DISPARAÎT — ses
        lignes et ses jetons ne doivent plus exister à l'écran, même
        couverts : c'est ce qui faisait « un terrain ajouté au-dessus ». */
@@ -1123,6 +1147,11 @@
            recouverts par la scène. Le contrat de couture vit dans
            design/contrat-scene.md. -->
       <div class="couche-match masque" id="couche-match"></div>
+      <!-- LES ONGLETS DES COLONNES : pendant le match, les deux colonnes
+           glissent hors cadre et ne laissent qu'eux. Elles reviennent au
+           coup de sifflet ; un tap les rappelle entre-temps. -->
+      <button class="onglet-colonne gauche masque" id="onglet-gauche" aria-label="Afficher les synergies"></button>
+      <button class="onglet-colonne droite masque" id="onglet-droite" aria-label="Afficher le classement"></button>
       <div class="terrain" id="terrain-scene">
         <div class="ligne-terrain" id="ligne-GAR"></div>
         <div class="ligne-terrain" id="ligne-DÉF"></div>
@@ -2034,6 +2063,13 @@
         couche.appendChild(el("recit"));
         couche.appendChild(el("bandeau-recit"));
         couche.style.pointerEvents = "auto";
+        /* Les colonnes se rétractent : rien n'y est actionnable pendant un
+           match, et le match n'a qu'une chose à offrir — voir les joueurs
+           jouer (décision 65). Les onglets restent. */
+        el("app").classList.add("match-en-scene");
+        el("app").classList.remove("colonnes-rappelees");
+        el("onglet-gauche").classList.remove("masque");
+        el("onglet-droite").classList.remove("masque");
         el("recit").classList.add("replie");
       }
       el("bandeau-recit").innerHTML = "";
@@ -2278,6 +2314,9 @@
       couche.classList.add("masque");
       couche.style.pointerEvents = "";
       terrain.classList.remove("masque-match");
+      el("app").classList.remove("match-en-scene", "colonnes-rappelees");
+      el("onglet-gauche").classList.add("masque");
+      el("onglet-droite").classList.add("masque");
     }
 
     function continuer() {
@@ -3249,17 +3288,25 @@
       if (sel.nomListe === "banc") titulariserDepuisBanc(sel.indice, ligne);
     }
 
+    /* LE GESTE, RANGÉ EN TROIS (§5 du playtest, août 2026).
+         · TAP        = voir les stats. C'est la demande de Gabriel, et
+                        c'était le geste qui ne faisait rien d'utile.
+         · APPUI LONG = le menu d'actions (changer de ligne, banc, vendre).
+         · GLISSER    = déplacer, échanger, vendre — il fait déjà tout ça,
+                        et depuis le correctif du fantôme il le fait juste.
+       Avant, le tap faisait DEUX choses en une : il sélectionnait, et un
+       second tap sur le même jeton ouvrait le menu — pendant qu'un tap sur
+       un autre jeton échangeait les deux. Trois effets sur un seul geste,
+       dont aucun ne montrait les stats. Le drag couvre l'échange et le
+       changement de ligne ; rien n'est perdu, tout est plus court. */
     function tapJeton(nomListe, indice) {
-      if (!selection) {
-        selection = { nomListe, indice };
-        afficher();
-        return;
-      }
-      const meme = selection.nomListe === nomListe && selection.indice === indice;
-      const premiere = selection;
-      selection = null;
-      if (meme) { afficher(); return menuJoueur(nomListe, indice); }
-      echangerJoueurs(premiere, { nomListe, indice });
+      if (selection) selection = null;
+      const fiche = partie[nomListe] && partie[nomListe][indice];
+      if (!fiche) return;
+      // sur le terrain, la fiche montre les valeurs CALCULÉES (synergies comprises)
+      let calcule = null;
+      if (nomListe === "terrain") { try { calcule = equipeDuClub().joueurs[indice]; } catch (e) {} }
+      ONZE_UI.ouvrirFiche(fiche, calcule);
     }
     function echangerJoueurs(a, b) {
       if (partie.matchEnCours) { afficher(); return signaler("⏳ Les changements prendront effet à la manche suivante."); }
@@ -3659,11 +3706,23 @@
          sur la boutique — « on ne voit pas l'intégralité du banc car les
          staff, 1/3 famille etc le cachent ». */
       el("app").style.setProperty("--haut-banc", Math.round(zoneH - hautBanc + 4) + "px");
+
+      /* La marge du haut : sous le bandeau flottant, avec un filet d'air.
+         Elle vaut pour LES DEUX écrans — placement et match. */
+      const margeHaut = (haut ? haut.offsetHeight : 26) + 4;
+
       const couche = el("couche-match");
       if (couche) {
-        couche.style.left = "0px"; couche.style.top = "0px";
+        /* LA MÊME MARGE HAUTE QUE LE PLACEMENT. Le bandeau flotte en haut
+           du décor : rien ne doit pousser au-dessus de lui. L'écran de
+           placement le savait depuis la phase 1 (`margeHaut`), la scène de
+           match ne le savait pas — d'où 844 × 41 px de bandeau posés sur
+           le terrain animé. Ça coûte quelques pixels sur la ligne la plus
+           profonde, pas une largeur. */
+        couche.style.left = "0px";
+        couche.style.top = margeHaut + "px";
         couche.style.width = zoneL + "px";
-        couche.style.height = Math.max(40, hautBanc) + "px";
+        couche.style.height = Math.max(40, hautBanc - margeHaut) + "px";
       }
 
       /* La plus petite figurine du TERRAIN, accumulée pendant la passe des
@@ -3673,8 +3732,6 @@
       // les réglages d'ombre-fichier, posés une fois sur le plateau
       plateau.style.setProperty("--ratio-ombre", ECHELLE.ombre.fichier);
       plateau.style.setProperty("--opacite-ombre", ECHELLE.ombre.opacite);
-      // la marge du haut : sous le bandeau flottant, avec un filet d'air
-      const margeHaut = (haut ? haut.offsetHeight : 26) + 4;
       // ---- les 4 lignes de jeu, projetées dans le terrain peint ----
       for (const [poste, [u0, u1]] of Object.entries(LIGNES_U)) {
         const zone = el("ligne-" + poste);
@@ -4234,6 +4291,17 @@
     document.addEventListener("pointerdown", (e) => {
       const jeton = e.target.closest(".jeton[data-liste]");
       if (!jeton || e.button > 0) return;
+      /* L'APPUI LONG ouvre le menu d'actions — il n'est pas perdu, il est
+         déplacé : c'est le tap qui lui a pris sa place, parce que voir les
+         stats est le geste le plus fréquent. Le minuteur meurt dès qu'un
+         glisser démarre ou que le doigt se lève. */
+      clearTimeout(drag.minuteurLong);
+      drag.longFait = false;
+      drag.minuteurLong = setTimeout(() => {
+        drag.longFait = true;
+        drag.candidat = null;
+        menuJoueur(jeton.dataset.liste, Number(jeton.dataset.indice));
+      }, APPUI_LONG);
       /* L'ÉCART DE PRISE, mémorisé dès l'appui : où le doigt se trouve
          DANS la carte. C'est lui qu'on conserve pendant tout le geste —
          la carte reste sous le doigt là où on l'a saisie, et c'est ça qui
@@ -4246,6 +4314,7 @@
     document.addEventListener("pointermove", (e) => {
       if (drag.candidat && !drag.actif) {
         if (Math.hypot(e.clientX - drag.candidat.x, e.clientY - drag.candidat.y) < SEUIL_DRAG) return;
+        clearTimeout(drag.minuteurLong);   // un glisser n'est pas un appui long
         // le drag démarre
         const jeton = drag.candidat.jeton;
         drag.actif = true; drag.depasse = true;
@@ -4304,13 +4373,22 @@
       });
     }, { passive: false });
     document.addEventListener("pointerup", (e) => {
+      /* UN APPUI SIMPLE OUVRE LA FICHE (§5 du playtest). La fiche existait
+         déjà, mais seul l'appui long l'ouvrait, et seulement EN BOUTIQUE :
+         sur le terrain et au banc, taper un joueur ne faisait rien
+         d'utile. Aucun geste neuf à apprendre, aucun bouton en plus —
+         c'est le SEUIL DE 8 px qui tranche, celui du drag : au-delà c'est
+         un glisser, en deçà c'est un tap. Le drag reste donc prioritaire
+         par construction, puisqu'on ne passe ici que s'il n'a pas démarré. */
       drag.candidat = null;
       if (!drag.actif) return;
       const sous = ligneSousLePointeur(e.clientX, e.clientY);
       finirDrag(sous);
       setTimeout(() => { drag.depasse = false; }, 80); // ne mange que le clic du geste
     });
-    document.addEventListener("pointercancel", () => { drag.candidat = null; if (drag.actif) finirDrag({}); });
+    document.addEventListener("pointercancel", () => {
+      clearTimeout(drag.minuteurLong); drag.candidat = null; if (drag.actif) finirDrag({});
+    });
     // un drag consommé ne doit pas déclencher le tap — mais seulement
     // LE clic issu de ce geste (le drapeau retombe aussitôt après)
     document.addEventListener("click", (e) => {
@@ -4575,6 +4653,10 @@
         });
         // Le journal complet du match, replié derrière 📜 pendant la scène
         el("btn-journal").addEventListener("click", () => el("recit").classList.toggle("replie"));
+        // les onglets rappellent les colonnes pendant un match, et les renvoient
+        for (const id of ["onglet-gauche", "onglet-droite"]) {
+          el(id).addEventListener("click", () => el("app").classList.toggle("colonnes-rappelees"));
+        }
         // Bascule du panneau gauche : synergies+ADN ⇄ staff+quêtes
         el("btn-bascule-gauche").addEventListener("click", () => {
           pageGauche = pageGauche === "synergies" ? "staff" : "synergies";

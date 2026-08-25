@@ -136,10 +136,21 @@ const TAILLES = [
       (chromeOk ? "" : " — " + couverts.map((c) => c.join(" ")).join(" | ")));
     if (!chromeOk) total++;
 
-    // le contre-test : on remet le tableau à sa position d'avant le correctif
+    /* LE CONTRE-TEST, RÉÉCRIT (août 2026). Il remettait le tableau à
+       `top: 6px; z-index: 9` — sa position d'avant le premier correctif —
+       et attendait qu'il repasse sous le bandeau. Il ne sort plus rouge,
+       et c'est une bonne nouvelle : depuis que la scène de match vit dans
+       une couche qui COMMENCE SOUS LE BANDEAU (décision 65), un `top: 6px`
+       compté dans cette couche tombe déjà sous lui. Le défaut est devenu
+       impossible par construction, pas masqué.
+       Pour que le contre-test prouve encore quelque chose, il faut donc
+       recréer l'ancienne situation pour de bon : sortir le tableau de la
+       couche et le poser en plein cadre, là où le bandeau le recouvre. */
     await page.evaluate(() => {
       const t = document.getElementById("tableau-match");
-      t.style.top = "6px"; t.style.zIndex = "9";
+      document.body.appendChild(t);
+      t.style.position = "fixed"; t.style.top = "6px"; t.style.left = "50%";
+      t.style.transform = "translateX(-50%)"; t.style.zIndex = "9";
     });
     const couvertsAvant = (await survol(page, CONTROLES)).filter((c) => c[1] !== "libre");
     const contreOk = couvertsAvant.length > 0;
