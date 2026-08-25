@@ -1,0 +1,80 @@
+index	famille	joueur	unite	ombre
+01	01 Ecole de la Rue	Malandro	units/01_Ecole_de_la_Rue/01_Malandro_unit_alpha.png	shadows/01_Ecole_de_la_Rue/01_Malandro_shadow_alpha.png
+02	01 Ecole de la Rue	Brahim	units/01_Ecole_de_la_Rue/02_Brahim_unit_alpha.png	shadows/01_Ecole_de_la_Rue/02_Brahim_shadow_alpha.png
+03	01 Ecole de la Rue	Rodrigo	units/01_Ecole_de_la_Rue/03_Rodrigo_unit_alpha.png	shadows/01_Ecole_de_la_Rue/03_Rodrigo_shadow_alpha.png
+04	01 Ecole de la Rue	Denilson	units/01_Ecole_de_la_Rue/04_Denilson_unit_alpha.png	shadows/01_Ecole_de_la_Rue/04_Denilson_shadow_alpha.png
+05	01 Ecole de la Rue	Rafinha	units/01_Ecole_de_la_Rue/05_Rafinha_unit_alpha.png	shadows/01_Ecole_de_la_Rue/05_Rafinha_shadow_alpha.png
+06	01 Ecole de la Rue	Tiago	units/01_Ecole_de_la_Rue/06_Tiago_unit_alpha.png	shadows/01_Ecole_de_la_Rue/06_Tiago_shadow_alpha.png
+07	01 Ecole de la Rue	Nino	units/01_Ecole_de_la_Rue/07_Nino_unit_alpha.png	shadows/01_Ecole_de_la_Rue/07_Nino_shadow_alpha.png
+08	01 Ecole de la Rue	Caio	units/01_Ecole_de_la_Rue/08_Caio_unit_alpha.png	shadows/01_Ecole_de_la_Rue/08_Caio_shadow_alpha.png
+09	01 Ecole de la Rue	Jairzao	units/01_Ecole_de_la_Rue/09_Jairzao_unit_alpha.png	shadows/01_Ecole_de_la_Rue/09_Jairzao_shadow_alpha.png
+10	01 Ecole de la Rue	Didico	units/01_Ecole_de_la_Rue/10_Didico_unit_alpha.png	shadows/01_Ecole_de_la_Rue/10_Didico_shadow_alpha.png
+11	02 Catenaccio	Mattia	units/02_Catenaccio/01_Mattia_unit_alpha.png	shadows/02_Catenaccio/01_Mattia_shadow_alpha.png
+12	02 Catenaccio	Gianluca	units/02_Catenaccio/02_Gianluca_unit_alpha.png	shadows/02_Catenaccio/02_Gianluca_shadow_alpha.png
+13	02 Catenaccio	Dino	units/02_Catenaccio/03_Dino_unit_alpha.png	shadows/02_Catenaccio/03_Dino_shadow_alpha.png
+14	02 Catenaccio	Vito	units/02_Catenaccio/04_Vito_unit_alpha.png	shadows/02_Catenaccio/04_Vito_shadow_alpha.png
+15	02 Catenaccio	Tommaso	units/02_Catenaccio/05_Tommaso_unit_alpha.png	shadows/02_Catenaccio/05_Tommaso_shadow_alpha.png
+16	02 Catenaccio	Federico	units/02_Catenaccio/06_Federico_unit_alpha.png	shadows/02_Catenaccio/06_Federico_shadow_alpha.png
+17	02 Catenaccio	Aurelio	units/02_Catenaccio/07_Aurelio_unit_alpha.png	shadows/02_Catenaccio/07_Aurelio_shadow_alpha.png
+18	02 Catenaccio	Salvatore	units/02_Catenaccio/08_Salvatore_unit_alpha.png	shadows/02_Catenaccio/08_Salvatore_shadow_alpha.png
+19	03 Tiki Taka	Unai	units/03_Tiki_Taka/01_Unai_unit_alpha.png	shadows/03_Tiki_Taka/01_Unai_shadow_alpha.png
+20	03 Tiki Taka	Andoni	units/03_Tiki_Taka/02_Andoni_unit_alpha.png	shadows/03_Tiki_Taka/02_Andoni_shadow_alpha.png
+21	03 Tiki Taka	Xabi	units/03_Tiki_Taka/03_Xabi_unit_alpha.png	shadows/03_Tiki_Taka/03_Xabi_shadow_alpha.png
+22	03 Tiki Taka	Ruben	units/03_Tiki_Taka/04_Ruben_unit_alpha.png	shadows/03_Tiki_Taka/04_Ruben_shadow_alpha.png
+23	03 Tiki Taka	Inaki	units/03_Tiki_Taka/05_Inaki_unit_alpha.png	shadows/03_Tiki_Taka/05_Inaki_shadow_alpha.png
+24	03 Tiki Taka	Aitor	units/03_Tiki_Taka/06_Aitor_unit_alpha.png	shadows/03_Tiki_Taka/06_Aitor_shadow_alpha.png
+25	03 Tiki Taka	Don Alvaro	units/03_Tiki_Taka/07_Don_Alvaro_unit_alpha.png	shadows/03_Tiki_Taka/07_Don_Alvaro_shadow_alpha.png
+26	04 Kick and Rush	Jonah	units/04_Kick_and_Rush/01_Jonah_unit_alpha.png	shadows/04_Kick_and_Rush/01_Jonah_shadow_alpha.png
+27	04 Kick and Rush	Billy	units/04_Kick_and_Rush/02_Billy_unit_alpha.png	shadows/04_Kick_and_Rush/02_Billy_shadow_alpha.png
+28	04 Kick and Rush	Callum	units/04_Kick_and_Rush/03_Callum_unit_alpha.png	shadows/04_Kick_and_Rush/03_Callum_shadow_alpha.png
+29	04 Kick and Rush	Jamie	units/04_Kick_and_Rush/04_Jamie_unit_alpha.png	shadows/04_Kick_and_Rush/04_Jamie_shadow_alpha.png
+30	04 Kick and Rush	Joe	units/04_Kick_and_Rush/05_Joe_unit_alpha.png	shadows/04_Kick_and_Rush/05_Joe_shadow_alpha.png
+31	04 Kick and Rush	Duncan	units/04_Kick_and_Rush/06_Duncan_unit_alpha.png	shadows/04_Kick_and_Rush/06_Duncan_shadow_alpha.png
+32	05 Football Total	Luuk	units/05_Football_Total/01_Luuk_unit_alpha.png	shadows/05_Football_Total/01_Luuk_shadow_alpha.png
+33	05 Football Total	Pieter	units/05_Football_Total/02_Pieter_unit_alpha.png	shadows/05_Football_Total/02_Pieter_shadow_alpha.png
+34	05 Football Total	Kees	units/05_Football_Total/03_Kees_unit_alpha.png	shadows/05_Football_Total/03_Kees_shadow_alpha.png
+35	05 Football Total	Joost	units/05_Football_Total/04_Joost_unit_alpha.png	shadows/05_Football_Total/04_Joost_shadow_alpha.png
+36	05 Football Total	Bram	units/05_Football_Total/05_Bram_unit_alpha.png	shadows/05_Football_Total/05_Bram_shadow_alpha.png
+37	05 Football Total	Jasper	units/05_Football_Total/06_Jasper_unit_alpha.png	shadows/05_Football_Total/06_Jasper_shadow_alpha.png
+38	05 Football Total	Sven	units/05_Football_Total/07_Sven_unit_alpha.png	shadows/05_Football_Total/07_Sven_shadow_alpha.png
+39	05 Football Total	Timo	units/05_Football_Total/08_Timo_unit_alpha.png	shadows/05_Football_Total/08_Timo_shadow_alpha.png
+40	05 Football Total	Ruud	units/05_Football_Total/09_Ruud_unit_alpha.png	shadows/05_Football_Total/09_Ruud_shadow_alpha.png
+41	06 La Grinta	Joaquin El Santo	units/06_La_Grinta/01_Joaquin_El_Santo_unit_alpha.png	shadows/06_La_Grinta/01_Joaquin_El_Santo_shadow_alpha.png
+42	06 La Grinta	Nico	units/06_La_Grinta/02_Nico_unit_alpha.png	shadows/06_La_Grinta/02_Nico_shadow_alpha.png
+43	06 La Grinta	Esteban	units/06_La_Grinta/03_Esteban_unit_alpha.png	shadows/06_La_Grinta/03_Esteban_shadow_alpha.png
+44	06 La Grinta	Emiliano	units/06_La_Grinta/04_Emiliano_unit_alpha.png	shadows/06_La_Grinta/04_Emiliano_shadow_alpha.png
+45	06 La Grinta	Santiago	units/06_La_Grinta/05_Santiago_unit_alpha.png	shadows/06_La_Grinta/05_Santiago_shadow_alpha.png
+46	06 La Grinta	Ezequiel	units/06_La_Grinta/06_Ezequiel_unit_alpha.png	shadows/06_La_Grinta/06_Ezequiel_shadow_alpha.png
+47	07 Academie	Bakary	units/07_Academie/01_Bakary_unit_alpha.png	shadows/07_Academie/01_Bakary_shadow_alpha.png
+48	07 Academie	Theo	units/07_Academie/02_Theo_unit_alpha.png	shadows/07_Academie/02_Theo_shadow_alpha.png
+49	07 Academie	Adama	units/07_Academie/03_Adama_unit_alpha.png	shadows/07_Academie/03_Adama_shadow_alpha.png
+50	08 Internationaux	Dennis	units/08_Internationaux/01_Dennis_unit_alpha.png	shadows/08_Internationaux/01_Dennis_shadow_alpha.png
+51	08 Internationaux	Milan	units/08_Internationaux/02_Milan_unit_alpha.png	shadows/08_Internationaux/02_Milan_shadow_alpha.png
+52	08 Internationaux	Yannick	units/08_Internationaux/03_Yannick_unit_alpha.png	shadows/08_Internationaux/03_Yannick_shadow_alpha.png
+53	08 Internationaux	Djibril	units/08_Internationaux/04_Djibril_unit_alpha.png	shadows/08_Internationaux/04_Djibril_shadow_alpha.png
+54	08 Internationaux	Marcus	units/08_Internationaux/05_Marcus_unit_alpha.png	shadows/08_Internationaux/05_Marcus_shadow_alpha.png
+55	09 Douzieme Homme	Le Fidele	units/09_Douzieme_Homme/01_Le_Fidele_unit_alpha.png	shadows/09_Douzieme_Homme/01_Le_Fidele_shadow_alpha.png
+56	09 Douzieme Homme	Sekou	units/09_Douzieme_Homme/02_Sekou_unit_alpha.png	shadows/09_Douzieme_Homme/02_Sekou_shadow_alpha.png
+57	09 Douzieme Homme	Ratko	units/09_Douzieme_Homme/03_Ratko_unit_alpha.png	shadows/09_Douzieme_Homme/03_Ratko_shadow_alpha.png
+58	09 Douzieme Homme	Facundo	units/09_Douzieme_Homme/04_Facundo_unit_alpha.png	shadows/09_Douzieme_Homme/04_Facundo_shadow_alpha.png
+59	09 Douzieme Homme	Titi	units/09_Douzieme_Homme/05_Titi_unit_alpha.png	shadows/09_Douzieme_Homme/05_Titi_shadow_alpha.png
+60	10 Les Pros	Harry	units/10_Les_Pros/01_Harry_unit_alpha.png	shadows/10_Les_Pros/01_Harry_shadow_alpha.png
+61	10 Les Pros	Gorka	units/10_Les_Pros/02_Gorka_unit_alpha.png	shadows/10_Les_Pros/02_Gorka_shadow_alpha.png
+62	10 Les Pros	Ciro	units/10_Les_Pros/03_Ciro_unit_alpha.png	shadows/10_Les_Pros/03_Ciro_shadow_alpha.png
+63	10 Les Pros	Abdou	units/10_Les_Pros/04_Abdou_unit_alpha.png	shadows/10_Les_Pros/04_Abdou_shadow_alpha.png
+64	10 Les Pros	Joris	units/10_Les_Pros/05_Joris_unit_alpha.png	shadows/10_Les_Pros/05_Joris_shadow_alpha.png
+65	10 Les Pros	Lorenzo	units/10_Les_Pros/06_Lorenzo_unit_alpha.png	shadows/10_Les_Pros/06_Lorenzo_shadow_alpha.png
+66	11 Les Revanchards	Sam	units/11_Les_Revanchards/01_Sam_unit_alpha.png	shadows/11_Les_Revanchards/01_Sam_shadow_alpha.png
+67	11 Les Revanchards	Karim	units/11_Les_Revanchards/02_Karim_unit_alpha.png	shadows/11_Les_Revanchards/02_Karim_shadow_alpha.png
+68	11 Les Revanchards	Moussa	units/11_Les_Revanchards/03_Moussa_unit_alpha.png	shadows/11_Les_Revanchards/03_Moussa_shadow_alpha.png
+69	11 Les Revanchards	Wim	units/11_Les_Revanchards/04_Wim_unit_alpha.png	shadows/11_Les_Revanchards/04_Wim_shadow_alpha.png
+70	11 Les Revanchards	Enzo	units/11_Les_Revanchards/05_Enzo_unit_alpha.png	shadows/11_Les_Revanchards/05_Enzo_shadow_alpha.png
+71	12 Sans Ecole	Tiemoko	units/12_Sans_Ecole/01_Tiemoko_unit_alpha.png	shadows/12_Sans_Ecole/01_Tiemoko_shadow_alpha.png
+72	12 Sans Ecole	Kwame	units/12_Sans_Ecole/02_Kwame_unit_alpha.png	shadows/12_Sans_Ecole/02_Kwame_shadow_alpha.png
+73	12 Sans Ecole	Enfant du Pays	units/12_Sans_Ecole/03_Enfant_du_Pays_unit_alpha.png	shadows/12_Sans_Ecole/03_Enfant_du_Pays_shadow_alpha.png
+74	12 Sans Ecole	Gus	units/12_Sans_Ecole/04_Gus_unit_alpha.png	shadows/12_Sans_Ecole/04_Gus_shadow_alpha.png
+75	13 Copains du Club	Gus Club	units/13_Copains_du_Club/01_Gus_Club_unit_alpha.png	shadows/13_Copains_du_Club/01_Gus_Club_shadow_alpha.png
+76	13 Copains du Club	Marcel	units/13_Copains_du_Club/02_Marcel_unit_alpha.png	shadows/13_Copains_du_Club/02_Marcel_shadow_alpha.png
+77	13 Copains du Club	Rachid	units/13_Copains_du_Club/03_Rachid_unit_alpha.png	shadows/13_Copains_du_Club/03_Rachid_shadow_alpha.png
+78	13 Copains du Club	Momo	units/13_Copains_du_Club/04_Momo_unit_alpha.png	shadows/13_Copains_du_Club/04_Momo_shadow_alpha.png
+79	13 Copains du Club	Titi Club	units/13_Copains_du_Club/05_Titi_Club_unit_alpha.png	shadows/13_Copains_du_Club/05_Titi_Club_shadow_alpha.png
