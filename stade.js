@@ -184,7 +184,41 @@ const ONZE_STADE = (() => {
   /* ---- Où vit le terrain dans le canvas ----
      Caméra FIXE (R1) : le terrain entier tient toujours dans le cadre,
      les tribunes prennent la marge haute et basse. Aucun zoom, jamais. */
-  function geometrie(largeur, hauteur, t) {
+  /* ============================================================
+     LE TRACÉ, EN MÈTRES (Lois du Jeu, loi 1).
+     Ces chiffres sont ceux d'un terrain de 104 × 68 m. Sur un terrain
+     réduit (densité de 324 m² par joueur — décision 50), on ne les
+     garde pas tels quels : une surface de 40,3 m de large sur un terrain
+     de 46 m toucherait les deux touches, ce que le football réel ne fait
+     pas. Mais on ne les réduit pas non plus au prorata — ce serait un
+     no-op à l'écran, puisque diviser une longueur mise à l'échelle par
+     la longueur du terrain redonne exactement la même fraction de
+     pixels. Le football à effectif réduit fait autre chose : il garde des
+     tracés PROPORTIONNELLEMENT PLUS GRANDS.
+
+     Calibrage, sur le terrain à sept officiel de la FIFA (55 × 37 m,
+     surface de 12 × 24 m) : il faut 16,5 → 12 m quand la longueur passe
+     de 104 à 55, soit un facteur (55/104)^0,5. D'où l'échelle du tracé :
+
+         k = √(L / 104)
+
+     À 104 m elle vaut 1 (le règlement exact) ; à 55 m elle donne 12,0 m
+     de profondeur de surface, la valeur officielle au décimètre près ; à
+     70 m elle donne 13,5 m sur un terrain de 70 — soit 19 % de la
+     longueur au lieu de 16 %. C'est ce léger grossissement qui rend le
+     rétrécissement du terrain LISIBLE, avec les pions.
+     ============================================================ */
+  const TRACE_M = {
+    rond: 9.15,                            // rayon du rond central
+    surface: { prof: 16.5, larg: 40.32 },  // surface de réparation
+    but: { prof: 5.5, larg: 18.32 },       // surface de but
+    penalty: 11,                           // le point de penalty
+    corner: 1,                             // l'arc de corner
+    cage: 7.32,                            // la largeur des buts
+  };
+  const TERRAIN_PLEIN = { L: 104, W: 68 };
+
+  function geometrie(largeur, hauteur, t, terrain) {
     const marge = Math.round(hauteur * (t ? t.marge : 0.10));
     // `terrain` (thèmes à image) resserre le rectangle de jeu pour laisser
     // voir les angles de l'arène ; sans lui, comportement d'origine exact.
@@ -193,15 +227,29 @@ const ONZE_STADE = (() => {
     const y = cadre ? Math.round(hauteur * cadre.haut) : marge;
     const w = Math.max((cadre ? Math.round(largeur * cadre.droite) : largeur) - x, 20);
     const h = Math.max((cadre ? Math.round(hauteur * cadre.bas) : hauteur - marge) - y, 20);
+    /* Les dimensions RÉELLES du terrain de ce match, en mètres. Le
+       rectangle de pixels ne change pas ; c'est l'échelle mètre → pixel
+       qui bouge, et c'est elle qui rend le rétrécissement lisible. */
+    const m = terrain && terrain.L && terrain.W ? terrain : TERRAIN_PLEIN;
     return {
       largeur, hauteur, marge,
-      x, y, w, h,
-      // conversion pourcentage de terrain → pixels du canvas
-      px: (xPct) => x + (xPct / 100) * w,
-      py: (yPct) => y + (yPct / 100) * h,
-      // une longueur en % de terrain → px (utile pour les rayons)
-      ux: (v) => (v / 100) * w,
-      uy: (v) => (v / 100) * h,
+      x, y, w, h, m,
+      // conversion mètres → pixels du canvas, origine au CENTRE du terrain
+      mpx: (xm) => x + ((xm + m.L / 2) / m.L) * w,
+      mpy: (ym) => y + ((ym + m.W / 2) / m.W) * h,
+      // une LONGUEUR en mètres → px, selon l'axe
+      mx: (v) => (v / m.L) * w,
+      my: (v) => (v / m.W) * h,
+      /* l'échelle du tracé : 1 sur un terrain plein, et plus GÉNÉREUSE
+         que le prorata sur un terrain réduit (voir TRACE_M) */
+      kTrace: Math.sqrt(m.L / TERRAIN_PLEIN.L),
+      /* LE ZOOM. Le rectangle de pixels ne bouge jamais (R1, caméra
+         fixe) : un terrain plus petit est donc la MÊME fenêtre sur une
+         portion plus petite du monde. Tout ce qui a une taille réelle
+         doit y paraître plus gros — les pions, mais aussi les bandes de
+         tonte et le grain des tribunes. Sans ça, un petit terrain
+         ressemble à un grand terrain avec de gros joueurs. */
+      zoom: TERRAIN_PLEIN.L / m.L,
     };
   }
 
@@ -210,7 +258,7 @@ const ONZE_STADE = (() => {
      puis recopiée à chaque frame : coût négligeable à 60 fps. */
   const cacheTribunes = new Map();
   function tribunes(geo, t) {
-    const cle = `${t.nom}|${geo.largeur}|${geo.marge}`;
+    const cle = `${t.nom}|${geo.largeur}|${geo.marge}|${(geo.zoom || 1).toFixed(2)}`;
     if (cacheTribunes.has(cle)) return cacheTribunes.get(cle);
     const c = document.createElement("canvas");
     c.width = Math.max(geo.largeur, 1); c.height = Math.max(geo.marge, 1);
@@ -224,7 +272,8 @@ const ONZE_STADE = (() => {
       g.fillRect(0, y, c.width, c.height / 3);
     }
     // la foule : un mouchetis dense, déterministe (pas de scintillement)
-    const pas = Math.max(3, Math.round(c.width / (110 * tr.densite)));
+    // le grain de la foule suit le zoom, comme tout ce qui a une taille réelle
+    const pas = Math.max(3, Math.round((c.width * (geo.zoom || 1)) / (110 * tr.densite)));
     let graine = 7;
     const alea = () => (graine = (graine * 1103515245 + 12345) % 2147483648) / 2147483648;
     for (let y = 2; y < c.height - 1; y += pas) {
@@ -272,8 +321,13 @@ const ONZE_STADE = (() => {
       ctx.drawImage(trib, 0, geo.hauteur - geo.marge);
     }
 
-    // 3. le gazon et ses bandes de tonte
-    const bandes = Math.max(2, t.gazon.bandes);
+    /* 3. le gazon et ses bandes de tonte.
+       Une bande de tonte a une LARGEUR RÉELLE (104 m / 14 ≈ 7,4 m sur le
+       thème par défaut). Le nombre de bandes suit donc le terrain : neuf
+       à cinq contre cinq, quatorze à onze contre onze — et à l'écran
+       elles sont une fois et demie plus larges. C'est cette texture qui
+       dit « on est plus près », le tracé seul ne le dirait pas. */
+    const bandes = Math.max(2, Math.round(t.gazon.bandes / (geo.zoom || 1)));
     const lb = w / bandes;
     for (let i = 0; i < bandes; i++) {
       ctx.fillStyle = i % 2 ? t.gazon.sombre : t.gazon.clair;
@@ -289,7 +343,7 @@ const ONZE_STADE = (() => {
     for (let i = 0; i < t.projecteurs.nb; i++) {
       const fx = x + w * ((i + 0.5) / t.projecteurs.nb);
       for (const fy of [y, y + h]) {
-        const halo = ctx.createRadialGradient(fx, fy, 0, fx, fy, h * t.projecteurs.rayon);
+        const halo = ctx.createRadialGradient(fx, fy, 0, fx, fy, h * t.projecteurs.rayon * (geo.zoom || 1));
         halo.addColorStop(0, t.projecteurs.halo);
         halo.addColorStop(1, "rgba(0,0,0,0)");
         ctx.fillStyle = halo;
@@ -305,33 +359,55 @@ const ONZE_STADE = (() => {
       }
     }
 
-    // 5. le tracé
+    /* 5. LE TRACÉ, dessiné en MÈTRES (étape 2 du plan de scène).
+       Un rond central est un CERCLE sur le gazon : vu par une caméra
+       qui écrase la profondeur, il devient une ellipse. On le dessine
+       donc avec deux rayons — l'un converti sur l'axe long, l'autre sur
+       l'axe large — au lieu d'un cercle de pixels qui mentait sur la
+       projection. */
+    const k = geo.kTrace;
+    const cy = y + h / 2;
     ctx.save();
     ctx.strokeStyle = t.lignes.couleur;
     ctx.lineWidth = t.lignes.epaisseur;
     const bord = t.lignes.epaisseur;
     ctx.strokeRect(x + bord, y + bord, w - bord * 2, h - bord * 2);
     ctx.beginPath(); ctx.moveTo(x + w / 2, y); ctx.lineTo(x + w / 2, y + h); ctx.stroke();
-    ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, h * 0.155, 0, 6.283); ctx.stroke();
-    ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, t.lignes.epaisseur * 1.4, 0, 6.283);
+    ctx.beginPath();
+    ctx.ellipse(x + w / 2, cy, geo.mx(TRACE_M.rond * k), geo.my(TRACE_M.rond * k), 0, 0, 6.283);
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(x + w / 2, cy, t.lignes.epaisseur * 1.4, 0, 6.283);
     ctx.fillStyle = t.lignes.couleur; ctx.fill();
-    // surfaces de réparation (16,5 m) et de but (5,5 m), les deux côtés
+    // surfaces de réparation (16,5 × 40,32 m) et de but (5,5 × 18,32 m)
     for (const cote of [0, 1]) {
       const sensX = cote === 0 ? 1 : -1;
       const x0 = cote === 0 ? x : x + w;
-      ctx.strokeRect(Math.min(x0, x0 + sensX * geo.ux(15.5)), y + h * 0.20, geo.ux(15.5), h * 0.60);
-      ctx.strokeRect(Math.min(x0, x0 + sensX * geo.ux(5.5)), y + h * 0.355, geo.ux(5.5), h * 0.29);
-      // le point de penalty et l'arc de cercle
-      const xp = x0 + sensX * geo.ux(10.5);
-      ctx.beginPath(); ctx.arc(xp, y + h / 2, t.lignes.epaisseur, 0, 6.283);
+      const rect = (prof, larg) => {
+        const p = geo.mx(prof * k), l = geo.my(larg * k);
+        ctx.strokeRect(Math.min(x0, x0 + sensX * p), cy - l / 2, p, l);
+      };
+      rect(TRACE_M.surface.prof, TRACE_M.surface.larg);
+      rect(TRACE_M.but.prof, TRACE_M.but.larg);
+      // le point de penalty (11 m) et l'arc de cercle (9,15 m autour de lui)
+      const xp = x0 + sensX * geo.mx(TRACE_M.penalty * k);
+      ctx.beginPath(); ctx.arc(xp, cy, t.lignes.epaisseur, 0, 6.283);
       ctx.fillStyle = t.lignes.couleur; ctx.fill();
+      /* L'arc ne montre que sa part HORS surface : on découpe au lieu de
+         deviner un angle, sinon il traverse la ligne des 16,50 m dès que
+         les proportions du cadre changent. */
+      ctx.save();
       ctx.beginPath();
-      ctx.arc(xp, y + h / 2, h * 0.13, cote === 0 ? -0.9 : 2.24, cote === 0 ? 0.9 : 4.04);
+      const px16 = geo.mx(TRACE_M.surface.prof * k);
+      ctx.rect(cote === 0 ? x0 + px16 : x, y, cote === 0 ? w - px16 : w - px16, h);
+      ctx.clip();
+      ctx.beginPath();
+      ctx.ellipse(xp, cy, geo.mx(TRACE_M.rond * k), geo.my(TRACE_M.rond * k), 0, 0, 6.283);
       ctx.stroke();
-      // les corners
+      ctx.restore();
+      // les corners (1 m)
       for (const yc of [y, y + h]) {
         ctx.beginPath();
-        ctx.arc(x0, yc, geo.ux(1.4), 0, 6.283);
+        ctx.ellipse(x0, yc, geo.mx(TRACE_M.corner * k), geo.my(TRACE_M.corner * k), 0, 0, 6.283);
         ctx.stroke();
       }
     }
@@ -343,14 +419,16 @@ const ONZE_STADE = (() => {
      vient de prendre un but. */
   function dessinerCages(ctx, geo, t, tremblements, temps) {
     const { x, y, w, h } = geo;
-    const prof = geo.ux(t.cages.profondeur * 100);
+    const prof = t.cages.profondeur * geo.w;
     for (const camp of ["moi", "eux"]) {
       const gauche = camp === "moi";
       const x0 = gauche ? x : x + w;
       const sens = gauche ? -1 : 1;
       const secousse = tremblements && tremblements[camp] ? tremblements[camp] : 0;
       const dy = secousse ? Math.sin(temps * 0.05) * 2.4 * secousse : 0;
-      const yHaut = y + h * 0.40 + dy, yBas = y + h * 0.60 + dy;
+      // la largeur réglementaire des buts : 7,32 m, à l'échelle du terrain
+      const demiCage = geo.my(TRACE_M.cage * geo.kTrace) / 2;
+      const yHaut = y + h / 2 - demiCage + dy, yBas = y + h / 2 + demiCage + dy;
       ctx.save();
       // le filet
       ctx.strokeStyle = secousse ? "rgba(242,193,78,0.75)" : t.cages.filet;

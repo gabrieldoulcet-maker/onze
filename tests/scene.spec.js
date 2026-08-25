@@ -347,6 +347,94 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   verifier("R13 : aucune couleur de gazon codée en dur dans la scène", stade.aucunGazonEnDur);
   verifier("R1 : la géométrie du terrain est déterministe (caméra fixe)", stade.geometrieStable);
 
+  /* ============================================================
+     ÉTAPE 2 — LE TERRAIN ÉLASTIQUE (design/scene-simulation.md §11).
+     La surface suit la table de densité (324 m² par joueur, sur le TOTAL
+     des deux équipes), à tous les effectifs, y compris asymétriques.
+     Fonctions pures : mesuré sans ouvrir de match.
+     ============================================================ */
+  const elastique = await page.evaluate(() => {
+    // la table de design/football-chiffre.md §1
+    const TABLE = [
+      { n: 10, L: 70, W: 46, quoi: "5 contre 5" },
+      { n: 12, L: 77, W: 51, quoi: "6 contre 6" },
+      { n: 14, L: 83, W: 55, quoi: "7 contre 7" },
+      { n: 16, L: 89, W: 58, quoi: "8 contre 8" },
+      { n: 19, L: 97, W: 64, quoi: "8 contre 11 (asymétrique)" },
+      { n: 22, L: 104, W: 68, quoi: "11 contre 11" },
+      { n: 23, L: 104, W: 68, quoi: "12 contre 11 — plafonné au rectangle peint" },
+    ];
+    const mesures = TABLE.map((r) => {
+      const d = ONZE_SCENE.dimensionsTerrain(r.n);
+      return { ...r, obtL: d.L, obtW: d.W,
+        ecartL: Math.abs(d.L - r.L) / r.L, ecartW: Math.abs(d.W - r.W) / r.W,
+        densite: (d.L * d.W) / r.n };
+    });
+    /* Le TRACÉ et les PIONS, à chaque effectif. On lit le rectangle de
+       pixels une seule fois (il ne bouge pas — R1, caméra fixe) et on ne
+       fait varier QUE le terrain en mètres. */
+    const th = ONZE_STADE.theme("municipal");
+    const tracesEtPions = TABLE.map((r) => {
+      const d = ONZE_SCENE.dimensionsTerrain(r.n);
+      const g = ONZE_STADE.geometrie(800, 280, th, d);
+      return {
+        n: r.n, L: d.L, W: d.W,
+        // la profondeur de surface RENDUE, en part de la longueur du terrain
+        partSurface: (16.5 * g.kTrace) / d.L,
+        // le diamètre d'un pion, en part de la LARGEUR du terrain
+        partPion: (2 * ONZE_SCENE.RAYON_PION_M) / d.W,
+        // et en pixels, pour la lisibilité
+        rayonPx: (ONZE_SCENE.RAYON_PION_M / d.W) * g.h,
+        // la texture : combien de bandes de tonte, et de quelle largeur RÉELLE
+        bandes: Math.max(2, Math.round(14 / g.zoom)),
+        zoom: g.zoom,
+      };
+    });
+    // le calibrage : à 55 m (le sept contre sept officiel), 16,5 → 12 m
+    const g7 = ONZE_STADE.geometrie(800, 280, th, { L: 55, W: 37 });
+    return { mesures, tracesEtPions, surfaceA7: 16.5 * g7.kTrace };
+  });
+  for (const m of elastique.mesures) {
+    verifier(`Étape 2 — densité : ${m.quoi} → ${m.obtL} × ${m.obtW} m (table ${m.L} × ${m.W}, écart ${Math.round(Math.max(m.ecartL, m.ecartW) * 100)} %, ${Math.round(m.densite)} m²/joueur)`,
+      m.ecartL <= 0.05 && m.ecartW <= 0.05);
+  }
+  /* Le tracé GROSSIT quand le terrain rétrécit — c'est ce que fait le
+     football à effectif réduit, et c'est ce qui rend le rétrécissement
+     lisible. Un tracé en fractions fixes du cadre (le code d'avant)
+     donnait exactement la même part à tous les effectifs : cette recette
+     sort rouge dessus. */
+  const parts = elastique.tracesEtPions.map((t) => t.partSurface);
+  const croissantQuandPetit = parts.every((p, i) => i === 0 || p <= parts[i - 1] + 1e-9);
+  verifier(`Étape 2 — le tracé grossit quand le terrain rétrécit : surface de réparation de ${Math.round(parts[0] * 1000) / 10} % de la longueur à 10 joueurs → ${Math.round(parts[parts.length - 1] * 1000) / 10} % à 22 (le règlement, 15,9 %)`,
+    croissantQuandPetit && parts[0] > parts[parts.length - 1] * 1.15
+    && Math.abs(parts[parts.length - 1] - 16.5 / 104) < 0.002);
+  verifier(`Étape 2 — le tracé est calibré sur le football à sept officiel : à 55 m, la surface fait ${elastique.surfaceA7.toFixed(1)} m de profondeur (FIFA : 12 m)`,
+    Math.abs(elastique.surfaceA7 - 12) < 0.3);
+  /* Les PIONS : un joueur ne rétrécit pas quand le terrain rétrécit. Sa
+     part de la largeur doit donc AUGMENTER à effectif réduit — sinon le
+     rétrécissement ne se voit nulle part. Et il reste lisible partout :
+     jamais sous 3,5 % ni au-dessus de 9 % de la largeur du terrain. */
+  const pions = elastique.tracesEtPions.map((t) => t.partPion);
+  const grossitQuandPetit = pions.every((p, i) => i === 0 || p <= pions[i - 1] + 1e-9);
+  verifier(`Étape 2 — le pion garde sa taille RÉELLE : il occupe ${Math.round(pions[0] * 1000) / 10} % de la largeur à 10 joueurs contre ${Math.round(pions[pions.length - 1] * 1000) / 10} % à 22 — c'est là que le rétrécissement se voit`,
+    grossitQuandPetit && pions[0] > pions[pions.length - 1] * 1.25);
+  const lisibles = elastique.tracesEtPions.every((t) => t.partPion >= 0.035 && t.partPion <= 0.09 && t.rayonPx >= 2.4);
+  verifier(`Étape 2 — pions lisibles à TOUS les effectifs (${elastique.tracesEtPions.map((t) => `${t.n}:${Math.round(t.partPion * 1000) / 10}%`).join(" · ")} — bornes 3,5-9 %)`,
+    lisibles);
+  /* LA TEXTURE DU GAZON. Un tracé mis à l'échelle donne au petit terrain
+     exactement la SILHOUETTE d'un grand : si le gazon aussi paraît
+     identique, l'œil n'a plus que la taille des pions comme indice, et
+     c'est maigre. Une bande de tonte a une largeur réelle (~7,4 m) : à
+     effectif réduit on en voit donc MOINS, et elles sont plus larges à
+     l'écran. La recette vérifie que cette largeur réelle ne bouge pas —
+     un nombre de bandes figé (le code d'avant) la ferait varier du
+     simple au double et sort rouge ici. */
+  const largeursBande = elastique.tracesEtPions.map((t) => t.L / t.bandes);
+  const bandeMin = Math.min(...largeursBande), bandeMax = Math.max(...largeursBande);
+  const nbBandes = elastique.tracesEtPions.map((t) => t.bandes);
+  verifier(`Étape 2 — le gazon zoome avec le terrain : la bande de tonte garde sa largeur réelle (${bandeMin.toFixed(1)}-${bandeMax.toFixed(1)} m) et on en voit ${nbBandes[0]} à 10 joueurs contre ${nbBandes[nbBandes.length - 1]} à 22`,
+    bandeMax / bandeMin <= 1.15 && nbBandes[0] < nbBandes[nbBandes.length - 1]);
+
   /* ---- Un MATCH PLEIN sous instruments : régimes, durées, mouvement,
      étiquettes, ballon jamais téléporté ---- */
   /* Le match de relevé doit avoir de la MATIÈRE : un 0-0 à une seule
@@ -363,13 +451,15 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
   /* La taille de l'échantillon, pas la sévérité du seuil. Un match ne
      donne qu'une cinquantaine de relevés de marquage et la dispersion
      d'un match à l'autre est réelle (mesurée : 47, 88, 100 %). On cumule
-     donc jusqu'à 120 relevés — ce sont les mêmes observations de la même
-     règle, et rejouer un match ne coûte que du temps machine. */
-  const ECHANTILLON_MARQUAGE = 120;
+     donc jusqu'à 100 relevés — ce sont les mêmes observations de la même
+     règle, et rejouer un match ne coûte que du temps machine. Le nombre
+     d'essais suit : à ~20-50 relevés par match, six ne suffisaient pas
+     toujours (mesuré : 136, 128, 109 sur six). */
+  const ECHANTILLON_MARQUAGE = 100;
   const sacMarquage = { vus: 0, bons: 0, tous: 0, tousBons: 0, matchs: 0 };
   const sacPorteur = [];
   let releve = null, avecMatiere = null;
-  for (let essai = 0; essai < 6; essai++) {
+  for (let essai = 0; essai < 9; essai++) {
     releve = await mesurerUnMatch(page);
     sacMarquage.vus += releve.marquagesVus; sacMarquage.bons += releve.marquagesBons;
     sacMarquage.tous += releve.marquagesTous; sacMarquage.tousBons += releve.marquagesTousBons;

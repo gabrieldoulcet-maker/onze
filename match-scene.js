@@ -132,6 +132,19 @@ const ONZE_SCENE = (() => {
     return { L: Math.round(W * RAPPORT_TERRAIN), W: Math.round(W) };
   }
 
+  /* L'encombrement d'un pion, EN MÈTRES FIXES : ce rayon sert à
+     l'espacement (R4) comme au dessin. 1,84 m, soit l'échelle FM
+     (diamètre ≈ 5 % de la hauteur) sur un terrain plein — décision 33.
+     Un seul chiffre, deux usages : le pion dessiné et le pion qui pousse
+     son voisin ne peuvent plus diverger.
+     POURQUOI EN MÈTRES FIXES et non en fraction du terrain (étape 2) :
+     un joueur ne rétrécit pas quand le terrain rétrécit. Le rectangle de
+     pixels ne bougeant pas, un terrain réduit met plus de pixels par
+     mètre — les pions y occupent donc plus de place à l'écran, et c'est
+     exactement comme ça que le rétrécissement se VOIT. À fraction
+     constante du terrain, il ne se voyait pas du tout. */
+  const RAYON_PION_M = 1.84;
+
   const ligneDuJoueur = (j) => j.ligne || j.poste;
   const lerp = (a, b, t) => a + (b - a) * t;
   /* Borne NaN-safe : dans une couche de rendu, un seul NaN se propage à
@@ -313,12 +326,6 @@ const ONZE_SCENE = (() => {
        design/football-chiffre.md, donc leurs chiffres s'appliquent sans
        conversion. */
     const BUTS = { moi: { x: -DEMI_L, y: 0 }, eux: { x: DEMI_L, y: 0 } };
-    /* L'encombrement d'un pion, EN MÈTRES : c'est ce rayon qui sert à
-       l'espacement (R4) comme au dessin. 2,7 % de la largeur du terrain
-       → ~1,8 m de rayon, soit un diamètre de ~5 % de la hauteur affichée,
-       l'échelle FM (décision 33). Un seul chiffre, deux usages : le pion
-       dessiné et le pion qui pousse son voisin ne peuvent plus diverger. */
-    const RAYON_PION_M = TERRAIN.W * 0.027;
     const sensDe = (camp) => (camp === "moi" ? 1 : -1);   // vers quel but on attaque
     /* Les lignes d'une formation, en fraction de la demi-longueur
        depuis son propre but. La dernière ligne à 0,35 donne les 18 m du
@@ -1523,7 +1530,9 @@ const ONZE_SCENE = (() => {
       canvas.width = largeur * dpr; canvas.height = hauteur * dpr;
       canvas.style.width = largeur + "px"; canvas.style.height = hauteur + "px";
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      geo = ONZE_STADE.geometrie(largeur, hauteur, theme);
+      // le décor connaît les MÈTRES du terrain : c'est lui qui met le
+      // tracé à l'échelle quand l'effectif réduit la surface
+      geo = ONZE_STADE.geometrie(largeur, hauteur, theme, TERRAIN);
       // R1 : caméra fixe → le décor ne bouge JAMAIS, on le peint une fois
       fond = document.createElement("canvas");
       fond.width = Math.round(largeur * dpr); fond.height = Math.round(hauteur * dpr);
@@ -1966,6 +1975,7 @@ const ONZE_SCENE = (() => {
   }
 
   return { creer, couleurFamille, styleDe, construireAction, separerDisques,
+           dimensionsTerrain, RAYON_PION_M,
            reglages, majReglages, REGLAGES_DEFAUT };
 })();
 
