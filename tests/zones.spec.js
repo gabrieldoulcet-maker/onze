@@ -350,6 +350,39 @@ async function ouvrir(page) {
           `(elle revient à ${Math.round(retrait.rappele.gDroite)} px)`,
           retrait.rappele.gDroite > retrait.range.gDroite + 20,
           JSON.stringify(retrait.rappele));
+
+        /* RÉTRACTÉE VEUT DIRE PARTIE, PAS SEULEMENT DÉCALÉE. Les colonnes
+           glissaient mais restaient entièrement LISIBLES pendant le match,
+           et les languettes se dessinaient par-dessus — sur une capture,
+           la languette gauche coupait les mots d'une infobulle. Deux
+           choses à exiger, et la seconde manquait :
+             · le rectangle d'une colonne rétractée est hors du cadre ;
+             · aucune languette ne recouvre une colonne. */
+        const dehors = await page.evaluate(() => {
+          const b = (s) => { const e = document.querySelector(s); if (!e) return null;
+            const st = getComputedStyle(e); const r = e.getBoundingClientRect();
+            return { x: r.x, right: r.right, w: r.width, top: r.top, bottom: r.bottom,
+              vu: st.display !== "none" && st.visibility !== "hidden" && parseFloat(st.opacity) > 0.05 }; };
+          const g = b(".col-synergies"), d = b(".col-classement");
+          const og = b("#onglet-gauche"), od = b("#onglet-droite");
+          const chevauche = (a, c) => {
+            if (!a || !c || !a.vu || !c.vu) return 0;
+            const L = Math.max(0, Math.min(a.right, c.right) - Math.max(a.x, c.x));
+            const H = Math.max(0, Math.min(a.bottom, c.bottom) - Math.max(a.top, c.top));
+            return Math.round(L * H);
+          };
+          return { g, d, largeur: innerWidth,
+            ongletSurColonne: chevauche(og, g) + chevauche(od, d) };
+        });
+        const gPartie = !dehors.g.vu || dehors.g.right <= 0.5;
+        const dPartie = !dehors.d.vu || dehors.d.x >= dehors.largeur - 0.5;
+        verifier(`${taille.nom} · match : une colonne rétractée est hors du cadre, pas seulement décalée ` +
+          `(gauche : droite à ${Math.round(dehors.g.right)} px${dehors.g.vu ? "" : ", invisible"} · ` +
+          `droite : gauche à ${Math.round(dehors.d.x)} px sur ${dehors.largeur}${dehors.d.vu ? "" : ", invisible"})`,
+          gPartie && dPartie, JSON.stringify({ g: dehors.g, d: dehors.d }));
+        verifier(`${taille.nom} · match : aucune languette ne recouvre une colonne ` +
+          `(${dehors.ongletSurColonne} px² de recouvrement)`,
+          dehors.ongletSurColonne === 0);
       }
 
       /* LE MOBILIER TIENT DANS SA ZONE (§9.6, décision 64 · P1). Chaque

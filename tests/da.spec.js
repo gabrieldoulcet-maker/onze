@@ -248,15 +248,37 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
   verifier("banc : les emplacements vides restent visibles",
     await page.evaluate(() => document.querySelectorAll("#banc .place-banc").length > 0));
 
-  // ---- 7. pendant le match, les jetons redeviennent des pastilles ----
-  const enMatch = await page.evaluate(() => {
-    partie.matchEnCours = true; afficher();
-    const n = document.querySelectorAll(".jeton.figurine").length;
-    partie.matchEnCours = false; afficher();
-    return { pendant: n, apres: document.querySelectorAll(".jeton.figurine").length };
+  /* ---- 7. LA SCÈNE À L'ÉCRAN, PAS LE DRAPEAU ----
+     Première version : elle posait `partie.matchEnCours = true` et
+     comptait les figurines. Elle testait donc un DRAPEAU, et la décision
+     55 avait prévenu que ce drapeau ne dit pas ce qu'on croit — il couvre
+     le match ET le bilan. Le défaut qu'elle a laissé passer : depuis que
+     le match se range avant la cérémonie de butin, les joueurs
+     redevenaient des cartes-jetons AU MILIEU DES ORBES, alors que la
+     scène n'existait plus. Deux moitiés à vérifier, et la seconde est
+     celle qui manquait. */
+  const enMatch = await page.evaluate(async () => {
+    arreterChrono();
+    document.querySelectorAll(".volet").forEach((v) => v.remove());
+    partie.manche = 3; preparerManche(); jouerManche();
+    let garde = 0;
+    while (!document.querySelector(".scene-match canvas") && garde++ < 200) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    const pendant = document.querySelectorAll(".jeton.figurine").length;
+    // on range le match SANS toucher au drapeau : c'est l'état de la
+    // cérémonie de butin, où matchEnCours vaut encore true
+    rangerLeMatch();
+    await new Promise((r) => setTimeout(r, 250));
+    return { pendant, drapeau: partie.matchEnCours,
+      ceremonie: document.querySelectorAll(".jeton.figurine").length,
+      scene: !!document.querySelector(".scene-match") };
   });
-  verifier("match : aucune figurine pendant le match, elles reviennent après",
-    enMatch.pendant === 0 && enMatch.apres > 0, JSON.stringify(enMatch));
+  verifier(`match : aucune figurine tant que la SCÈNE est à l'écran (${enMatch.pendant})`,
+    enMatch.pendant === 0, JSON.stringify(enMatch));
+  verifier(`cérémonie : les figurines reviennent dès que la scène est rangée, même si ` +
+    `matchEnCours vaut encore ${enMatch.drapeau} (${enMatch.ceremonie} figurines, scène ${enMatch.scene})`,
+    enMatch.ceremonie > 0 && enMatch.scene === false, JSON.stringify(enMatch));
 
   // ---- 1 & 2. table VIDE puis PARTIELLE : le jeu reste jouable ----
   /* La promesse tenue avec une table vide a CHANGÉ de forme (décision 39

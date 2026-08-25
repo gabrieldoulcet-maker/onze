@@ -90,29 +90,29 @@ const verifier = (nom, ok, detail) => {
        le banc doit être AU PLANCHER, sinon le dépassement vient d'ailleurs
        et c'est un vrai défaut. Un seuil qui se contente de passer quand la
        place manque ne dit plus rien ; celui-ci dit lequel des deux commande. */
-    const plancherBanc = mesures.echelle ? mesures.echelle.banc.minLisible * 1.38 : 0;
-    /* LA FORME TOUJOURS TESTABLE DU CONTRAT, à côté de la stricte : à
-       niveau d'étoiles ÉGAL, un remplaçant n'est jamais plus grand qu'un
-       titulaire. Elle dit la hiérarchie sans dépendre de la place
-       disponible — et elle reste rouge si l'inversion revient, même les
-       jours où le plancher de lisibilité couvre la première. */
-    const parEtoiles = {};
-    for (const m of mesures.terrain) (parEtoiles[m.etoiles] = parEtoiles[m.etoiles] || { t: [], b: [] }).t.push(m.h);
-    for (const m of mesures.banc) (parEtoiles[m.etoiles] = parEtoiles[m.etoiles] || { t: [], b: [] }).b.push(m.h);
-    const comparables = Object.entries(parEtoiles).filter(([, g]) => g.t.length && g.b.length);
-    const inverses = comparables.filter(([, g]) => Math.max(...g.b) > Math.max(...g.t));
-    verifier(`${taille.nom} : à étoiles égales, un remplaçant n'est jamais plus grand qu'un titulaire ` +
-      `(${comparables.map(([e, g]) => `${e}★ banc ${Math.max(...g.b).toFixed(0)} / terrain ${Math.max(...g.t).toFixed(0)}`).join(" · ")})`,
-      comparables.length >= 2 && inverses.length === 0,
-      inverses.map(([e, g]) => `${e}★ : banc ${Math.max(...g.b).toFixed(0)} > terrain ${Math.max(...g.t).toFixed(0)}`).join(" | "));
-    const auPlancher = plancherBanc > 0 && maxBanc <= plancherBanc + 1.5;
-    const respecte = maxBanc <= minTerrain;
-    verifier(`${taille.nom} : le banc reste sous le terrain — max(banc) ${maxBanc.toFixed(0)} px ` +
-      `contre min(terrain) ${minTerrain.toFixed(0)} px (terrain ${minTerrain.toFixed(0)}–${maxTerrain.toFixed(0)} px, ` +
-      `${mesures.terrain.length} titulaires · ${mesures.banc.length} remplaçants)` +
-      (respecte ? "" : ` — la place manque, c'est le plancher de lisibilité qui commande (${plancherBanc.toFixed(0)} px), et le banc y est`),
-      mesures.banc.length >= 8 && mesures.terrain.length >= 10 && (respecte || auPlancher),
-      `banc à ${maxBanc.toFixed(0)} px, terrain à ${minTerrain.toFixed(0)} px, plancher du banc ${plancherBanc.toFixed(0)} px`);
+    /* L'ENCADREMENT (décision 64 · P4, formulation corrigée après mesure).
+       La première version disait « le banc ne dépasse jamais la plus
+       PETITE figurine du terrain ». Elle a produit le défaut inverse — des
+       remplaçants minuscules — pour une raison géométrique : la plus
+       petite figurine du terrain est celle du FOND, et le banc est au
+       PREMIER PLAN. Le plafonner sur l'arrière-plan lui fait hériter d'une
+       taille d'arrière-plan alors qu'il est devant.
+       La règle borne donc des DEUX côtés : jamais plus grand que la plus
+       GRANDE figurine du terrain, jamais plus petit que sa MÉDIANE.
+       L'assertion « à étoiles égales, un remplaçant n'est jamais plus
+       grand qu'un titulaire » a été retirée : elle disait l'ancienne
+       règle, et sous la nouvelle un 3★ du banc dépasse légitimement un
+       1★ du fond. */
+    const triees = [...hTerrain].sort((a, b) => a - b);
+    const medianeTerrain = triees[triees.length >> 1];
+    const sousPlafond = maxBanc <= maxTerrain + 1.5;
+    const surPlancher = maxBanc >= medianeTerrain - 1.5;
+    verifier(`${taille.nom} : le banc est ENCADRÉ par le terrain — banc ${maxBanc.toFixed(0)} px, ` +
+      `terrain ${minTerrain.toFixed(0)}–${maxTerrain.toFixed(0)} px, médiane ${medianeTerrain.toFixed(0)} px ` +
+      `(${mesures.terrain.length} titulaires · ${mesures.banc.length} remplaçants)`,
+      mesures.banc.length >= 8 && mesures.terrain.length >= 10 && sousPlafond && surPlancher,
+      !sousPlafond ? `le banc dépasse la plus grande figurine du terrain (${maxBanc.toFixed(0)} > ${maxTerrain.toFixed(0)})`
+        : `le banc passe sous la médiane du terrain (${maxBanc.toFixed(0)} < ${medianeTerrain.toFixed(0)})`);
 
     /* LA PERSPECTIVE N'EST PAS UN DÉFAUT — première version corrigée.
        J'avais exigé la MÊME hauteur pour deux joueurs de même ligne et
@@ -222,6 +222,45 @@ const verifier = (nom, ok, detail) => {
     });
     verifier(`${taille.nom} : la case vide s'allume quand elle devient une cible de dépôt`,
       !!allumage && allumage.change && allumage.ombre, JSON.stringify(allumage));
+
+    /* ZÉRO REPÈRE DE SOL SANS PROPRIÉTAIRE. Sur une équipe complète, deux
+       taches sombres restaient sur la pelouse : l'ovale se peignait aussi
+       sous les places VERROUILLÉES — l'ombre d'un joueur qu'on ne peut
+       même pas recruter. Une place verrouillée n'est pas un emplacement
+       libre : elle n'a rien à poser au sol. */
+    const orphelins = await page.evaluate(async () => {
+      /* NIVEAU 3 : cinq titulaires, et la grille en dessine sept — les deux
+         places restantes sont donc VERROUILLÉES. C'est exactement l'écran
+         « 5/5 » de la capture, celui où Gabriel voyait deux taches
+         sombres sur la pelouse. Au niveau 5 (sept titulaires) la grille
+         en dessine sept aussi : aucune case, rien à mesurer. */
+      partie.niveau = 3;
+      const art = tousLesJoueurs.filter((j) => ONZE_PORTRAITS.frontale(j));
+      /* EFFECTIF VRAIMENT PLEIN : on remplit jusqu'à `maxTitulaires()`,
+         lu dans le jeu. Une première version mettait cinq titulaires « au
+         niveau 5 » en supposant que le maximum valait cinq : il en valait
+         sept, deux places restaient LIBRES, et l'assertion ne trouvait
+         aucune case verrouillée à examiner. Un contrôle qui ne rencontre
+         pas son sujet ne dit rien — c'est pour ça qu'il compte aussi les
+         verrouillées et échoue s'il n'en voit aucune. */
+      const max = maxTitulaires();
+      partie.terrain = art.slice(0, max).map((f, i) => ({ ...f, etoiles: 1, uid: "P" + i,
+        ligne: ["GAR", "DÉF", "MIL", "ATT"][i === 0 ? 0 : 1 + (i % 3)] }));
+      afficher();
+      await new Promise((r) => setTimeout(r, 300));
+      const cases = [...document.querySelectorAll(".ligne-terrain .case-vide")];
+      const peints = cases.filter((c) => getComputedStyle(c, "::before").content !== "none");
+      return { total: cases.length,
+        verrouillees: cases.filter((c) => c.classList.contains("verrouillee")).length,
+        peints: peints.length,
+        peintsVerrouilles: peints.filter((c) => c.classList.contains("verrouillee")).length };
+    });
+    verifier(`${taille.nom} : sur un effectif plein, aucun repère de sol sans propriétaire ` +
+      `(${orphelins.total} case(s) dont ${orphelins.verrouillees} verrouillée(s), ` +
+      `${orphelins.peints} repère(s) peint(s))`,
+      orphelins.verrouillees > 0 && orphelins.peintsVerrouilles === 0,
+      orphelins.verrouillees === 0 ? "aucune case verrouillée à examiner : le contrôle ne dit rien"
+        : JSON.stringify(orphelins));
 
     await page.close();
   }
