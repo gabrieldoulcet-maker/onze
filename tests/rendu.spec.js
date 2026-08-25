@@ -358,7 +358,10 @@ async function varianceZone(page, clip) {
           jeton: { centre: rj.x + rj.width / 2, bas: rj.bottom },
           hauteurVisuel: ri ? ri.height : 0,
           ombre: ro ? { l: ro.width, y: ro.y + ro.height / 2, centre: ro.x + ro.width / 2 } : null,
-          ombreDessinee: st.getPropertyValue("content") !== "none" && !j.classList.contains("avec-ombre"),
+          // l'ombre DESSINÉE vit dans le ::before : on lit le pseudo-élément
+          // lui-même, sinon on ne mesure rien (la première version lisait
+          // le « content » de l'élément, qui ne veut rien dire ici)
+          ombreDessinee: getComputedStyle(j, "::before").content !== "none",
           avecOmbre: j.classList.contains("avec-ombre"),
         };
       });
@@ -382,6 +385,14 @@ async function varianceZone(page, clip) {
     verifier(`ombre en fichier : servie aux joueurs qui en ont une (${avecOmbre.length}), ` +
       `l'ombre dessinée reste aux autres (${sansOmbre.length})`,
       avecOmbre.length === 3 && sansOmbre.length === 1 && avecOmbre.every((m) => m.ombre && m.ombre.l > 4));
+    /* LA RÈGLE QUI NE DOIT JAMAIS CÉDER : une seule ombre au sol par
+       joueur. L'ombre dessinée est un REPLI — dès qu'un fichier existe
+       elle disparaît, et elle reste pour ceux qui n'en ont pas. Deux
+       ombres superposées feraient une tache, et personne ne le verrait
+       venir en ajoutant des ombres ailleurs dans l'interface. */
+    verifier("une seule ombre au sol par joueur : le fichier chasse l'ombre dessinée, jamais les deux",
+      avecOmbre.every((m) => !m.ombreDessinee) && sansOmbre.every((m) => m.ombreDessinee),
+      JSON.stringify(mesures.map((m) => [m.avecOmbre, m.ombreDessinee])));
     const un = avecOmbre.find((m) => Math.round(m.hauteurVisuel) > 0 && m.ombre && m.ancrage.y === 0.82 && m.hauteurVisuel < 60);
     const trois = avecOmbre[avecOmbre.length - 1];
     const rapport = un && trois ? trois.ombre.l / un.ombre.l : 0;
@@ -392,6 +403,29 @@ async function varianceZone(page, clip) {
     const malPosees = avecOmbre.filter((m) => Math.abs(m.ombre.y - m.appui.y) > 2 || Math.abs(m.ombre.centre - m.jeton.centre) > 2);
     verifier("ombre en fichier : elle est centrée sur le point d'appui", malPosees.length === 0,
       JSON.stringify(malPosees.map((m) => [Math.round(m.ombre.y - m.appui.y), Math.round(m.ombre.centre - m.jeton.centre)])));
+    /* La sélection doit rester visible AU SOL même quand l'ombre dessinée
+       a disparu : sans ça, un joueur à ombre de fichier n'aurait plus
+       aucun retour visuel quand on le choisit. */
+    const selection = await page.evaluate(async () => {
+      const jetons = [...document.querySelectorAll("#banc .jeton.figurine")];
+      const avec = jetons.find((j) => j.classList.contains("avec-ombre"));
+      const sans = jetons.find((j) => !j.classList.contains("avec-ombre"));
+      const lire = (j) => {
+        j.classList.add("choisi");
+        const st = getComputedStyle(j.querySelector("img.ombre-sol") || j);
+        const pseudo = getComputedStyle(j, "::before");
+        // le repère au sol est vert, qu'il passe par le fond du pseudo,
+        // sa lueur, ou le filtre de l'ombre-fichier
+        const vert = /61, ?226, ?107/;
+        const marque = (st.filter && st.filter !== "none") ||
+          vert.test(pseudo.backgroundImage || "") || vert.test(pseudo.boxShadow || "");
+        j.classList.remove("choisi");
+        return marque;
+      };
+      return { avecOmbre: lire(avec), sansOmbre: lire(sans) };
+    });
+    verifier("sélection : le repère reste AU SOL, ombre de fichier comprise",
+      selection.avecOmbre && selection.sansOmbre, JSON.stringify(selection));
     verifier("silhouettes de trois quarts : zéro erreur JS", erreursJS.length === 0, erreursJS.slice(0, 2).join(" | "));
     await page.close();
   }
