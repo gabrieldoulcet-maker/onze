@@ -14,14 +14,23 @@
    ============================================================ */
 const { chromium } = require("playwright-core");
 const EXECUTABLE = process.env.CHROME || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
-/* LE PLAFOND ANNONCÉ : 1,2 Mo à l'ouverture de l'écran de mercato, décor
+/* LE PLAFOND ANNONCÉ : 1,3 Mo à l'ouverture de l'écran de mercato, décor
    d'entraînement compris (il est désormais peint par DÉFAUT).
-   Pire cas : ~520 Ko de socle (polices auto-hébergées, scripts, CSS,
-   roster + tables) + les 5 key arts les plus lourds (372 Ko) + le terrain
-   d'entraînement (93 Ko en jeu/) + une silhouette (~100 Ko) ≈ 1085 Ko.
+   Pire cas recalculé après l'arrivée des cinq de départ :
+     ~520 Ko de socle (polices auto-hébergées, scripts, CSS, roster + tables)
+   + les 5 key arts les plus lourds de la boutique (365 Ko)
+   + le terrain d'entraînement (93 Ko en jeu/)
+   + les 5 silhouettes des titulaires de départ, qui s'affichent d'emblée
+     sur le gazon (199 Ko — c'est ce que ce lot a ajouté)
+   + une silhouette de remplaçant (~60 Ko) ≈ 1237 Ko.
+   ATTENTION, ce poids n'est PAS un nombre fixe : il dépend des 5 cartes
+   tirées en boutique. Mesuré sur six ouvertures : 1088 à 1216 Ko en
+   densité 1, 1383 à 1486 en densité 2. Le plafond borne donc le PIRE
+   tirage, pas le tirage moyen — un plafond calé sur une bonne pioche
+   passerait au vert par chance.
    Le reste des 8 Mo de visuels ne se charge QUE quand il s'affiche
    (loading="lazy" sur chaque illustration et chaque silhouette). */
-const PLAFOND_OUVERTURE_KO = 1200;
+const PLAFOND_OUVERTURE_KO = 1300;
 
 let echecs = 0;
 const verifier = (nom, ok, detail) => {

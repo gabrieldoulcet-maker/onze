@@ -1244,6 +1244,9 @@
       const erreurs = [];
       const max = maxTitulaires();
       if (partie.terrain.length > max) erreurs.push(`terrain ${partie.terrain.length} > limite ${max}`);
+      // le banc a exactement autant de places que le décor a de mats peints :
+      // un joueur de plus n'aurait nulle part où se tenir
+      if (partie.banc.length > TAILLE_BANC) erreurs.push(`banc ${partie.banc.length} > limite ${TAILLE_BANC}`);
       const vus = new Set();
       for (const j of [...partie.terrain, ...partie.banc]) {
         if (!j.uid) erreurs.push(`${j.nom} sans identifiant d'instance`);
@@ -3121,10 +3124,33 @@
     // la bande utile s'arrête avant le fond (sinon la rangée du haut sort du cadre)
     const V0 = 0.20, V1 = 0.88;
     const profondeur = (k, n) => V0 + ((k + 0.5) / n) * (V1 - V0);
-    /* Le niveau d'étoiles se lit dans la TAILLE (façon TFT) : la ligne de
-       sol ne bouge pas, le joueur grandit vers le haut. Le 3★ allume en
-       plus le sol en or (l'or reste réservé au légendaire). */
-    const TAILLE_ETOILE = { 1: 1, 2: 1.18, 3: 1.38 };
+    /* ================= L'ÉCHELLE DES SILHOUETTES =================
+       Un JETON DE CONFIGURATION, pas des nombres semés dans le code : à
+       onze titulaires et neuf remplaçants, la scène se resserre, et la
+       phase 1 de l'habillage (décor plein écran) va encore changer les
+       proportions. Tout se règle ici, en PARTS DE LA PLACE DISPONIBLE —
+       jamais en pixels absolus, sauf les deux bornes de lisibilité.
+         part          : la hauteur d'une silhouette, en part du pas entre
+                         deux joueurs d'une même ligne
+         recouvrement  : ce qu'elle a le droit de mordre sur sa voisine
+                         (1 = jamais ; 1,45 = les épaules se touchent, ce
+                         qui fait une foule et non une file)
+         minLisible    : en dessous, on préfère un léger chevauchement à
+                         une silhouette illisible — c'est un arbitrage
+                         assumé, pas un oubli
+         max           : au-delà, le joueur mange le terrain
+         largeur       : la largeur de sa boîte, en part de sa hauteur
+       ============================================================ */
+    const ECHELLE = {
+      terrain: { part: 1.28, recouvrement: 1.45, minLisible: 26, max: 72, largeur: 0.88, bande: 0.9, vide: 0.8 },
+      banc: { part: 1.5, minLisible: 30, max: 58 },
+      // le niveau d'étoiles se lit dans la TAILLE (façon TFT) : la ligne de
+      // sol ne bouge pas, le joueur grandit vers le haut ; le 3★ allume en
+      // plus le sol en or (l'or reste réservé au légendaire)
+      etoiles: { 1: 1, 2: 1.18, 3: 1.38 },
+      ombre: { terrain: "72%", banc: "70%", hauteurBanc: 0.42, solBanc: 0.18 },
+    };
+    const TAILLE_ETOILE = ECHELLE.etoiles;
     const facteurEtoile = (f) => TAILLE_ETOILE[Math.min(3, (f && f.etoiles) || 1)] || 1;
     function stadeChoisi() {
       try { return (ONZE_SCENE.reglages() || {}).stade; } catch (e) { return null; }
@@ -3178,15 +3204,21 @@
         cases.forEach((c, k) => {
           const v = profondeur(k, n);
           const [x, y] = ONZE_TERRAINS.projeter(terr, cadre, LIGNES_U[poste][2], v);
-          // la place disponible entre deux pions décide de leur taille
+          /* La place disponible entre deux joueurs de la ligne décide de
+             leur taille : plus ils sont nombreux, plus ils rétrécissent —
+             c'est ce qui tient à onze titulaires. Le budget de
+             recouvrement borne ce qu'une silhouette mord sur sa voisine,
+             et le 3★ (le plus grand) est compté dans ce budget. */
           const pas = (Math.max(...ys) - Math.min(...ys)) / Math.max(n, 1);
-          // sans cadre ni nom, la silhouette respire : c'est sa présence
-          // qui remplace les étiquettes
-          const base = Math.max(30, Math.min(72, pas * 1.28)) * ONZE_TERRAINS.echelleProfondeur(v);
+          const budget = (pas * ECHELLE.terrain.recouvrement) / ECHELLE.etoiles[3];
+          const voulu = Math.min(pas * ECHELLE.terrain.part, budget);
+          const base = Math.max(ECHELLE.terrain.minLisible, Math.min(ECHELLE.terrain.max, voulu))
+            * ONZE_TERRAINS.echelleProfondeur(v);
           const vide = c.classList.contains("case-vide");
           const fiche = vide ? null : partie.terrain[Number(c.dataset.indice)];
-          const boite = vide ? base * 0.8 : base * TAILLE_ETOILE[3];   // la boîte tient le plus grand
-          const l = Math.min(base * 0.88, (Math.max(...xs) - Math.min(...xs)) * 0.9);
+          const boite = vide ? base * ECHELLE.terrain.vide : base * ECHELLE.etoiles[3];   // la boîte tient le plus grand
+          const l = Math.min(base * ECHELLE.terrain.largeur,
+            (Math.max(...xs) - Math.min(...xs)) * ECHELLE.terrain.bande);
           c.style.width = l + "px";
           c.style.height = boite + "px";
           c.style.left = (x - zone.offsetLeft - l / 2) + "px";
@@ -3194,7 +3226,7 @@
           c.style.minHeight = "0";
           c.style.setProperty("--h-figurine", (base * facteurEtoile(fiche)) + "px");
           c.style.setProperty("--sol", "0px");                 // ligne de sol commune
-          c.style.setProperty("--l-ombre", "72%");
+          c.style.setProperty("--l-ombre", ECHELLE.ombre.terrain);
           c.style.setProperty("--h-ombre", Math.max(4, base * 0.16) + "px");
         });
       }
@@ -3210,14 +3242,27 @@
         if (t) largeurs.push(t.largeur);
       }
       largeurs.sort((a, b) => a - b);
-      const baseBanc = Math.max(30, Math.min(58, (largeurs[largeurs.length >> 1] || 34) * 1.5));
+      const baseBanc = Math.max(ECHELLE.banc.minLisible,
+        Math.min(ECHELLE.banc.max, (largeurs[largeurs.length >> 1] || 34) * ECHELLE.banc.part));
       places.forEach((c, n) => {
-        const t = ONZE_TERRAINS.tuile(terr, cadre, n);
+        /* Plus de joueurs que de mats peints ne devrait jamais arriver
+           (le banc et les mats font tous les deux 9, et l'invariant du
+           club le vérifie) — mais si ça arrivait, un joueur du club ne
+           doit JAMAIS devenir invisible : il se pose sur le mat suivant
+           dans le tour, décalé, et l'invariant le signalera. */
+        const t = ONZE_TERRAINS.tuile(terr, cadre, n % ONZE_TERRAINS.NB_TUILES);
         if (!t) { c.style.display = "none"; return; }
+        const debord = Math.floor(n / ONZE_TERRAINS.NB_TUILES) * 6;
         c.style.display = "";
+        /* La position est écrite EN DUR sur l'élément, pas héritée d'une
+           classe : un emplacement calculé ne doit pas dépendre de la
+           présence de « terrain-peint » au moment du rendu — sans quoi un
+           left/top posé sur un élément resté « relative » décalerait le
+           joueur de sa place au lieu de l'y poser. */
+        c.style.position = "absolute";
         // la DALLE occupe la tuile peinte ; la silhouette la dépasse vers
         // le haut (débordement visible), sa ligne de sol ne bouge pas
-        c.style.left = (t.x - banc.offsetLeft) + "px";
+        c.style.left = (t.x - banc.offsetLeft + debord) + "px";
         c.style.top = (t.y - banc.offsetTop) + "px";
         c.style.width = t.largeur + "px";
         c.style.height = t.hauteur + "px";
@@ -3225,9 +3270,9 @@
         c.style.flex = "none";
         const fiche = c.classList.contains("place-banc") ? null : partie.banc[Number(c.dataset.indice)];
         c.style.setProperty("--h-figurine", (baseBanc * facteurEtoile(fiche)) + "px");
-        c.style.setProperty("--sol", (t.hauteur * 0.18) + "px");
-        c.style.setProperty("--l-ombre", "70%");
-        c.style.setProperty("--h-ombre", Math.max(4, t.hauteur * 0.42) + "px");
+        c.style.setProperty("--sol", (t.hauteur * ECHELLE.ombre.solBanc) + "px");
+        c.style.setProperty("--l-ombre", ECHELLE.ombre.banc);
+        c.style.setProperty("--h-ombre", Math.max(4, t.hauteur * ECHELLE.ombre.hauteurBanc) + "px");
       });
     }
 

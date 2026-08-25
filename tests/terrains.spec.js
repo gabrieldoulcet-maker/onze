@@ -6,7 +6,12 @@
    entière — config → cadre de l'image → positionnement réel —
    en relisant les PIXELS affichés : les neuf tuiles calculées
    doivent tomber dans les neuf rectangles peints, sur les trois
-   terrains et aux cinq tailles d'écran de référence.
+   terrains et aux cinq tailles d'écran de référence — ET chaque
+   REMPLAÇANT RENDU doit être posé dans le mat qui lui est attribué
+   (centre de la silhouette et ligne de sol dedans). Les deux
+   contrôles sont distincts : le premier valide la géométrie, le
+   second le rendu — un emplacement juste n'a jamais garanti qu'un
+   joueur s'y tienne.
    Plus : la géométrie statique, et la correspondance arène ↔ terrain.
    Usage : NODE_PATH=<scratchpad>/node_modules node tests/terrains.spec.js
    ============================================================ */
@@ -135,6 +140,58 @@ const config = JSON.parse(fs.readFileSync(path.join(racine, "design/terrains.jso
         `(${verdict.dedans}/9 · ${verdict.runs} mats · ${verdict.intervallesClairs}/8 intervalles sur le tablier)`,
         verdict.dedans === 9 && verdict.runs === 9 && verdict.intervallesClairs === 8,
         "emplacements hors mat : " + verdict.fautifs.join(", "));
+
+      /* ---- LE JOUEUR RENDU EST-IL SUR SON MAT ? ----
+         La vérification ci-dessus prouve que les EMPLACEMENTS calculés
+         tombent sur les rectangles peints. Elle ne dit rien du JOUEUR :
+         une silhouette peut très bien se retrouver à côté de son
+         emplacement. On peuple donc le banc — étoiles mêlées (1★, 2★, 3★
+         n'ont pas la même taille) et un joueur SANS illustration (donc en
+         silhouette neutre) — et on exige, pour chacun, que le centre de sa
+         silhouette ET sa ligne de sol tombent dans le mat qui lui est
+         attribué. Testé avec un banc PLEIN, puis avec un SEUL remplaçant :
+         c'est le cas courant en début de partie. */
+      for (const [etiquette, nb] of [["banc plein", 9], ["un seul remplaçant", 1]]) {
+        const pose = await page.evaluate(async (nb) => {
+          const prendre = (i) => tousLesJoueurs[i % tousLesJoueurs.length];
+          partie.banc = Array.from({ length: nb }, (_, i) => ({ ...prendre(i), etoiles: (i % 3) + 1, uid: "t" + i }));
+          if (nb > 1) {   // un joueur sans visuel : il se rend en silhouette neutre
+            partie.banc[nb - 1] = { nom: "Gilbert", cout: 0, poste: "DÉF", ligne: "DÉF",
+              ecole: "", archetype: "", etoiles: 1, uid: "tx" };
+          }
+          afficher();
+          await new Promise((r) => setTimeout(r, 260));
+          const plateau = document.getElementById("plateau");
+          const terr = ONZE_TERRAINS.pour((ONZE_SCENE.reglages() || {}).stade);
+          const cadre = ONZE_TERRAINS.cadre(plateau.clientWidth, plateau.clientHeight);
+          const rp = plateau.getBoundingClientRect();
+          const hors = [], invisibles = [];
+          [...document.getElementById("banc").children].forEach((c, n) => {
+            if (!c.classList.contains("jeton")) return;         // une dalle vide
+            if (getComputedStyle(c).display === "none" || getComputedStyle(c).visibility === "hidden") {
+              invisibles.push(n); return;                        // un joueur du club JAMAIS invisible
+            }
+            const visuel = c.querySelector("img.frontale, svg.frontale");
+            const mat = ONZE_TERRAINS.tuile(terr, cadre, n % ONZE_TERRAINS.NB_TUILES);
+            if (!visuel || !mat) { hors.push({ n, quoi: visuel ? "sans mat" : "sans silhouette" }); return; }
+            const r = visuel.getBoundingClientRect();
+            const centre = r.x + r.width / 2 - rp.x;             // le centre de la silhouette
+            const sol = r.bottom - rp.y;                         // sa ligne de sol
+            const dansX = centre >= mat.x - 1 && centre <= mat.x + mat.largeur + 1;
+            const dansY = sol >= mat.y - 1 && sol <= mat.y + mat.hauteur + 1;
+            if (!dansX || !dansY) {
+              hors.push({ n, centre: Math.round(centre), sol: Math.round(sol),
+                mat: [Math.round(mat.x), Math.round(mat.y), Math.round(mat.largeur), Math.round(mat.hauteur)],
+                dansX, dansY });
+            }
+          });
+          return { joueurs: partie.banc.length, hors, invisibles };
+        }, nb);
+        verifier(`${terrain.nom} · ${taille.nom} · ${etiquette} : chaque remplaçant est POSÉ sur son mat ` +
+          `(centre et ligne de sol dedans, ${pose.joueurs} joueur(s))`,
+          pose.hors.length === 0 && pose.invisibles.length === 0,
+          JSON.stringify(pose).slice(0, 300));
+      }
       await page.close();
     }
   }
@@ -162,13 +219,17 @@ const config = JSON.parse(fs.readFileSync(path.join(racine, "design/terrains.jso
 
   /* ---------- 3. la densité : jeu/ en 1×, hd/ en 2×, et le poids ---------- */
   /* PLAFOND ANNONCÉ pour l'écran de mercato, terrain d'entraînement compris :
-       1,2 Mo en densité 1 · 1,45 Mo en forte densité.
+       1,3 Mo en densité 1 · 1,55 Mo en forte densité.
+     Relevé après l'arrivée des cinq de départ, dont les silhouettes
+     s'affichent d'emblée sur le gazon (+199 Ko). Le poids DÉPEND du tirage
+     de la boutique : mesuré sur six ouvertures, 1088-1216 Ko en densité 1
+     et 1383-1486 en densité 2 — le plafond borne le pire tirage.
      Pire cas : ~520 Ko de socle (polices, scripts, CSS, roster, tables)
      + les 5 key arts les plus lourds de la boutique (372 Ko)
      + le décor (93 Ko en jeu/, 354 Ko en hd/)
      + une silhouette de titulaire (~100 Ko).
      Le reste des 8 Mo de visuels ne se charge QUE quand il s'affiche. */
-  for (const [dpr, attendu, plafondKo] of [[1, "jeu/", 1200], [2, "hd/", 1450]]) {
+  for (const [dpr, attendu, plafondKo] of [[1, "jeu/", 1300], [2, "hd/", 1550]]) {
     const page = await (await browser.newContext({
       viewport: { width: 844, height: 390 }, deviceScaleFactor: dpr })).newPage();
     let octets = 0; const decors = [];

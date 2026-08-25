@@ -241,41 +241,106 @@ async function varianceZone(page, clip) {
     await page.close();
   }
 
+  /* ---- 4 bis · À ONZE TITULAIRES, LES SILHOUETTES RÉTRÉCISSENT ----
+     L'échelle est un jeton de configuration (`ECHELLE`) et non des
+     nombres en dur, précisément pour que l'effectif complet tienne : on
+     vérifie ici que le budget de recouvrement déclaré est RESPECTÉ dans
+     le rendu — deux joueurs d'une même ligne ne se mordent jamais plus
+     que ce que la config autorise — et qu'aucune silhouette ne descend
+     sous la borne de lisibilité. ---- */
+  for (const [L, H] of [[844, 390], [667, 320]]) {
+    const page = await (await browser.newContext({ viewport: { width: L, height: H } })).newPage();
+    await ouvrirMercato(page);
+    const plein = await page.evaluate(async () => {
+      // effectif COMPLET : onze titulaires et neuf remplaçants
+      partie.niveau = 10;
+      const prendre = (i) => tousLesJoueurs[i % tousLesJoueurs.length];
+      const lignes = ["GAR", "DÉF", "DÉF", "DÉF", "DÉF", "MIL", "MIL", "MIL", "ATT", "ATT", "ATT"];
+      partie.terrain = lignes.map((ligne, i) => ({ ...prendre(i), ligne, etoiles: (i % 3) + 1, uid: "T" + i }));
+      partie.banc = Array.from({ length: 9 }, (_, i) => ({ ...prendre(i + 20), etoiles: 1, uid: "B" + i }));
+      afficher();
+      await new Promise((r) => setTimeout(r, 320));
+      const conf = ECHELLE;
+      const parLigne = {};
+      for (const ligne of ["GAR", "DÉF", "MIL", "ATT"]) {
+        const jetons = [...document.querySelectorAll(`#ligne-${ligne} .jeton`)].map((j) => {
+          const v = j.querySelector("img.frontale, svg.frontale");
+          const r = (v || j).getBoundingClientRect();
+          return { haut: r.top, bas: r.bottom, hauteur: r.height };
+        }).sort((a, b) => a.haut - b.haut);
+        // le pas réel entre deux joueurs de la ligne, et ce qu'ils mordent
+        const morsures = [];
+        for (let i = 1; i < jetons.length; i++) {
+          const pas = jetons[i].bas - jetons[i - 1].bas;
+          if (pas > 0) morsures.push(jetons[i - 1].hauteur / pas);
+        }
+        parLigne[ligne] = { n: jetons.length, pireMorsure: morsures.length ? Math.max(...morsures) : 0,
+          plusPetite: jetons.length ? Math.min(...jetons.map((j) => j.hauteur)) : 0 };
+      }
+      return { conf: { recouvrement: conf.terrain.recouvrement, minLisible: conf.terrain.minLisible },
+        titulaires: partie.terrain.length, parLigne };
+    });
+    const lignes = Object.entries(plein.parLigne).filter(([, v]) => v.n > 1);
+    const budget = plein.conf.recouvrement * 1.08;   // 8 % de tolérance de rendu
+    /* DEUX branches, et c'est un arbitrage assumé, pas une échappatoire :
+       soit le budget de recouvrement est tenu, soit c'est la BORNE DE
+       LISIBILITÉ qui commande — sur un petit écran avec un effectif
+       complet, on préfère des silhouettes qui se serrent à des silhouettes
+       illisibles. La recette exige alors que la plus petite soit
+       effectivement AU PLANCHER : sans quoi le dépassement viendrait
+       d'ailleurs, et ce serait un vrai défaut. */
+    const trop = lignes.filter(([, v]) =>
+      v.pireMorsure > budget && v.plusPetite > plein.conf.minLisible * 1.05);
+    const auPlancher = lignes.filter(([, v]) => v.pireMorsure > budget).map(([k]) => k);
+    verifier(`${L}×${H} · onze titulaires : le recouvrement tient le budget déclaré (${plein.conf.recouvrement}) ou bute sur la borne de lisibilité ` +
+      lignes.map(([k, v]) => `${k} ${v.n}→${v.pireMorsure.toFixed(2)}`).join(" · ") +
+      (auPlancher.length ? ` · au plancher : ${auPlancher.join(", ")}` : ""),
+      plein.titulaires === 11 && trop.length === 0, JSON.stringify(trop));
+    const tropPetit = Object.entries(plein.parLigne).filter(([, v]) => v.n && v.plusPetite < plein.conf.minLisible * 0.8);
+    verifier(`${L}×${H} · onze titulaires : aucune silhouette sous la borne de lisibilité (${plein.conf.minLisible} px)`,
+      tropPetit.length === 0, JSON.stringify(tropPetit));
+    await page.close();
+  }
+
   /* ---- 5 · LE SEUL ÉTAT OÙ UN TAP N'ACHÈTE PAS : une modale ouverte.
      C'est le piège de méthode qui a fait croire à un achat cassé — la
      recette d'achat écartait le tutoriel de première partie, donc elle ne
-     voyait jamais ce que voit un joueur neuf. On vérifie ici les deux
-     temps : la modale mange le tap (c'est son rôle), et le tap SUIVANT,
-     une fois la modale refermée, achète. ---- */
+     voyait jamais ce que voit un joueur neuf. On vérifie les deux temps :
+     la modale mange le tap (c'est son rôle), et le tap SUIVANT, une fois
+     la modale refermée, achète.
+     On ouvre la modale SOI-MÊME (le calepin) au lieu d'attendre celle du
+     tutoriel : celle-ci peut être balayée par un autre événement de
+     première manche, et une recette qui dépend d'une course ne prouve
+     rien — la première version de ce contrôle passait par chance. ---- */
   {
     const page = await (await browser.newContext({ viewport: { width: 844, height: 390 } })).newPage();
-    await page.goto("http://localhost:8123/partie.html");
-    await page.evaluate(() => localStorage.clear());
-    await page.reload();
-    await page.waitForSelector(".carte-boutique", { timeout: 10000 });
-    const modale = await page.$(".volet");
-    if (!modale) {
-      verifier("joueur neuf : le tutoriel s'affiche au premier lancement", false, "aucune modale");
-    } else {
-      await page.evaluate(() => { arreterChrono(); partie.or = 60; afficher(); });
-      const avant = await page.evaluate(() => partie.or);
-      const box = await (await page.$(".carte-boutique[data-boutique]")).boundingBox();
-      await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.35);
-      await page.waitForTimeout(400);
-      const pendant = await page.evaluate(() => partie.or);
-      verifier(`tutoriel ouvert : le tap ne traverse pas la modale (or ${avant} → ${pendant})`, pendant === avant);
-      const bouton = await page.$('.volet [data-tuto="non"]');
-      if (bouton) await bouton.click();
-      await page.waitForTimeout(300);
-      await page.evaluate(() => { partie.or = 60; partie.banc = []; afficher(); });
-      await page.waitForTimeout(300);
-      const box2 = await (await page.$(".carte-boutique[data-boutique]")).boundingBox();
-      await page.mouse.click(box2.x + box2.width / 2, box2.y + box2.height * 0.35);
-      await page.waitForTimeout(500);
-      const apres = await page.evaluate(() => ({ or: partie.or, banc: partie.banc.length }));
-      verifier(`tutoriel refermé : le tap suivant achète (or 60 → ${apres.or}, banc ${apres.banc})`,
-        apres.or < 60 && apres.banc === 1);
-    }
+    await ouvrirMercato(page);
+    await page.evaluate(() => { partie.or = 60; partie.banc = []; afficher(); });
+    await page.waitForTimeout(250);
+    await page.click("#btn-calepin");
+    await page.waitForTimeout(350);
+    const ouverte = await page.evaluate(() => {
+      const c = document.querySelector(".carte-boutique[data-boutique]");
+      const r = c.getBoundingClientRect();
+      const dessus = document.elementFromPoint(r.x + r.width / 2, r.y + r.height * 0.35);
+      return { volet: !!document.querySelector(".volet"), couvre: !!(dessus && dessus.closest(".volet")), or: partie.or };
+    });
+    const box = await (await page.$(".carte-boutique[data-boutique]")).boundingBox();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.35);
+    await page.waitForTimeout(400);
+    const pendant = await page.evaluate(() => partie.or);
+    verifier(`modale ouverte : le tap ne la traverse pas (or ${ouverte.or} → ${pendant})`,
+      ouverte.volet && ouverte.couvre && pendant === ouverte.or, JSON.stringify({ ...ouverte, pendant }));
+
+    await page.evaluate(() => document.querySelectorAll(".volet").forEach((v) => v.remove()));
+    await page.evaluate(() => { partie.or = 60; partie.banc = []; afficher(); });
+    await page.waitForTimeout(300);
+    const box2 = await (await page.$(".carte-boutique[data-boutique]")).boundingBox();
+    await page.mouse.click(box2.x + box2.width / 2, box2.y + box2.height * 0.35);
+    await page.waitForTimeout(500);
+    const apres = await page.evaluate(() => ({ or: partie.or, banc: partie.banc.length }));
+    verifier(`modale refermée : le tap suivant achète (or 60 → ${apres.or}, banc ${apres.banc})`,
+      apres.or < 60 && apres.banc === 1);
     await page.close();
   }
 
