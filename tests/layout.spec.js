@@ -100,6 +100,52 @@ const TAILLES = [
     console.log(`${identifiable ? "✅" : "❌"} ${taille.nom} : gardien (or ${echelle.gardienOr}) et porteur (anneau ${echelle.anneau}) identifiables à cette taille`);
     if (!identifiable) total++;
 
+    /* ---- LE CHROME FLOTTANT NE MANGE PAS LE TABLEAU DE MATCH ----
+       Né d'un défaut mesuré : la phase 1 de l'habillage a détaché le
+       bandeau du haut (`position: absolute`, plein cadre) pour laisser le
+       décor respirer — et il s'est posé sur le tableau de match. Score,
+       chrono, nom de l'adversaire, jauge de domination et bouton Journal
+       passaient DESSOUS : le score se lisait à travers une plaque, et le
+       tap sur 📜 n'arrivait plus jamais (le parcours complet mourait là,
+       30 s d'attente sur un clic intercepté).
+
+       La mesure ne regarde ni les classes ni les z-index : elle DÉSIGNE le
+       pixel central de chaque contrôle et demande au navigateur qui répond.
+       C'est la seule question qui compte — « si le joueur tape ici, qui
+       reçoit le tap ? ». Le contre-test remet l'ancienne position et exige
+       que la recette sorte rouge. */
+    const CONTROLES = ["#tableau-match", "#btn-journal", "#score-a", "#chrono",
+      "#nom-adversaire-match", ".jauge-domination"];
+    const survol = (page, liste) => page.evaluate((cibles) => cibles.map((sel) => {
+      const e = document.querySelector(sel);
+      if (!e) return [sel, "absent"];
+      const q = e.getBoundingClientRect();
+      if (!q.width || !q.height) return [sel, "absent"];
+      const dessus = document.elementFromPoint(q.x + q.width / 2, q.y + q.height / 2);
+      if (dessus && (dessus === e || e.contains(dessus) || dessus.contains(e))) return [sel, "libre"];
+      return [sel, "recouvert par " + (dessus ? dessus.tagName.toLowerCase() +
+        "." + (dessus.className || "").toString().split(" ")[0] : "?")];
+    }), liste);
+    /* Une MODALE ouverte au-dessus du match (tutoriel, événement) est
+       légitime — elle est faite pour couvrir. On la referme d'abord :
+       la question porte sur le chrome permanent, pas sur les volets. */
+    await page.evaluate(() => document.querySelectorAll(".volet").forEach((v) => v.remove()));
+    const couverts = (await survol(page, CONTROLES)).filter((c) => c[1] !== "libre");
+    const chromeOk = couverts.length === 0;
+    console.log(`${chromeOk ? "✅" : "❌"} ${taille.nom} : pendant le match, les ${CONTROLES.length} contrôles du tableau reçoivent le tap (aucun sous le chrome flottant)` +
+      (chromeOk ? "" : " — " + couverts.map((c) => c.join(" ")).join(" | ")));
+    if (!chromeOk) total++;
+
+    // le contre-test : on remet le tableau à sa position d'avant le correctif
+    await page.evaluate(() => {
+      const t = document.getElementById("tableau-match");
+      t.style.top = "6px"; t.style.zIndex = "9";
+    });
+    const couvertsAvant = (await survol(page, CONTROLES)).filter((c) => c[1] !== "libre");
+    const contreOk = couvertsAvant.length > 0;
+    console.log(`${contreOk ? "✅" : "❌"} ${taille.nom} : contre-test — tableau remis sous le bandeau, la recette sort rouge (${couvertsAvant.length}/${CONTROLES.length} contrôles recouverts)`);
+    if (!contreOk) total++;
+
     await page.close();
   }
   // ---- Portrait : l'écran de rotation s'affiche et RIEN D'AUTRE (la

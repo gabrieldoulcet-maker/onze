@@ -555,6 +555,15 @@
     .journal.replie { display: none; }
     .journal { z-index: 8; }
     .tableau-match { z-index: 9; }
+    /* PHASE 1, RATTRAPAGE MESURÉ (août 2026) : le bandeau flottant se pose
+       sur TOUT le haut du cadre — il recouvrait le tableau de match (score,
+       chrono, nom de l'adversaire, jauge de domination) et mangeait le tap
+       du bouton Journal, mesuré au test de survol. Le tableau se cale donc
+       sous la hauteur RÉELLE du bandeau, publiée par disposerPlateau(), et
+       passe devant lui. Rien d'autre du match ne bouge. */
+    #app.scene-pleine .tableau-match {
+      top: calc(var(--haut-bandeau, 41px) + 5px); z-index: 31;
+    }
     .tableau-match .btn-journal {
       background: none; border: 1px solid var(--ligne); border-radius: 6px;
       color: var(--craie-sourde); font-size: 0.7rem; cursor: pointer; padding: 0 5px; margin-left: 6px;
@@ -3259,6 +3268,9 @@
     }
     /* Le chrono de mercato ne part que si aucun écran d'événement n'est ouvert */
     function lancerChronoMercato() {
+      // `matchEnCours` vaut encore true pendant le BILAN : ce garde-fou
+      // couvre donc le match et son bilan, ce qui est bien ce qu'on veut
+      // ici — mais ce n'est pas un drapeau « la scène est à l'écran ».
       if (modeDetente || partie.matchEnCours) return;
       if (document.querySelector(".volet")) return; // un événement a son propre chrono
       const secondes = partie.manche <= DERNIERE_MANCHE_AMICALE ? 20 : 35;
@@ -3355,6 +3367,12 @@
          qui remettait des noms, des pastilles et des rectangles sombres au
          milieu du gazon. Il reçoit une silhouette NEUTRE, teintée de son
          poste, posée sur la même ligne de sol. */
+      /* ATTENTION : `matchEnCours` couvre le jeu ET le bilan de manche — il
+         n'est remis à false que par le bouton Continuer. Il veut dire « un
+         match est commencé et pas encore refermé », pas « la scène est à
+         l'écran ». Ici c'est le bon drapeau (on ne veut pas de figurines
+         tant que le bilan n'est pas fermé) ; pour « la scène est rendue »,
+         c'est l'existence de `sceneMatch` qu'il faut regarder. */
       if (!partie.matchEnCours) {
         const frontale = ONZE_PORTRAITS.frontale(fiche);   // la fiche, pas le nom : elle porte la variante d'École
         /* PLUS AUCUN HABILLAGE (brief habillage v2) : ni cadre, ni nom, ni
