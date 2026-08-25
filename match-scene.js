@@ -438,13 +438,13 @@ const ONZE_SCENE = (() => {
     /* L'arbitre se tient EN DIAGONALE du ballon, jamais dessus : il suit
        à distance, du côté où il ne coupe pas la ligne de jeu. */
     function cibleArbitre() {
-      const cote = ballon.y > 50 ? -1 : 1;      // il se décale côté opposé
+      const cote = ballon.y > 0 ? -1 : 1;       // il se décale côté opposé
       return { x: dansLeJeu(ballon.x - 5), y: borne(ballon.y + cote * 8, -DEMI_W + 4, DEMI_W - 4) };
     }
     /* Un assistant tient sa touche et se cale sur la ligne de hors-jeu
        de la moitié qu'il couvre : l'avant-dernier défenseur. */
     function cibleAssistant(a) {
-      const camp = ballon.x < 50 ? "moi" : "eux";
+      const camp = ballon.x < 0 ? "moi" : "eux";
       const arriere = listePions
         .filter((p) => p.camp === camp && !p.gardien)
         .sort((q, w) => Math.abs(q.x - BUTS[camp].x) - Math.abs(w.x - BUTS[camp].x));
@@ -814,8 +814,8 @@ const ONZE_SCENE = (() => {
             // trente mètres ne presse pas, il tient son bloc.
             distance(q, ballon) < 16 &&
             !(zoneBasse && q.ligne === "ATT"));  // le point haut ne redescend pas presser
-        // INERTIE : celui qui pressait déjà garde la mission (bonus de 6 %
-        // de terrain) — sinon les deux plus proches changent chaque frame
+        // INERTIE : celui qui pressait déjà garde la mission (6 m de
+        // bonus) — sinon les deux plus proches changent chaque frame
         candidatsPress
           .sort((a, b) => (distance(a, ballon) - (a.pressait ? 6 : 0)) -
                           (distance(b, ballon) - (b.pressait ? 6 : 0)))
@@ -1283,7 +1283,7 @@ const ONZE_SCENE = (() => {
             // une décision de football, pas une fonction du temps
             const genant = listePions.filter((q) => q.camp !== p.camp && !q.gardien)
               .sort((a, b) => distance(a, p) - distance(b, p))[0];
-            const cote = genant ? (genant.y > p.y ? -1 : 1) : (p.y > 50 ? -1 : 1);
+            const cote = genant ? (genant.y > p.y ? -1 : 1) : (p.y > 0 ? -1 : 1);
             p.cx = dansLeJeu(p.x + sens * 5);
             p.cy = dansLaLargeur(p.y + cote * 4);
             p.roleScenario = "conduite";
@@ -1318,7 +1318,7 @@ const ONZE_SCENE = (() => {
             p.roleScenario = "percee";
             if (t.sousType === "course") {
               // le sprint dans le couloir : il prend la profondeur, plein axe
-              const couloir = p.y < 50 ? Math.max(10, p.y - 8) : Math.min(90, p.y + 8);
+              const couloir = dansLaLargeur(p.y + (p.y < 0 ? -8 : 8));
               p.cx = dansLeJeu(p.x + sens * 22); p.cy = couloir;
               donnerLeBallon(p.nom, 18, camp);
             } else if (t.sousType === "dribble") {
