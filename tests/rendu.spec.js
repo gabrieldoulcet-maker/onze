@@ -301,6 +301,48 @@ async function empreinteVisuel(page, indice, zone) {
     await page.evaluate(() => afficher());
     await page.waitForTimeout(150);
 
+    /* AUCUNE FIGURINE SERVIE SUR TERRAIN PEINT NE PORTE `sans-portrait`
+       (§9.1 du brief playtest). Le défaut le plus visible de l'écran de
+       mise en place : une silhouette PLATE, SAUMON, SANS VISAGE debout au
+       milieu de figurines peintes — c'est le repli `SILHOUETTE_NEUTRE`,
+       teinté par le poste (`--teinte-pleine: #DE6350` pour un attaquant).
+
+       Et c'est un cas d'école de la règle M4 : **le repli était
+       parfaitement acceptable tant que personne n'avait de portrait.** Une
+       silhouette neutre parmi des silhouettes neutres ne choque pas.
+       L'arrivée des 79 figurines l'a transformée en image cassée sans que
+       personne ne touche à son code — c'est le VOISINAGE qui a changé.
+       Aucune recette ne pouvait l'attraper : elle vérifiait un chemin de
+       rendu unique, et il l'est resté.
+
+       Qui n'a pas de portrait : les six réservistes du centre (Gilbert,
+       Norbert, Fernand, Marius, Lucien, Célestin), que `autoCompleter()`
+       POUSSE SUR LE TERRAIN quand le banc est vide. */
+    const RESERVISTES = ["Gilbert", "Norbert", "Fernand", "Marius", "Lucien", "Célestin"];
+    const replis = await page.evaluate(async (noms) => {
+      arreterChrono();
+      document.querySelectorAll(".volet").forEach((v) => v.remove());
+      partie.niveau = 9;
+      partie.banc = [];
+      // le cas réel : le banc est vide, les réservistes montent
+      partie.terrain = noms.slice(0, 5).map((nom, i) => ({ nom, cout: 0,
+        poste: ["GAR", "DÉF", "MIL", "ATT", "MIL"][i], ecole: "", archetype: "",
+        unique: null, etoiles: 1, uid: "R" + i }));
+      afficher();
+      await Promise.all([...document.images].filter((i) => i.src && !i.complete)
+        .map((i) => i.decode().catch(() => {})));
+      await new Promise((r) => setTimeout(r, 300));
+      const peint = document.querySelector(".plateau").classList.contains("terrain-peint");
+      const tous = [...document.querySelectorAll(".ligne-terrain .jeton.figurine, #banc .jeton.figurine")];
+      return { peint, total: tous.length,
+        sansPortrait: tous.filter((j) => j.classList.contains("sans-portrait"))
+          .map((j) => (j.getAttribute("aria-label") || "?").split(",")[0]) };
+    }, RESERVISTES);
+    verifier(`${taille.nom} : aucune figurine du terrain peint n'est un repli sans visuel ` +
+      `(${replis.total} figurines, ${replis.sansPortrait.length} sans portrait)`,
+      replis.peint && replis.total > 0 && replis.sansPortrait.length === 0,
+      replis.sansPortrait.slice(0, 6).join(", "));
+
     verifier(`${taille.nom} : zéro erreur JS`, erreursJS.length === 0, erreursJS.slice(0, 2).join(" | "));
     await page.close();
   }

@@ -390,6 +390,24 @@
        L'élément garde sa boîte — c'est la surface que le doigt vise —
        mais ne peint plus rien ; c'est son ::before qui dessine l'ovale
        d'ombre à l'endroit des pieds. */
+    /* LE REMPLAÇANT EST UNE SILHOUETTE ANONYME. Il emprunte le corps d'une
+       vraie unité (même caméra, même ligne de sol, même ombre) mais perd
+       tout ce qui identifie quelqu'un : pas de visage, pas de couleurs de
+       maillot. Un aplat sombre légèrement bleuté, avec un liseré clair qui
+       le détache du gazon — il lit comme « un joueur du centre, en
+       dépannage », jamais comme une image qui n'a pas chargé. */
+    .jeton.figurine.remplacant .frontale {
+      filter: brightness(0) saturate(0)
+              drop-shadow(0 0 1px rgba(237, 245, 236, 0.85))
+              drop-shadow(0 0 2px rgba(237, 245, 236, 0.45));
+      opacity: 0.82;
+    }
+    .plateau.terrain-peint.decor-clair .jeton.figurine.remplacant .frontale {
+      filter: brightness(0) saturate(0)
+              drop-shadow(0 0 1px rgba(255, 255, 255, 0.95))
+              drop-shadow(0 0 3px rgba(0, 0, 0, 0.5));
+      opacity: 0.74;
+    }
     .plateau.terrain-peint .case-vide {
       border: none; background: none; box-shadow: none; color: transparent;
     }
@@ -688,8 +706,13 @@
       box-shadow: var(--arete-haute-forte), 0 -10px 24px rgba(0, 0, 0, 0.55);
       padding: 10px 8px calc(6px + env(safe-area-inset-bottom));
     }
+    /* LE MÉDAILLON A UNE PLACE, PAS UN FLOTTEMENT (décision 64 · P1).
+       À `top: -13px` il était à cheval sur la couture : mesuré, 12 de ses
+       22 px dépassaient au-dessus de la barre de boutique, et le bord de
+       celle-ci le coupait en deux — on n'en voyait que la moitié haute.
+       Il appartient à la bande basse : il s'y range entièrement. */
     .medaillon-or {
-      position: absolute; top: -13px; left: 50%; transform: translateX(-50%); z-index: 6;
+      position: absolute; top: 3px; left: 50%; transform: translateX(-50%); z-index: 6;
       display: flex; align-items: center; gap: 5px;
       /* matière JETON, en or : c'est une MONNAIE, elle doit avoir une
          tranche et un reflet, pas être un aplat sombre cerclé */
@@ -715,6 +738,17 @@
     .xp-jauge > div { height: 100%; background: var(--poste-d); border-radius: 3px; transition: width 0.3s; }
     .odds-affiche { display: flex; gap: 3px; font-size: 0.6rem; font-weight: 800; cursor: pointer;
       padding: 2px 0; justify-content: space-between; }
+    /* L'ÉTIQUETTE PREND UNE LIGNE, PAS DE LA LARGEUR. Posée dans la
+       rangée, elle élargissait le bloc de gauche de 8 px : les cartes de
+       boutique se décalaient et rétrécissaient d'autant — et la recette
+       de l'achat au tap sortait rouge sur le coin de la carte. Une
+       étiquette qui déplace ce qu'elle explique n'explique rien. */
+    .odds-affiche { flex-wrap: wrap; }
+    .odds-titre {
+      flex: 0 0 100%; margin: 0 0 1px;
+      font-size: 0.46rem; font-weight: 700; color: var(--craie-sourde);
+      text-transform: lowercase; letter-spacing: 0.02em;
+    }
     .odds-affiche span {                                       /* matière JETON */
       flex: 1; text-align: center; border-radius: 4px; padding: 1px 0;
       background: var(--jeton-fond); border: 1px solid var(--vert-bordure);
@@ -794,7 +828,20 @@
     .carte-boutique button::after { content: ""; position: absolute; inset: -12px -6px -8px -6px; }
     .carte-boutique.cout-5 button { background: var(--or-trophee); }
     .carte-boutique button:disabled { background: #0C130D; color: #4A5A4C; box-shadow: none; }
-    .carte-boutique.vendue { opacity: 0.35; justify-content: center; text-align: center; border-color: var(--ligne); box-shadow: none; }
+    /* MATIÈRE CREUX : un emplacement libre s'enfonce, il ne se peint pas.
+       C'était un grand rectangle sombre portant un tiret — la troisième
+       forme de placeholder de l'écran, et celle qui lisait le plus comme
+       un bug. */
+    .carte-boutique.vendue {
+      opacity: 1; justify-content: center; text-align: center;
+      background: var(--creux-fond); border: 1px solid var(--vert-bordure);
+      box-shadow: var(--creux-ombre); color: transparent;
+    }
+    .carte-boutique.vendue::after {
+      content: ""; position: absolute; inset: 0; margin: auto;
+      width: 26%; height: 3px; border-radius: 2px;
+      background: rgba(237, 245, 236, 0.14);
+    }
     /* L'ÉTAT GRISÉ (pas les moyens) : il DÉSATURE, il n'éteint pas.
        L'ancien brightness(0,6) faisait tomber l'illustration à 59 % de la
        luminance de sa source — les personnages devenaient des silhouettes
@@ -1026,8 +1073,12 @@
     .galerie .carte-galerie.epingle { border-color: #9CC4EF; box-shadow: 0 0 8px rgba(156, 196, 239, 0.5); }
 
     /* Le toast : une pilule discrète (vocabulaire d'interaction, Lot 4) */
+    /* LE TOAST SE POSE SOUS LE BANDEAU, pas sur la couture. À
+       `bottom: 110px` il tombait en plein milieu des cartes de boutique et
+       de l'emplacement vide — un message qui recouvre ce qu'on est en
+       train de regarder (§9.6). */
     .message-flottant {
-      position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%);
+      position: fixed; top: calc(var(--haut-bandeau, 41px) + 6px); left: 50%; transform: translateX(-50%);
       color: var(--craie-claire); font-size: 0.75rem; z-index: 90;
       background: #060D08E8; border: 1px solid var(--ligne);
       border-radius: var(--r-pilule); padding: 0 12px; pointer-events: none; text-align: center;
@@ -3623,8 +3674,24 @@
         const decor = (nomListe === "banc" ? "sur-dalle" : "sur-gazon") + " p-" + poste;
         // sans illustration : la silhouette neutre, dessinée (aucun chemin
         // d'image, elle marche donc même avec une table de portraits vide)
-        const corps = frontale
-          ? `<img class="frontale" src="${frontale}" alt="" loading="lazy" decoding="async"
+        /* LE BOUCHE-TROU A UN CORPS, LUI AUSSI (§9.1 du playtest).
+           Sans illustration, on servait `SILHOUETTE_NEUTRE` : une forme
+           PLATE, DE FACE, teintée du poste — saumon pour un attaquant. Le
+           repli était acceptable tant que personne n'avait de portrait ;
+           l'arrivée des 79 figurines de trois quarts l'a transformé en
+           image cassée sans qu'on touche à son code (règle M4 : c'est le
+           VOISINAGE qui a changé).
+           L'arbitrage : on lui donne un visuel plutôt que de le bannir du
+           terrain. Il emprunte une vraie unité — même caméra, même ligne
+           de sol, même ombre en fichier — rendue en SILHOUETTE ANONYME :
+           ni visage, ni couleurs de maillot. Il dit « c'est un
+           bouche-trou », pas « l'image a planté ». Trois emprunts
+           différents, choisis par le nom, pour que six réservistes ne
+           soient pas six clones. */
+        const emprunt = frontale ? null : ONZE_PORTRAITS.emprunt(fiche.nom);
+        const visuel = frontale || (emprunt && emprunt.unite);
+        const corps = visuel
+          ? `<img class="frontale" src="${visuel}" alt="" loading="lazy" decoding="async"
                onerror="this.closest('.jeton').classList.add('sans-portrait'); this.remove()">`
           : SILHOUETTE_NEUTRE;
         /* L'OMBRE AU SOL EN FICHIER (silhouettes de trois quarts) : quand
@@ -3633,7 +3700,7 @@
            silhouette, donc avec le niveau d'étoiles. Si le fichier
            manque à l'appel, on retombe sur l'ombre dessinée sans qu'il
            n'arrive rien. */
-        const ombre = frontale ? ONZE_PORTRAITS.ombre(fiche) : null;
+        const ombre = frontale ? ONZE_PORTRAITS.ombre(fiche) : (emprunt && emprunt.ombre);
         const solOmbre = ombre
           ? `<img class="ombre-sol" src="${ombre}" alt="" aria-hidden="true" loading="lazy" decoding="async"
                onerror="this.closest('.jeton').classList.remove('avec-ombre'); this.remove()">`
@@ -3641,9 +3708,11 @@
         /* LE POINT D'APPUI : c'est lui qu'on cale sur la ligne de sol, pas
            le bas de l'image. Une silhouette de trois quarts, ou recadrée
            autrement, garde donc les pieds au même endroit. */
-        const ancrage = frontale ? ONZE_PORTRAITS.ancrage(fiche) : ONZE_PORTRAITS.ANCRAGE_DEFAUT;
+        const ancrage = frontale ? ONZE_PORTRAITS.ancrage(fiche)
+          : (emprunt ? emprunt.ancrage : ONZE_PORTRAITS.ANCRAGE_DEFAUT);
         const repere = ` style="--ancrage-x:${ancrage.x};--ancrage-y:${ancrage.y}"`;
-        return `<div ${ouverture(` figurine ${decor}${frontale ? "" : " sans-portrait"}` +
+        return `<div ${ouverture(` figurine ${decor}${visuel ? "" : " sans-portrait"}` +
+          `${emprunt ? " remplacant" : ""}` +
           `${ombre ? " avec-ombre" : ""}${etoiles >= 3 ? " legende" : ""}`)}${repere}
           aria-label="${fiche.nom}, ${poste}${etoiles > 1 ? ", " + etoiles + " étoiles" : ""}">${solOmbre}${corps}</div>`;
       }
@@ -4009,7 +4078,9 @@
       const aDeuxEtoiles = (nom) => [...partie.terrain, ...partie.banc]
         .some((j) => j.nom === nom && (j.etoiles || 1) === 2);
       el("boutique").innerHTML = partie.boutique.map((fiche, i) => {
-        if (!fiche) return `<div class="carte-boutique vendue">—</div>`;
+        // un emplacement vide est un CREUX, pas un rectangle noir à tiret :
+        // le tiret lisait comme une image qui n'a pas chargé (§9.6)
+        if (!fiche) return `<div class="carte-boutique vendue" aria-label="Emplacement libre"></div>`;
         if (fiche.estIcone) {
           // la carte ICÔNE : or + rayons tournants (état légendaire, Lot 3)
           const icone = ONZE_ICONES.parId(fiche.id);
@@ -4089,8 +4160,14 @@
       el("xp-boutique").textContent = xpRequis ? `${partie.xp}/${xpRequis} xp` : "max";
       el("xp-jauge-remplissage").style.width = xpRequis ? Math.min(100, 100 * partie.xp / xpRequis) + "%" : "100%";
       const oddsNiveau = ODDS_PAR_NIVEAU[Math.min(partie.niveau, 10)];
-      el("odds-affiche").innerHTML = oddsNiveau.map((pc, i) =>
-        `<span style="color:var(--cout-${i + 1})">${pc}</span>`).join("");
+      /* « 30 40 25 5 0 » ne dit rien à qui ne le sait pas déjà : ces
+         nombres sont les CHANCES DE TIRAGE PAR COÛT. L'étiquette est
+         écrite une fois à gauche, et chaque pastille porte la sienne pour
+         le lecteur d'écran. */
+      el("odds-affiche").innerHTML =
+        `<small class="odds-titre">chances</small>` + oddsNiveau.map((pc, i) =>
+          `<span style="color:var(--cout-${i + 1})" title="${pc} % de tirer un joueur à ${i + 1}M"
+             aria-label="${pc} % pour ${i + 1}M">${pc}</span>`).join("");
 
       // Synergies + mini ADN
       const apercu = equipeDuClub();

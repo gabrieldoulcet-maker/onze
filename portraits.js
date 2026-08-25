@@ -203,7 +203,31 @@ const ONZE_PORTRAITS = (() => {
   const ancrage = (cible) => (entree(cible) || {}).ancrage || ANCRAGE_DEFAUT;
   const nombre = () => Object.keys(index).length;
 
+  /* L'EMPRUNT : un corps pour ceux qui n'ont pas de visuel (§9.1 du brief
+     playtest). Les réservistes du centre — six bouche-trous poussés sur le
+     terrain quand le banc est vide — n'ont aucune illustration, et le repli
+     dessiné les faisait apparaître PLATS et DE FACE au milieu de figurines
+     de trois quarts : une image cassée au milieu du jeu.
+     Ils empruntent donc une vraie unité, avec son ombre et son ancrage —
+     même caméra, même ligne de sol. Le rendu s'occupe de l'anonymiser (pas
+     de visage, pas de couleurs) : ce fichier ne fait que prêter un corps.
+     TROIS emprunts, choisis par le nom : six réservistes ne doivent pas
+     être six clones, et le même nom doit toujours donner le même corps —
+     un tirage au sort les ferait changer de corps à chaque rendu. */
+  const CORPS_EMPRUNTES = ["Malandro", "Mattia", "Harry"];
+  function emprunt(nom) {
+    if (!nom) return null;
+    let somme = 0;
+    for (let i = 0; i < nom.length; i++) somme = (somme * 31 + nom.charCodeAt(i)) >>> 0;
+    for (let k = 0; k < CORPS_EMPRUNTES.length; k++) {
+      const e = entree(CORPS_EMPRUNTES[(somme + k) % CORPS_EMPRUNTES.length]);
+      if (e && e.frontale) return { unite: e.frontale, ombre: e.ombre || null,
+        ancrage: e.ancrage || ANCRAGE_DEFAUT };
+    }
+    return null;   // table vide : le repli dessiné reprend la main
+  }
+
   return { charger, chargerUnites, definir, definirUnites, carte, frontale, ombre, ancrage,
-    entree, normaliser, nombre, sansFigurine, PONT_UNITES, ANCRAGE_DEFAUT };
+    emprunt, entree, normaliser, nombre, sansFigurine, PONT_UNITES, ANCRAGE_DEFAUT };
 })();
 if (typeof module !== "undefined") module.exports = ONZE_PORTRAITS;
