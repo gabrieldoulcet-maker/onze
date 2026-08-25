@@ -3084,7 +3084,7 @@
          milieu du gazon. Il reçoit une silhouette NEUTRE, teintée de son
          poste, posée sur la même ligne de sol. */
       if (!partie.matchEnCours) {
-        const frontale = ONZE_PORTRAITS.frontale(fiche.nom);
+        const frontale = ONZE_PORTRAITS.frontale(fiche);   // la fiche, pas le nom : elle porte la variante d'École
         /* PLUS AUCUN HABILLAGE (brief habillage v2) : ni cadre, ni nom, ni
            étoiles, ni pastille. Sur le gazon il ne reste que la silhouette
            et son ombre ; au banc, une dalle teintée du poste. Le niveau
@@ -3289,9 +3289,9 @@
           const grisee = partie.or < icone.cout ? " grisee" : "";
           // Une Icône DUO (Gus & Titi) porte les deux visages, côte à côte :
           // c'est la seule carte où le key art de chaque moitié s'affiche.
-          const artsDuo = (icone.duo || []).map((m) => ONZE_PORTRAITS.carte(m.nom));
+          const artsDuo = (icone.duo || []).map((m) => ONZE_PORTRAITS.carte(m));   // les moitiés d'Icône : maillot violet
           const duoComplet = artsDuo.length === 2 && artsDuo.every(Boolean);
-          const artIcone = duoComplet ? artsDuo[0] : ONZE_PORTRAITS.carte(icone.nom);
+          const artIcone = duoComplet ? artsDuo[0] : ONZE_PORTRAITS.carte(icone);
           // LA CARTE ENTIÈRE est le bouton d'achat : le prix n'est plus
           // qu'une information posée dans la barre basse
           const btnIcone = (libelle) => `<span class="prix-carte">${libelle}</span>`;
@@ -3328,7 +3328,7 @@
         const tag = planifie ? `<span class="tag-etat">CALEPIN</span>` : "";
         const ouvrirFiche = "";
         const bouton = `<span class="prix-carte">${prixHTML(fiche.cout)}</span>`;
-        const art = ONZE_PORTRAITS.carte(fiche.nom);
+        const art = ONZE_PORTRAITS.carte(fiche);
         if (art) {
           // la carte-illustration : hiérarchie coût → famille → nom → prix
           return `<div class="carte-boutique illustree cout-${fiche.cout} ${eclat} ${planifie}${grisee}" ${ouvrirFiche} data-boutique="${i}" role="button" tabindex="0" aria-label="Recruter ${fiche.nom} (${fiche.cout}M)">${badgeEclat}${tag}

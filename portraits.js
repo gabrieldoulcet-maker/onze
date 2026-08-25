@@ -13,12 +13,21 @@
    partielle ou illisible : toute fonction renvoie alors null et
    l'affichage retombe sur la carte Blason / le jeton d'origine.
 
+   UN JOUEUR PEUT AVOIR DEUX VISAGES. Gus et Titi jouent d'abord en
+   maillot du club (deux des cinq de départ), puis en violet du Douzième
+   Homme quand l'Icône n°38 se débloque. La table les distingue par une
+   clé À VARIANTE : « Titi » = le maillot du club, « Titi · Le Douzième
+   Homme » = la moitié d'Icône. Le jeu sert la bonne version en passant la
+   FICHE du joueur (qui porte son École) plutôt que son nom : la variante
+   est cherchée d'abord, le nom nu ensuite. Un nom sans variante continue
+   de marcher — c'est le cas des 71 du roster.
+
    API :
-     ONZE_PORTRAITS.charger(url?)  → Promise (ne rejette jamais)
-     ONZE_PORTRAITS.definir(objet) → injecte une table (tests)
-     ONZE_PORTRAITS.carte(nom)     → chemin ou null
-     ONZE_PORTRAITS.frontale(nom)  → chemin ou null
-     ONZE_PORTRAITS.nombre()       → nombre d'entrées lisibles
+     ONZE_PORTRAITS.charger(url?)     → Promise (ne rejette jamais)
+     ONZE_PORTRAITS.definir(objet)    → injecte une table (tests)
+     ONZE_PORTRAITS.carte(fiche|nom)  → chemin ou null
+     ONZE_PORTRAITS.frontale(f|nom)   → chemin ou null
+     ONZE_PORTRAITS.nombre()          → nombre d'entrées lisibles
    ============================================================ */
 const ONZE_PORTRAITS = (() => {
   let index = {};
@@ -31,6 +40,7 @@ const ONZE_PORTRAITS = (() => {
     .normalize("NFC")
     .replace(/\s*★+\s*$/, "")
     .replace(/[’‘‛`´]/g, "'")
+    .replace(/\s*[·•|]\s*/g, " · ")   // le séparateur de variante, quelle que soit sa saisie
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
@@ -56,9 +66,27 @@ const ONZE_PORTRAITS = (() => {
       .catch(() => definir(null));
   }
 
-  const entree = (nom) => index[normaliser(nom)] || null;
-  const carte = (nom) => (entree(nom) || {}).carte || null;
-  const frontale = (nom) => (entree(nom) || {}).frontale || null;
+  // « Titi » + « Le Douzième Homme » → la clé de la variante
+  const cleVariante = (nom, variante) => nom + " · " + variante;
+
+  /* La cible est SOIT un nom, SOIT une fiche de joueur. Avec une fiche on
+     cherche d'abord sa variante d'École — c'est ce qui donne à Gus et Titi
+     leur maillot violet une fois l'Icône signée, et leur maillot de club
+     le reste du temps. Sans variante trouvée, on retombe sur le nom nu. */
+  function entree(cible) {
+    if (cible && typeof cible === "object") {
+      const nom = cible.nom;
+      const variante = cible.ecole || cible.variante;
+      if (nom && variante) {
+        const v = index[normaliser(cleVariante(nom, variante))];
+        if (v) return v;
+      }
+      return index[normaliser(nom)] || null;
+    }
+    return index[normaliser(cible)] || null;
+  }
+  const carte = (cible) => (entree(cible) || {}).carte || null;
+  const frontale = (cible) => (entree(cible) || {}).frontale || null;
   const nombre = () => Object.keys(index).length;
 
   return { charger, definir, carte, frontale, entree, normaliser, nombre };
