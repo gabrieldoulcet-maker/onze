@@ -212,6 +212,42 @@ Registre des décisions actées. Une décision qui n'est pas ici n'existe pas.
     **Le vrai risque du chantier n'est pas le dessin, c'est la MÊLÉE** : à cette taille, trois corps qui se croisent peuvent faire une bouillie là où trois disques restaient lisibles. C'est le go/no-go, et il se mesure sur les pixels d'une mêlée provoquée. **Si elle sort rouge, la réponse n'est pas d'agrandir** — la taille est tranchée — **c'est d'épaissir le liseré ou de creuser l'ombre**.
     **Le repli existe** : figurines coupées (`reglages.figurines = false`), on retombe sur les disques d'aujourd'hui et le match reste jouable — testé.
 
+
+63. **Six règles de MÉTHODE (actées août 2026, après le playtest « ça fait très bogué »).** Elles ne portent pas sur le jeu mais sur la façon de le mesurer. Chacune garde l'incident qui l'a produite : c'est lui qui la rend opposable, pas sa formulation.
+
+    **M1 — Un geste que le joueur fait au doigt doit être traversé au doigt par une recette.** `parcours.spec.js` annonçait en tête « drag remplacé par les fonctions de jeu » : le geste le plus répété du jeu n'a **jamais** été joué au pointeur, et un fantôme décalé de **672 px** a survécu à quatre phases d'habillage. Appeler `deplacer()` ne prouve rien sur le geste.
+
+    **M2 — Déplacer la référence est le même geste que desserrer le seuil, en moins visible.** Des parts de postures comparées à un « réel » qui était les mesures d'origine **divisées par 0,88**, sans le dire. Toute transformation d'un chiffre de référence se déclare **à côté du chiffre**.
+
+    **M3 — Un garde-fou connu rouge s'écrit quand même.** Un garde-fou déclaré rouge est honnête ; un garde-fou absent ne dit rien. Corollaire déjà en vigueur : **une recette neuve qui ne sort pas rouge sur son défaut n'est pas un garde-fou**, c'est un décor.
+
+    **M4 — Une régression peut naître sans qu'aucune ligne ne change.** La silhouette neutre était acceptable **tant que personne n'avait de portrait** ; les 79 figurines l'ont transformée en image cassée sans qu'on touche à son code. Même classe : un tri par profondeur absent, sans conséquence tant que le pion était un disque. **Quand une couche gagne en qualité, ses replis se relisent.**
+
+    **M5 — Le dénominateur d'une suite se déclare.** Trois comptes différents ont circulé — 13, 14, 15 — pour un disque qui en portait plus, dont **une recette que personne ne lançait** (`tirs-au-but.spec.js`). Le nombre se publie et **se lit sur le disque** : `tests/lancer-tout.js` énumère, personne ne compte à la main.
+
+    **M6 — Une mesure incapable de distinguer la bonne réponse d'une réponse au hasard ne prouve rien.** La visibilité d'un joueur jugée à la **variance** déclarait absente une silhouette présente **une fois sur trois**. Un détecteur d'ellipse dont le `\.` — écrit dans un littéral de gabarit, où il se résout en `.` — **matchait n'importe quoi** annonçait 33 à 63 faux textes tronqués. **Avant de croire une mesure, on lui demande ce qu'elle répond sur un cas qu'on sait faux.**
+
+64. **Cinq règles de PRODUIT (actées août 2026, mêmes causes).**
+
+    **P1 — La grille de zones : rien ne flotte, tout a une place réservée.** Vingt-sept défauts relevés sur deux captures ordinaires, **une seule cause**. Cinq zones — bandeau haut, bord gauche, bord droit, terrain, bande basse — et la zone « terrain » est **l'enveloppe des joueurs rendus**, pas le conteneur (le décor, lui, reste plein cadre depuis la décision 48). Corollaire : **on ne règle pas un recouvrement en montant d'un cran de `z-index`** — c'est le geste qui a produit le bug.
+
+    **P2 — Un moment, un écran.** Le match se range d'abord, **puis** les orbes tombent sur un terrain propre, **puis** le bilan s'ouvre. Deux moments du jeu n'occupent jamais le même écran.
+
+    **P3 — Aucune période d'interface morte et muette.** Un bouclier plein écran **totalement transparent** avalait les touches **2,7 s** à chaque fin de manche. Un blocage qui ne se voit pas est ressenti comme un bug, pas comme une cérémonie.
+
+    **P4 — La zone secondaire ne dépasse jamais la principale.** Banc à **80 px** contre **27 px** pour le plus petit titulaire, avec un plancher de lisibilité à **30 contre 26** qui garantissait l'inversion à lui seul. Le plafond du banc est fixé par **la plus petite figurine du terrain**, jamais par une constante ; les deux planchers sont désormais le même.
+
+    **P5 — Un seuil de lisibilité entre deux camps est relatif et symétrique.** **325 px bleus contre 203 rouges**, alors que le rouge est mesuré à **1,00** de contraste contre le sol turquoise — aucun. Un plancher par équipe ne suffit pas : il faut aussi un **rapport borné entre les deux (~1,3)**.
+
+65. **Pendant le match, les colonnes se rétractent — et l'option d'y inscrire le terrain est écartée PAR LA MESURE (actée août 2026).** Le brief demandait deux choses qui ne peuvent pas être vraies ensemble : « le rectangle de la scène est exactement celui du décor » et « zone terrain : la scène, et rien d'autre ». Deux problèmes distincts s'y cachaient, et un seul était un arbitrage.
+
+    **Le bandeau n'en était pas un.** La règle existait déjà sur l'autre écran — « le bandeau flotte en haut du décor, donc rien ne doit pousser au-dessus de lui » (`margeHaut`, phase 1). La scène de match ne la portait pas, d'où **844 × 41 px** de bandeau posés sur le terrain animé. Elle la porte maintenant : la bande de jeu du match commence **sous le bandeau**, comme au placement. Coût : quelques pixels sur la ligne la plus profonde, **pas une largeur**.
+
+    **Les colonnes, elles, étaient un arbitrage — et il est tranché par trois chiffres.** Inscrire la scène entre les colonnes coûterait **160 px sur 926, soit 17 % de largeur**. À onze titulaires les figurines mesurent **19,4 px** (disque) et **29 px** (silhouette) sur 844 × 390 ; **−17 % les met à 16 et 24 px**, sous le `minLisible = 26` déclaré non négociable (décision 47). La **décision 37 a déjà mesuré et rejeté ce marché exact** : inscrire la géométrie dans un rectangle rentré faisait tomber les pions à ~10 px. **On ne rachète pas une décision payée par la mesure.** Et le match n'a qu'une chose à offrir — **voir les joueurs jouer** ; l'option la taxerait de 17 % en permanence.
+
+    **Donc : les colonnes GLISSENT hors cadre pendant le match**, avec un **onglet fin qui reste** de chaque côté (elles ne disparaissent pas d'un coup : on doit voir où elles sont parties et pouvoir les rappeler d'un tap). Elles reviennent au coup de sifflet. Ce qu'on perd : **rien d'actionnable** — vérifié, aucune cible de tap n'y répond pendant un match. Le classement est la seule information vivante des deux, et c'est **exactement ce que le bilan rouvre deux secondes plus tard**. Quelqu'un voudra remettre le classement pendant le match : la raison est écrite ici, avec ses chiffres.
+
+
 ## Backlog priorisé (battue TFT, août 2026 — dans cet ordre)
 
 1. ✅ **Le clone fantôme** (fait) : nombre impair de survivants → au lieu d'un exempt, un coach affronte « l'équipe B » (le clone) d'un club vivant, traitée comme une entité à part entière dans l'appariement.

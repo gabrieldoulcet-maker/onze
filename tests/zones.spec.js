@@ -263,23 +263,71 @@ async function ouvrir(page) {
             const r = e.getBoundingClientRect();
             return { x: r.x, y: r.y, w: r.width, h: r.height, fond: st.backgroundImage }; };
           const banc = document.querySelector("#banc");
+          const bandeau = document.querySelector(".haut");
           return { terrain: b("#terrain-scene"), fond: b("#fond-terrain"), scene: b(".scene-match"),
             hautBanc: banc ? banc.getBoundingClientRect().y : null,
+            basBandeau: bandeau ? bandeau.getBoundingClientRect().bottom : null,
             peint: document.querySelector(".plateau").classList.contains("terrain-peint") };
         });
         verifier(`${taille.nom} · match : le conteneur de mise en place a disparu de l'écran ` +
           `(pas seulement couvert)`, !!couture.terrain && couture.terrain.cache === true,
           JSON.stringify(couture.terrain));
+        /* CLAUSE (c), AMENDÉE PAR LA MESURE. Elle disait « le rectangle de
+           la scène est exactement celui du décor ». Prise au pied de la
+           lettre, elle mettait le bandeau flottant sur le terrain animé —
+           844 × 41 px. La règle qui manquait existait déjà sur l'autre
+           écran : « le bandeau flotte en haut du décor, donc rien ne doit
+           pousser au-dessus de lui » (`margeHaut`). La scène prend donc la
+           LARGEUR du décor à l'unité près, commence SOUS le bandeau, et
+           s'arrête au banc. Le décor, lui, reste plein cadre. */
         const s2 = couture.scene, f2 = couture.fond;
         const memeLargeur = s2 && f2 && !s2.cache && !f2.cache &&
-          Math.abs(s2.x - f2.x) < 0.5 && Math.abs(s2.w - f2.w) < 0.5 && Math.abs(s2.y - f2.y) < 0.5;
+          Math.abs(s2.x - f2.x) < 0.5 && Math.abs(s2.w - f2.w) < 0.5;
+        const sousBandeau = s2 && couture.basBandeau !== null &&
+          Math.abs(s2.y - couture.basBandeau) < 6;
         const sarrete = s2 && couture.hautBanc !== null && Math.abs((s2.y + s2.h) - couture.hautBanc) < 0.5;
-        verifier(`${taille.nom} · match : la scène prend le rectangle du décor et s'arrête au banc ` +
-          `(scène ${s2 ? Math.round(s2.w) + "×" + Math.round(s2.h) : "—"}, décor ` +
-          `${f2 ? Math.round(f2.w) + "×" + Math.round(f2.h) : "—"}, banc à ${Math.round(couture.hautBanc)} px)`,
-          memeLargeur && sarrete, JSON.stringify({ scene: s2, fond: f2, hautBanc: couture.hautBanc }));
+        verifier(`${taille.nom} · match : la scène prend la largeur du décor, commence sous le bandeau ` +
+          `et s'arrête au banc (scène ${s2 ? Math.round(s2.w) + "×" + Math.round(s2.h) : "—"} à y=${s2 ? Math.round(s2.y) : "—"}, ` +
+          `décor ${f2 ? Math.round(f2.w) : "—"} px de large, bandeau jusqu'à ${Math.round(couture.basBandeau)} px, ` +
+          `banc à ${Math.round(couture.hautBanc)} px)`,
+          memeLargeur && sousBandeau && sarrete,
+          JSON.stringify({ scene: s2, largeurDecor: f2 && f2.w, basBandeau: couture.basBandeau, hautBanc: couture.hautBanc }));
         verifier(`${taille.nom} · match : sur décor peint, la scène ne peint pas son propre sol`,
           !couture.peint || (s2 && s2.fond === "none"), s2 ? String(s2.fond).slice(0, 60) : "—");
+
+        /* LES COLONNES SE RÉTRACTENT, ET ON PEUT LES RAPPELER (décision
+           65). Deux moitiés, et la seconde compte autant : elles GLISSENT
+           hors cadre — pas de disparition sèche — et un onglet fin reste,
+           qui les ramène. Sans lui, l'information serait perdue au lieu
+           d'être rangée. */
+        const retrait = await page.evaluate(async () => {
+          const lire = () => {
+            const g = document.querySelector(".col-synergies").getBoundingClientRect();
+            const d = document.querySelector(".col-classement").getBoundingClientRect();
+            const og = document.getElementById("onglet-gauche");
+            const od = document.getElementById("onglet-droite");
+            const vu = (e) => e && getComputedStyle(e).display !== "none" &&
+              e.getBoundingClientRect().width > 4;
+            return { gDroite: g.x + g.width, dGauche: d.x, onglets: vu(og) && vu(od) };
+          };
+          const range = lire();
+          document.getElementById("onglet-gauche").click();
+          await new Promise((r) => setTimeout(r, 420));
+          const rappele = lire();
+          document.getElementById("onglet-gauche").click();
+          await new Promise((r) => setTimeout(r, 420));
+          return { range, rappele, largeur: innerWidth };
+        });
+        const sorties = retrait.range.gDroite <= 0.5 && retrait.range.dGauche >= retrait.largeur - 0.5;
+        verifier(`${taille.nom} · match : les colonnes glissent hors cadre et leurs onglets restent ` +
+          `(bord droit de la gauche à ${Math.round(retrait.range.gDroite)} px, bord gauche de la droite à ` +
+          `${Math.round(retrait.range.dGauche)} px sur ${retrait.largeur})`,
+          sorties && retrait.range.onglets,
+          JSON.stringify(retrait.range));
+        verifier(`${taille.nom} · match : l'onglet rappelle la colonne ` +
+          `(elle revient à ${Math.round(retrait.rappele.gDroite)} px)`,
+          retrait.rappele.gDroite > retrait.range.gDroite + 20,
+          JSON.stringify(retrait.rappele));
       }
 
       /* LES DEUX COLONNES NE MANGENT PAS L'ÉCRAN. Mesuré : 108 + 104 px

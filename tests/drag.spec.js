@@ -224,6 +224,77 @@ async function trainer(page, selecteur, arrivee) {
       !!secousse && secousse.pire < SEUIL_PX,
       secousse ? `parent ${secousse.dernier && secousse.dernier.parent}` : "pas de prise");
 
+    /* UN APPUI SIMPLE OUVRE LA FICHE (§5 du brief playtest). La fiche
+       existait déjà et l'appui long l'ouvrait EN BOUTIQUE ; sur le terrain
+       et au banc, le tap simple ne faisait rien d'utile. Aucun geste neuf
+       à apprendre, aucun bouton en plus — c'est le seuil de 8 px qui
+       tranche : au-delà c'est un drag, en deçà c'est un tap.
+       Les deux moitiés se testent, et la seconde est la vraie garantie :
+       un drag ne doit PAS ouvrir de fiche, sinon on aurait échangé un
+       geste manquant contre un geste parasite. */
+    for (const [quoi, racine] of [["banc", "#banc"], ["terrain", ".ligne-terrain"]]) {
+      await page.evaluate(() => document.querySelectorAll(".voile-fiche, .volet").forEach((v) => v.remove()));
+      const point = await page.evaluate((r) => {
+        const j = document.querySelector(r + " .jeton[data-liste]");
+        if (!j) return null;
+        const q = j.getBoundingClientRect();
+        return { x: Math.round(q.x + q.width / 2), y: Math.round(q.y + q.height / 2),
+          nom: partie[j.dataset.liste][Number(j.dataset.indice)].nom };
+      }, racine);
+      if (!point) { verifier(`${taille.nom} · ${quoi} : un joueur à taper`, false); continue; }
+      await page.mouse.move(point.x, point.y);
+      await page.mouse.down();
+      await page.mouse.move(point.x + 3, point.y + 2);      // sous le seuil : c'est un tap
+      await page.mouse.up();
+      await page.waitForTimeout(220);
+      const ouverte = await page.evaluate((nom) => {
+        const f = document.querySelector(".voile-fiche, .fiche-joueur");
+        return { ouverte: !!f, porteLeNom: !!f && (f.textContent || "").includes(nom) };
+      }, point.nom);
+      verifier(`${taille.nom} · ${quoi} : un appui simple ouvre la fiche de ${point.nom}`,
+        ouverte.ouverte && ouverte.porteLeNom, JSON.stringify(ouverte));
+      await page.evaluate(() => document.querySelectorAll(".voile-fiche, .volet").forEach((v) => v.remove()));
+    }
+    /* L'APPUI LONG GARDE LES ACTIONS. Le tap lui a pris sa place — voir
+       les stats est le geste le plus fréquent — mais le menu (changer de
+       ligne, envoyer au banc, vendre) ne doit pas disparaître en silence :
+       une fonctionnalité perdue sans qu'on le dise est une régression. */
+    await page.evaluate(() => document.querySelectorAll(".voile-fiche, .volet").forEach((v) => v.remove()));
+    const ptLong = await page.evaluate(() => {
+      const j = document.querySelector(".ligne-terrain .jeton[data-liste]");
+      if (!j) return null;
+      const q = j.getBoundingClientRect();
+      return { x: Math.round(q.x + q.width / 2), y: Math.round(q.y + q.height / 2) };
+    });
+    if (ptLong) {
+      await page.mouse.move(ptLong.x, ptLong.y);
+      await page.mouse.down();
+      await page.waitForTimeout(520);           // au-delà des 350 ms
+      await page.mouse.up();
+      await page.waitForTimeout(150);
+      const menu = await page.evaluate(() => {
+        const f = document.querySelector(".voile-fiche .fiche-joueur");
+        const t = f ? (f.textContent || "") : "";
+        return { ouvert: !!f, vendre: t.includes("Vendre"), banc: t.includes("banc"),
+          lignes: [...(f ? f.querySelectorAll("[data-ligne]") : [])].length };
+      });
+      verifier(`${taille.nom} : l'appui long garde le menu d'actions ` +
+        `(vendre ${menu.vendre}, banc ${menu.banc}, ${menu.lignes} boutons de ligne)`,
+        menu.ouvert && menu.vendre && menu.banc && menu.lignes === 4, JSON.stringify(menu));
+      await page.evaluate(() => document.querySelectorAll(".voile-fiche, .volet").forEach((v) => v.remove()));
+    }
+
+    // et le drag, lui, n'ouvre rien
+    await page.evaluate(() => document.querySelectorAll(".voile-fiche, .volet").forEach((v) => v.remove()));
+    const selDrag = await page.evaluate(() => {
+      const j = document.querySelector("#banc .jeton[data-liste]");
+      return j ? `[data-liste="${j.dataset.liste}"][data-indice="${j.dataset.indice}"]` : null;
+    });
+    if (selDrag) await trainer(page, selDrag, cible);
+    const apresDrag = await page.evaluate(() => !!document.querySelector(".voile-fiche, .fiche-joueur"));
+    verifier(`${taille.nom} : un glisser n'ouvre PAS de fiche (le drag reste prioritaire)`, !apresDrag);
+    await page.evaluate(() => document.querySelectorAll(".voile-fiche, .volet").forEach((v) => v.remove()));
+
     verifier(`${taille.nom} : zéro erreur JS`, erreursJS.length === 0, erreursJS.slice(0, 2).join(" | "));
     await page.close();
   }
