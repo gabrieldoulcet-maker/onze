@@ -35,6 +35,17 @@ ligne à recopier telle quelle dans tout compte rendu :
 Écarter n'est pas ignorer : `--sauf=scene` doit apparaître dans le rapport, et une
 livraison qui touche à la scène ou à sa couche la relance **sans l'option**.
 
+## Le rituel de livraison
+
+Trois gestes, dans cet ordre, avant tout commit qui part sur `main` :
+
+1. `node outils/estampiller.js` — l'estampille que porte le bandeau du jeu. Une capture
+   d'écran doit dire de quelle version elle date (règle M3 ter). Oublier ce geste **sort
+   rouge** : `zones.spec.js` compare l'estampille au disque.
+2. `node tests/lancer-tout.js` — le rapport porte son identifiant de passage, son
+   horodatage et la révision. **C'est cette ligne qu'on cite en annonçant un chiffre.**
+3. Le compte rendu recopie la ligne du lanceur, écartées comprises.
+
 Deux garde-fous, complémentaires :
 
 - **`tests/lancer-tout.js`** lit la liste **sur le disque** et annonce N/N avec le détail.

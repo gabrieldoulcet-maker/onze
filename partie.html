@@ -93,6 +93,16 @@
       padding-left: max(10px, env(safe-area-inset-left));
       padding-right: max(10px, env(safe-area-inset-right));
     }
+    /* Discrète mais toujours là : elle ne prend aucune place au chrome
+       (elle se pose au bord), elle ne se coupe pas, et elle reste lisible
+       sur le décor comme tout texte clair posé sur une image. */
+    .estampille {
+      flex: 0 0 auto; align-self: center; margin-left: 4px;
+      font-size: 0.44rem; font-weight: 700; letter-spacing: 0.03em;
+      color: var(--craie-sourde); opacity: 0.72; white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+    }
     .haut .manche-info {
       cursor: pointer; white-space: nowrap; font-weight: 700;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);              /* halo obligatoire */
@@ -1315,6 +1325,11 @@
     <button id="btn-plein-ecran" aria-label="Plein écran"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-plein-ecran"></use></svg></button>
     <button id="btn-recap" class="masque" aria-label="Récapitulatif du match"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-epees"></use></svg></button>
     <button id="btn-vitesse" class="masque" aria-label="Vitesse du match"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-vitesse"></use></svg> ×2</button>
+    <!-- L'ESTAMPILLE. Le bandeau est la zone présente sur TOUTES les
+         captures : une capture dit désormais d'elle-même de quelle
+         version elle date (règle M3 ter). Écrite par
+         outils/estampiller.js, jamais à la main. -->
+    <small class="estampille" id="estampille" title="Version du jeu affichée — à citer avec une capture d'écran"></small>
   </div>
 
   <!-- ===== Centre : synergies | plateau + banc | classement ===== -->
@@ -1402,6 +1417,7 @@
 
   </div><!-- /app -->
 
+  <script src="version.js"></script>
   <script src="donnees-eco.js"></script>
   <script src="match-moteur.js"></script>
   <script src="icones.js"></script>
@@ -1843,6 +1859,16 @@
       const zone = el("file-annonces");
       if (zone) { zone.innerHTML = ""; zone.classList.add("masque"); }
     }
+    /* L'estampille se pose une fois, au démarrage. Si `version.js` manque
+       (dépôt fraîchement cloné, script non estampillé), elle le DIT au
+       lieu de rester vide : une estampille absente est une information. */
+    function poserEstampille() {
+      const zone = el("estampille");
+      if (!zone) return;
+      const v = window.ONZE_VERSION;
+      zone.textContent = v && v.build ? `${v.revision} · ${v.build}` : "version non estampillée";
+    }
+
     function signaler(texte) {
       annoncer(texte, "annonce-message", 2200);
     }
@@ -5097,6 +5123,7 @@
             v === 2 ? "Revenir à la vitesse normale" : "Accélérer le match");
           el("btn-vitesse").innerHTML = `${ONZE_ICONES_SYS.ic("vitesse", 13)} ` + (v === 2 ? "×1" : "×2");
         });
+        poserEstampille();
         if (!restaurer()) { nouvellePartie(); proposerTutoriel(); }
       })
       .catch((e) => {
