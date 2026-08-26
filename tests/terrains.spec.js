@@ -484,22 +484,36 @@ const config = JSON.parse(fs.readFileSync(path.join(racine, "design/terrains.jso
      où une silhouette frontale coûtait ~50 Ko. Le poids DÉPEND du tirage
      de la boutique : mesuré sur six ouvertures, 1276-1412 Ko en densité 1
      et 1407-1532 en densité 2 — le plafond borne le pire tirage.
-     Pire cas : ~520 Ko de socle (polices, scripts, CSS, roster, tables)
-     + les 5 key arts les plus lourds de la boutique (372 Ko)
-     + le décor (93 Ko en jeu/, 354 Ko en hd/)
-     + une silhouette de titulaire (~100 Ko).
-     Le reste des 8 Mo de visuels ne se charge QUE quand il s'affiche. */
-  for (const [dpr, attendu, plafondKo] of [[1, "jeu/", 1500], [2, "hd/", 1700]]) {
+     Le reste des 8 Mo de visuels ne se charge QUE quand il s'affiche.
+
+     CE QUI A CHANGÉ (décision 69) : l'assertion comparait le tirage DU
+     JOUR au plafond du pire tirage — verte ou rouge selon la boutique du
+     moment (1502 Ko un jour, 1460 le lendemain, même code). On calcule
+     désormais le PIRE tirage comme dans da.spec.js : socle (total moins
+     les key arts des cartes réellement tirées, dédoublonnées, chemins
+     décodés) + les 5 key arts les plus lourds du roster (requêtes HEAD).
+
+     En densité 1, le verdict de poids appartient à da.spec.js — qui
+     porte la dette déclarée (1 580 Ko > 1 500, cause : match-scene.js
+     différable). Le répéter ici compterait la même dette deux fois et
+     brouillerait la ligne entre dette connue et régression : cette
+     recette garde son vrai sujet, LE BON DOSSIER DE DÉCOR par densité,
+     et imprime le poids en information. En densité 2, le plafond 1700
+     n'existe qu'ici : il reste un verdict, sur le pire tirage. */
+  for (const [dpr, attendu, plafondKo] of [[1, "jeu/", null], [2, "hd/", 1700]]) {
     const page = await (await browser.newContext({
       viewport: { width: 844, height: 390 }, deviceScaleFactor: dpr })).newPage();
-    let octets = 0; const decors = [];
-    page.on("response", async (r) => {
-      if (/da\/terrains\//.test(r.url())) decors.push(r.url().split("/da/terrains/")[1]);
+    let octets = 0; const decors = []; const parChemin = new Map();
+    page.on("response", (r) => {
+      if (/da\/terrains\//.test(r.url())) decors.push(decodeURIComponent(r.url()).split("/da/terrains/")[1]);
       try {
         const t = r.headers()["content-type"] || "";
-        if (/image|font|javascript|css|json|html/.test(t))
-          octets += Number(r.headers()["content-length"] || 0) || (await r.body().catch(() => Buffer.alloc(0))).length;
-      } catch (e) { /* corps déjà consommé */ }
+        if (!/image|font|javascript|css|json|html/.test(t)) return;
+        const l = Number(r.headers()["content-length"] || 0);
+        if (!l) return;
+        octets += l;
+        parChemin.set(decodeURIComponent(new URL(r.url()).pathname).replace(/^\//, ""), l);
+      } catch (e) { /* url illisible : ignorée */ }
     });
     await page.addInitScript(() => { try {
       localStorage.setItem("onze-tutoriel-vu", "1");
@@ -509,10 +523,32 @@ const config = JSON.parse(fs.readFileSync(path.join(racine, "design/terrains.jso
     await page.waitForSelector("#boutique .carte-boutique", { timeout: 15000 });
     await page.evaluate(() => arreterChrono());
     await page.waitForTimeout(1800);
-    const ko = Math.round(octets / 1024);
-    verifier(`densité ${dpr}× : le décor servi est ${attendu} et l'ouverture pèse ${ko} Ko ≤ ${plafondKo} Ko`,
-      decors.length > 0 && decors.every((f) => f.startsWith(attendu)) && ko <= plafondKo,
-      decors.join(", ") + ` · ${ko} Ko`);
+    verifier(`densité ${dpr}× : le décor servi est ${attendu}`,
+      decors.length > 0 && decors.every((f) => f.startsWith(attendu)), decors.join(", "));
+    // le pire tirage, calculé — jamais le tirage du jour (décision 69).
+    // Le poids du jour se fige ICI : les requêtes HEAD ci-dessous passent
+    // par le même écouteur et gonfleraient le chiffre imprimé (5,6 Mo
+    // affichés pour 1,5 réellement chargés, vu au premier passage).
+    const koJour = Math.round(octets / 1024);
+    const tire = [...new Set(await page.evaluate(() =>
+      partie.boutique.map((f) => f && ONZE_PORTRAITS.carte(f)).filter(Boolean)))];
+    const socle = octets - tire.reduce((t, c) => t + (parChemin.get(c.replace(/^\//, "")) || 0), 0);
+    const cheminsRoster = await page.evaluate(() =>
+      [...new Set(tousLesJoueurs.map((j) => ONZE_PORTRAITS.carte(j)).filter(Boolean))]);
+    const poidsRoster = [];
+    for (const c of cheminsRoster)
+      poidsRoster.push(await page.evaluate((u) =>
+        fetch(u, { method: "HEAD" }).then((x) => Number(x.headers.get("content-length") || 0)).catch(() => 0), c));
+    poidsRoster.sort((a, b) => b - a);
+    const koPire = Math.round((socle + poidsRoster.slice(0, 5).reduce((t, v) => t + v, 0)) / 1024);
+    if (plafondKo === null) {
+      // densité 1 : le verdict vit dans da.spec.js (dette déclarée) — ici, l'information seulement
+      console.log(`   ℹ️ densité ${dpr}× : pire tirage ${koPire} Ko — verdict porté par da.spec.js`);
+    } else {
+      verifier(`densité ${dpr}× : l'ouverture au PIRE tirage pèse ${koPire} Ko ≤ ${plafondKo} Ko ` +
+        `(socle ${Math.round(socle / 1024)} Ko ; tirage du jour ${koJour} Ko)`,
+        koPire <= plafondKo, `${koPire} Ko`);
+    }
     await page.close();
   }
 

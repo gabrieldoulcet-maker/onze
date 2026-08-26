@@ -86,9 +86,14 @@ const POSER = `async (n) => {
         return vraiRamasser(suite);
       };
       jouerManche();
-      // on attend la fin de la manche : les orbes tombent à ce moment-là
+      /* On attend la fin de la manche : les orbes tombent à ce moment-là.
+         Le plafond DOIT dépasser largement la durée d'un match (~40 s par
+         conception) : à 400×100 ms il valait exactement cette durée, sans
+         marge, et le verdict dépendait de la vitesse de la machine — rouge
+         sur un conteneur lent, vert sur un rapide, même code (même famille
+         que la décision 69). 120 s = la durée de conception ×3. */
       let garde = 0;
-      while (!document.querySelector(".orbe-terrain") && garde++ < 400) {
+      while (!document.querySelector(".orbe-terrain") && garde++ < 1200) {
         await new Promise((r) => setTimeout(r, 100));
       }
       const orbe = document.querySelector(".orbe-terrain");
@@ -101,7 +106,7 @@ const POSER = `async (n) => {
       };
     });
     if (moment.pasDorbe) {
-      verifier(`${taille.nom} : une manche produit du butin`, false, "aucune orbe en 40 s");
+      verifier(`${taille.nom} : une manche produit du butin`, false, "aucune orbe en 120 s");
     } else {
       verifier(`${taille.nom} : quand une orbe existe, la scène de match n'existe plus ` +
         `(un moment, un écran — décision 64 · P2)`, moment.scene === false, JSON.stringify(moment));
