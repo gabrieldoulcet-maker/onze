@@ -46,6 +46,42 @@ function binomialeCumul(k, n, p) {
   for (let i = 1; i <= k; i++) { terme *= ((n - i + 1) / i) * (p / (1 - p)); somme += terme; }
   return Math.min(1, somme);
 }
+/* P(a, x) — gamma incomplète régularisée, série puis fraction continue.
+   Elle sert au test du χ² sur l'indice de dispersion : c'est le seul de
+   nos tests qui se joue sur n = MATCHS et non n = épisodes, donc le seul
+   que notre échantillon peut vraiment porter. */
+function gammaLn(x) {
+  const c = [76.18009172947146, -86.50532032941677, 24.01409824083091,
+    -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
+  let y = x, t = x + 5.5;
+  t -= (x + 0.5) * Math.log(t);
+  let ser = 1.000000000190015;
+  for (let j = 0; j < 6; j++) ser += c[j] / ++y;
+  return -t + Math.log((2.5066282746310005 * ser) / x);
+}
+function gammaP(a, x) {
+  if (x <= 0) return 0;
+  if (x < a + 1) {
+    let ap = a, somme = 1 / a, terme = somme;
+    for (let i = 0; i < 500; i++) {
+      ap++; terme *= x / ap; somme += terme;
+      if (Math.abs(terme) < Math.abs(somme) * 1e-12) break;
+    }
+    return somme * Math.exp(-x + a * Math.log(x) - gammaLn(a));
+  }
+  let b = x + 1 - a, c = 1e300, d = 1 / b, h = d;
+  for (let i = 1; i < 500; i++) {
+    const an = -i * (i - a);
+    b += 2; d = an * d + b; if (Math.abs(d) < 1e-300) d = 1e-300;
+    c = b + an / c; if (Math.abs(c) < 1e-300) c = 1e-300;
+    d = 1 / d; const del = d * c; h *= del;
+    if (Math.abs(del - 1) < 1e-12) break;
+  }
+  return 1 - Math.exp(-x + a * Math.log(x) - gammaLn(a)) * h;
+}
+// P(χ²_ddl ≤ x)
+const chi2Cumul = (x, ddl) => gammaP(ddl / 2, x / 2);
+
 // l'indice de dispersion : ~1 = Poisson pur, >1 = épisodes groupés
 function dispersion(comptes) {
   if (comptes.length < 2) return null;
@@ -55,9 +91,16 @@ function dispersion(comptes) {
   return v / m;
 }
 
-let dettes = 0, dettesPayees = 0;
+let dettes = 0, dettesVertes = 0;
 const dette = (nom, ok, quand) => {
-  if (ok) { dettesPayees++; console.log(`✅ ${nom} — DETTE PAYÉE, à promouvoir en assertion`); }
+  /* UNE SEULE EXÉCUTION NE PAIE PAS UNE DETTE (M7). Le message d'avant
+     disait « DETTE PAYÉE, à promouvoir » dès qu'une exécution passait —
+     et il l'a dit sur un p = 0,15 obtenu FAUTE DE PUISSANCE, puis sur un
+     taux de pressing qui oscille de 4,57 à 5,96/min d'une exécution à
+     l'autre. C'est le piège que M6 quater nomme, posé dans l'outil qui
+     sert à l'éviter. Un vert isolé se signale comme tel : il invite à
+     REGARDER, pas à promouvoir. */
+  if (ok) { dettesVertes++; console.log(`🟡 ${nom} — VERTE CETTE FOIS : une exécution ne paie pas une dette (M7), il en faut trois d'affilée avant de la promouvoir`); }
   else { dettes++; console.log(`❌ ${nom}  ⟵ dette assumée, ${quand}`); }
 };
 
@@ -1394,6 +1437,29 @@ const dette = (nom, ok, quand) => {
      doit rester proche de 1 — mesuré 1,02 sur les cumuls de référence. */
   verifier(`Étape 3 — l'hypothèse du test de densité tient : indice de dispersion ${indice === null ? "—" : indice.toFixed(2)} sur ${episodesParMatch.length} matchs (Poisson pur = 1 ; SOUS 1 le test est conservateur, donc sans risque ; AU-DELÀ DE 2 les épisodes se groupent et le p deviendrait optimiste — c'est ce seul côté qu'on surveille)`,
     indice !== null && indice < 2);
+  /* LE MÊME CHIFFRE DIT AUTRE CHOSE, ET C'EST UN DÉFAUT DE FIDÉLITÉ.
+     Sous 1, l'indice ne menace pas le test — mais il dit que NOS MATCHS
+     SE RESSEMBLENT TROP. Le vrai football est surdispersé : sur les dix
+     matchs de référence, les épisodes ≥ 1 s valent 665 · 641 · 671 · 559
+     · 729 · 624 · 531 · 673 · 628 · 585, soit une moyenne de 630,6 pour
+     une variance de 3 509 — indice 5,56. Les matchs ne se ressemblent
+     pas. Ramené à une fenêtre aussi courte que la nôtre (~45 s rendues),
+     le terme de variation entre matchs ne pèse presque plus et la
+     référence retombe à ≈ 1,05 :
+        variance = Poisson (λ ≈ 5,7) + CV²(taux) × λ²
+                 = 5,7 + 0,0088 × 32,5 ≈ 6,0, soit 1,05 λ.
+     Chez nous, un match qui est une bataille et un match qui est une
+     promenade contiennent presque autant de pressing. C'est exactement
+     ce que les gabarits pilotés par le tempo existent pour produire.
+     ET C'EST LE SEUL DE NOS TESTS QUI SE JOUE SUR n = MATCHS : sous
+     H0, (k−1)·D/1,05 suit un χ² à k−1 degrés de liberté. Notre
+     échantillon peut le porter — celui-là, pour une fois. */
+  const ddl = episodesParMatch.length - 1;
+  const chi2 = indice === null ? null : (ddl * indice) / 1.05;
+  const pDisp = chi2 === null ? 1 : chi2Cumul(chi2, ddl);
+  dette(`Étape 3 — les matchs ne se ressemblent pas : indice de dispersion des pressings ${indice === null ? "—" : indice.toFixed(2)} sur ${episodesParMatch.length} matchs (référence 1,05 pour une fenêtre de ~45 s — le vrai football est à 5,56 sur des matchs entiers) → χ² = ${chi2 === null ? "—" : chi2.toFixed(1)} à ${ddl} ddl, p = ${pDisp.toFixed(4)}`,
+    ddl >= 6 && pDisp >= 0.05,
+    "ÉCHÉANCE étape 4 — un match-bataille et un match-promenade doivent contenir des quantités de pressing différentes ; c'est le tempo qui les distinguera. Quatrième distribution à atteindre, et la seule qui se mesure sur n = MATCHS");
   dette(`Étape 3 — il y a ASSEZ de pressing : ${PMin.length} épisodes ≥ 1 s observés pour ${attendu.toFixed(1)} attendus sur ${secondesRendues.toFixed(0)} s rendues (${tauxMin.toFixed(2)}/min contre 7,01 — référence EXACTE, 6 306 épisodes sur 10 matchs, et BORNE BASSE puisque nous ne rendons que des temps forts) → p = ${pDensite.toFixed(3)}`,
     secondesRendues >= 380 && pDensite >= 0.05,
     "ÉCHÉANCE étape 4 — la moitié des pions est tenue par la chorégraphie, donc indisponible pour presser ; les gabarits les libèrent. Le rendement remesuré est une LIVRAISON de l'étape 4, pas une conséquence à espérer");
@@ -1409,13 +1475,16 @@ const dette = (nom, ok, quand) => {
      qu'espéré, comme demandé : le binomial tranche IMMÉDIATEMENT quand
      l'écart est grand (9/25 à 36 % → p = 0,002) mais PAS quand il vaut
      l'écart réel (16/29 à 55 % → p = 0,15). Pour détecter 55 % contre
-     65,9 % à 80 % de puissance, il faut n ≈ 120 — exactement le nombre
-     que l'argument de bruit donnait. Un « p ≥ 0,05 » à n = 29 ne dit
+     65,9 % à 80 % de puissance, il faut n ≈ 160 — SIMULÉ, pas calculé de
+     tête : 60 → 38 % de puissance · 90 → 58 % · 120 → 65 % · 150 → 76 %
+     · 200 → 88 %. Le 120 qu'un calcul rapide donnait était optimiste, et
+     il tombait sur le même chiffre que l'argument de bruit par deux
+     chemins différents — coïncidence, pas confirmation. Un « p ≥ 0,05 » à n = 29 ne dit
      donc PAS que le pressing est conforme, il dit qu'on n'a pas de quoi
      l'affirmer : la dette ne se paie qu'avec la PUISSANCE de conclure,
      jamais avec un vert obtenu faute d'échantillon (M6). */
-  const conclusifFerme = PMin.length >= 120;
-  dette(`Étape 3 — le pressing ferme vraiment : ${fermes}/${PMin.length} épisodes ≥ 1 s ferment sous 3 m, soit ${Math.round(sous3 * 100)} % contre ${Math.round(0.659 * PMin.length)} attendus (référence 65,9 % SUR CETTE MÊME POPULATION — 58,7 % serait celle de la population entière) → p = ${pFerme.toFixed(4)}${pFerme < 0.05 ? " — TROP LOIN, démontré" : conclusifFerme ? "" : `, NON CONCLUANT : à n = ${PMin.length} le test n'a pas la puissance de détecter l'écart réel (~11 points), il en faudrait 120`} · médiane ${q(PMin, 0.5).toFixed(1)} m contre 2,27`,
+  const conclusifFerme = PMin.length >= 160;
+  dette(`Étape 3 — le pressing ferme vraiment : ${fermes}/${PMin.length} épisodes ≥ 1 s ferment sous 3 m, soit ${Math.round(sous3 * 100)} % contre ${Math.round(0.659 * PMin.length)} attendus (référence 65,9 % SUR CETTE MÊME POPULATION — 58,7 % serait celle de la population entière) → p = ${pFerme.toFixed(4)}${pFerme < 0.05 ? " — TROP LOIN, démontré" : conclusifFerme ? "" : `, NON CONCLUANT : à n = ${PMin.length} le test n'a pas la puissance de détecter l'écart réel (~11 points), il en faudrait 160`} · médiane ${q(PMin, 0.5).toFixed(1)} m contre 2,27`,
     conclusifFerme && pFerme >= 0.05,
     "ÉCHÉANCE étape 4 — le test binomial tranche quand l'écart est grand (36 % → p = 0,002) mais pas à l'écart réel : il faut la même puissance qu'une fourchette pour CONCLURE, il ne l'apporte que pour RÉFUTER");
   /* 6. UNE OPTION EST UN ÉVÉNEMENT COURT. C'est la propriété qui
@@ -1486,8 +1555,8 @@ const dette = (nom, ok, quand) => {
     issueMin >= 900);
 
   await browser.close();
-  if (dettes || dettesPayees) {
-    console.log(`\n${dettes} dette(s) assumée(s)${dettesPayees ? `, ${dettesPayees} payée(s) — à promouvoir` : ""}`);
+  if (dettes || dettesVertes) {
+    console.log(`\n${dettes} dette(s) assumée(s)${dettesVertes ? `, ${dettesVertes} verte(s) sur CETTE exécution — à confirmer trois fois avant promotion (M7)` : ""}`);
   }
   console.log(echecs ? `\n${echecs} échec(s)` : "\nFidélité de la scène ✅");
   process.exit(echecs ? 1 : 0);

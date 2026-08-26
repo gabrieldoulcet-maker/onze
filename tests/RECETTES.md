@@ -79,8 +79,28 @@ du mobilier ; un rouge sans cible ne dit pas quand il sera payé.
 | Dette | Mesuré | Cible | Échéance |
 |---|---|---|---|
 | 1 à 3 options de passe ouvertes | 45-66 % des passes | **88 %** (médiane 2) | étape 4 |
-| Part des pressings fermant sous 3 m | 36-55 % selon le tirage | **65,9 %** (épisodes ≥ 1 s) | *quand n ≥ 120 — le test binomial réfute vite mais ne conclut pas plus vite qu'une fourchette* |
-| Densité de pressing | 4,6 /min · p = 0,009 | **7,01 /min** (référence exacte, borne basse) | étape 4 |
+| Part des pressings fermant sous 3 m | 36-56 % selon le tirage · p = 0,002 à 0,13 | **65,9 %** (épisodes ≥ 1 s) | *quand n ≥ 160 — le test binomial réfute vite mais ne conclut pas plus vite qu'une fourchette* |
+| Dispersion des pressings entre matchs | 0,25 · 0,31 · 0,83 selon le tirage | **≈ 1,05** (le vrai football est à 5,56 sur des matchs entiers) | étape 4 — *la seule des quatre qui se mesure sur n = MATCHS* |
+| Densité de pressing | 4,57 à 5,96 /min selon le tirage · p = 0,009 à 0,14 | **7,01 /min** (référence exacte, borne basse) | étape 4 |
+
+### Une exécution ne paie pas une dette
+
+Le mécanisme de dette annonçait « DETTE PAYÉE, à promouvoir en assertion » **dès qu'une
+exécution passait**. Il l'a fait deux fois le même jour, et les deux fois à tort : sur un
+p = 0,15 obtenu **faute de puissance**, puis sur un taux de pressing qui oscille de **4,57 à
+5,96 par minute** d'une exécution à l'autre. Le piège que la règle M6 quater nomme était
+posé **dans l'outil qui sert à l'éviter**.
+
+Un vert isolé s'affiche désormais en **jaune** — *« verte cette fois : une exécution ne paie
+pas une dette (M7), il en faut trois d'affilée avant de la promouvoir »*. Il invite à
+regarder, pas à conclure.
+
+**Conséquence à retenir sur ces trois dettes du pressing** : leur *verdict* bouge d'une
+exécution à l'autre parce que **la grandeur mesurée bouge**, pas parce que le test est
+mauvais. Le taux de pressing de la scène varie réellement de ±13 % autour de 5,3/min selon
+les équipes tirées. C'est pour ça que la promotion demande trois exécutions, et que la seule
+dette **démontrée** aujourd'hui est celle de la fermeture, qui sort à p = 0,002 quand
+l'écart est grand.
 
 ### Deux tests plutôt que deux fourchettes — et ce que chacun achète
 
