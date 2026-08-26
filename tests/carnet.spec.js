@@ -93,6 +93,27 @@ async function ouvrirCarnet(page) {
       !grille.absente && grille.total > 0 && grille.avecVisuel === grille.total,
       `${grille.total - grille.avecVisuel} sans visuel`);
 
+    /* ---- 1 bis · UN NOM COUPÉ N'EST PAS UNE VIGNETTE ----
+       Ajouté après coup : la grille passait ce contrat à 73 px de
+       colonne, avec des noms réduits à « A… ». « 30 joueurs vus »
+       ne veut rien dire si on ne peut pas les lire. */
+    const noms = await page.evaluate(() => {
+      const vs = [...document.querySelectorAll(".volet .carnet-grille [data-nom]")];
+      const coupes = vs.map((v) => {
+        const n = v.querySelector(".carnet-nom");
+        if (!n) return v.dataset.nom;
+        // coupé en largeur OU en hauteur : les deux amputent le nom
+        return n.scrollWidth > n.clientWidth + 1 || n.scrollHeight > n.clientHeight + 1
+          ? v.dataset.nom : null;
+      }).filter(Boolean);
+      const col = document.querySelector(".volet .carnet-colonne");
+      return { total: vs.length, coupes: coupes.length, exemples: coupes.slice(0, 4),
+        largeurColonne: col ? Math.round(col.getBoundingClientRect().width) : 0 };
+    });
+    verifier(`${taille.nom} : aucun nom coupé ni rogné dans la grille ` +
+      `(${noms.coupes}/${noms.total}, colonnes de ${noms.largeurColonne} px)`,
+      noms.total > 0 && noms.coupes === 0, JSON.stringify(noms.exemples));
+
     /* ---- 4 · LE RANGEMENT PAR COÛT EN COLONNES ---- */
     const colonnes = await page.evaluate(() =>
       [...document.querySelectorAll(".volet .carnet-colonne")].map((c) => ({

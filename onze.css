@@ -822,3 +822,185 @@ button.principal:disabled {
 }
 /* un jeton s'enfonce quand on appuie : c'est un objet, pas une image */
 .matiere-jeton:active { transform: translateY(2px); box-shadow: var(--arete-haute), 0 2px 6px rgba(0, 0, 0, 0.5); }
+
+/* ============================================================
+   LE LIEN QUÊTE ↔ JOUEUR (quetes-lien.js)
+   Sur la fiche d'un joueur : les quêtes actives qu'il fait
+   avancer. Le bloc n'existe pas quand il n'y en a aucune.
+   ============================================================ */
+.fiche-quetes {
+  margin-top: 9px; padding: 7px 8px 5px; border-radius: 9px;
+  background: rgba(255, 209, 102, 0.07); border: 1px solid rgba(255, 209, 102, 0.28);
+}
+.fiche-quetes-titre {
+  font-size: 0.64rem; font-weight: 800; letter-spacing: 0.7px;
+  color: var(--or-trophee); margin-bottom: 4px;
+}
+.fiche-quete {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 3px 6px;
+  padding: 3px 0; border-top: 1px solid rgba(255, 209, 102, 0.14);
+}
+.fiche-quete:first-of-type { border-top: 0; }
+.fiche-quete strong { font-size: 0.72rem; color: var(--craie-claire); }
+.fiche-quete small { flex: 1 1 100%; font-size: 0.62rem; color: var(--craie-sourde); line-height: 1.25; }
+.fiche-quete-progres {
+  margin-left: auto; font-size: 0.66rem; font-weight: 800;
+  font-variant-numeric: tabular-nums; color: var(--or-trophee);
+}
+.fiche-quete.acquise .fiche-quete-progres { color: var(--gazon-electrique); }
+
+/* Sous une quête, les joueurs qu'elle pointe : un tap ouvre leur fiche.
+   Ceux qu'on possède déjà sont pleins ; les autres sont à recruter. */
+.quete-joueurs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.quete-joueur {
+  display: inline-flex; align-items: center; gap: 4px; cursor: pointer;
+  padding: 2px 7px; border-radius: var(--r-pilule); font-size: 0.63rem; font-weight: 700;
+  background: var(--nuit-profonde); color: var(--craie-sourde);
+  border: 1px solid var(--ligne-douce);
+}
+.quete-joueur.possede { color: #04121F; background: var(--calepin); border-color: transparent; }
+.quete-joueur .cout-pastille { font-weight: 800; opacity: 0.75; }
+
+/* ============================================================
+   LE CARNET DU RECRUTEUR (§6) — la grille dense façon TFT.
+   Cinq colonnes par coût, une quarantaine de joueurs vus d'un
+   coup, un bandeau de filtres toujours à l'écran, le détail à
+   côté de la grille et non à sa place.
+   Garde-fou : tests/carnet.spec.js
+   ============================================================ */
+/* Le gabarit commun des volets impose max-width: 420px — c'est ce qui
+   écrasait la grille à 73 px par colonne et coupait tous les noms
+   (« Andoni » → « A… »). Le carnet est le seul volet qui a besoin de
+   TOUTE la largeur : il le dit avec une règle au moins aussi
+   spécifique que celle qu'il remplace, sinon elle est ignorée. */
+.volet.carnet-volet { padding: 6px; align-items: stretch; }
+.volet.carnet-volet .panneau.carnet-panneau {
+  max-width: none; width: 100%; height: 100%; max-height: 100%;
+  padding: 7px 9px; display: flex; flex-direction: column; gap: 5px; overflow: hidden;
+}
+.carnet-tete { display: flex; align-items: center; gap: 7px; flex: 0 0 auto; }
+.carnet-tete > strong:first-child { flex: 0 0 auto; }
+.carnet-compte { flex: 1 1 auto; font-size: 0.66rem; color: var(--craie-sourde); }
+.carnet-bouton {
+  flex: 0 0 auto; background: var(--ligne); color: var(--craie-claire); border: none;
+  border-radius: 8px; padding: 4px 8px; font-size: 0.72rem; cursor: pointer;
+}
+.carnet-fermer { background: var(--alerte, #C0392B); }
+
+/* Le bandeau de filtres : permanent, jamais masqué par la grille. */
+.carnet-filtres {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 3px;
+  overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; scrollbar-width: none;
+}
+.carnet-filtres::-webkit-scrollbar { display: none; }
+.carnet-separateur { flex: 0 0 auto; width: 1px; height: 16px; background: var(--ligne-forte); margin: 0 2px; }
+.carnet-puce {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; cursor: pointer;
+  background: var(--nuit-profonde); color: var(--craie-sourde);
+  border: 1px solid var(--ligne-douce); border-radius: var(--r-pilule);
+  padding: 2px 6px; font-size: 0.62rem; font-weight: 700; line-height: 1.5;
+}
+.carnet-puce.actif {
+  background: var(--calepin); color: #04121F; border-color: transparent;
+}
+.carnet-puce .pastille { font-size: 0.62rem; padding: 0 3px; min-width: 0; }
+
+/* Le corps : la grille à gauche, le détail à droite. */
+.carnet-corps { flex: 1 1 auto; display: flex; gap: 6px; min-height: 0; }
+.carnet-grille {
+  flex: 1 1 auto; display: flex; gap: 4px; min-width: 0;
+  overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;
+}
+.carnet-colonne { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.carnet-colonne-tete {
+  position: sticky; top: 0; z-index: 1; font-size: 0.6rem; font-weight: 800;
+  letter-spacing: 0.5px; color: var(--craie-sourde); background: var(--nuit-profonde);
+  border-radius: 5px; padding: 1px 4px; display: flex; justify-content: space-between;
+}
+.carnet-colonne.cout-1 .carnet-colonne-tete { color: var(--cout-1, var(--craie-sourde)); }
+.carnet-colonne.cout-2 .carnet-colonne-tete { color: var(--cout-2, var(--craie-sourde)); }
+.carnet-colonne.cout-3 .carnet-colonne-tete { color: var(--cout-3, var(--craie-sourde)); }
+.carnet-colonne.cout-4 .carnet-colonne-tete { color: var(--cout-4, var(--craie-sourde)); }
+.carnet-colonne.cout-5 .carnet-colonne-tete { color: var(--cout-5, var(--or-trophee)); }
+.carnet-colonne-corps { display: flex; flex-direction: column; gap: 3px; }
+.carnet-colonne.vide .carnet-colonne-tete { opacity: 0.35; }
+
+.carnet-vignette {
+  position: relative; display: flex; align-items: center; gap: 4px; cursor: pointer;
+  height: 32px; padding: 0 3px 0 0; border-radius: 6px; overflow: hidden;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--ligne-douce); border-left-width: 3px;
+}
+.carnet-vignette.cout-1 { border-left-color: var(--cout-1, var(--ligne-forte)); }
+.carnet-vignette.cout-2 { border-left-color: var(--cout-2, var(--ligne-forte)); }
+.carnet-vignette.cout-3 { border-left-color: var(--cout-3, var(--ligne-forte)); }
+.carnet-vignette.cout-4 { border-left-color: var(--cout-4, var(--ligne-forte)); }
+.carnet-vignette.cout-5 { border-left-color: var(--cout-5, var(--or-trophee)); }
+.carnet-vignette.choisie { outline: 2px solid var(--or-trophee); outline-offset: -2px; }
+.carnet-vignette.epingle { background: linear-gradient(100deg, rgba(77, 166, 255, 0.3), rgba(77, 166, 255, 0.08)); }
+.carnet-visuel {
+  flex: 0 0 auto; width: 28px; height: 32px; display: flex; align-items: flex-end; justify-content: center;
+  overflow: hidden;
+}
+.carnet-art { width: 30px; height: 38px; object-fit: cover; object-position: 50% 12%; }
+/* Le nom se REPLIE sur deux lignes plutôt que d'être coupé : à 122 px
+   de colonne, « L'Enfant du Pays » ne tient pas sur une ligne, et un
+   nom coupé n'apprend rien. Deux lignes tiennent dans les 32 px. */
+.carnet-nom {
+  flex: 1 1 auto; min-width: 0; font-size: 0.62rem; font-weight: 700; color: var(--craie-claire);
+  line-height: 1.05; overflow: hidden; overflow-wrap: anywhere; hyphens: auto;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.carnet-epingle {
+  flex: 0 0 auto; width: 15px; text-align: center; font-size: 0.62rem;
+  color: var(--craie-sourde); cursor: pointer;
+}
+.carnet-vignette.epingle .carnet-epingle { color: var(--craie-claire); }
+
+/* Le détail : à CÔTÉ de la grille, jamais à sa place. */
+.carnet-detail {
+  flex: 0 0 148px; min-width: 0; overflow-y: auto; padding: 0 2px;
+  display: flex; flex-direction: column; gap: 4px;
+  border-left: 1px solid var(--ligne-forte); padding-left: 7px;
+}
+.carnet-detail.vide { flex-basis: 0; border-left: 0; padding-left: 0; }
+.carnet-detail-tete { position: relative; border-radius: 8px; overflow: hidden; height: 74px; background: var(--nuit-profonde); }
+.carnet-detail-tete img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
+.carnet-detail-note {
+  position: absolute; left: 4px; bottom: 3px; font-family: var(--police-display);
+  font-size: 1.1rem; color: var(--craie-claire); text-shadow: 0 1px 4px #000;
+}
+.carnet-detail-nom { font-size: 0.8rem; line-height: 1.1; }
+.carnet-detail-familles { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
+.carnet-lien-famille {
+  cursor: pointer; background: var(--nuit-profonde); color: var(--craie-claire);
+  border: 1px solid var(--ligne-douce); border-radius: var(--r-pilule);
+  padding: 1px 6px; font-size: 0.6rem; font-weight: 700;
+}
+.carnet-detail-cout { font-size: 0.62rem; font-weight: 800; color: var(--or-trophee); }
+.carnet-detail-ligne { font-size: 0.62rem; color: var(--craie-sourde); }
+.carnet-detail-ligne.unique { color: var(--or-trophee); font-style: italic; }
+.carnet-detail-epingler, .carnet-detail-plus {
+  cursor: pointer; border: none; border-radius: 8px; padding: 5px; font-size: 0.65rem;
+  font-weight: 700; background: var(--ligne); color: var(--craie-claire);
+}
+.carnet-detail-epingler { background: var(--calepin); color: #04121F; }
+
+/* Écran étroit : le détail passe sous la grille plutôt que de la manger. */
+@media (max-width: 620px) {
+  .carnet-detail { flex-basis: 118px; }
+}
+
+/* Le bouton des quêtes dans le bandeau (§10) : discret au repos,
+   allumé quand au moins une quête est prête à tomber. */
+#btn-quetes { position: relative; }
+#btn-quetes.pretes {
+  color: var(--or-trophee);
+  box-shadow: 0 0 0 1px var(--or-trophee), 0 0 10px rgba(255, 209, 102, 0.35);
+}
+.pastille-quetes {
+  position: absolute; top: -3px; right: -3px; min-width: 13px; height: 13px;
+  padding: 0 3px; border-radius: 7px; background: var(--or-trophee); color: #1A1204;
+  font-size: 0.55rem; font-weight: 800; line-height: 13px; text-align: center;
+  font-variant-numeric: tabular-nums; pointer-events: none;
+}
