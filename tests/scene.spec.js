@@ -1481,8 +1481,9 @@ const dette = (nom, ok, quand) => {
   }), { episodes: 0, fermes: 0, secondes: 0, options: 0, optionsDans13: 0, parMatch: [] });
   const nbPassages = sacDisque.passages.length;
 
-  const attendu = (7.01 / 60) * cumul.secondes;
-  const pDensite = poissonCumul(cumul.episodes, attendu);
+  /* `attendu`/p de Poisson retirés avec la suspension de la densité :
+     un p calculé contre une référence non appariée serait un chiffre qui
+     a l'air d'une preuve. La ligne suspendue n'affiche que la mesure. */
   const indice = dispersion(cumul.parMatch);
   const tauxMin = cumul.secondes > 0 ? (cumul.episodes / cumul.secondes) * 60 : 0;
   /* L'HYPOTHÈSE SE VÉRIFIE, ELLE NE SE SUPPOSE PAS. Poisson suppose
@@ -1538,9 +1539,21 @@ const dette = (nom, ok, quand) => {
   dette(`Étape 3 — les matchs ne se ressemblent pas : indice de dispersion des pressings ${indice === null ? "—" : indice.toFixed(2)} sur ${cumul.parMatch.length} matchs cumulés (référence 1,05 pour une fenêtre de ~45 s — le vrai football est à 5,56 sur des matchs entiers) → χ² = ${chi2 === null ? "—" : chi2.toFixed(1)} à ${ddl} ddl, p = ${pDisp.toFixed(4)}`,
     ddl >= 6 && pDisp >= 0.05,
     "ÉCHÉANCE étape 4 — un match-bataille et un match-promenade doivent contenir des quantités de pressing différentes ; c'est le tempo qui les distinguera. Quatrième distribution à atteindre, et la seule qui se mesure sur n = MATCHS");
-  dette(`Étape 3 — il y a ASSEZ de pressing : ${cumul.episodes} épisodes ≥ 1 s observés pour ${attendu.toFixed(1)} attendus sur ${cumul.secondes.toFixed(0)} s rendues (CUMUL sur ${nbPassages} passage(s)) (${tauxMin.toFixed(2)}/min contre 7,01 — référence EXACTE, 6 306 épisodes sur 10 matchs, et BORNE BASSE puisque nous ne rendons que des temps forts) → p = ${pDensite.toFixed(3)}`,
-    cumul.secondes >= 380 && pDensite >= 0.05,
-    "ÉCHÉANCE étape 4 — la moitié des pions est tenue par la chorégraphie, donc indisponible pour presser ; les gabarits les libèrent. Le rendement remesuré est une LIVRAISON de l'étape 4, pas une conséquence à espérer");
+  /* LA DENSITÉ EST SUSPENDUE — SA RÉFÉRENCE N'EST PAS APPARIÉE À
+     L'EFFECTIF (amendement IV de design/etape4-prediction.md).
+     Les 7,01 épisodes/minute sont mesurés sur du football à 22 joueurs ;
+     les matchs de cette recette tournent à 10-14 pions (médiane 13,
+     relevé sur huit matchs), et notre taux monte avec l'effectif en
+     ~P^1,67. Comparer une moyenne à effectifs MÉLANGÉS à une référence à
+     22 inverse même le verdict : à effectif apparié (22 pions, 104 × 68
+     — le seul point où notre terrain et le réel coïncident), nous sommes
+     à 11,31/min contre 7,01, soit 61 % de pressing EN TROP, pas 22 % en
+     moins. Une dette dont la référence n'est pas appariée ne mesure
+     rien : ni rouge ni verte — on AFFICHE, et ce qui la lèvera est
+     nommé. (C'était la faute de la semaine une strate plus haut : la
+     population qui bougeait n'était plus celle des épisodes, mais celle
+     des matchs.) */
+  console.log(`   ⏸ Étape 3 — densité de pressing SUSPENDUE : ${tauxMin.toFixed(2)}/min mesurés sur ${cumul.secondes.toFixed(0)} s (matchs à 10-14 pions) — la référence 7,01/min vaut à 22 joueurs, et à effectif apparié nous sommes à +61 % (11,31/min). Se lève en restreignant la mesure aux matchs à 22 pions, ou avec une référence appariée à l'effectif courant`);
   /* MÊME RAISONNEMENT ICI, ET IL DÉBLOQUE LA DETTE. La part sous 3 m est
      une proportion comparée à une référence EXACTE (65,9 %, mesurée sur
      6 306 épisodes) : un test binomial unilatéral tranche sans attendre
