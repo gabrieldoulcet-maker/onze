@@ -751,6 +751,9 @@
        vertical discret — et elle porte son ombre SUR le décor qui passe
        derrière elle, ce qui la détache sans dessiner de boîte. */
     .boutique-barre {
+      /* les deux largeurs de chrome, déclarées UNE fois : ce sont des
+         plafonds, pas des réservations prises sur les cartes */
+      --chrome-gauche: 96px; --chrome-droite: 84px;
       flex: 0 0 auto; display: flex; gap: 6px; align-items: stretch;
       min-height: max(96px, 30vh);
       background: var(--plaque-fond);                          /* matière PLAQUE */
@@ -782,7 +785,21 @@
       color: #1A1405; font-size: 0.58rem; font-weight: 800;
       display: flex; align-items: center; justify-content: center;
     }
-    .bloc-xp { flex: 0 0 96px; display: flex; flex-direction: column; gap: 3px; }
+    /* LA LARGEUR DES CARTES EST RÉSERVÉE EN PREMIER (décision 64 · P1).
+       Le modèle était à l'envers : les deux blocs latéraux avaient une
+       largeur RÉSERVÉE et les cinq cartes prenaient « le reste ». Tout ce
+       qui grossissait sur un côté les rétrécissait donc en silence — deux
+       fois de suite, l'étiquette « chances » (8 px) puis le bloc de
+       boutons de l'action principale (9,7 px). Deux occurrences : ce
+       n'était plus un incident, c'était le modèle.
+       Désormais les deux blocs sont PLAFONNÉS et ne peuvent que se
+       serrer ; ce qui déborde chez eux se replie ou se réduit, jamais aux
+       dépens des cartes. Leur contenu est déjà en polices fluides. */
+    .bloc-xp {
+      flex: 0 1 var(--chrome-gauche); width: var(--chrome-gauche);
+      max-width: var(--chrome-gauche); min-width: 0; overflow: hidden;
+      display: flex; flex-direction: column; gap: 3px;
+    }
     .bloc-xp .niveau-affiche { font-weight: 800; font-size: 0.72rem; color: var(--craie);
       display: flex; justify-content: space-between; align-items: baseline; }
     .bloc-xp .niveau-affiche small { color: var(--craie-sourde); font-weight: 700; font-size: 0.58rem; }
@@ -830,11 +847,20 @@
        de boutique gagnait 54 px et les reprenait au terrain. Une grille
        2 × 2 les loge à hauteur constante. */
     .bloc-droite {
-      flex: 0 0 84px; display: grid; gap: 3px;
-      grid-template-columns: repeat(2, 40px); align-content: start;
+      flex: 0 1 var(--chrome-droite); width: var(--chrome-droite);
+      max-width: var(--chrome-droite); min-width: 0; overflow: hidden;
+      display: grid; gap: 3px;
+      grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start;
     }
     .bloc-droite button { flex: 1; font-size: 0.72rem; }
-    .rangee-boutique { flex: 1; display: flex; gap: 5px; overflow-x: auto; overflow-y: visible; padding-top: 7px; }
+    /* Les cartes prennent tout ce que les plafonds laissent, et ne
+       descendent jamais sous leur plancher : au-delà, c'est la rangée qui
+       défile, pas les cartes qui rétrécissent. */
+    .rangee-boutique {
+      flex: 1 1 auto; min-width: 0; display: flex; gap: 5px;
+      overflow-x: auto; overflow-y: visible; padding-top: 7px;
+    }
+    .rangee-boutique > * { flex: 1 0 var(--l-carte-min, 84px); }
     /* ---- LA CARTE BLASON (DA S1, Lot 3 · 1a) ----
        Hiérarchie stricte : cadre couleur de coût → note-écusson →
        nom penché → pastille de poste → 2 stats signatures →
@@ -1040,7 +1066,22 @@
     .btn-sac { color: var(--or-trophee); font-size: 0.85rem; }
     .boutique-barre.repliee { min-height: 0; padding-top: 6px; }
     .boutique-barre.repliee .rangee-boutique, .boutique-barre.repliee .bloc-xp { display: none; }
-    .boutique-barre.repliee .bloc-droite { flex: 1; flex-direction: row; justify-content: flex-end; }
+    /* REPLIÉE, les boutons reviennent sur UNE ligne. La grille 2 × 2 que
+       le bloc porte en temps normal ignorait cette règle (`display: grid`
+       ne se laisse pas retourner par `flex-direction`) : la barre repliée
+       gardait deux étages et 85 px de haut au lieu d'un seul. */
+    .boutique-barre.repliee .bloc-droite {
+      flex: 1 1 auto; max-width: none; display: flex; flex-direction: row;
+      justify-content: flex-end; align-items: center;
+    }
+    /* REPLIÉE, LE MÉDAILLON PREND SA PLACE DANS LA RANGÉE. Centré en
+       absolu il tenait sur la barre dépliée (haute de 117 px) ; sur la
+       barre repliée d'un petit téléphone il se posait sur un bouton —
+       mesuré : le tap n'arrivait plus. Il redevient un élément de la
+       rangée, à gauche, et rien ne se recouvre. */
+    .boutique-barre.repliee .medaillon-or {
+      position: static; transform: none; align-self: center; margin-right: auto;
+    }
     .boutique-barre.repliee .bloc-droite button { flex: 0 0 auto; padding: 4px 12px; }
 
     /* ---- Drag & drop (pointer events, fantôme en translate3d → 60 fps) ---- */
