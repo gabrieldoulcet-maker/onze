@@ -27,6 +27,27 @@ const sauf = (process.argv.find((a) => a.startsWith("--sauf=")) || "").slice(7)
 const recettes = fs.readdirSync(dossier).filter((f) => f.endsWith(".spec.js")).sort();
 const retenues = recettes.filter((f) => !sauf.some((s) => f.startsWith(s)));
 
+/* L'IDENTIFIANT DE PASSAGE (règle M3 ter, deuxième occurrence).
+   « layout est verte seule, l'échec venait d'une exécution antérieure » :
+   le mélange ne s'est PAS fait à l'écriture — ce lanceur capture chaque
+   sortie en mémoire et ne partage aucun fichier — mais À LA LECTURE, en
+   relisant un rapport plus vieux que le code. Une règle qu'on doit se
+   rappeler deux fois demande un mécanisme, pas une troisième formulation.
+   Chaque rapport porte donc un identifiant et un horodatage, EN TÊTE ET
+   EN PIED, plus la révision du dépôt : un chiffre s'annonce en citant
+   cette ligne, et un rapport qui ne s'identifie pas ne prouve rien sur
+   l'état d'aujourd'hui. */
+const debutPassage = new Date();
+const revision = (() => {
+  const r = spawnSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8", cwd: path.join(dossier, "..") });
+  const sale = spawnSync("git", ["status", "--porcelain"], { encoding: "utf8", cwd: path.join(dossier, "..") });
+  const propre = !(sale.stdout || "").trim();
+  return (r.status === 0 ? (r.stdout || "").trim() : "révision inconnue") + (propre ? "" : " + modifications non commitées");
+})();
+const idPassage = "P-" + debutPassage.toISOString().slice(2, 19).replace(/[-:]/g, "").replace("T", "-");
+const enTete = `passage ${idPassage} · ${debutPassage.toISOString().slice(0, 19).replace("T", " ")} UTC · ${revision}`;
+
+console.log(enTete);
 console.log(`${recettes.length} recette(s) sur le disque` +
   (sauf.length ? ` · ${recettes.length - retenues.length} écartée(s) : ${sauf.join(", ")}` : "") + "\n");
 
@@ -59,4 +80,7 @@ const total = resultats.reduce((n, r) => n + r.vertes, 0);
 console.log(casses.length
   ? `${retenues.length - casses.length}/${retenues.length} recettes vertes — ${casses.map((r) => r.f).join(", ")} au rouge`
   : `${retenues.length}/${retenues.length} recettes vertes · ${total} assertions`);
+const fin = new Date();
+console.log(`${enTete} · terminé ${fin.toISOString().slice(11, 19)} UTC ` +
+  `en ${Math.round((fin - debutPassage) / 1000)} s`);
 process.exit(casses.length ? 1 : 0);

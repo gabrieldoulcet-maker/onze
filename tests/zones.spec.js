@@ -389,6 +389,49 @@ async function ouvrir(page) {
           dehors.ongletSurColonne === 0);
       }
 
+      /* LA LARGEUR DES CARTES EST RÉSERVÉE EN PREMIER (décision 64 · P1).
+         Le modèle de la bande basse était à l'envers : les deux blocs
+         latéraux avaient une largeur RÉSERVÉE (`flex: 0 0 96px` et
+         `0 0 84px`) et les cinq cartes prenaient « le reste »
+         (`flex: 1`). Tout ce qui grossit sur un côté les rétrécit donc en
+         silence — deux fois de suite : l'étiquette « chances » (8 px),
+         puis le bloc de boutons qui accueillait l'action principale. Deux
+         occurrences, ce n'est plus un incident, c'est le modèle.
+         L'assertion pose la règle : **la largeur d'une carte ne bouge pas
+         quand le chrome change.** On mesure une carte, on fait grossir un
+         bloc latéral, on remesure. */
+      if (ecran === "mise en place") {
+        const cartes = await page.evaluate(async () => {
+          const largeur = () => {
+            const c = document.querySelector("#boutique .carte-boutique");
+            return c ? c.getBoundingClientRect().width : 0;
+          };
+          const avant = largeur();
+          /* ON FAIT GROSSIR LE CHROME COMME LA VRAIE VIE LE FAIT : en y
+             AJOUTANT DU CONTENU. Une première version forçait un
+             `min-width` sur le bloc — un instrument plus fort que le
+             réel, qui passe par-dessus le plafond censé être le
+             correctif : la recette serait restée rouge quoi qu'on fasse.
+             Les deux incidents étaient une étiquette et un bouton de
+             plus ; c'est donc ça qu'on injecte. */
+          const bloc = document.querySelector(".bloc-xp");
+          const intrus = document.createElement("button");
+          intrus.textContent = "Un libellé nettement plus long";
+          intrus.style.whiteSpace = "nowrap";
+          bloc.appendChild(intrus);
+          await new Promise((r) => setTimeout(r, 150));
+          const apres = largeur();
+          intrus.remove();
+          await new Promise((r) => setTimeout(r, 150));
+          return { avant, apres, retour: largeur(), nb: document.querySelectorAll("#boutique .carte-boutique").length };
+        });
+        verifier(`${taille.nom} : la largeur d'une carte de boutique ne bouge pas quand le chrome grossit ` +
+          `(${cartes.avant.toFixed(1)} px → ${cartes.apres.toFixed(1)} px avec 40 px de chrome en plus, ` +
+          `${cartes.nb} cartes)`,
+          cartes.nb === 5 && Math.abs(cartes.apres - cartes.avant) < 0.5,
+          `la carte a perdu ${(cartes.avant - cartes.apres).toFixed(1)} px`);
+      }
+
       /* LE MOBILIER TIENT DANS SA ZONE (§9.6, décision 64 · P1). Chaque
          meuble a une place réservée ; aucun ne vit à cheval sur une
          couture. Trois qui l'étaient :
