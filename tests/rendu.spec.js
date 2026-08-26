@@ -115,7 +115,23 @@ const ECART_PIXEL = 24;          // un pixel « a changé » au-delà de cet éc
    figurine du fond, 20 × 30 px) en couvre un bon tiers ; le contre-test
    plus bas vérifie qu'une silhouette absente tombe, elle, à zéro. */
 const PART_MINIMALE = 0.125;
+/* LES ANNONCES SE TAISENT PENDANT UNE MESURE DE PIXELS. Depuis que les
+   six canaux d'annonce passent par une file unique, celle-ci se pose sous
+   le bandeau — donc AU-DESSUS du terrain. Une annonce qui arrive entre
+   les deux photos fait changer des pixels qui n'ont rien à voir avec le
+   joueur mesuré : le contre-test « silhouette retirée » a relevé 135 %
+   une fois sur trois là où la valeur vraie est 0.
+   C'est la même famille que le gel des animations (décision 59) : deux
+   photos d'une page qui bouge mesurent le temps qui passe. */
+async function taireAnnonces(page) {
+  await page.evaluate(() => {
+    if (typeof viderAnnonces === "function") viderAnnonces();
+    document.querySelectorAll("#file-annonces > *").forEach((e) => e.remove());
+  });
+}
+
 async function empreinteVisuel(page, indice, zone) {
+  await taireAnnonces(page);
   const masquer = (n, v) => page.evaluate(([k, etat]) => {
     const j = document.querySelectorAll(".ligne-terrain .jeton")[k];
     if (j) j.querySelectorAll("img.frontale, svg.frontale").forEach((e) => { e.style.visibility = etat; });
