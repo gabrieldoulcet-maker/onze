@@ -1502,7 +1502,17 @@ const dette = (nom, ok, quand) => {
     const tauxParPassage = sacDisque.passages.filter((p) => p.secondes > 0)
       .map((p) => (p.episodes / p.secondes) * 60);
     const pire = Math.min(...tauxParPassage);
-    verifier(`Étape 3 — l'instrument est stable : aucun passage ne s'effondre (${tauxParPassage.map((t) => t.toFixed(1)).join(" · ")} épisodes/min sur ${nbPassages} passages, cumul ${tauxMin.toFixed(2)} — plancher à la moitié du cumul)`,
+    /* CE QU'UN VERT ICI PROUVE, ET CE QU'IL NE PROUVE PAS. Mesuré sur
+       quatre passages : 5,88 · 5,05 · 4,99 · 6,09 → écart-type 0,564,
+       là où le bruit de Poisson pur à ~49 épisodes par passage en
+       prédirait 0,784. Nos passages varient donc DEUX FOIS MOINS que le
+       hasard seul — cohérent avec la sous-dispersion de la scène. Cette
+       assertion ne se déclenchera donc que sur un passage franchement
+       CASSÉ, et c'est bien ce qu'on lui demande : un garde-fou de
+       FIABILITÉ, pas de justesse. Un vert dit « rien ne s'est
+       effondré », jamais « la valeur est juste » — c'est le cumul, et
+       lui seul, qui répond de la justesse. */
+    verifier(`Étape 3 — l'instrument est stable : aucun passage ne s'effondre (${tauxParPassage.map((t) => t.toFixed(1)).join(" · ")} épisodes/min sur ${nbPassages} passages, cumul ${tauxMin.toFixed(2)} — plancher à la moitié ; ce vert dit « rien ne s'est effondré », pas « la valeur est juste »)`,
       pire >= tauxMin / 2);
   }
   /* LE MÊME CHIFFRE DIT AUTRE CHOSE, ET C'EST UN DÉFAUT DE FIDÉLITÉ.

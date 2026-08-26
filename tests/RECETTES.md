@@ -99,10 +99,18 @@ du mobilier ; un rouge sans cible ne dit pas quand il sera payé.
 
 ### Ce que le cumul a changé, en chiffres
 
-Le premier passage seul donnait la densité **verte** : 62 épisodes pour 63,9 attendus,
-p = 0,437. Quatre passages cumulés donnent **197 épisodes pour 251,2 attendus** — la dette
-est **démontrée**. Le vert du premier passage était du bruit, et seule l'addition des
-**données** (pas des verdicts) a donné au test la puissance de trancher.
+Sur un passage isolé, la densité pouvait sortir **verte** : le premier passage d'une série
+donnait 62 épisodes pour 63,9 attendus, p = 0,437. Quatre passages cumulés donnent
+**197 épisodes pour 251,2 attendus**, p = 0,0002 — la dette est **démontrée**. Le vert isolé
+était du bruit, et seule l'addition des **données** (pas des verdicts) a donné au test la
+puissance de trancher.
+
+> **Deux séries, deux populations.** Le « 62 pour 63,9 » ci-dessus vient d'une série
+> antérieure (empreinte `7112792c`, deux passages) ; le tableau ci-dessous vient de la série
+> retenue (empreinte `a317db02`, quatre passages), où le premier passage vaut 52 épisodes
+> sur 531 s. Les deux sont exacts séparément et la conclusion ne bouge pas — mais racontés
+> dans le même paragraphe ils ne se réconcilient pas, et c'est la famille M2 : deux
+> populations présentées comme une seule.
 
 | | épisodes | fermés < 3 m | secondes | taux |
 |---|---:|---:|---:|---:|
@@ -119,6 +127,15 @@ Deux conséquences immédiates :
 - l'assertion de **stabilité de l'instrument** apparaît au troisième passage et passe :
   *5,9 · 5,0 · 5,0 · 6,1 épisodes/min, cumul 5,50, plancher à la moitié*. La recette est
   fiable ; c'est la scène qui manque de pressing.
+
+**Et il faut savoir avec quelle marge elle passe.** L'écart-type de ces quatre taux vaut
+**0,564**, là où le bruit de Poisson pur à ~49 épisodes par passage en prédirait **0,784** :
+nos passages varient **deux fois moins que le hasard seul** — cohérent avec la
+sous-dispersion de la scène. Cette assertion ne se déclenchera donc que sur un passage
+franchement **cassé**. C'est exactement ce qu'on lui demande — un garde-fou de **fiabilité**,
+pas de justesse — mais sans cette note, quelqu'un lira un jour ce vert comme une garantie
+d'exactitude. **Un vert dit « rien ne s'est effondré », jamais « la valeur est juste » :
+c'est le cumul, et lui seul, qui répond de la justesse.**
 
 ### Le cumul dit combien, la répétition dit si la mesure est fiable
 
