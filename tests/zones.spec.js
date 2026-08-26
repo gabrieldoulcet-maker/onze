@@ -167,7 +167,11 @@ async function reprendreUneSauvegarde(page) {
   await page.reload();
   await page.waitForSelector(".carte-boutique", { timeout: 15000 });
   await page.waitForTimeout(250);
-  return page.evaluate(() => !!document.querySelector(".message-flottant"));
+  // le message a rejoint la file d'annonces : il n'a plus de classe à lui
+  return page.evaluate(() => {
+    const z = document.getElementById("file-annonces");
+    return !!(z && !z.classList.contains("masque") && (z.textContent || "").trim());
+  });
 }
 
 async function ouvrir(page) {
@@ -350,6 +354,39 @@ async function ouvrir(page) {
           `(elle revient à ${Math.round(retrait.rappele.gDroite)} px)`,
           retrait.rappele.gDroite > retrait.range.gDroite + 20,
           JSON.stringify(retrait.rappele));
+
+        /* RÉTRACTÉE VEUT DIRE PARTIE, PAS SEULEMENT DÉCALÉE. Les colonnes
+           glissaient mais restaient entièrement LISIBLES pendant le match,
+           et les languettes se dessinaient par-dessus — sur une capture,
+           la languette gauche coupait les mots d'une infobulle. Deux
+           choses à exiger, et la seconde manquait :
+             · le rectangle d'une colonne rétractée est hors du cadre ;
+             · aucune languette ne recouvre une colonne. */
+        const dehors = await page.evaluate(() => {
+          const b = (s) => { const e = document.querySelector(s); if (!e) return null;
+            const st = getComputedStyle(e); const r = e.getBoundingClientRect();
+            return { x: r.x, right: r.right, w: r.width, top: r.top, bottom: r.bottom,
+              vu: st.display !== "none" && st.visibility !== "hidden" && parseFloat(st.opacity) > 0.05 }; };
+          const g = b(".col-synergies"), d = b(".col-classement");
+          const og = b("#onglet-gauche"), od = b("#onglet-droite");
+          const chevauche = (a, c) => {
+            if (!a || !c || !a.vu || !c.vu) return 0;
+            const L = Math.max(0, Math.min(a.right, c.right) - Math.max(a.x, c.x));
+            const H = Math.max(0, Math.min(a.bottom, c.bottom) - Math.max(a.top, c.top));
+            return Math.round(L * H);
+          };
+          return { g, d, largeur: innerWidth,
+            ongletSurColonne: chevauche(og, g) + chevauche(od, d) };
+        });
+        const gPartie = !dehors.g.vu || dehors.g.right <= 0.5;
+        const dPartie = !dehors.d.vu || dehors.d.x >= dehors.largeur - 0.5;
+        verifier(`${taille.nom} · match : une colonne rétractée est hors du cadre, pas seulement décalée ` +
+          `(gauche : droite à ${Math.round(dehors.g.right)} px${dehors.g.vu ? "" : ", invisible"} · ` +
+          `droite : gauche à ${Math.round(dehors.d.x)} px sur ${dehors.largeur}${dehors.d.vu ? "" : ", invisible"})`,
+          gPartie && dPartie, JSON.stringify({ g: dehors.g, d: dehors.d }));
+        verifier(`${taille.nom} · match : aucune languette ne recouvre une colonne ` +
+          `(${dehors.ongletSurColonne} px² de recouvrement)`,
+          dehors.ongletSurColonne === 0);
       }
 
       /* LE MOBILIER TIENT DANS SA ZONE (§9.6, décision 64 · P1). Chaque
@@ -394,7 +431,8 @@ async function ouvrir(page) {
           return { sel, hautDehors: Math.round(q.top - r.top), basDehors: Math.round(r.bottom - q.bottom),
             gaucheDehors: Math.round(q.left - r.left), droiteDehors: Math.round(r.right - q.right) };
         };
-        const t = document.querySelector(".message-flottant");
+        const z = document.getElementById("file-annonces");
+        const t = z && !z.classList.contains("masque") && (z.textContent || "").trim() ? z : null;
         const cartes = [...document.querySelectorAll(".carte-boutique")].map((e) => e.getBoundingClientRect());
         let surCartes = 0;
         if (t) { const rt = t.getBoundingClientRect();
@@ -424,6 +462,58 @@ async function ouvrir(page) {
         `(« ${meubles.videTexte === null ? "—" : meubles.videTexte} »)`,
         meubles.videExiste && meubles.videTexte === "",
         meubles.videExiste ? meubles.videTexte : "aucun emplacement vide à mesurer");
+
+      /* UNE FILE, PAS UNE PILE (décision 64 · P1 et P2). Le jeu avait TROIS
+         canaux d'annonce qui s'ignoraient : le message flottant, les
+         bannières de butin et les bannières de fête. Reproduit à l'état
+         exact de la capture — trois annonces au même instant en fin de
+         manche : elles s'affichaient à y = 0, 47 et 131, trois bandes
+         empilées dont deux se recouvraient chez Gabriel.
+         Mes trois hypothèses précédentes portaient toutes sur un toast
+         SEUL et n'ont donc rien reproduit. C'était la pile, pas la
+         hauteur. */
+      if (ecran === "mise en place") {
+        const pile = await page.evaluate(async () => {
+          viderAnnonces();
+          // les trois canaux d'un coup, comme en fin de manche
+          partie.orbesEnAttente = [{ type: "staff", membre: "Coach mental", rarete: "or" },
+            { type: "or", montant: 2, rarete: "bleu" }];
+          ramasserOrbes(() => {});
+          signaler("🔥 +2 Ferveur !");
+          celebrerStaff({ type: "embleme", joueur: "Sékou", ecole: "École de la Rue" });
+          let pire = 0, vues = 0, chevauchements = 0;
+          for (let t = 0; t < 14; t++) {
+            await new Promise((r) => setTimeout(r, 350));
+            /* DÉDOUBLONNER : une bannière POSÉE DANS la file matche les deux
+               sélecteurs (`#file-annonces > *` et `.fusion-banniere`).
+               Comptée deux fois, elle se « recouvrait elle-même » — la
+               recette annonçait 2 annonces et 2 chevauchements là où il
+               n'y en avait qu'une. On passe par un Set d'ÉLÉMENTS. */
+            const vus = new Set([...document.querySelectorAll(
+              "#file-annonces > *, .message-flottant, .banniere-orbe, .fusion-banniere, .banniere-balayage")]);
+            const boites = [...vus]
+              .filter((e) => { const st = getComputedStyle(e);
+                return st.display !== "none" && st.visibility !== "hidden" && (e.textContent || "").trim(); })
+              .map((e) => e.getBoundingClientRect());
+            if (boites.length > pire) pire = boites.length;
+            if (boites.length) vues++;
+            for (let i = 0; i < boites.length; i++) for (let j = i + 1; j < boites.length; j++) {
+              const L = Math.max(0, Math.min(boites[i].right, boites[j].right) - Math.max(boites[i].left, boites[j].left));
+              const H = Math.max(0, Math.min(boites[i].bottom, boites[j].bottom) - Math.max(boites[i].top, boites[j].top));
+              if (L * H > 4) chevauchements++;
+            }
+          }
+          const restants = [...new Set([...document.querySelectorAll(
+            "#file-annonces > *, .message-flottant, .banniere-orbe, .fusion-banniere, .banniere-balayage")])]
+            .map((e) => (e.parentElement && e.parentElement.id || "?") + "/" +
+              (e.className || "").toString().split(" ")[0]);
+          viderAnnonces();
+          return { pire, vues, chevauchements, restants };
+        });
+        verifier(`${taille.nom} : trois annonces au même instant défilent, elles ne s'empilent pas ` +
+          `(au plus ${pile.pire} à l'écran, ${pile.chevauchements} chevauchement(s), ${pile.vues} relevés non vides)`,
+          pile.vues >= 3 && pile.pire <= 1 && pile.chevauchements === 0, JSON.stringify(pile));
+      }
 
       /* LES DEUX COLONNES NE MANGENT PAS L'ÉCRAN. Mesuré : 108 + 104 px
          sur 844, soit 25 % de la largeur pour de l'information de

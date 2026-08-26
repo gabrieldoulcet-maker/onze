@@ -107,6 +107,36 @@ const POSER = `async (n) => {
         `(un moment, un écran — décision 64 · P2)`, moment.scene === false, JSON.stringify(moment));
       verifier(`${taille.nom} : quand une orbe existe, le tableau de score est masqué`,
         moment.tableauMasque === true, JSON.stringify(moment));
+      /* ET AUCUNE ORBE NE TOMBE SOUS UNE COLONNE **EN FIN DE MATCH RÉEL**.
+         Le contrôle des 20 tirages se fait sur l'écran de mise en place,
+         où les colonnes sont déjà en place — il ne pouvait pas voir le
+         défaut. Mesuré : au moment du tirage les colonnes étaient encore
+         RÉTRACTÉES pour le match (x = −88 et x = 852) et revenaient à 0 et
+         764 une seconde plus tard, leur transition durant 0,28 s. Le
+         tirage voyait un écran large, et les colonnes retombaient sur les
+         orbes. La cérémonie attend désormais que l'écran soit revenu. */
+      const surColonnes = await page.evaluate(async () => {
+        await new Promise((r) => setTimeout(r, 700));   // les colonnes ont fini de revenir
+        const b = (s) => { const e = document.querySelector(s); if (!e) return null;
+          const st = getComputedStyle(e);
+          if (st.display === "none" || st.visibility === "hidden") return null;
+          const r = e.getBoundingClientRect(); return r.width > 1 ? r : null; };
+        const cols = [b(".col-synergies"), b(".col-classement")].filter(Boolean);
+        const chocs = [];
+        for (const o of document.querySelectorAll(".orbe-terrain")) {
+          const r = o.getBoundingClientRect();
+          for (const c of cols) {
+            const L = Math.max(0, Math.min(r.right, c.right) - Math.max(r.left, c.left));
+            const H = Math.max(0, Math.min(r.bottom, c.bottom) - Math.max(r.top, c.top));
+            if (L > 0.5 && H > 0.5) chocs.push(Math.round(L) + "×" + Math.round(H) + " px");
+          }
+        }
+        return { chocs, orbes: document.querySelectorAll(".orbe-terrain").length,
+          colonnes: cols.map((c) => Math.round(c.x)) };
+      });
+      verifier(`${taille.nom} : en fin de match réel, aucune orbe ne tombe sous une colonne revenue ` +
+        `(${surColonnes.orbes} orbe(s), colonnes à ${surColonnes.colonnes.join(" et ")} px)`,
+        surColonnes.chocs.length === 0, surColonnes.chocs.join(" | "));
     }
 
     await page.reload();
