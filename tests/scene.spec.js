@@ -93,14 +93,16 @@ function dispersion(comptes) {
 
 let dettes = 0, dettesVertes = 0;
 const dette = (nom, ok, quand) => {
-  /* UNE SEULE EXÉCUTION NE PAIE PAS UNE DETTE (M7). Le message d'avant
-     disait « DETTE PAYÉE, à promouvoir » dès qu'une exécution passait —
-     et il l'a dit sur un p = 0,15 obtenu FAUTE DE PUISSANCE, puis sur un
-     taux de pressing qui oscille de 4,57 à 5,96/min d'une exécution à
-     l'autre. C'est le piège que M6 quater nomme, posé dans l'outil qui
-     sert à l'éviter. Un vert isolé se signale comme tel : il invite à
-     REGARDER, pas à promouvoir. */
-  if (ok) { dettesVertes++; console.log(`🟡 ${nom} — VERTE CETTE FOIS : une exécution ne paie pas une dette (M7), il en faut trois d'affilée avant de la promouvoir`); }
+  /* UN VERT NE PAIE PAS UNE DETTE À LUI SEUL (M7) — mais la première
+     version de ce message se trompait de remède. Elle demandait « trois
+     exécutions vertes d'affilée », ce qui agrège des VERDICTS au lieu
+     d'agréger des DONNÉES : trois tests à n = 50 n'auront jamais la
+     puissance d'un test à n = 150, et un verdict est la compression avec
+     perte d'une mesure. Les comptages se CUMULENT désormais entre
+     exécutions (sac indexé par empreinte de code), et le test tranche sur
+     le n cumulé. Ce qui reste à la répétition est une AUTRE question —
+     la stabilité de l'instrument — et elle a son assertion à part. */
+  if (ok) { dettesVertes++; console.log(`🟡 ${nom} — VERTE SUR LE CUMUL : à confirmer sur un cumul plus large, et la stabilité de l'instrument se juge à part`); }
   else { dettes++; console.log(`❌ ${nom}  ⟵ dette assumée, ${quand}`); }
 };
 
@@ -1427,16 +1429,82 @@ const dette = (nom, ok, quand) => {
      Il se renforce tout seul à mesure que la durée rendue s'accumule :
      368 s → p = 0,035 · 500 s → 0,015 · 700 s → 0,005 · 900 s → 0,002.
      La même assertion devient de plus en plus dure sans qu'on y touche. */
-  const attendu = (7.01 / 60) * secondesRendues;
-  const pDensite = poissonCumul(PMin.length, attendu);
-  const indice = dispersion(episodesParMatch);
-  const tauxMin = secondesRendues > 0 ? (PMin.length / secondesRendues) * 60 : 0;
+  /* ============================================================
+     LE SAC CUMULÉ ENTRE EXÉCUTIONS.
+     Exiger « trois exécutions vertes d'affilée » agrégeait des
+     VERDICTS au lieu d'agréger des DONNÉES — et un verdict est la
+     compression avec perte d'une mesure. Trois tests à n = 50 n'auront
+     jamais la puissance d'un test à n = 150 : c'est le même geste que
+     composer deux médianes, une strate plus haut.
+     On sépare donc les deux questions, qui n'ont pas le même remède :
+       — contre le BRUIT D'ÉCHANTILLON : on CUMULE les comptages entre
+         exécutions et on tranche sur le n cumulé ;
+       — contre la VOLATILITÉ de l'instrument (un tirage qui change
+         l'ordre des phases, une image qui charge plus tard, un temps
+         fort qui se coupe) : on RÉPÈTE, et la question n'est pas
+         « trois verts » mais « aucun passage ne s'effondre ».
+     LE SAC PORTE LA RÉVISION (M2 appliqué au TEMPS et non à la
+     population) : il est indexé par l'empreinte des fichiers dont il
+     mesure le comportement. Un cumul qui traverserait un changement de
+     code mesurerait deux comportements différents. */
+  const cheminCumul = require("path").join(__dirname, ".cumul-scene.json");
+  const empreinte = (() => {
+    const h = require("crypto").createHash("sha1");
+    for (const f of ["../match-scene.js", "../match-ui.js", "./scene.spec.js"]) {
+      h.update(require("fs").readFileSync(require("path").join(__dirname, f)));
+    }
+    return h.digest("hex").slice(0, 12);
+  })();
+  const sacDisque = (() => {
+    try {
+      const j = JSON.parse(require("fs").readFileSync(cheminCumul, "utf8"));
+      if (j.empreinte === empreinte) return j;
+    } catch { /* premier passage, ou fichier illisible */ }
+    return { empreinte, passages: [] };
+  })();
+  sacDisque.passages.push({
+    quand: new Date().toISOString(),
+    episodes: PMin.length,
+    fermes: PMin.filter((v) => v <= 3).length,
+    secondes: secondesRendues,
+    parMatch: episodesParMatch.slice(),
+    options: e3.options.length,
+    optionsDans13: e3.options.filter((v) => v >= 1 && v <= 3).length,
+  });
+  if (sacDisque.passages.length > 20) sacDisque.passages = sacDisque.passages.slice(-20);
+  try { require("fs").writeFileSync(cheminCumul, JSON.stringify(sacDisque, null, 1)); } catch { /* lecture seule : on tranche sur ce passage */ }
+  const cumul = sacDisque.passages.reduce((a, p) => ({
+    episodes: a.episodes + p.episodes, fermes: a.fermes + p.fermes,
+    secondes: a.secondes + p.secondes, options: a.options + p.options,
+    optionsDans13: a.optionsDans13 + p.optionsDans13,
+    parMatch: a.parMatch.concat(p.parMatch || []),
+  }), { episodes: 0, fermes: 0, secondes: 0, options: 0, optionsDans13: 0, parMatch: [] });
+  const nbPassages = sacDisque.passages.length;
+
+  const attendu = (7.01 / 60) * cumul.secondes;
+  const pDensite = poissonCumul(cumul.episodes, attendu);
+  const indice = dispersion(cumul.parMatch);
+  const tauxMin = cumul.secondes > 0 ? (cumul.episodes / cumul.secondes) * 60 : 0;
   /* L'HYPOTHÈSE SE VÉRIFIE, ELLE NE SE SUPPOSE PAS. Poisson suppose
      l'indépendance ; des pressings groupés dans un même temps fort
      rendraient le p optimiste. L'indice de dispersion (variance/moyenne)
      doit rester proche de 1 — mesuré 1,02 sur les cumuls de référence. */
-  verifier(`Étape 3 — l'hypothèse du test de densité tient : indice de dispersion ${indice === null ? "—" : indice.toFixed(2)} sur ${episodesParMatch.length} matchs (Poisson pur = 1 ; SOUS 1 le test est conservateur, donc sans risque ; AU-DELÀ DE 2 les épisodes se groupent et le p deviendrait optimiste — c'est ce seul côté qu'on surveille)`,
+  verifier(`Étape 3 — l'hypothèse du test de densité tient : indice de dispersion ${indice === null ? "—" : indice.toFixed(2)} sur ${cumul.parMatch.length} matchs cumulés (Poisson pur = 1 ; SOUS 1 le test est conservateur, donc sans risque ; AU-DELÀ DE 2 les épisodes se groupent et le p deviendrait optimiste — c'est ce seul côté qu'on surveille)`,
     indice !== null && indice < 2);
+  /* LA VOLATILITÉ DE L'INSTRUMENT — une question DIFFÉRENTE, et un
+     remède différent. Le cumul répond « combien » ; la répétition répond
+     « la mesure est-elle fiable ». Une recette peut osciller pour des
+     raisons qui ne sont pas de l'échantillonnage : un tirage qui change
+     l'ordre des phases, une image qui charge plus tard, un temps fort qui
+     se coupe. Seule la répétition l'attrape — et l'assertion n'est pas
+     « trois verts », c'est « aucun passage ne s'effondre ». */
+  if (nbPassages >= 3) {
+    const tauxParPassage = sacDisque.passages.filter((p) => p.secondes > 0)
+      .map((p) => (p.episodes / p.secondes) * 60);
+    const pire = Math.min(...tauxParPassage);
+    verifier(`Étape 3 — l'instrument est stable : aucun passage ne s'effondre (${tauxParPassage.map((t) => t.toFixed(1)).join(" · ")} épisodes/min sur ${nbPassages} passages, cumul ${tauxMin.toFixed(2)} — plancher à la moitié du cumul)`,
+      pire >= tauxMin / 2);
+  }
   /* LE MÊME CHIFFRE DIT AUTRE CHOSE, ET C'EST UN DÉFAUT DE FIDÉLITÉ.
      Sous 1, l'indice ne menace pas le test — mais il dit que NOS MATCHS
      SE RESSEMBLENT TROP. Le vrai football est surdispersé : sur les dix
@@ -1454,23 +1522,23 @@ const dette = (nom, ok, quand) => {
      ET C'EST LE SEUL DE NOS TESTS QUI SE JOUE SUR n = MATCHS : sous
      H0, (k−1)·D/1,05 suit un χ² à k−1 degrés de liberté. Notre
      échantillon peut le porter — celui-là, pour une fois. */
-  const ddl = episodesParMatch.length - 1;
+  const ddl = cumul.parMatch.length - 1;
   const chi2 = indice === null ? null : (ddl * indice) / 1.05;
   const pDisp = chi2 === null ? 1 : chi2Cumul(chi2, ddl);
-  dette(`Étape 3 — les matchs ne se ressemblent pas : indice de dispersion des pressings ${indice === null ? "—" : indice.toFixed(2)} sur ${episodesParMatch.length} matchs (référence 1,05 pour une fenêtre de ~45 s — le vrai football est à 5,56 sur des matchs entiers) → χ² = ${chi2 === null ? "—" : chi2.toFixed(1)} à ${ddl} ddl, p = ${pDisp.toFixed(4)}`,
+  dette(`Étape 3 — les matchs ne se ressemblent pas : indice de dispersion des pressings ${indice === null ? "—" : indice.toFixed(2)} sur ${cumul.parMatch.length} matchs cumulés (référence 1,05 pour une fenêtre de ~45 s — le vrai football est à 5,56 sur des matchs entiers) → χ² = ${chi2 === null ? "—" : chi2.toFixed(1)} à ${ddl} ddl, p = ${pDisp.toFixed(4)}`,
     ddl >= 6 && pDisp >= 0.05,
     "ÉCHÉANCE étape 4 — un match-bataille et un match-promenade doivent contenir des quantités de pressing différentes ; c'est le tempo qui les distinguera. Quatrième distribution à atteindre, et la seule qui se mesure sur n = MATCHS");
-  dette(`Étape 3 — il y a ASSEZ de pressing : ${PMin.length} épisodes ≥ 1 s observés pour ${attendu.toFixed(1)} attendus sur ${secondesRendues.toFixed(0)} s rendues (${tauxMin.toFixed(2)}/min contre 7,01 — référence EXACTE, 6 306 épisodes sur 10 matchs, et BORNE BASSE puisque nous ne rendons que des temps forts) → p = ${pDensite.toFixed(3)}`,
-    secondesRendues >= 380 && pDensite >= 0.05,
+  dette(`Étape 3 — il y a ASSEZ de pressing : ${cumul.episodes} épisodes ≥ 1 s observés pour ${attendu.toFixed(1)} attendus sur ${cumul.secondes.toFixed(0)} s rendues (CUMUL sur ${nbPassages} passage(s)) (${tauxMin.toFixed(2)}/min contre 7,01 — référence EXACTE, 6 306 épisodes sur 10 matchs, et BORNE BASSE puisque nous ne rendons que des temps forts) → p = ${pDensite.toFixed(3)}`,
+    cumul.secondes >= 380 && pDensite >= 0.05,
     "ÉCHÉANCE étape 4 — la moitié des pions est tenue par la chorégraphie, donc indisponible pour presser ; les gabarits les libèrent. Le rendement remesuré est une LIVRAISON de l'étape 4, pas une conséquence à espérer");
   /* MÊME RAISONNEMENT ICI, ET IL DÉBLOQUE LA DETTE. La part sous 3 m est
      une proportion comparée à une référence EXACTE (65,9 %, mesurée sur
      6 306 épisodes) : un test binomial unilatéral tranche sans attendre
      les 120 épisodes qu'une fourchette exigeait. Vérifié avant d'être
      attendu, comme demandé. */
-  const fermes = PMin.filter((v) => v <= 3).length;
-  const sous3 = PMin.length ? fermes / PMin.length : 0;
-  const pFerme = binomialeCumul(fermes, PMin.length, 0.659);
+  const fermes = cumul.fermes, nFerme = cumul.episodes;
+  const sous3 = nFerme ? fermes / nFerme : 0;
+  const pFerme = binomialeCumul(fermes, nFerme, 0.659);
   /* LE TEST NE SAUVE PAS TOUT, ET IL FAUT LE DIRE. Vérifié plutôt
      qu'espéré, comme demandé : le binomial tranche IMMÉDIATEMENT quand
      l'écart est grand (9/25 à 36 % → p = 0,002) mais PAS quand il vaut
@@ -1483,8 +1551,8 @@ const dette = (nom, ok, quand) => {
      donc PAS que le pressing est conforme, il dit qu'on n'a pas de quoi
      l'affirmer : la dette ne se paie qu'avec la PUISSANCE de conclure,
      jamais avec un vert obtenu faute d'échantillon (M6). */
-  const conclusifFerme = PMin.length >= 160;
-  dette(`Étape 3 — le pressing ferme vraiment : ${fermes}/${PMin.length} épisodes ≥ 1 s ferment sous 3 m, soit ${Math.round(sous3 * 100)} % contre ${Math.round(0.659 * PMin.length)} attendus (référence 65,9 % SUR CETTE MÊME POPULATION — 58,7 % serait celle de la population entière) → p = ${pFerme.toFixed(4)}${pFerme < 0.05 ? " — TROP LOIN, démontré" : conclusifFerme ? "" : `, NON CONCLUANT : à n = ${PMin.length} le test n'a pas la puissance de détecter l'écart réel (~11 points), il en faudrait 160`} · médiane ${q(PMin, 0.5).toFixed(1)} m contre 2,27`,
+  const conclusifFerme = nFerme >= 160;
+  dette(`Étape 3 — le pressing ferme vraiment : ${fermes}/${nFerme} épisodes ≥ 1 s ferment sous 3 m (CUMUL sur ${nbPassages} passage(s) à empreinte ${empreinte}), soit ${Math.round(sous3 * 100)} % contre ${Math.round(0.659 * nFerme)} attendus (référence 65,9 % SUR CETTE MÊME POPULATION — 58,7 % serait celle de la population entière) → p = ${pFerme.toFixed(4)}${pFerme < 0.05 ? " — TROP LOIN, démontré" : conclusifFerme ? "" : `, NON CONCLUANT : à n = ${nFerme} le test n'a pas la puissance de détecter l'écart réel (~11 points), il en faudrait 160 — relancer la recette les cumule`} · médiane ${q(PMin, 0.5).toFixed(1)} m sur ce passage contre 2,27`,
     conclusifFerme && pFerme >= 0.05,
     "ÉCHÉANCE étape 4 — le test binomial tranche quand l'écart est grand (36 % → p = 0,002) mais pas à l'écart réel : il faut la même puissance qu'une fourchette pour CONCLURE, il ne l'apporte que pour RÉFUTER");
   /* 6. UNE OPTION EST UN ÉVÉNEMENT COURT. C'est la propriété qui
@@ -1510,8 +1578,9 @@ const dette = (nom, ok, quand) => {
      On écrit la recette et on la laisse ROUGE : un garde-fou déclaré
      rouge porte la dette à l'écran et retombe vert tout seul le jour où
      le défaut est réparé ; un garde-fou absent ne dit rien. */
-  dette(`Étape 3 — 1 à 3 options ouvertes dans 88 % des cas (mesuré ${Math.round((OP.length ? OP.filter((v) => v >= 1 && v <= 3).length / OP.length : 0) * 100)} %, médiane ${q(OP, 0.5)} contre 2, sur ${OP.length} passes)`,
-    OP.length >= 30 && (OP.filter((v) => v >= 1 && v <= 3).length / OP.length) >= 0.88,
+  const partOptions = cumul.options ? cumul.optionsDans13 / cumul.options : 0;
+  dette(`Étape 3 — 1 à 3 options ouvertes dans 88 % des cas (mesuré ${Math.round(partOptions * 100)} % sur ${cumul.options} passes CUMULÉES, médiane ${q(OP, 0.5)} contre 2 sur ce passage)`,
+    cumul.options >= 30 && partOptions >= 0.88,
     "ÉCHÉANCE étape 4 (les gabarits) — c'est la chorégraphie qui décide aujourd'hui qui touche le ballon et quand");
   console.log(`   📐 encore court, l'étape 4 en répond : longueur d'appel ${q(AL, 0.5).toFixed(1)} m (réel 10,7) · options à la passe médiane ${q(OP, 0.5)} (réel 2), ${Math.round(dans13 * 100)} % dans 1-3 (réel 88 %)`);
 
@@ -1556,7 +1625,7 @@ const dette = (nom, ok, quand) => {
 
   await browser.close();
   if (dettes || dettesVertes) {
-    console.log(`\n${dettes} dette(s) assumée(s)${dettesVertes ? `, ${dettesVertes} verte(s) sur CETTE exécution — à confirmer trois fois avant promotion (M7)` : ""}`);
+    console.log(`\n${dettes} dette(s) assumée(s)${dettesVertes ? `, ${dettesVertes} verte(s) sur le cumul — relancer la recette élargit l'échantillon (M7)` : ""}`);
   }
   console.log(echecs ? `\n${echecs} échec(s)` : "\nFidélité de la scène ✅");
   process.exit(echecs ? 1 : 0);

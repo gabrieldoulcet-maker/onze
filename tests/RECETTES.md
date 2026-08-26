@@ -94,24 +94,35 @@ du mobilier ; un rouge sans cible ne dit pas quand il sera payé.
 | Dispersion des pressings entre matchs | 0,25 · 0,31 · 0,83 selon le tirage | **≈ 1,05** (le vrai football est à 5,56 sur des matchs entiers) | étape 4 — *la seule des quatre qui se mesure sur n = MATCHS* |
 | Densité de pressing | 4,57 à 5,96 /min selon le tirage · p = 0,009 à 0,14 | **7,01 /min** (référence exacte, borne basse) | étape 4 |
 
-### Une exécution ne paie pas une dette
+### Le cumul dit combien, la répétition dit si la mesure est fiable
 
-Le mécanisme de dette annonçait « DETTE PAYÉE, à promouvoir en assertion » **dès qu'une
-exécution passait**. Il l'a fait deux fois le même jour, et les deux fois à tort : sur un
-p = 0,15 obtenu **faute de puissance**, puis sur un taux de pressing qui oscille de **4,57 à
-5,96 par minute** d'une exécution à l'autre. Le piège que la règle M6 quater nomme était
-posé **dans l'outil qui sert à l'éviter**.
+Le mécanisme de dette a d'abord annoncé « DETTE PAYÉE, à promouvoir » **dès qu'une exécution
+passait** — deux fois le même jour, et deux fois à tort : sur un p = 0,15 obtenu **faute de
+puissance**, puis sur un taux qui oscille de 4,57 à 5,96 par minute. Le piège nommé par la
+règle M6 quater était posé **dans l'outil qui sert à l'éviter**.
 
-Un vert isolé s'affiche désormais en **jaune** — *« verte cette fois : une exécution ne paie
-pas une dette (M7), il en faut trois d'affilée avant de la promouvoir »*. Il invite à
-regarder, pas à conclure.
+Le remède d'abord retenu — « trois exécutions vertes d'affilée » — était **le mauvais** : il
+agrège des **verdicts** au lieu d'agréger des **données**, et trois tests à n = 50 n'auront
+jamais la puissance d'un test à n = 150. C'est composer deux médianes, une strate plus haut.
 
-**Conséquence à retenir sur ces trois dettes du pressing** : leur *verdict* bouge d'une
-exécution à l'autre parce que **la grandeur mesurée bouge**, pas parce que le test est
-mauvais. Le taux de pressing de la scène varie réellement de ±13 % autour de 5,3/min selon
-les équipes tirées. C'est pour ça que la promotion demande trois exécutions, et que la seule
-dette **démontrée** aujourd'hui est celle de la fermeture, qui sort à p = 0,002 quand
-l'écart est grand.
+Les deux questions sont donc séparées, parce qu'elles n'ont pas le même remède :
+
+- **contre le bruit d'échantillon, on CUMULE.** `tests/.cumul-scene.json` persiste les
+  comptages entre exécutions — épisodes, fermetures, secondes rendues, épisodes par match,
+  passes et options — et les quatre dettes tranchent sur le **n cumulé**. La dette de
+  fermeture demande 160 épisodes : à ~55 par passage, **trois passages les donnent**, et
+  seulement si on les additionne.
+- **contre la volatilité de l'instrument, on RÉPÈTE**, et la question n'est pas « trois
+  verts » mais **« aucun passage ne s'effondre »** — plancher à la moitié du taux cumulé.
+  Une recette peut osciller pour des raisons qui ne sont pas de l'échantillonnage : un
+  tirage qui change l'ordre des phases, une image qui charge plus tard, un temps fort qui se
+  coupe. Seule la répétition l'attrape.
+
+**Le sac porte l'empreinte du code qu'il mesure** — un SHA-1 de `match-scene.js`,
+`match-ui.js` et de la recette — et se vide dès que l'un d'eux change : un cumul qui
+traverserait un changement de code mesurerait deux comportements différents. C'est M2
+appliqué au **temps** plutôt qu'à la population. *(Le fichier est ignoré par git : c'est une
+mesure locale, pas un artefact du dépôt.)*
 
 ### Deux tests plutôt que deux fourchettes — et ce que chacun achète
 

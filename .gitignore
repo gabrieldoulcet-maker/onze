@@ -4,3 +4,6 @@ null/
 # Sorties locales qui n'ont rien à faire dans le dépôt
 *.log
 node_modules/
+
+# Le sac cumulé des recettes (indexé par empreinte de code, jamais versionné)
+tests/.cumul-*.json
