@@ -21,6 +21,40 @@ const verifier = (nom, ok) => { console.log(`${ok ? "✅" : "❌"} ${nom}`); if 
    quoi on ne distinguerait plus une dette connue d'une régression ; mais
    il s'affiche en rouge, et il PRÉVIENT quand il devient vert pour qu'on
    le promeuve en vraie assertion. */
+/* ============================================================
+   DEUX TESTS, PAS DEUX FOURCHETTES (corollaire de M6 bis).
+   « La tolérance doit dépasser le bruit » vaut pour une FOURCHETTE —
+   quand les deux nombres comparés sont bruités. Ici la référence est
+   EXACTE (6 306 épisodes réels, 7,01/min) et la question est ORIENTÉE :
+   « y en a-t-il assez ? ». Un test tranche là où une fourchette ne peut
+   pas, et il se RENFORCE tout seul quand la durée rendue s'accumule au
+   lieu de rester bloqué par le bruit.
+   Un test s'achète au prix de son hypothèse : l'indépendance des
+   épisodes est VÉRIFIÉE (indice de dispersion), pas supposée.
+   ============================================================ */
+// P(N ≤ k | λ) — Poisson, unilatéral à gauche
+function poissonCumul(k, lambda) {
+  if (lambda <= 0) return k >= 0 ? 1 : 0;
+  let terme = Math.exp(-lambda), somme = terme;
+  for (let i = 1; i <= k; i++) { terme *= lambda / i; somme += terme; }
+  return Math.min(1, somme);
+}
+// P(X ≤ k | n, p) — binomiale, unilatéral à gauche
+function binomialeCumul(k, n, p) {
+  if (n <= 0) return 1;
+  let terme = Math.pow(1 - p, n), somme = k >= 0 ? terme : 0;
+  for (let i = 1; i <= k; i++) { terme *= ((n - i + 1) / i) * (p / (1 - p)); somme += terme; }
+  return Math.min(1, somme);
+}
+// l'indice de dispersion : ~1 = Poisson pur, >1 = épisodes groupés
+function dispersion(comptes) {
+  if (comptes.length < 2) return null;
+  const m = comptes.reduce((a, b) => a + b, 0) / comptes.length;
+  if (!m) return null;
+  const v = comptes.reduce((a, b) => a + (b - m) ** 2, 0) / (comptes.length - 1);
+  return v / m;
+}
+
 let dettes = 0, dettesPayees = 0;
 const dette = (nom, ok, quand) => {
   if (ok) { dettesPayees++; console.log(`✅ ${nom} — DETTE PAYÉE, à promouvoir en assertion`); }
@@ -702,13 +736,14 @@ const dette = (nom, ok, quand) => {
      sur le nombre d'épisodes — neuf matchs suffisent là où la
      distribution en demanderait trente-cinq. */
   let secondesRendues = 0;
+  const episodesParMatch = [];   // pour vérifier l'hypothèse d'indépendance
   /* La durée des temps forts se cumule elle aussi : un match ne rend
      parfois qu'UN grand format, et une moyenne sur un point n'est pas
      une moyenne (décision 43). */
   const sacFormats = [];
   let releve = null, avecMatiere = null;
   let matchsHorsDelai = 0;
-  for (let essai = 0; essai < 9; essai++) {
+  for (let essai = 0; essai < 14; essai++) {
     releve = await mesurerUnMatch(page);
     if (releve.horsDelai) {
       /* Un match qui n'a pas rendu la main dans les deux minutes : on le
@@ -724,6 +759,7 @@ const dette = (nom, ok, quand) => {
     sacPorteur.push(...(releve.relevesPorteurSimule || []));
     sacFormats.push(...(releve.tempsFortsMs || []));
     secondesRendues += (releve.duree || 0) / 1000;
+    episodesParMatch.push(((releve.etape3 && releve.etape3.pressings) || []).filter((p) => p.duree >= 1).length);
     if (releve.etape3) {
       for (const k of ["hauteurs", "lignes", "appels", "pressings", "options", "dureesOption"]) {
         sacE3[k].push(...(releve.etape3[k] || []));
@@ -738,6 +774,13 @@ const dette = (nom, ok, quand) => {
         // on compte les ÉPISODES (≥ 1 s), pas les pressings bruts : c'est
         // sur eux que portent les trois références recalculées
         && sacE3.pressings.filter((p) => p.duree >= 1).length >= 25
+        /* Le test de densité se renforce avec la durée rendue. À 380 s le
+           p oscillait entre 0,009 et 0,048 selon le tirage : le VERDICT
+           tenait (toujours rouge) mais il frôlait le seuil. À 500 s,
+           λ ≈ 58 et un taux réel de ~5,05/min donne p ≈ 0,015 — la
+           décision ne dépend plus du tirage. Trois matchs de plus,
+           ~2 minutes de recette. */
+        && secondesRendues >= 500
         && tiragesPostures >= 45) break;
     console.log(`   (relevé ${essai + 1} : ${releve.buts} but(s), ${releve.misesEnPlace} temps fort(s), ${releve.marquagesVus} marquage(s) en position — sac à ${sacMarquage.vus}/${ECHANTILLON_MARQUAGE} · épisodes de pressing ≥1 s cumulés : ${sacE3.pressings.filter((p) => p.duree >= 1).length}, on rejoue)`);
   }
@@ -1329,14 +1372,52 @@ const dette = (nom, ok, quand) => {
      riches en pressing qu'une minute moyenne de match. L'assertion est
      donc à SENS UNIQUE : au-dessus de la référence tout va bien, en
      dessous le pressing manque. */
+  /* UN TEST, PAS UNE FOURCHETTE. Un plancher à « référence −15 % »
+     supposait les deux nombres bruités et exigeait donc que la tolérance
+     dépasse le bruit — à N ≈ 31 épisodes, le bruit d'un taux vaut ±29,5 %
+     (en 1/√N, exactement comme une médiane : un taux ne se stabilise PAS
+     sur le nombre de matchs, c'est le nombre d'épisodes qui commande).
+     Mais la référence, elle, est EXACTE : 7,01/min vient de 6 306
+     épisodes réels, elle ne bruite pas. La question n'est donc pas
+     « deux nombres bruités sont-ils loin ? » mais « ce comptage est-il
+     trop bas pour une espérance connue ? » — et ça, un test le tranche.
+     Il se renforce tout seul à mesure que la durée rendue s'accumule :
+     368 s → p = 0,035 · 500 s → 0,015 · 700 s → 0,005 · 900 s → 0,002.
+     La même assertion devient de plus en plus dure sans qu'on y touche. */
+  const attendu = (7.01 / 60) * secondesRendues;
+  const pDensite = poissonCumul(PMin.length, attendu);
+  const indice = dispersion(episodesParMatch);
   const tauxMin = secondesRendues > 0 ? (PMin.length / secondesRendues) * 60 : 0;
-  dette(`Étape 3 — il y a ASSEZ de pressing : ${tauxMin.toFixed(1)} épisode(s) ≥ 1 s par minute de football rendu (référence 7,01/min — 6 306 épisodes ≥ 1 s sur 10 matchs, et c'est une BORNE BASSE puisque nous ne rendons que des temps forts ; plancher 5,96 = −15 %) sur ${secondesRendues.toFixed(0)} s rendues`,
-    secondesRendues >= 200 && tauxMin >= 7.01 * 0.85,
-    "ÉCHÉANCE étape 4 — la moitié des pions est tenue par la chorégraphie, donc indisponible pour presser ; les gabarits les libèrent. Le rendement mesuré est une LIVRAISON de l'étape 4, pas une conséquence à espérer");
-  const sous3 = PMin.length ? PMin.filter((v) => v <= 3).length / PMin.length : 0;
-  dette(`Étape 3 — le pressing ferme vraiment : ${Math.round(sous3 * 100)} % des épisodes ≥ 1 s ferment sous 3 m (référence 65,9 % SUR CETTE MÊME POPULATION — 58,7 % serait celle de la population entière ; ±15 %) — ${PMin.length} épisodes, médiane ${q(PMin, 0.5).toFixed(1)} m contre 2,27`,
-    PMin.length >= 120 && ecart(sous3, 0.659) <= 0.15,
-    `DÉCLENCHEUR : le RENDEMENT, pas la date. Cette dette redevient une assertion le jour où le rendement permet 120 épisodes DANS LE BUDGET DE LA RECETTE — ${PMin.length} ici pour ${sacMarquage.matchs} match(s), soit ${(PMin.length / Math.max(1, sacMarquage.matchs)).toFixed(1)}/match ; il en faudrait ${Math.ceil(120 / Math.max(0.1, PMin.length / Math.max(1, sacMarquage.matchs)))}. Une échéance en « étape 4 » arriverait pendant que le rendement stagne, et personne ne le remarquerait — voir tests/RECETTES.md`);
+  /* L'HYPOTHÈSE SE VÉRIFIE, ELLE NE SE SUPPOSE PAS. Poisson suppose
+     l'indépendance ; des pressings groupés dans un même temps fort
+     rendraient le p optimiste. L'indice de dispersion (variance/moyenne)
+     doit rester proche de 1 — mesuré 1,02 sur les cumuls de référence. */
+  verifier(`Étape 3 — l'hypothèse du test de densité tient : indice de dispersion ${indice === null ? "—" : indice.toFixed(2)} sur ${episodesParMatch.length} matchs (Poisson pur = 1 ; SOUS 1 le test est conservateur, donc sans risque ; AU-DELÀ DE 2 les épisodes se groupent et le p deviendrait optimiste — c'est ce seul côté qu'on surveille)`,
+    indice !== null && indice < 2);
+  dette(`Étape 3 — il y a ASSEZ de pressing : ${PMin.length} épisodes ≥ 1 s observés pour ${attendu.toFixed(1)} attendus sur ${secondesRendues.toFixed(0)} s rendues (${tauxMin.toFixed(2)}/min contre 7,01 — référence EXACTE, 6 306 épisodes sur 10 matchs, et BORNE BASSE puisque nous ne rendons que des temps forts) → p = ${pDensite.toFixed(3)}`,
+    secondesRendues >= 380 && pDensite >= 0.05,
+    "ÉCHÉANCE étape 4 — la moitié des pions est tenue par la chorégraphie, donc indisponible pour presser ; les gabarits les libèrent. Le rendement remesuré est une LIVRAISON de l'étape 4, pas une conséquence à espérer");
+  /* MÊME RAISONNEMENT ICI, ET IL DÉBLOQUE LA DETTE. La part sous 3 m est
+     une proportion comparée à une référence EXACTE (65,9 %, mesurée sur
+     6 306 épisodes) : un test binomial unilatéral tranche sans attendre
+     les 120 épisodes qu'une fourchette exigeait. Vérifié avant d'être
+     attendu, comme demandé. */
+  const fermes = PMin.filter((v) => v <= 3).length;
+  const sous3 = PMin.length ? fermes / PMin.length : 0;
+  const pFerme = binomialeCumul(fermes, PMin.length, 0.659);
+  /* LE TEST NE SAUVE PAS TOUT, ET IL FAUT LE DIRE. Vérifié plutôt
+     qu'espéré, comme demandé : le binomial tranche IMMÉDIATEMENT quand
+     l'écart est grand (9/25 à 36 % → p = 0,002) mais PAS quand il vaut
+     l'écart réel (16/29 à 55 % → p = 0,15). Pour détecter 55 % contre
+     65,9 % à 80 % de puissance, il faut n ≈ 120 — exactement le nombre
+     que l'argument de bruit donnait. Un « p ≥ 0,05 » à n = 29 ne dit
+     donc PAS que le pressing est conforme, il dit qu'on n'a pas de quoi
+     l'affirmer : la dette ne se paie qu'avec la PUISSANCE de conclure,
+     jamais avec un vert obtenu faute d'échantillon (M6). */
+  const conclusifFerme = PMin.length >= 120;
+  dette(`Étape 3 — le pressing ferme vraiment : ${fermes}/${PMin.length} épisodes ≥ 1 s ferment sous 3 m, soit ${Math.round(sous3 * 100)} % contre ${Math.round(0.659 * PMin.length)} attendus (référence 65,9 % SUR CETTE MÊME POPULATION — 58,7 % serait celle de la population entière) → p = ${pFerme.toFixed(4)}${pFerme < 0.05 ? " — TROP LOIN, démontré" : conclusifFerme ? "" : `, NON CONCLUANT : à n = ${PMin.length} le test n'a pas la puissance de détecter l'écart réel (~11 points), il en faudrait 120`} · médiane ${q(PMin, 0.5).toFixed(1)} m contre 2,27`,
+    conclusifFerme && pFerme >= 0.05,
+    "ÉCHÉANCE étape 4 — le test binomial tranche quand l'écart est grand (36 % → p = 0,002) mais pas à l'écart réel : il faut la même puissance qu'une fourchette pour CONCLURE, il ne l'apporte que pour RÉFUTER");
   /* 6. UNE OPTION EST UN ÉVÉNEMENT COURT. C'est la propriété qui
      distingue la bonne définition de la mauvaise : « un coéquipier à
      portée » reste disponible des dizaines de secondes, une option née

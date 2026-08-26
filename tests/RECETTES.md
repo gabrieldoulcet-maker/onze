@@ -79,26 +79,43 @@ du mobilier ; un rouge sans cible ne dit pas quand il sera payé.
 | Dette | Mesuré | Cible | Échéance |
 |---|---|---|---|
 | 1 à 3 options de passe ouvertes | 45-66 % des passes | **88 %** (médiane 2) | étape 4 |
-| Part des pressings fermant sous 3 m | 48-56 % | **65,9 %** (épisodes ≥ 1 s, ±15 %) | *quand le rendement permettra 120 épisodes dans le budget de la recette* |
-| Densité de pressing | 5,1 /min de football rendu | **7,01 /min** (borne basse) | étape 4 |
+| Part des pressings fermant sous 3 m | 36-55 % selon le tirage | **65,9 %** (épisodes ≥ 1 s) | *quand n ≥ 120 — le test binomial réfute vite mais ne conclut pas plus vite qu'une fourchette* |
+| Densité de pressing | 4,6 /min · p = 0,009 | **7,01 /min** (référence exacte, borne basse) | étape 4 |
 
-### Ce qu'on peut mesurer quand on ne peut pas encore mesurer
+### Deux tests plutôt que deux fourchettes — et ce que chacun achète
 
-On ne peut pas encore dire si le pressing **ferme assez près** — il y faudrait 120 épisodes,
-donc ~35 matchs. On peut dire dès aujourd'hui s'il y en a **assez**, parce qu'un **taux se
-stabilise sur le nombre de MATCHS**, pas sur le nombre d'épisodes : neuf suffisent.
+**La densité.** Un plancher « référence −15 % » supposait les deux nombres bruités, et à
+N ≈ 31 épisodes le bruit d'un taux vaut ±29,5 % : le plancher n'était pas soutenu par
+l'échantillon. *(Au passage : « un taux se stabilise sur le nombre de matchs » est faux — la
+précision suit le nombre d'**épisodes**, en 1/√N, exactement comme une médiane.)* Mais la
+référence, elle, est **exacte** : 7,01 épisode/minute vient de 6 306 épisodes réels. La
+question devient un **test unilatéral** — *ce comptage est-il trop bas pour une espérance
+connue ?*
 
-Référence : 6 306 épisodes ≥ 1 s sur dix matchs = 630,6 par match = **7,01 par minute** de
-football. Et c'est une **borne basse**, plus dure qu'elle n'en a l'air : les secondes que la
-scène rend sont des **temps forts**, choisis pour être les moments chauds — récupérations,
-ruptures, frappes — donc plus riches en pressing qu'une minute moyenne. L'assertion est donc
-à sens unique : au-dessus, tout va bien ; en dessous, le pressing manque.
+```
+380 s rendues → attendu λ = 44,4 · observé 29 → p = 0,009
+```
 
-**Mesuré : 5,1 épisode/minute sur 368 s rendues** — 27 % sous une borne basse. Il n'y a pas
-assez de pressing, et ce garde-fou coûte **zéro minute de recette en plus**. Cause probable :
-la moitié des pions est tenue par la chorégraphie pendant un temps fort, donc indisponible
-pour presser — c'est l'étape 4 qui les libère. **Le rendement remesuré est une livraison de
-l'étape 4**, un chiffre à rendre, pas une conséquence à espérer.
+Décidable, là où le plancher ne l'était pas. Et il **se renforce tout seul** quand la durée
+rendue s'accumule : 368 s → 0,035 · 500 s → 0,015 · 700 s → 0,005 · 900 s → 0,002. La même
+assertion devient de plus en plus dure sans qu'on y touche.
+
+**L'hypothèse est vérifiée, pas supposée.** Poisson suppose l'indépendance ; des pressings
+groupés dans un même temps fort rendraient le p optimiste. L'indice de dispersion est mesuré
+à chaque exécution et surveillé **d'un seul côté** : sous 1 le test est conservateur, donc
+sans risque ; au-delà de 2 il devient optimiste.
+
+**La fermeture — et la limite du procédé.** Le même raisonnement s'applique à la part sous
+3 m (proportion contre une référence exacte de 65,9 %), et il a été **vérifié avant d'être
+attendu**. Verdict : le test binomial tranche **immédiatement quand l'écart est grand**
+(9/25, soit 36 % → p = 0,002) mais **pas à l'écart réel** (16/29, soit 55 % → p = 0,15).
+Pour *détecter* onze points d'écart à 80 % de puissance il faut n ≈ 120 — exactement le
+nombre que l'argument de bruit donnait.
+
+**Un test réfute plus vite qu'il ne conclut.** « p ≥ 0,05 » à n = 29 ne dit pas que le
+pressing est conforme, il dit qu'on n'a pas de quoi l'affirmer. La dette reste donc ouverte
+et ne se paiera qu'avec la **puissance de conclure** — jamais avec un vert obtenu faute
+d'échantillon.
 
 ### Le pressing : la dette change d'instrument, et son blocage est l'ÉCHANTILLON
 
