@@ -147,3 +147,133 @@ Les deux sont exacts ; ils ne mesurent pas la même chose. Tant que la question 
 tranchée, **la dette de densité repose sur une référence dont la transférabilité n'est pas
 établie** — et la règle est qu'une référence se remesure sur la population pertinente, elle
 ne se réinterprète pas.
+
+
+---
+
+## Amendement II — trois leviers, trois prédictions séparées
+
+*Écrit avant le premier gabarit. La version précédente traitait la densité et la fermeture
+comme un seul phénomène à cause commune. C'est faux : il y a **trois mécanismes distincts**,
+et ils ne bougent pas les mêmes chiffres. Les mélanger aurait rendu le résultat
+ininterprétable, quel qu'il soit.*
+
+### Levier A — la chorégraphie retient les pions (disponibilité)
+
+41,1 % des pions sont tenus par un scénario pendant un temps fort. Un coéquipier tenu ne se
+propose pas ; un défenseur tenu ne prend pas de rôle défensif. **Ce levier agit sur les
+OPTIONS DE PASSE, et sur elles seules avec certitude.**
+
+> **Prédiction A** : options ouvertes **53 % → 75-88 %**. Confiance **forte**.
+> Mécanisme : libérer 41 % des pions multiplie les soutiens à distance de passe.
+
+### Levier B — le plafond de 2 s tronque les pressings longs
+
+Notre mission de pressing est un compte à rebours de deux secondes **en dur**. Mesuré :
+durées p10 1,36 · médiane 2,01 · **p90 2,02 s**, contre un réel 1,10 · 2,10 · **4,40**.
+Aucun pressing ne peut dépasser le minuteur.
+
+Et ce n'est pas cosmétique — **un pressing qui dure ferme plus près**, et la relation est
+monotone sur six bandes de durée (mesuré sur les 6 306 épisodes ≥ 1 s) :
+
+| durée | n | minimum médian | part < 3 m |
+|---|---:|---:|---:|
+| 1,0–1,5 s | 1 549 | 2,73 m | 56,7 % |
+| 1,5–2,0 s | 1 318 | 2,48 m | 62,2 % |
+| 2,0–2,5 s | 993 | 2,35 m | 67,1 % |
+| 2,5–3,5 s | 1 201 | 2,13 m | 67,5 % |
+| 3,5–5,0 s | 831 | 1,67 m | 74,7 % |
+| > 5 s | 414 | 1,28 m | **87,2 %** |
+
+**Le chiffre décisif** : si on tronque le vrai football à notre plafond de 2,02 s, la part
+sous 3 m tombe de **65,9 % à 59,6 %**. Notre minuteur explique donc **6 des ~13 points** de
+la dette de fermeture, à lui seul — les pressings qui auraient fermé tard ne ferment jamais.
+
+> **Prédiction B** : fermeture sous 3 m **53 % → 59-60 %** (**≈ +6 points**). Confiance
+> **forte sur le mécanisme**, et c'est un changement par rapport à l'amendement I : j'avais
+> déclaré cette prédiction faible en croyant que le levier était la chorégraphie. Le levier
+> est le plafond, il est nommé, et sa taille est **calculée**, pas estimée.
+
+> **⚠ La conséquence désagréable, écrite d'avance.** 59-60 % est **exactement** mon seuil de
+> détectabilité : à n ≈ 200, un atterrissage à 60 % a 59 % de chances d'être vu, à 58 % il en
+> a 36 %. **Même en réparant B parfaitement, je serai à la limite de ce que l'échantillon
+> sait voir.** Il faut donc prévoir le cumul d'emblée : **n ≈ 600, soit une douzaine de
+> passages**, pour trancher à 86-97 % de puissance. À défaut, j'écrirai « non mesurable » sur
+> un correctif qui aura pourtant marché — et je préfère le dire maintenant que le découvrir
+> comme une déception.
+
+### Levier C — la mission survit au départ du ballon
+
+**60 % du temps passé en rôle de presseur se joue alors que personne ne tient le ballon** :
+il est en vol ou libre. Distance au ballon pendant le rôle : p10 4,6 · médiane 7,9 · **p90
+29,4 m**. Un presseur qui poursuit un ballon parti à trente mètres n'est pas un presseur.
+
+Ce levier est **indépendant des deux autres**. Il ne change ni le nombre d'épisodes ni leur
+issue : il change ce que le mot « pressing » recouvre, et il fausse toute lecture de la part
+du temps-joueur passée en engagement.
+
+> **Prédiction C** : la part du temps de rôle passée sans porteur **60 % → sous 20 %**, et la
+> distance au ballon p90 **29,4 m → sous 12 m**. Confiance **forte** (c'est une condition
+> d'arrêt, pas un comportement émergent). Effet attendu sur la densité et la fermeture :
+> **aucun** — et si l'un des deux bouge en réparant C seul, c'est que je n'avais pas compris
+> le mécanisme.
+
+### La densité, elle, reste SUSPENDUE — sa référence n'est pas transférable
+
+Les 7,01 épisodes/minute sont mesurés à 22 joueurs, et il n'existe **aucune séquence à
+effectif réduit** dans les dix matchs SkillCorner (zéro carton rouge). Tout taux « à effectif
+réduit » serait une extrapolation — la faute payée trois fois cette semaine.
+
+**Une dette dont la référence n'est pas transférable ne mesure rien.** Elle est donc
+suspendue, pas rouge, jusqu'à ce que la question soit tranchée **chez nous** : nos matchs se
+jouent de cinq contre cinq à onze contre onze, il suffit de mesurer les deux lectures à
+travers nos propres effectifs.
+
+- **la part par joueur est stable pendant que le taux par match bouge** → l'invariant du
+  système est celui **par joueur**, la question est réglée sans rien emprunter ;
+- **aucune des deux n'est stable** → il y a une dépendance à l'effectif à expliquer **avant**
+  d'appliquer la moindre référence.
+
+*(L'argument qui rend la seconde lecture plausible : la décision 50 fixe 324 m² par joueur,
+et le vrai football en fait 321,5 — nos terrains réduits reproduisent **exprès** la densité
+spatiale du football professionnel. Or un pressing est un événement **spatial** : il arrive
+quand deux joueurs se rapprochent. Si la densité spatiale est tenue constante par
+construction, c'est la grandeur **par joueur** qui se transfère. Sous cette lecture la dette
+change de signe : 1,46 % contre 1,12 %, soit 31 % de pressing **en trop**. C'est un
+raisonnement, pas une mesure — d'où la mesure.)*
+
+
+---
+
+## Amendement III — la mesure à travers les effectifs : ni l'une ni l'autre n'est stable, et un écart de 3× à expliquer
+
+Trois effectifs, trois matchs chacun, relevés le 26 août :
+
+| pions sur le terrain | secondes rendues | épisodes ≥ 1 s | **par match** | **par joueur** | fermés < 3 m |
+|---:|---:|---:|---:|---:|---:|
+| 11 | 102 | **3** | 1,76/min | 0,59 % | 67 % |
+| 16 | 145 | 16 | 6,64/min | 1,43 % | 38 % |
+| 22 | 143 | 27 | 11,31/min | 1,72 % | 52 % |
+| *référence* | | | *7,01/min* | *1,12 %* | *65,9 %* |
+
+**Aucune des deux lectures n'est stable.** Le taux par match croît d'un facteur 6,4 entre
+onze et vingt-deux pions ; la part par joueur croît d'un facteur 2,9. L'invariant par joueur
+qu'on espérait n'existe pas — c'est la seconde branche : *il y a une dépendance à l'effectif
+qu'il faut expliquer avant d'appliquer la moindre référence.*
+
+**Et une anomalie plus urgente que la question elle-même.** La ligne à onze pions donne
+**1,76/min**, quand la recette mesure **5,50/min** sur des matchs de manche 10 nominalement
+équivalents — un écart de **trois fois**, entre deux mesures de la même grandeur sur le même
+code. Avec **3 épisodes** dans cette cellule, elle ne prouve rien ; mais l'écart, lui, doit
+être expliqué. Deux différences connues entre les deux protocoles : ce relevé **force**
+`partie.terrain` et le niveau de tous les coachs, là où la recette laisse l'état naturel du
+jeu ; et il compte les épisodes depuis l'extérieur de la page plutôt qu'avec
+l'instrumentation interne.
+
+**Conséquence, et elle est nette : la dette de densité reste SUSPENDUE.** Pas rouge, pas
+verte. Une dette dont la référence n'est pas transférable ne mesure rien — et ici, ce n'est
+même plus seulement la référence qui est en cause, c'est la concordance de nos deux
+instruments. Tant que 1,76 et 5,50 ne sont pas réconciliés, **aucun verdict de densité n'est
+recevable**, quel que soit le dénominateur choisi.
+
+C'est exactement le genre de chose qu'on préfère apprendre avant d'avoir écrit huit gabarits.
