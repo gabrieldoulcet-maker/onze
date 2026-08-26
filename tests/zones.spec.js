@@ -30,6 +30,8 @@
    Usage : NODE_PATH=<scratchpad>/node_modules node tests/zones.spec.js
    ============================================================ */
 const { chromium } = require("playwright-core");
+const fs = require("fs");
+const path = require("path");
 const EXECUTABLE = process.env.CHROME || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 const TAILLES = [
   { nom: "grand téléphone", l: 844, h: 390 },
@@ -196,6 +198,41 @@ async function ouvrir(page) {
 }
 
 (async () => {
+  /* ET ELLE NE PEUT PAS POURRIR EN SILENCE. Une estampille qu'on oublie
+     de refaire est pire que pas d'estampille : elle ment avec autorité.
+     On la compare donc au disque — si un fichier de jeu a été modifié
+     APRÈS elle, elle est périmée et cette recette le dit. C'est le même
+     mécanisme que le dénominateur (M5) : le nombre se lit sur le disque,
+     il ne se tient pas à la main. */
+  const racine = path.join(__dirname, "..");
+  const version = (() => {
+    try {
+      const brut = fs.readFileSync(path.join(racine, "version.js"), "utf8");
+      const m = brut.match(/horodatage:\s*"([^"]+)"/);
+      return m ? new Date(m[1]) : null;
+    } catch (e) { return null; }
+  })();
+  const fichiersJeu = [];
+  for (const f of fs.readdirSync(racine)) {
+    if (f === "version.js") continue;
+    if (/\.(html|css|js)$/.test(f)) fichiersJeu.push(path.join(racine, f));
+  }
+  for (const d of ["design"]) {
+    if (!fs.existsSync(path.join(racine, d))) continue;
+    for (const f of fs.readdirSync(path.join(racine, d))) {
+      if (/\.json$/.test(f)) fichiersJeu.push(path.join(racine, d, f));
+    }
+  }
+  const plusRecent = fichiersJeu.reduce((max, f) => {
+    const t = fs.statSync(f).mtime;
+    return t > max.t ? { t, f: path.basename(f) } : max;
+  }, { t: new Date(0), f: "—" });
+  const retard = version ? Math.round((plusRecent.t - version) / 1000) : null;
+  verifier(`l'estampille n'est pas périmée (écrite ${version ? version.toISOString().slice(5, 16).replace("T", " ") : "jamais"}, ` +
+    `fichier de jeu le plus récent : ${plusRecent.f} à ${plusRecent.t.toISOString().slice(5, 16).replace("T", " ")})`,
+    !!version && retard <= 0,
+    version ? `${retard} s de retard — relance « node outils/estampiller.js »` : "version.js absent");
+
   const browser = await chromium.launch({ executablePath: EXECUTABLE, args: ["--no-sandbox"] });
 
   for (const taille of TAILLES) {
@@ -387,6 +424,74 @@ async function ouvrir(page) {
         verifier(`${taille.nom} · match : aucune languette ne recouvre une colonne ` +
           `(${dehors.ongletSurColonne} px² de recouvrement)`,
           dehors.ongletSurColonne === 0);
+      }
+
+      /* UNE CAPTURE D'ÉCRAN DIT DE QUAND ELLE DATE (règle M3 ter).
+         Le même jour, la même erreur des deux côtés : j'ai annoncé une
+         recette rouge en relisant un RAPPORT plus vieux que le code, et
+         Gabriel a redemandé un correctif livré depuis deux jours en
+         mesurant une CAPTURE plus vieille que le code. Le lanceur de
+         recettes s'estampille ; le jeu devait faire le miroir.
+         L'estampille vit dans le bandeau du haut — la seule zone présente
+         sur TOUTES les captures — et elle est vérifiée sur les deux
+         écrans : une estampille que le match masquerait ne servirait à
+         rien, puisque c'est le match qu'on capture le plus. */
+      const estampille = await page.evaluate(() => {
+        const e = document.getElementById("estampille");
+        if (!e) return { absente: true };
+        const st = getComputedStyle(e);
+        const r = e.getBoundingClientRect();
+        return { texte: (e.textContent || "").trim(),
+          vue: st.display !== "none" && st.visibility !== "hidden" && parseFloat(st.opacity) > 0.05 && r.width > 4,
+          horsCadre: r.right > innerWidth + 0.5 || r.x < -0.5,
+          coupee: e.scrollWidth - e.clientWidth > 1 };
+      });
+      verifier(`${taille.nom} · ${ecran} : la capture dit de quelle version elle date ` +
+        `(« ${estampille.texte || "—"} »)`,
+        !estampille.absente && estampille.vue && !estampille.horsCadre && !estampille.coupee &&
+        /\d\d\/\d\d/.test(estampille.texte || ""), JSON.stringify(estampille));
+
+      /* LA LARGEUR DES CARTES EST RÉSERVÉE EN PREMIER (décision 64 · P1).
+         Le modèle de la bande basse était à l'envers : les deux blocs
+         latéraux avaient une largeur RÉSERVÉE (`flex: 0 0 96px` et
+         `0 0 84px`) et les cinq cartes prenaient « le reste »
+         (`flex: 1`). Tout ce qui grossit sur un côté les rétrécit donc en
+         silence — deux fois de suite : l'étiquette « chances » (8 px),
+         puis le bloc de boutons qui accueillait l'action principale. Deux
+         occurrences, ce n'est plus un incident, c'est le modèle.
+         L'assertion pose la règle : **la largeur d'une carte ne bouge pas
+         quand le chrome change.** On mesure une carte, on fait grossir un
+         bloc latéral, on remesure. */
+      if (ecran === "mise en place") {
+        const cartes = await page.evaluate(async () => {
+          const largeur = () => {
+            const c = document.querySelector("#boutique .carte-boutique");
+            return c ? c.getBoundingClientRect().width : 0;
+          };
+          const avant = largeur();
+          /* ON FAIT GROSSIR LE CHROME COMME LA VRAIE VIE LE FAIT : en y
+             AJOUTANT DU CONTENU. Une première version forçait un
+             `min-width` sur le bloc — un instrument plus fort que le
+             réel, qui passe par-dessus le plafond censé être le
+             correctif : la recette serait restée rouge quoi qu'on fasse.
+             Les deux incidents étaient une étiquette et un bouton de
+             plus ; c'est donc ça qu'on injecte. */
+          const bloc = document.querySelector(".bloc-xp");
+          const intrus = document.createElement("button");
+          intrus.textContent = "Un libellé nettement plus long";
+          intrus.style.whiteSpace = "nowrap";
+          bloc.appendChild(intrus);
+          await new Promise((r) => setTimeout(r, 150));
+          const apres = largeur();
+          intrus.remove();
+          await new Promise((r) => setTimeout(r, 150));
+          return { avant, apres, retour: largeur(), nb: document.querySelectorAll("#boutique .carte-boutique").length };
+        });
+        verifier(`${taille.nom} : la largeur d'une carte de boutique ne bouge pas quand le chrome grossit ` +
+          `(${cartes.avant.toFixed(1)} px → ${cartes.apres.toFixed(1)} px avec 40 px de chrome en plus, ` +
+          `${cartes.nb} cartes)`,
+          cartes.nb === 5 && Math.abs(cartes.apres - cartes.avant) < 0.5,
+          `la carte a perdu ${(cartes.avant - cartes.apres).toFixed(1)} px`);
       }
 
       /* LE MOBILIER TIENT DANS SA ZONE (§9.6, décision 64 · P1). Chaque

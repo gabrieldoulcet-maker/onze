@@ -93,6 +93,16 @@
       padding-left: max(10px, env(safe-area-inset-left));
       padding-right: max(10px, env(safe-area-inset-right));
     }
+    /* Discrète mais toujours là : elle ne prend aucune place au chrome
+       (elle se pose au bord), elle ne se coupe pas, et elle reste lisible
+       sur le décor comme tout texte clair posé sur une image. */
+    .estampille {
+      flex: 0 0 auto; align-self: center; margin-left: 4px;
+      font-size: 0.44rem; font-weight: 700; letter-spacing: 0.03em;
+      color: var(--craie-sourde); opacity: 0.72; white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+    }
     .haut .manche-info {
       cursor: pointer; white-space: nowrap; font-weight: 700;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);              /* halo obligatoire */
@@ -751,6 +761,9 @@
        vertical discret — et elle porte son ombre SUR le décor qui passe
        derrière elle, ce qui la détache sans dessiner de boîte. */
     .boutique-barre {
+      /* les deux largeurs de chrome, déclarées UNE fois : ce sont des
+         plafonds, pas des réservations prises sur les cartes */
+      --chrome-gauche: 96px; --chrome-droite: 84px;
       flex: 0 0 auto; display: flex; gap: 6px; align-items: stretch;
       min-height: max(96px, 30vh);
       background: var(--plaque-fond);                          /* matière PLAQUE */
@@ -782,7 +795,21 @@
       color: #1A1405; font-size: 0.58rem; font-weight: 800;
       display: flex; align-items: center; justify-content: center;
     }
-    .bloc-xp { flex: 0 0 96px; display: flex; flex-direction: column; gap: 3px; }
+    /* LA LARGEUR DES CARTES EST RÉSERVÉE EN PREMIER (décision 64 · P1).
+       Le modèle était à l'envers : les deux blocs latéraux avaient une
+       largeur RÉSERVÉE et les cinq cartes prenaient « le reste ». Tout ce
+       qui grossissait sur un côté les rétrécissait donc en silence — deux
+       fois de suite, l'étiquette « chances » (8 px) puis le bloc de
+       boutons de l'action principale (9,7 px). Deux occurrences : ce
+       n'était plus un incident, c'était le modèle.
+       Désormais les deux blocs sont PLAFONNÉS et ne peuvent que se
+       serrer ; ce qui déborde chez eux se replie ou se réduit, jamais aux
+       dépens des cartes. Leur contenu est déjà en polices fluides. */
+    .bloc-xp {
+      flex: 0 1 var(--chrome-gauche); width: var(--chrome-gauche);
+      max-width: var(--chrome-gauche); min-width: 0; overflow: hidden;
+      display: flex; flex-direction: column; gap: 3px;
+    }
     .bloc-xp .niveau-affiche { font-weight: 800; font-size: 0.72rem; color: var(--craie);
       display: flex; justify-content: space-between; align-items: baseline; }
     .bloc-xp .niveau-affiche small { color: var(--craie-sourde); font-weight: 700; font-size: 0.58rem; }
@@ -830,11 +857,20 @@
        de boutique gagnait 54 px et les reprenait au terrain. Une grille
        2 × 2 les loge à hauteur constante. */
     .bloc-droite {
-      flex: 0 0 84px; display: grid; gap: 3px;
-      grid-template-columns: repeat(2, 40px); align-content: start;
+      flex: 0 1 var(--chrome-droite); width: var(--chrome-droite);
+      max-width: var(--chrome-droite); min-width: 0; overflow: hidden;
+      display: grid; gap: 3px;
+      grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start;
     }
     .bloc-droite button { flex: 1; font-size: 0.72rem; }
-    .rangee-boutique { flex: 1; display: flex; gap: 5px; overflow-x: auto; overflow-y: visible; padding-top: 7px; }
+    /* Les cartes prennent tout ce que les plafonds laissent, et ne
+       descendent jamais sous leur plancher : au-delà, c'est la rangée qui
+       défile, pas les cartes qui rétrécissent. */
+    .rangee-boutique {
+      flex: 1 1 auto; min-width: 0; display: flex; gap: 5px;
+      overflow-x: auto; overflow-y: visible; padding-top: 7px;
+    }
+    .rangee-boutique > * { flex: 1 0 var(--l-carte-min, 84px); }
     /* ---- LA CARTE BLASON (DA S1, Lot 3 · 1a) ----
        Hiérarchie stricte : cadre couleur de coût → note-écusson →
        nom penché → pastille de poste → 2 stats signatures →
@@ -1040,7 +1076,22 @@
     .btn-sac { color: var(--or-trophee); font-size: 0.85rem; }
     .boutique-barre.repliee { min-height: 0; padding-top: 6px; }
     .boutique-barre.repliee .rangee-boutique, .boutique-barre.repliee .bloc-xp { display: none; }
-    .boutique-barre.repliee .bloc-droite { flex: 1; flex-direction: row; justify-content: flex-end; }
+    /* REPLIÉE, les boutons reviennent sur UNE ligne. La grille 2 × 2 que
+       le bloc porte en temps normal ignorait cette règle (`display: grid`
+       ne se laisse pas retourner par `flex-direction`) : la barre repliée
+       gardait deux étages et 85 px de haut au lieu d'un seul. */
+    .boutique-barre.repliee .bloc-droite {
+      flex: 1 1 auto; max-width: none; display: flex; flex-direction: row;
+      justify-content: flex-end; align-items: center;
+    }
+    /* REPLIÉE, LE MÉDAILLON PREND SA PLACE DANS LA RANGÉE. Centré en
+       absolu il tenait sur la barre dépliée (haute de 117 px) ; sur la
+       barre repliée d'un petit téléphone il se posait sur un bouton —
+       mesuré : le tap n'arrivait plus. Il redevient un élément de la
+       rangée, à gauche, et rien ne se recouvre. */
+    .boutique-barre.repliee .medaillon-or {
+      position: static; transform: none; align-self: center; margin-right: auto;
+    }
     .boutique-barre.repliee .bloc-droite button { flex: 0 0 auto; padding: 4px 12px; }
 
     /* ---- Drag & drop (pointer events, fantôme en translate3d → 60 fps) ---- */
@@ -1274,6 +1325,11 @@
     <button id="btn-plein-ecran" aria-label="Plein écran"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-plein-ecran"></use></svg></button>
     <button id="btn-recap" class="masque" aria-label="Récapitulatif du match"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-epees"></use></svg></button>
     <button id="btn-vitesse" class="masque" aria-label="Vitesse du match"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-vitesse"></use></svg> ×2</button>
+    <!-- L'ESTAMPILLE. Le bandeau est la zone présente sur TOUTES les
+         captures : une capture dit désormais d'elle-même de quelle
+         version elle date (règle M3 ter). Écrite par
+         outils/estampiller.js, jamais à la main. -->
+    <small class="estampille" id="estampille" title="Version du jeu affichée — à citer avec une capture d'écran"></small>
   </div>
 
   <!-- ===== Centre : synergies | plateau + banc | classement ===== -->
@@ -1361,6 +1417,7 @@
 
   </div><!-- /app -->
 
+  <script src="version.js"></script>
   <script src="donnees-eco.js"></script>
   <script src="match-moteur.js"></script>
   <script src="icones.js"></script>
@@ -1802,6 +1859,16 @@
       const zone = el("file-annonces");
       if (zone) { zone.innerHTML = ""; zone.classList.add("masque"); }
     }
+    /* L'estampille se pose une fois, au démarrage. Si `version.js` manque
+       (dépôt fraîchement cloné, script non estampillé), elle le DIT au
+       lieu de rester vide : une estampille absente est une information. */
+    function poserEstampille() {
+      const zone = el("estampille");
+      if (!zone) return;
+      const v = window.ONZE_VERSION;
+      zone.textContent = v && v.build ? `${v.revision} · ${v.build}` : "version non estampillée";
+    }
+
     function signaler(texte) {
       annoncer(texte, "annonce-message", 2200);
     }
@@ -5056,6 +5123,7 @@
             v === 2 ? "Revenir à la vitesse normale" : "Accélérer le match");
           el("btn-vitesse").innerHTML = `${ONZE_ICONES_SYS.ic("vitesse", 13)} ` + (v === 2 ? "×1" : "×2");
         });
+        poserEstampille();
         if (!restaurer()) { nouvellePartie(); proposerTutoriel(); }
       })
       .catch((e) => {
