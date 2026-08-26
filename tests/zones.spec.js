@@ -198,13 +198,33 @@ async function ouvrir(page) {
 }
 
 (async () => {
-  /* ET ELLE NE PEUT PAS POURRIR EN SILENCE. Une estampille qu'on oublie
-     de refaire est pire que pas d'estampille : elle ment avec autorité.
-     On la compare donc au disque — si un fichier de jeu a été modifié
-     APRÈS elle, elle est périmée et cette recette le dit. C'est le même
-     mécanisme que le dénominateur (M5) : le nombre se lit sur le disque,
-     il ne se tient pas à la main. */
+  /* UNE ESTAMPILLE SE VÉRIFIE CONTRE CE QU'ELLE PRÉTEND NOMMER.
+     Première version : elle affichait une RÉVISION et se vérifiait contre
+     les `mtime` des fichiers — deux choses différentes, et c'est l'écart
+     entre les deux qui l'a laissée passer. Deux défauts en découlaient :
+
+       · un `git pull`, un `checkout`, un `merge` ou un clone réécrivent
+         tous les `mtime` à maintenant. La recette serait sortie ROUGE À
+         TORT après chaque récupération — et j'aurais pris le réflexe de
+         ré-estampiller jusqu'au vert, l'inverse exact d'un garde-fou ;
+       · sur GitHub Pages il n'y a pas de `mtime` du tout : le mécanisme
+         protégeait l'atelier, pas l'artefact que Gabriel photographie,
+         qui est toute la raison de l'estampille.
+
+     L'estampille ne nomme plus qu'UN MOMENT DE FABRICATION. On la vérifie
+     donc contre les dates de commit, qui disent la même chose :
+       · arbre PROPRE — l'estampille doit tomber entre le commit
+         précédent et le commit courant : elle a bien été faite POUR ce
+         commit-là ;
+       · arbre SALE — elle doit être postérieure au dernier commit :
+         elle couvre le travail en cours.
+     Le `mtime` reste imprimé comme signal secondaire ; il ne rend plus le
+     verdict. */
   const racine = path.join(__dirname, "..");
+  const git = (...a) => {
+    const r = require("child_process").spawnSync("git", a, { encoding: "utf8", cwd: racine });
+    return r.status === 0 ? (r.stdout || "").trim() : "";
+  };
   const version = (() => {
     try {
       const brut = fs.readFileSync(path.join(racine, "version.js"), "utf8");
@@ -212,26 +232,39 @@ async function ouvrir(page) {
       return m ? new Date(m[1]) : null;
     } catch (e) { return null; }
   })();
+  const sale = !!git("status", "--porcelain");
+  const dateTete = git("log", "-1", "--format=%cI");
+  const dateParent = git("log", "-1", "--format=%cI", "HEAD~1");
+  const tete = dateTete ? new Date(dateTete) : null;
+  const parent = dateParent ? new Date(dateParent) : new Date(0);
+  /* Une seconde de tolérance : git n'enregistre pas les millisecondes. */
+  const TOLERANCE = 1500;
+  let verdict = false, pourquoi = "";
+  if (!version) pourquoi = "version.js absent — lance « node outils/estampiller.js »";
+  else if (!tete) { verdict = true; pourquoi = "aucun commit : rien à comparer"; }
+  else if (sale) {
+    verdict = version.getTime() >= tete.getTime() - TOLERANCE;
+    pourquoi = verdict ? "" : "l'estampille est antérieure au dernier commit alors que l'arbre porte des modifications";
+  } else {
+    verdict = version.getTime() > parent.getTime() &&
+      version.getTime() <= tete.getTime() + TOLERANCE;
+    pourquoi = verdict ? "" : "l'estampille ne tombe pas dans la fenêtre du commit courant";
+  }
+  // signal secondaire : le fichier de jeu le plus récemment touché
   const fichiersJeu = [];
   for (const f of fs.readdirSync(racine)) {
-    if (f === "version.js") continue;
-    if (/\.(html|css|js)$/.test(f)) fichiersJeu.push(path.join(racine, f));
-  }
-  for (const d of ["design"]) {
-    if (!fs.existsSync(path.join(racine, d))) continue;
-    for (const f of fs.readdirSync(path.join(racine, d))) {
-      if (/\.json$/.test(f)) fichiersJeu.push(path.join(racine, d, f));
-    }
+    if (f !== "version.js" && /\.(html|css|js)$/.test(f)) fichiersJeu.push(path.join(racine, f));
   }
   const plusRecent = fichiersJeu.reduce((max, f) => {
     const t = fs.statSync(f).mtime;
     return t > max.t ? { t, f: path.basename(f) } : max;
   }, { t: new Date(0), f: "—" });
-  const retard = version ? Math.round((plusRecent.t - version) / 1000) : null;
-  verifier(`l'estampille n'est pas périmée (écrite ${version ? version.toISOString().slice(5, 16).replace("T", " ") : "jamais"}, ` +
-    `fichier de jeu le plus récent : ${plusRecent.f} à ${plusRecent.t.toISOString().slice(5, 16).replace("T", " ")})`,
-    !!version && retard <= 0,
-    version ? `${retard} s de retard — relance « node outils/estampiller.js »` : "version.js absent");
+  verifier(`l'estampille nomme bien le build courant ` +
+    `(écrite ${version ? version.toISOString().slice(5, 16).replace("T", " ") : "jamais"}, ` +
+    `arbre ${sale ? "avec modifications" : "propre"}, dernier commit ` +
+    `${tete ? tete.toISOString().slice(5, 16).replace("T", " ") : "—"}` +
+    ` · signal secondaire : ${plusRecent.f} modifié ${plusRecent.t.toISOString().slice(5, 16).replace("T", " ")})`,
+    verdict, pourquoi);
 
   const browser = await chromium.launch({ executablePath: EXECUTABLE, args: ["--no-sandbox"] });
 

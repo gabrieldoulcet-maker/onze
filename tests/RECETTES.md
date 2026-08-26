@@ -40,8 +40,11 @@ livraison qui touche à la scène ou à sa couche la relance **sans l'option**.
 Trois gestes, dans cet ordre, avant tout commit qui part sur `main` :
 
 1. `node outils/estampiller.js` — l'estampille que porte le bandeau du jeu. Une capture
-   d'écran doit dire de quelle version elle date (règle M3 ter). Oublier ce geste **sort
-   rouge** : `zones.spec.js` compare l'estampille au disque.
+   d'écran doit dire de quelle version elle date (règle M3 ter). Elle ne porte **qu'un
+   horodatage** : le script tourne avant le commit qui la contient, donc toute révision
+   affichée serait celle du parent. Oublier ce geste **sort rouge** : `zones.spec.js`
+   compare l'estampille aux **dates de commit** — pas aux `mtime`, qu'un `pull` ou un
+   `checkout` réécrivent tous.
 2. `node tests/lancer-tout.js` — le rapport porte son identifiant de passage, son
    horodatage et la révision. **C'est cette ligne qu'on cite en annonçant un chiffre.**
 3. Le compte rendu recopie la ligne du lanceur, écartées comprises.
