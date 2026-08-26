@@ -87,29 +87,41 @@ async function mesureUne(page, clip, masquer, demasquer) {
    Huit pixels tombent donc entre les deux avec une marge énorme des deux
    côtés : au-dessus du bruit, très loin sous la moindre intrusion.
 
-   CE GARDE-FOU N'EST PAS PROUVÉ, ET IL FAUT LE DIRE (règle M3 : une
-   recette qui ne sort pas rouge sur son défaut n'est pas un garde-fou).
-   Trois contre-tests ont été tentés, trois échecs, pour trois raisons
-   différentes — toutes instructives :
+   CE GARDE-FOU EST PROUVÉ — au quatrième contre-test, et les trois échecs
+   valent d'être gardés parce qu'ils disent pourquoi.
      1. photographier deux fois d'affilée une zone qui clignote : 0 px.
         La capture `animations: "disabled"` FIGE la page, donc deux photos
         consécutives sont identiques par construction ;
-     2. la même chose sans le gel, avec un clignotement par frame : 0 px
-        encore ;
-     3. une annonce plein écran programmée pour arriver au milieu d'une
-        mesure : les deux passes ont rendu le même nombre au pixel près.
-   La fenêtre pendant laquelle une intrusion fausserait la mesure est donc
-   plus étroite que tout ce que j'ai su fabriquer — ce qui est cohérent
-   avec un défaut observé UNE fois sur trois passages, jamais à volonté.
-   Le contrôle est gardé parce qu'il aurait signalé l'incident réel (une
-   passe à 135 %, l'autre à 0, soit des milliers de pixels d'écart) et
-   qu'il ne coûte qu'une mesure de plus. Mais tant qu'il n'est pas vu
-   rouge, il est une PRÉCAUTION, pas une preuve, et il ne doit pas être
-   cité comme telle. */
+     2. la même chose sans le gel, clignotement par frame : 0 px encore ;
+     3. une annonce plein écran programmée au milieu d'une mesure : les
+        deux passes ont rendu le même nombre au pixel près.
+   Les trois couraient après la fenêtre entre deux PHOTOS — étroite, et
+   qu'on ne contrôle pas. Or l'assertion ne promet pas « rien ne bouge
+   entre deux photos », elle promet « la page n'a pas changé entre les
+   deux PASSES ». Le quatrième la met en défaut là où elle est énoncée :
+   on change la page ENTRE les deux passes, franchement et sans course.
+   Relevé : page inerte, écart 0 à 1 px ; page changée entre les deux
+   passes, écart 104 à 462 px.
+   La leçon, plus large que ce fichier : UN CONTRE-TEST SE CONSTRUIT SUR
+   LA PROPRIÉTÉ REVENDIQUÉE, PAS SUR LE SCÉNARIO QUI A RÉVÉLÉ LE DÉFAUT.
+   Et la réserve à garder : cela n'éprouve pas la synchronisation exacte
+   de l'incident d'origine, seulement ce que l'assertion promet.
+   */
 const BRUIT_TOLERE = 8;
 
-async function empreinte(page, clip, masquer, demasquer) {
+/* `entreDeuxPasses` n'existe QUE pour le contre-test : il permet de
+   changer la page ENTRE les deux passes, franchement et sans course.
+   C'est le quatrième contre-test, et le premier qui marche — les trois
+   précédents essayaient d'attraper la fenêtre étroite entre deux photos,
+   qu'on ne contrôle pas. Or la propriété revendiquée n'est pas « rien ne
+   bouge entre deux photos » mais « la page n'a pas changé entre les deux
+   PASSES de la mesure » : on la met donc en défaut là où elle est
+   énoncée. À dire tel quel : ça ne reproduit pas la synchronisation exacte
+   du défaut réel, mais ça éprouve exactement ce que l'assertion promet —
+   ce qu'aucun des trois essais précédents n'a pu faire. */
+async function empreinte(page, clip, masquer, demasquer, entreDeuxPasses) {
   const un = await mesureUne(page, clip, masquer, demasquer);
+  if (entreDeuxPasses) await entreDeuxPasses();
   const deux = await mesureUne(page, clip, masquer, demasquer);
   const ecart = Math.abs(un.pixels - deux.pixels);
   return { inerte: ecart <= BRUIT_TOLERE, ecart, pixels: un.pixels,
