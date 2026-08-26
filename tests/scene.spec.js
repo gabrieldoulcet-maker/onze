@@ -697,6 +697,11 @@ const dette = (nom, ok, quand) => {
      marquage : un match ne donne que cinq appels et sept pressings, et
      une distribution ne se juge pas sur sept points (décision 43). */
   const sacE3 = { hauteurs: [], postures: {}, lignes: [], appels: [], pressings: [], options: [], dureesOption: [] };
+  /* Le FOOTBALL RENDU, en secondes cumulées : c'est le dénominateur du
+     taux de pressing. Un TAUX se stabilise sur le nombre de MATCHS, pas
+     sur le nombre d'épisodes — neuf matchs suffisent là où la
+     distribution en demanderait trente-cinq. */
+  let secondesRendues = 0;
   /* La durée des temps forts se cumule elle aussi : un match ne rend
      parfois qu'UN grand format, et une moyenne sur un point n'est pas
      une moyenne (décision 43). */
@@ -718,6 +723,7 @@ const dette = (nom, ok, quand) => {
     sacMarquage.matchs++;
     sacPorteur.push(...(releve.relevesPorteurSimule || []));
     sacFormats.push(...(releve.tempsFortsMs || []));
+    secondesRendues += (releve.duree || 0) / 1000;
     if (releve.etape3) {
       for (const k of ["hauteurs", "lignes", "appels", "pressings", "options", "dureesOption"]) {
         sacE3[k].push(...(releve.etape3[k] || []));
@@ -1309,10 +1315,28 @@ const dette = (nom, ok, quand) => {
      ce serait 58,7 % — et l'écrire ici serait la même faute que
      comparer à 2,61 m.) La population est nommée DANS LE LIBELLÉ, parce
      que c'est là qu'on la relit quand la ligne sort rouge. */
+  /* LA DENSITÉ : DÉCIDABLE AUJOURD'HUI, ET ELLE COÛTE ZÉRO MINUTE.
+     On ne peut pas encore mesurer si le pressing ferme assez près — il y
+     faudrait 120 épisodes, donc ~35 matchs. Mais on peut mesurer dès
+     maintenant s'il y en a ASSEZ, parce qu'un TAUX se stabilise sur le
+     nombre de matchs et non sur le nombre d'épisodes.
+     La référence : 6 306 épisodes ≥ 1 s sur dix matchs, soit 630,6 par
+     match et **7,01 par minute** de football. Sur nos ~49 s rendues par
+     match, cela fait 5,7 épisodes attendus.
+     ET C'EST UNE BORNE BASSE, plus dure qu'elle n'en a l'air : les
+     secondes que nous rendons sont des TEMPS FORTS, choisis pour être
+     les moments chauds — récupérations, ruptures, frappes — donc plus
+     riches en pressing qu'une minute moyenne de match. L'assertion est
+     donc à SENS UNIQUE : au-dessus de la référence tout va bien, en
+     dessous le pressing manque. */
+  const tauxMin = secondesRendues > 0 ? (PMin.length / secondesRendues) * 60 : 0;
+  dette(`Étape 3 — il y a ASSEZ de pressing : ${tauxMin.toFixed(1)} épisode(s) ≥ 1 s par minute de football rendu (référence 7,01/min — 6 306 épisodes ≥ 1 s sur 10 matchs, et c'est une BORNE BASSE puisque nous ne rendons que des temps forts ; plancher 5,96 = −15 %) sur ${secondesRendues.toFixed(0)} s rendues`,
+    secondesRendues >= 200 && tauxMin >= 7.01 * 0.85,
+    "ÉCHÉANCE étape 4 — la moitié des pions est tenue par la chorégraphie, donc indisponible pour presser ; les gabarits les libèrent. Le rendement mesuré est une LIVRAISON de l'étape 4, pas une conséquence à espérer");
   const sous3 = PMin.length ? PMin.filter((v) => v <= 3).length / PMin.length : 0;
   dette(`Étape 3 — le pressing ferme vraiment : ${Math.round(sous3 * 100)} % des épisodes ≥ 1 s ferment sous 3 m (référence 65,9 % SUR CETTE MÊME POPULATION — 58,7 % serait celle de la population entière ; ±15 %) — ${PMin.length} épisodes, médiane ${q(PMin, 0.5).toFixed(1)} m contre 2,27`,
     PMin.length >= 120 && ecart(sous3, 0.659) <= 0.15,
-    `ÉCHÉANCE étape 4 — et l'échantillon BLOQUE la décision : ${PMin.length} épisodes ici, il en faut 120 pour que le bruit (±10,7 %) passe sous la tolérance. Mesuré : 3,4 épisodes par match, donc ~35 matchs — voir tests/RECETTES.md`);
+    `DÉCLENCHEUR : le RENDEMENT, pas la date. Cette dette redevient une assertion le jour où le rendement permet 120 épisodes DANS LE BUDGET DE LA RECETTE — ${PMin.length} ici pour ${sacMarquage.matchs} match(s), soit ${(PMin.length / Math.max(1, sacMarquage.matchs)).toFixed(1)}/match ; il en faudrait ${Math.ceil(120 / Math.max(0.1, PMin.length / Math.max(1, sacMarquage.matchs)))}. Une échéance en « étape 4 » arriverait pendant que le rendement stagne, et personne ne le remarquerait — voir tests/RECETTES.md`);
   /* 6. UNE OPTION EST UN ÉVÉNEMENT COURT. C'est la propriété qui
      distingue la bonne définition de la mauvaise : « un coéquipier à
      portée » reste disponible des dizaines de secondes, une option née

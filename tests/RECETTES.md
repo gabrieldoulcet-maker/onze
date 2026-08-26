@@ -62,7 +62,26 @@ du mobilier ; un rouge sans cible ne dit pas quand il sera payé.
 | Dette | Mesuré | Cible | Échéance |
 |---|---|---|---|
 | 1 à 3 options de passe ouvertes | 45-66 % des passes | **88 %** (médiane 2) | étape 4 |
-| Part des pressings fermant sous 3 m | 54 % | **65,9 %** (épisodes ≥ 1 s, ±15 %) | étape 4 — *bloquée par l'échantillon : 120 épisodes nécessaires, 31 disponibles* |
+| Part des pressings fermant sous 3 m | 48-56 % | **65,9 %** (épisodes ≥ 1 s, ±15 %) | *quand le rendement permettra 120 épisodes dans le budget de la recette* |
+| Densité de pressing | 5,1 /min de football rendu | **7,01 /min** (borne basse) | étape 4 |
+
+### Ce qu'on peut mesurer quand on ne peut pas encore mesurer
+
+On ne peut pas encore dire si le pressing **ferme assez près** — il y faudrait 120 épisodes,
+donc ~35 matchs. On peut dire dès aujourd'hui s'il y en a **assez**, parce qu'un **taux se
+stabilise sur le nombre de MATCHS**, pas sur le nombre d'épisodes : neuf suffisent.
+
+Référence : 6 306 épisodes ≥ 1 s sur dix matchs = 630,6 par match = **7,01 par minute** de
+football. Et c'est une **borne basse**, plus dure qu'elle n'en a l'air : les secondes que la
+scène rend sont des **temps forts**, choisis pour être les moments chauds — récupérations,
+ruptures, frappes — donc plus riches en pressing qu'une minute moyenne. L'assertion est donc
+à sens unique : au-dessus, tout va bien ; en dessous, le pressing manque.
+
+**Mesuré : 5,1 épisode/minute sur 368 s rendues** — 27 % sous une borne basse. Il n'y a pas
+assez de pressing, et ce garde-fou coûte **zéro minute de recette en plus**. Cause probable :
+la moitié des pions est tenue par la chorégraphie pendant un temps fort, donc indisponible
+pour presser — c'est l'étape 4 qui les libère. **Le rendement remesuré est une livraison de
+l'étape 4**, un chiffre à rendre, pas une conséquence à espérer.
 
 ### Le pressing : la dette change d'instrument, et son blocage est l'ÉCHANTILLON
 
