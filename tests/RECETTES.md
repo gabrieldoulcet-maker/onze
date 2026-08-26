@@ -1,6 +1,6 @@
 # Les recettes d'ONZE — le dénominateur
 
-**19 fichiers de recette.** Ce nombre est le dénominateur de « suite complète
+**20 fichiers de recette.** Ce nombre est le dénominateur de « suite complète
 verte » : une livraison le cite, et un écart entre le nombre cité et le nombre sur le
 disque est un **échec de livraison**, pas un détail de rédaction (règle M5).
 
@@ -59,6 +59,7 @@ Deux garde-fous, complémentaires :
 
 | Recette | Ce qu'elle garde |
 |---|---|
+| `tests/carnet.spec.js` | le carnet façon TFT — **dette déclarée, rouge jusqu'à la livraison du §6** |
 | `tests/accueil.spec.js` | la home : contraste de chaque texte, invite d'installation, matière des composants |
 | `tests/achat.spec.js` | l'achat au tap, l'appui long, la modale de première partie |
 | `tests/da.spec.js` | la direction artistique : luminosité des illustrations, arène, épuration |
@@ -92,6 +93,7 @@ du mobilier ; un rouge sans cible ne dit pas quand il sera payé.
 
 | Dette | Mesuré (cumul) | Cible | Échéance |
 |---|---|---|---|
+| Le carnet façon TFT (`carnet.spec.js`, §6) | **14 échecs sur 14 contrats** | les 6 contrats verts : 30 joueurs vus d'un coup, filtre permanent sans rechargement, détail sans quitter la grille, rangement par coût en colonnes, École cliquable, épinglage conservé | **sa livraison (§6)** |
 | 1 à 3 options de passe ouvertes | **53 %** sur 142 passes | **88 %** (médiane 2) | étape 4 |
 | Densité de pressing | **5,50/min** sur 2 150 s · 197 épisodes pour 251 attendus | **7,01/min** (borne basse) | étape 4 |
 | Part des pressings fermant sous 3 m | **53 %** sur 197 épisodes — *n ≥ 160 atteint, la dette est DÉMONTRÉE* | **65,9 %** (épisodes ≥ 1 s) | étape 4 |
