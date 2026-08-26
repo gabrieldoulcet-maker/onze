@@ -20,6 +20,7 @@
    Usage : NODE_PATH=<scratchpad>/node_modules node tests/rendu.spec.js
    ============================================================ */
 const { chromium } = require("playwright-core");
+const MESURE = require("./outils-mesure.js");
 const EXECUTABLE = process.env.CHROME || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 const TAILLES = [{ nom: "grand téléphone", l: 844, h: 390 }, { nom: "pire cas", l: 667, h: 320 }];
 
@@ -115,14 +116,19 @@ const ECART_PIXEL = 24;          // un pixel « a changé » au-delà de cet éc
    figurine du fond, 20 × 30 px) en couvre un bon tiers ; le contre-test
    plus bas vérifie qu'une silhouette absente tombe, elle, à zéro. */
 const PART_MINIMALE = 0.125;
-/* LES ANNONCES SE TAISENT PENDANT UNE MESURE DE PIXELS. Depuis que les
-   six canaux d'annonce passent par une file unique, celle-ci se pose sous
-   le bandeau — donc AU-DESSUS du terrain. Une annonce qui arrive entre
-   les deux photos fait changer des pixels qui n'ont rien à voir avec le
-   joueur mesuré : le contre-test « silhouette retirée » a relevé 135 %
-   une fois sur trois là où la valeur vraie est 0.
-   C'est la même famille que le gel des animations (décision 59) : deux
-   photos d'une page qui bouge mesurent le temps qui passe. */
+/* LA PRÉCONDITION D'INERTIE, écrite une fois dans tests/outils-mesure.js.
+   Trois fois une mesure différentielle a été faussée par quelque chose
+   qui bougeait — l'aura des légendaires, puis une annonce qui traverse le
+   cadre (135 % relevé là où la valeur vraie est 0, une fois sur trois).
+   On ne peut pas énumérer ce qui bouge : avant CHAQUE mesure, on
+   photographie deux fois la même zone sans rien changer et on exige une
+   différence de zéro. Ce qui suit ne s'exécute que sur une page inerte,
+   et un écart est NOMMÉ en pixels au lieu de contaminer un chiffre. */
+let bruitsDeFond = [];
+/* Faire taire les annonces reste le CORRECTIF — la file d'annonces se pose
+   sous le bandeau, donc au-dessus du terrain. La précondition n'est pas là
+   pour le remplacer mais pour attraper ce qu'on n'a pas prévu : elle est
+   contre-testée en retirant cette ligne. */
 async function taireAnnonces(page) {
   await page.evaluate(() => {
     if (typeof viderAnnonces === "function") viderAnnonces();
@@ -132,31 +138,13 @@ async function taireAnnonces(page) {
 
 async function empreinteVisuel(page, indice, zone) {
   await taireAnnonces(page);
-  const masquer = (n, v) => page.evaluate(([k, etat]) => {
-    const j = document.querySelectorAll(".ligne-terrain .jeton")[k];
+  const masquer = (v) => page.evaluate(([n, etat]) => {
+    const j = document.querySelectorAll(".ligne-terrain .jeton")[n];
     if (j) j.querySelectorAll("img.frontale, svg.frontale").forEach((e) => { e.style.visibility = etat; });
-  }, [n, v]);
-  const avec = (await page.screenshot({ clip: zone, animations: "disabled" })).toString("base64");
-  await masquer(indice, "hidden");
-  const sans = (await page.screenshot({ clip: zone, animations: "disabled" })).toString("base64");
-  await masquer(indice, "");
-  const r = await page.evaluate(async ([a, b, seuil]) => {
-    const lire = async (b64) => {
-      const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode();
-      const c = document.createElement("canvas"); c.width = im.width; c.height = im.height;
-      const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(im, 0, 0);
-      return { d: g.getImageData(0, 0, c.width, c.height).data, L: c.width };
-    };
-    const [x, y] = [await lire(a), await lire(b)];
-    let n = 0, sx = 0, sy = 0;
-    for (let i = 0; i < x.d.length; i += 4) {
-      const e = Math.max(Math.abs(x.d[i] - y.d[i]), Math.abs(x.d[i + 1] - y.d[i + 1]),
-        Math.abs(x.d[i + 2] - y.d[i + 2]));
-      if (e > seuil) { const p = i / 4; n++; sx += p % x.L; sy += Math.floor(p / x.L); }
-    }
-    return { pixels: n, cx: n ? sx / n : 0, cy: n ? sy / n : 0 };
-  }, [avec, sans, ECART_PIXEL]);
-  return { pixels: r.pixels, centre: { x: zone.x + r.cx, y: zone.y + r.cy } };
+  }, [indice, v]);
+  const r = await MESURE.empreinte(page, zone, () => masquer("hidden"), () => masquer(""));
+  if (!r.inerte) bruitsDeFond.push(`joueur ${indice} : ${r.ecart} px d'écart entre deux mesures identiques`);
+  return { pixels: r.pixels, centre: r.centre };
 }
 
 (async () => {
@@ -474,6 +462,20 @@ async function empreinteVisuel(page, indice, zone) {
       `${(pireAnonyme * 100).toFixed(0)} % des pixels qu'il peint — plancher ${(PART_ANONYME * 100).toFixed(0)} %)`,
       partsAnonymes.length >= 3 && faibles === 0,
       `${faibles} sous le plancher · relevés ${partsAnonymes.map((p) => Math.round(p * 100) + " %").join(" · ")}`);
+
+    /* LE CONTRE-TEST DE LA PRÉCONDITION, FABRIQUÉ ET NON ATTENDU. Le
+       défaut d'origine sortait une fois sur trois ; trois passages verts
+       ne prouvent donc rien. On provoque la condition : une annonce est
+       posée sur la zone, et `zoneInerte` doit la voir bouger. Sans ça, la
+       précondition serait un décor. */
+    /* LA PRÉCONDITION D'INERTIE EST UN VERDICT, pas une note de bas de
+       page : si deux mesures identiques n'ont pas donné le même nombre,
+       la page bougeait et TOUS les chiffres de cette recette sont
+       suspects — on le dit au lieu de les publier. */
+    verifier(`${taille.nom} : deux mesures identiques donnent le même nombre ` +
+      `(${bruitsDeFond.length} mesure(s) prise(s) sur une page qui bougeait)`,
+      bruitsDeFond.length === 0, bruitsDeFond.slice(0, 3).join(" | "));
+    bruitsDeFond = [];
 
     verifier(`${taille.nom} : zéro erreur JS`, erreursJS.length === 0, erreursJS.slice(0, 2).join(" | "));
     await page.close();

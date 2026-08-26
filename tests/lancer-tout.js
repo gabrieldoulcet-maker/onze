@@ -20,6 +20,25 @@ const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 
+/* UNE SUITE QUI NE PEUT PAS TOURNER NE PRODUIT PAS DE CHIFFRE.
+   J'ai annoncé « 2/18 vertes » sur un passage de 14 secondes : le serveur
+   local était tombé, et chaque recette échouait à la première navigation.
+   Ce n'était pas un résultat de test, c'était une panne d'environnement
+   rapportée comme un score — et un zéro ne ressemble à un « impossible de
+   mesurer » que pour qui lit vite. Le temps de passage me l'a montré,
+   mais à l'œil, et cette fois-là. On ne se fie pas à ce qu'on remarquera :
+   on ping le serveur avant de commencer, et on s'arrête net. */
+const ping = spawnSync("curl", ["-s", "-o", "/dev/null", "-w", "%{http_code}",
+  "--max-time", "5", "http://localhost:8123/partie.html"], { encoding: "utf8" });
+if ((ping.stdout || "").trim() !== "200") {
+  console.error(`\nIMPOSSIBLE DE MESURER — le serveur local ne répond pas ` +
+    `(http://localhost:8123 → ${(ping.stdout || "aucune réponse").trim()}).`);
+  console.error(`Lance-le d'abord :  python3 -m http.server 8123`);
+  console.error(`Aucun chiffre n'est produit : une suite qui ne peut pas tourner n'a pas de score.\n`);
+  process.exit(2);
+}
+
+
 const dossier = __dirname;
 const sauf = (process.argv.find((a) => a.startsWith("--sauf=")) || "").slice(7)
   .split(",").map((s) => s.trim()).filter(Boolean);
