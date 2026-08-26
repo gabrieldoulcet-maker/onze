@@ -1,6 +1,6 @@
 # Les recettes d'ONZE — le dénominateur
 
-**21 fichiers de recette.** Ce nombre est le dénominateur de « suite complète
+**23 fichiers de recette.** Ce nombre est le dénominateur de « suite complète
 verte » : une livraison le cite, et un écart entre le nombre cité et le nombre sur le
 disque est un **échec de livraison**, pas un détail de rédaction (règle M5).
 
@@ -61,6 +61,8 @@ Deux garde-fous, complémentaires :
 |---|---|
 | `tests/carnet.spec.js` | le carnet façon TFT : 30 joueurs vus d'un coup, aucun nom coupé, colonnes par coût, filtre permanent, détail à côté de la grille, épinglage |
 | `tests/quetes-lien.spec.js` | le lien quête ↔ joueur : aucune quête muette, la relation symétrique dans les deux sens, la fiche qui liste ses quêtes, le retour cliquable |
+| `tests/quetes.spec.js` | les quêtes hors de la colonne (§10) : accès dans le bandeau, cible à 26 px, pastille des quêtes prêtes, panneau qui tient dans son cadre |
+| `tests/lanceur.spec.js` | le verrou du lanceur : un seul passage à la fois, sinon un rapport mélange deux passages |
 | `tests/accueil.spec.js` | la home : contraste de chaque texte, invite d'installation, matière des composants |
 | `tests/achat.spec.js` | l'achat au tap, l'appui long, la modale de première partie |
 | `tests/da.spec.js` | la direction artistique : luminosité des illustrations, arène, épuration |
@@ -92,12 +94,28 @@ promeuve en vraie assertion.
 **Une dette porte une échéance ET sa cible chiffrée.** Un rouge toléré sans date devient
 du mobilier ; un rouge sans cible ne dit pas quand il sera payé.
 
+**Le poids à l'ouverture, en clair.** Le dépassement est ANTÉRIEUR à la livraison du
+carnet : le pire tirage pesait déjà ≈ 1 553 Ko avant elle, et les 27 Ko de source
+ajoutés (carnet, lien quête ↔ joueur, quêtes du bandeau) l'ont porté à ≈ 1 580.
+L'assertion ne le voyait pas parce qu'elle mesurait **le tirage du jour** : six
+ouvertures d'affilée ont donné 1 359, 1 456, 1 467, 1 468, 1 502 et 1 516 Ko — même
+code, verdict aux dés. Elle mesure maintenant le pire tirage, calculé : **1 580 Ko à
+six passages sur six**, pendant que le tirage du jour continue d'osciller entre 1 433
+et 1 511. Elle sort rouge tout le temps au lieu d'une fois sur trois.
+
+La cause tient en un fichier : **`match-scene.js` pèse 130 Ko et se télécharge à
+l'ouverture alors qu'il ne sert qu'au coup d'envoi.** Le différer suffit à repasser
+sous le plafond (≈ 1 450 Ko). Ce fichier appartient à la **conversation scène**
+(`design/contrat-scene.md`) et le différer touche la voie du match : ce n'est pas une
+retouche à glisser en fin de livraison.
+
 | Dette | Mesuré (cumul) | Cible | Échéance |
 |---|---|---|---|
 | 1 à 3 options de passe ouvertes | **53 %** sur 142 passes | **88 %** (médiane 2) | étape 4 |
 | Densité de pressing | **5,50/min** sur 2 150 s · 197 épisodes pour 251 attendus | **7,01/min** (borne basse) | étape 4 |
 | Part des pressings fermant sous 3 m | **53 %** sur 197 épisodes — *n ≥ 160 atteint, la dette est DÉMONTRÉE* | **65,9 %** (épisodes ≥ 1 s) | étape 4 |
 | Dispersion des pressings entre matchs | 0,64 à 1,16 selon le cumul | **≈ 1,05** (le vrai football : 5,56 sur des matchs entiers) | étape 4 — *la seule qui se mesure sur n = MATCHS* |
+| Poids à l'ouverture, PIRE tirage (`da.spec.js`) | **1 580 Ko**, six passages sur six (socle 1 208 + les 5 key arts les plus lourds 372) | **≤ 1 500 Ko** | la livraison qui différera `match-scene.js` |
 
 ### Ce que le cumul a changé, en chiffres
 

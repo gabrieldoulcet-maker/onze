@@ -25,10 +25,21 @@ const EXECUTABLE = process.env.CHROME || "/opt/pw-browsers/chromium-1194/chrome-
    + les 5 titulaires de départ en UNITÉ + OMBRE (5 × 71 Ko = 355 Ko —
      c'est ce que ce lot ajoute : l'unité pèse 60 Ko, son ombre 11)
    + une figurine de remplaçant (71 Ko) ≈ 1390 Ko.
-   Le poids n'est PAS un nombre fixe : il dépend des 5 cartes tirées.
-   Mesuré sur six ouvertures : 1276 à 1412 Ko en densité 1, 1407 à 1532 en
-   densité 2. Le plafond borne le PIRE tirage, jamais le tirage moyen.
-   Le reste des 14 Mo de visuels ne se charge QUE quand il s'affiche. */
+   Le reste des 14 Mo de visuels ne se charge QUE quand il s'affiche.
+
+   CE QUI A CHANGÉ, ET POURQUOI. Cette assertion mesurait le tirage DU
+   JOUR : six ouvertures d'affilée ont donné 1359, 1456, 1467, 1468, 1502
+   et 1516 Ko — même code, même plafond, verdict tiré aux dés. Une
+   assertion qui répond vert ou rouge selon la boutique du moment ne
+   mesure pas le produit : elle mesure la chance, et elle finit par être
+   crue le jour où elle a tort. Le plafond a toujours dit borner le PIRE
+   tirage — on mesure donc le pire tirage, au lieu d'espérer le rencontrer.
+
+   Le pire tirage se calcule : on retire du total les key arts des 5
+   cartes réellement tirées, ce qui donne le SOCLE (scripts, CSS, page,
+   polices, tables, décor, figurines de départ) ; on y rajoute les 5 key
+   arts les plus lourds du roster, mesurés par requête HEAD. Le nombre ne
+   dépend plus d'aucun tirage. */
 const PLAFOND_OUVERTURE_KO = 1500;
 
 let echecs = 0;
@@ -50,14 +61,25 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
 
   // ---- 6. le poids réellement téléchargé jusqu'à l'écran de mercato ----
   let octets = 0;
-  page.on("response", async (r) => {
+  let sansTaille = 0;
+  const parChemin = new Map();
+  /* Écouteur SYNCHRONE : la version précédente attendait `r.body()`, et les
+     réponses dont la promesse retombait après la fin de la mesure n'étaient
+     pas comptées — d'où un socle qui variait de 72 Ko d'un passage à l'autre
+     sans qu'un octet ait bougé sur le disque. Le serveur envoie toujours
+     content-length ; on le lit, et on compte à part ce qui n'en a pas plutôt
+     que de faire semblant de l'avoir mesuré. */
+  page.on("response", (r) => {
     try {
       const t = (r.headers()["content-type"] || "");
-      if (/image|font|javascript|css|json|html/.test(t)) {
-        const l = Number(r.headers()["content-length"] || 0);
-        octets += l || (await r.body().catch(() => Buffer.alloc(0))).length;
-      }
-    } catch (e) { /* réponse déjà consommée : ignorée */ }
+      if (!/image|font|javascript|css|json|html/.test(t)) return;
+      const l = Number(r.headers()["content-length"] || 0);
+      if (!l) { sansTaille++; return; }
+      octets += l;
+      // décodé : « Sékou » arrive en %C3%A9 dans l'URL, et une clé encodée
+      // ne retrouve jamais le chemin que ONZE_PORTRAITS rend en clair
+      parChemin.set(decodeURIComponent(new URL(r.url()).pathname).replace(/^\//, ""), l);
+    } catch (e) { sansTaille++; }
   });
 
   await page.addInitScript(() => { try { localStorage.setItem("onze-tutoriel-vu", "1"); } catch (e) {} });
@@ -66,8 +88,30 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
   await page.evaluate(() => { arreterChrono(); });
   await page.waitForTimeout(1200);          // laisse les visuels visibles arriver
   const ko = Math.round(octets / 1024);
-  verifier(`poids à l'ouverture : ${ko} Ko ≤ ${PLAFOND_OUVERTURE_KO} Ko (plafond annoncé)`,
-    ko <= PLAFOND_OUVERTURE_KO, `${ko} Ko`);
+  /* Le pire tirage, calculé : socle + les 5 key arts les plus lourds du
+     roster. Aucun dé dans le verdict. */
+  /* DÉDOUBLONNÉ : la boutique peut tirer deux fois le même joueur, et son
+     key art n'est alors téléchargé qu'une fois. Le soustraire deux fois
+     amputait le socle de 72 Ko une fois sur cinq. */
+  const tire = [...new Set(await page.evaluate(() =>
+    partie.boutique.map((f) => f && ONZE_PORTRAITS.carte(f)).filter(Boolean)))];
+  const octetsTires = tire.reduce((t, c) => t + (parChemin.get(c.replace(/^\//, "")) || 0), 0);
+  const socle = octets - octetsTires;
+  const cheminsRoster = await page.evaluate(() =>
+    [...new Set(tousLesJoueurs.map((j) => ONZE_PORTRAITS.carte(j)).filter(Boolean))]);
+  const poidsRoster = [];
+  for (const c of cheminsRoster)
+    poidsRoster.push(await page.evaluate((u) =>
+      fetch(u, { method: "HEAD" }).then((x) => Number(x.headers.get("content-length") || 0)).catch(() => 0), c));
+  poidsRoster.sort((a, b) => b - a);
+  const cinqPires = poidsRoster.slice(0, 5).reduce((t, v) => t + v, 0);
+  const koPire = Math.round((socle + cinqPires) / 1024);
+  verifier(`toutes les réponses ont été pesées (${sansTaille} sans content-length)`,
+    sansTaille === 0, `${sansTaille} réponse(s) non mesurée(s) : le poids annoncé serait sous-estimé`);
+  verifier(`poids à l'ouverture, PIRE tirage : ${koPire} Ko ≤ ${PLAFOND_OUVERTURE_KO} Ko ` +
+    `(socle ${Math.round(socle / 1024)} Ko + les 5 key arts les plus lourds ${Math.round(cinqPires / 1024)} Ko ; ` +
+    `le tirage du jour pesait ${ko} Ko)`,
+    koPire <= PLAFOND_OUVERTURE_KO, `${koPire} Ko`);
 
   // pas de compte figé : ce qui doit tenir, c'est que TOUT le roster ait un visage
   const couverture = await page.evaluate(() => ({

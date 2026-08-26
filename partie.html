@@ -287,7 +287,9 @@
     .col-synergies .badge { display: block; text-align: left; font-size: 0.6rem; padding: 3px 5px; }
     .col-synergies .mini-adn { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
     /* La bascule du panneau gauche (façon hexagone TFT) : synergies+ADN
-       ⇄ staff+quêtes — les panneaux se REMPLACENT au lieu de s'empiler */
+       ⇄ staff — les panneaux se REMPLACENT au lieu de s'empiler.
+       Les quêtes ont quitté cette page (§10) : elles ont leur bouton
+       dans le bandeau du haut. */
     #btn-bascule-gauche { background: var(--surface-1); color: var(--craie-claire); border: 1px solid var(--ligne);
       border-radius: 6px; font-size: 0.6rem; padding: 2px; cursor: pointer; margin-top: 2px; }
     #page-staff { margin-top: 4px; }
@@ -1321,6 +1323,12 @@
       </div>
       <small class="chrono-libelle masque" id="chrono-libelle">mercato · <span id="chrono-secondes">0</span> s</small>
     </div>
+    <!-- LES QUÊTES SORTENT DE LA COLONNE (§10) : elles vivaient
+         derrière la bascule d'une colonne de 17 % de large, donc on
+         ne les regardait jamais. Elles ont maintenant leur accès dans
+         le bandeau, à côté du carnet, et la pastille dit combien sont
+         PRÊTES à tomber — sans qu'on ouvre quoi que ce soit. -->
+    <button id="btn-quetes" aria-label="Les quêtes d'Icônes"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-cible"></use></svg><span class="pastille-quetes masque">0</span></button>
     <button id="btn-calepin" aria-label="Le calepin du recruteur"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-calepin"></use></svg></button>
     <button id="btn-plein-ecran" aria-label="Plein écran"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-plein-ecran"></use></svg></button>
     <button id="btn-recap" class="masque" aria-label="Récapitulatif du match"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-epees"></use></svg></button>
@@ -1336,13 +1344,12 @@
   <div class="centre">
     <div class="col-synergies">
       <button id="btn-legende" style="background:var(--surface-1);color:var(--craie-sourde);border:1px solid var(--ligne);border-radius:6px;font-size:0.6rem;padding:2px;cursor:pointer">？ Légende</button>
-      <button id="btn-bascule-gauche" aria-label="Basculer entre synergies et staff"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-staff"></use></svg> Staff · <svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-cible"></use></svg></button>
+      <button id="btn-bascule-gauche" aria-label="Basculer entre synergies et staff"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-staff"></use></svg> Staff</button>
       <div id="page-synergies">
         <div id="synergies-club"></div>
       </div>
       <div id="page-staff" class="masque">
         <div id="inventaire-staff" style="display:flex;flex-direction:column;gap:3px"></div>
-        <div id="quetes-liste" style="margin-top:6px;display:flex;flex-direction:column;gap:3px"></div>
         <!-- l'ADN du club rejoint la page escamotable : la colonne
              flottante ne porte QUE les synergies (phase 1 du brief) -->
         <div class="mini-adn" id="axes-adn"></div>
@@ -3414,7 +3421,7 @@
       el("page-synergies").classList.toggle("masque", !versStaff);
       el("page-staff").classList.toggle("masque", versStaff);
       el("btn-bascule-gauche").innerHTML = versStaff
-        ? `${ONZE_ICONES_SYS.ic("staff", 13)} Staff${partie.staff.length ? " (" + partie.staff.length + ")" : ""} · ${ONZE_ICONES_SYS.ic("cible", 13)} quêtes`
+        ? `${ONZE_ICONES_SYS.ic("staff", 13)} Staff${partie.staff.length ? " (" + partie.staff.length + ")" : ""}`
         : "✦ Synergies · ADN";
     }
 
@@ -3935,7 +3942,7 @@
     let dernierMatch = null; // { resultat, eqA, eqB } — pour le recap ⚔️
     let sceneMatch = null; // la scène animée du match (match-scene.js)
     let synergiesConnues = null; // paliers déjà célébrés (pour le son)
-    let pageGauche = "synergies"; // la bascule du panneau gauche (⇄ staff/quêtes)
+    let pageGauche = "synergies"; // la bascule du panneau gauche (⇄ staff)
     try { modeDetente = localStorage.getItem(CLE_DETENTE) === "1"; } catch (e) {}
     const chrono = { restant: 0, total: 0, intervalle: null, action: null, dernierBip: -1 };
     let contexteAudio = null;
@@ -4673,12 +4680,10 @@
             <div class="barre-prestige"><div style="width:${Math.round(100 * c.prestige / PRESTIGE_DEPART)}%"></div></div></div>`;
         }).join("");
 
-      // Les quêtes en colonne gauche (tap = détail)
-      el("quetes-liste").innerHTML = partie.quetesVisibles.map((id) => {
-        const icone = ONZE_ICONES.parId(id);
-        let progres = ""; try { progres = icone.progression(partie, apercu); } catch (e) {}
-        return `<span class="badge inactif" style="cursor:pointer;display:block;text-align:left" onclick="voletQuetes()">🎯 ${icone.nom}<br><small style="color:#9CC4EF">${progres}</small></span>`;
-      }).join("");
+      /* §10 : plus de liste de quêtes dans la colonne. Le bandeau
+         porte une pastille qui dit combien sont PRÊTES à tomber —
+         c'est la seule chose qu'on ait besoin de savoir sans ouvrir. */
+      majPastilleQuetes(apercu);
       ONZE_LIEN.memoriserApercu(apercu); // les fiches liront la même progression
       verifierQuetes(apercu);
       majBasculeGauche();
@@ -4715,6 +4720,26 @@
       annoncer(`✨ ${icone.nom} ${icone.duo ? "arrivent" : "arrive"} au club ! ✨<br><small>${icone.identite}</small>`,
         "fusion-banniere", 3000);
       afficher();
+    }
+
+    /* La pastille du bandeau : le nombre de quêtes actives PRÊTES à
+       tomber. Zéro prête = pastille éteinte, bouton discret ; sinon
+       le bouton s'allume. Une récompense qui attend sans le dire est
+       une récompense ratée. */
+    function majPastilleQuetes(apercu) {
+      const bouton = el("btn-quetes");
+      if (!bouton) return;
+      ONZE_LIEN.memoriserApercu(apercu);
+      const pretes = partie.quetesVisibles.filter((id) => {
+        const q = ONZE_ICONES.parId(id);
+        return q && ONZE_LIEN.estDebloquee(q);
+      }).length;
+      const p = bouton.querySelector(".pastille-quetes");
+      if (p) { p.textContent = String(pretes); p.classList.toggle("masque", pretes === 0); }
+      bouton.classList.toggle("pretes", pretes > 0);
+      bouton.setAttribute("aria-label", pretes
+        ? `Les quêtes d'Icônes — ${pretes} prête${pretes > 1 ? "s" : ""} à tomber`
+        : "Les quêtes d'Icônes");
     }
 
     /* ================= Les quêtes d'Icônes (design/icones.md) ================= */
@@ -5257,6 +5282,7 @@
         el("btn-historique").addEventListener("click", ouvrirClassement);
         el("btn-legende").addEventListener("click", ouvrirLegende);
         el("btn-calepin").addEventListener("click", ouvrirCalepin);
+        el("btn-quetes").addEventListener("click", voletQuetes);
         el("btn-recap").addEventListener("click", () => {
           if (dernierMatch) ONZE_UI.ouvrirRecap(dernierMatch.resultat, dernierMatch.eqA, dernierMatch.eqB,
             { enCours: partie.matchEnCours }); // en direct : zéro spoiler
@@ -5276,7 +5302,7 @@
         for (const id of ["onglet-gauche", "onglet-droite"]) {
           el(id).addEventListener("click", () => el("app").classList.toggle("colonnes-rappelees"));
         }
-        // Bascule du panneau gauche : synergies+ADN ⇄ staff+quêtes
+        // Bascule du panneau gauche : synergies+ADN ⇄ staff
         el("btn-bascule-gauche").addEventListener("click", () => {
           pageGauche = pageGauche === "synergies" ? "staff" : "synergies";
           majBasculeGauche();

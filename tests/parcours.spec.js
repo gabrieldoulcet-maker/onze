@@ -127,20 +127,23 @@ const verifier = (nom, ok) => {
   if (boutonsAnonymes.length) console.log("   ⚠️ sans nom : " + boutonsAnonymes.slice(0, 6).join(" | "));
 
   // ---- Le calepin : épingler 2 joueurs, l'un doit briller en boutique ----
+  // §6 : le carnet est devenu une grille en colonnes par coût, avec un
+  // bandeau de puces à la place des deux menus déroulants. Même parcours,
+  // mêmes contrats — seuls les noms changent (voir tests/carnet.spec.js).
   await page.tap("#btn-calepin");
-  await page.waitForSelector(".galerie .carte-galerie");
-  await page.tap(".galerie .carte-galerie:nth-child(1)");
-  await page.tap(".galerie .carte-galerie:nth-child(2)");
-  const epingles = await page.$$eval(".carte-galerie.epingle", (l) => l.map((c) => c.dataset.nom));
+  await page.waitForSelector(".carnet-grille .carnet-vignette");
+  await page.tap(".carnet-grille .carnet-vignette:nth-child(1) [data-epingler]");
+  await page.tap(".carnet-grille .carnet-vignette:nth-child(2) [data-epingler]");
+  const epingles = await page.$$eval(".carnet-vignette.epingle", (l) => l.map((c) => c.dataset.nom));
   // le filtre par famille : choisir une École ne montre QUE ses joueurs
   const filtreOk = await page.evaluate(() => {
-    const select = document.querySelector('[data-filtre="ecole"]');
-    const ecole = [...select.options].find((o) => o.value).value;
-    select.value = ecole;
-    select.dispatchEvent(new Event("change", { bubbles: true }));
+    const puce = document.querySelector('.carnet-filtres [data-ecole]:not([data-ecole=""])');
+    const ecole = puce.dataset.ecole;
+    puce.click();
     const attendu = tousLesJoueurs.filter((j) => j.ecole === ecole).length;
-    const montres = document.querySelectorAll(".galerie .carte-galerie").length;
-    const memoire = document.querySelector('[data-filtre="ecole"]').value === ecole; // le choix survit au re-rendu
+    const montres = document.querySelectorAll(".carnet-grille .carnet-vignette").length;
+    const memoire = puce.classList.contains("actif"); // le choix se voit encore
+    puce.click();
     return { ecole, attendu, montres, memoire };
   });
   verifier(`calepin : filtre par École (${filtreOk.ecole} : ${filtreOk.montres}/${filtreOk.attendu})`,

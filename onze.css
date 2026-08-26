@@ -990,3 +990,17 @@ button.principal:disabled {
 @media (max-width: 620px) {
   .carnet-detail { flex-basis: 118px; }
 }
+
+/* Le bouton des quêtes dans le bandeau (§10) : discret au repos,
+   allumé quand au moins une quête est prête à tomber. */
+#btn-quetes { position: relative; }
+#btn-quetes.pretes {
+  color: var(--or-trophee);
+  box-shadow: 0 0 0 1px var(--or-trophee), 0 0 10px rgba(255, 209, 102, 0.35);
+}
+.pastille-quetes {
+  position: absolute; top: -3px; right: -3px; min-width: 13px; height: 13px;
+  padding: 0 3px; border-radius: 7px; background: var(--or-trophee); color: #1A1204;
+  font-size: 0.55rem; font-weight: 800; line-height: 13px; text-align: center;
+  font-variant-numeric: tabular-nums; pointer-events: none;
+}

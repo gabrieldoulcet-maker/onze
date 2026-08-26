@@ -17,6 +17,7 @@
            (option : node tests/lancer-tout.js --sauf marathon,scene)
    ============================================================ */
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
 
@@ -64,6 +65,44 @@ const revision = (() => {
   return (r.status === 0 ? (r.stdout || "").trim() : "révision inconnue") + (propre ? "" : " + modifications non commitées");
 })();
 const idPassage = "P-" + debutPassage.toISOString().slice(2, 19).replace(/[-:]/g, "").replace("T", "-");
+/* UN SEUL PASSAGE À LA FOIS.
+   Deux lanceurs ont tourné ensemble — un ancien resté détaché, un neuf —
+   et leurs sorties se sont entrelacées dans le même journal : tête au nom
+   d'un passage, pied au nom de l'autre, « 22 recettes » en haut et
+   « 16/20 » en bas, avec quatre rouges venus du code d'avant. Un rapport
+   qui mélange deux passages est pire qu'absent : il a l'air d'un résultat.
+   L'identifiant de passage n'y suffisait pas — il identifie une SORTIE,
+   pas un FICHIER partagé. Le verrou, lui, empêche le mélange d'exister.
+   Un verrou dont le processus est mort ne bloque rien : sinon on
+   apprendrait vite à le supprimer sans le lire.
+   Garde-fou : tests/lanceur.spec.js */
+const cheminVerrou = process.env.ONZE_VERROU || path.join(os.tmpdir(), "onze-lancer-tout.lock");
+const vivant = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === "EPERM"; } };
+(() => {
+  let tenu = null;
+  try { tenu = JSON.parse(fs.readFileSync(cheminVerrou, "utf8")); } catch (e) { tenu = null; }
+  if (tenu && tenu.pid && tenu.pid !== process.pid && vivant(tenu.pid)) {
+    console.error(`\nUN AUTRE PASSAGE EST EN COURS — ${tenu.passage || "passage sans nom"} ` +
+      `(processus ${tenu.pid}, démarré ${tenu.debut || "à une heure inconnue"}).`);
+    console.error(`Deux lanceurs à la fois produisent un rapport mélangé : tête d'un passage, pied de l'autre.`);
+    console.error(`Attends qu'il finisse, ou arrête-le :  kill ${tenu.pid}`);
+    console.error(`Aucun chiffre n'est produit.\n`);
+    process.exit(3);
+  }
+})();
+try {
+  fs.writeFileSync(cheminVerrou, JSON.stringify({ pid: process.pid, passage: idPassage, debut: debutPassage.toISOString() }));
+} catch (e) { /* pas de verrou possible : on mesure quand même, on ne bloque pas sur l'outil */ }
+const libererVerrou = () => {
+  try {
+    const tenu = JSON.parse(fs.readFileSync(cheminVerrou, "utf8"));
+    if (tenu && tenu.pid === process.pid) fs.unlinkSync(cheminVerrou);
+  } catch (e) { /* déjà parti */ }
+};
+process.on("exit", libererVerrou);
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"])
+  process.on(signal, () => { libererVerrou(); process.exit(130); });
+
 const enTete = `passage ${idPassage} · ${debutPassage.toISOString().slice(0, 19).replace("T", " ")} UTC · ${revision}`;
 
 console.log(enTete);
