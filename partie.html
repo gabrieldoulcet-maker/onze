@@ -1859,14 +1859,18 @@
       const zone = el("file-annonces");
       if (zone) { zone.innerHTML = ""; zone.classList.add("masque"); }
     }
-    /* L'estampille se pose une fois, au démarrage. Si `version.js` manque
-       (dépôt fraîchement cloné, script non estampillé), elle le DIT au
-       lieu de rester vide : une estampille absente est une information. */
+    /* L'estampille se pose une fois, au démarrage. Elle porte UN
+       HORODATAGE et rien d'autre : le script qui l'écrit tourne avant le
+       commit qui la contient, donc toute révision qu'elle afficherait
+       serait celle du PARENT — une indirection de plus là où l'estampille
+       existe pour en supprimer une. Si `version.js` manque (dépôt
+       fraîchement cloné, script non lancé), elle le DIT au lieu de rester
+       vide : une estampille absente est une information. */
     function poserEstampille() {
       const zone = el("estampille");
       if (!zone) return;
       const v = window.ONZE_VERSION;
-      zone.textContent = v && v.build ? `${v.revision} · ${v.build}` : "version non estampillée";
+      zone.textContent = v && v.build ? v.build : "version non estampillée";
     }
 
     function signaler(texte) {
