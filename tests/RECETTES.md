@@ -87,12 +87,35 @@ promeuve en vraie assertion.
 **Une dette porte une échéance ET sa cible chiffrée.** Un rouge toléré sans date devient
 du mobilier ; un rouge sans cible ne dit pas quand il sera payé.
 
-| Dette | Mesuré | Cible | Échéance |
+| Dette | Mesuré (cumul) | Cible | Échéance |
 |---|---|---|---|
-| 1 à 3 options de passe ouvertes | 45-66 % des passes | **88 %** (médiane 2) | étape 4 |
-| Part des pressings fermant sous 3 m | 36-56 % selon le tirage · p = 0,002 à 0,13 | **65,9 %** (épisodes ≥ 1 s) | *quand n ≥ 160 — le test binomial réfute vite mais ne conclut pas plus vite qu'une fourchette* |
-| Dispersion des pressings entre matchs | 0,25 · 0,31 · 0,83 selon le tirage | **≈ 1,05** (le vrai football est à 5,56 sur des matchs entiers) | étape 4 — *la seule des quatre qui se mesure sur n = MATCHS* |
-| Densité de pressing | 4,57 à 5,96 /min selon le tirage · p = 0,009 à 0,14 | **7,01 /min** (référence exacte, borne basse) | étape 4 |
+| 1 à 3 options de passe ouvertes | **53 %** sur 142 passes | **88 %** (médiane 2) | étape 4 |
+| Densité de pressing | **5,50/min** sur 2 150 s · 197 épisodes pour 251 attendus | **7,01/min** (borne basse) | étape 4 |
+| Part des pressings fermant sous 3 m | **53 %** sur 197 épisodes — *n ≥ 160 atteint, la dette est DÉMONTRÉE* | **65,9 %** (épisodes ≥ 1 s) | étape 4 |
+| Dispersion des pressings entre matchs | 0,64 à 1,16 selon le cumul | **≈ 1,05** (le vrai football : 5,56 sur des matchs entiers) | étape 4 — *la seule qui se mesure sur n = MATCHS* |
+
+### Ce que le cumul a changé, en chiffres
+
+Le premier passage seul donnait la densité **verte** : 62 épisodes pour 63,9 attendus,
+p = 0,437. Quatre passages cumulés donnent **197 épisodes pour 251,2 attendus** — la dette
+est **démontrée**. Le vert du premier passage était du bruit, et seule l'addition des
+**données** (pas des verdicts) a donné au test la puissance de trancher.
+
+| | épisodes | fermés < 3 m | secondes | taux |
+|---|---:|---:|---:|---:|
+| passage 1 | 52 | 25 | 531 | 5,88/min |
+| passage 2 | 45 | 22 | 535 | 5,05/min |
+| passage 3 | 45 | 26 | 542 | 4,99/min |
+| passage 4 | 55 | 31 | 542 | 6,09/min |
+| **cumul** | **197** | **104** | **2 150** | **5,50/min** |
+
+Deux conséquences immédiates :
+
+- la dette de **fermeture** franchit son seuil de puissance — **n = 197 ≥ 160** — et
+  **53 % contre 65,9 % est désormais démontré**, non plus « non concluant » ;
+- l'assertion de **stabilité de l'instrument** apparaît au troisième passage et passe :
+  *5,9 · 5,0 · 5,0 · 6,1 épisodes/min, cumul 5,50, plancher à la moitié*. La recette est
+  fiable ; c'est la scène qui manque de pressing.
 
 ### Le cumul dit combien, la répétition dit si la mesure est fiable
 
