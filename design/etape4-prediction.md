@@ -47,6 +47,29 @@ coéquipier tenu par un scénario ne se propose pas ; un défenseur tenu par un 
 presse pas. Libérer 41 % des pions doit augmenter mécaniquement le nombre de soutiens à
 distance de passe et le nombre de défenseurs assez proches pour presser.
 
+### Ce que l'instrument peut VOIR — la moitié basse de la troisième prédiction est invisible
+
+Une prédiction n'a de valeur que si l'échantillon peut la distinguer de « rien n'a bougé ».
+Puissance simulée pour détecter un mouvement depuis 53 % :
+
+| mouvement | n = 200 | n = 400 | n = 600 |
+|---|---:|---:|---:|
+| 53 → 56 % | 17 % | 33 % | 42 % |
+| 53 → 58 % | 36 % | 63 % | 79 % |
+| 53 → 60 % | 59 % | 86 % | 97 % |
+| 53 → 65 % | 95 % | 100 % | 100 % |
+
+**À n ≈ 200, un atterrissage à 56 % n'a que 17 % de chances d'être vu.** Autrement dit, si
+l'étape 4 produit exactement le bas de ma fourchette, je ne le saurai pas. Et le piège est
+pire que l'absence de résultat : un 56 % mesuré se lirait spontanément comme *« ça a bougé
+un peu, comme prévu, confiance faible »* — **une prédiction faible confirmée par du bruit**,
+la forme la plus séduisante du faux positif, parce qu'elle a l'air modeste.
+
+**Règle de lecture, fixée d'avance** : à n ≈ 200, seul un atterrissage **≥ 60 %** se
+distingue de « rien n'a bougé ». Entre 53 et 58 %, la conclusion s'écrit **« non
+mesurable »** — jamais « petit mouvement ». Pour conclure sur la moitié basse, il faudrait
+n ≈ 600, soit une douzaine de passages cumulés.
+
 **Pourquoi la troisième est faible, et c'est le point qui compte.** La fermeture ne mesure
 pas une disponibilité mais une *réussite* : un presseur, par définition, n'a jamais de cible
 imposée — la chorégraphie ne le retient pas. Ce qui devrait l'aider est autre chose : le
@@ -73,3 +96,54 @@ je m'attends donc à un mouvement plus petit et moins sûr.
 
 Une prédiction ratée qui a été écrite d'avance vaut mieux qu'une explication reconstruite
 après coup. Le tableau ci-dessus ne se retouche pas : il se compare.
+
+
+---
+
+## Amendement du 26 août, AVANT de commencer : un second levier, et une question de référence
+
+Un fil tiré avant d'écrire le premier gabarit — parce qu'une prédiction qui vise le mauvais
+levier coûte plus cher à découvrir après huit gabarits qu'avant.
+
+**Le soupçon de départ ne tient pas, et c'est une erreur de dénominateur.** L'idée était que
+« deux tiers des pions mis en rôle de presseur ne produisent jamais d'engagement mesurable »,
+d'après un rapport de 3,1× entre la part en rôle (2,6 %) et la part en engagement calculée
+(0,83 %). Mais ce 0,83 % divisait par **22 joueurs**, alors que nos matchs de manche 10 en
+comptent **dix**. Mesuré directement plutôt que calculé : **1,56 % du temps-joueur en rôle,
+1,46 % en épisode ≥ 1 s — un rapport de 1,06×**. Le rôle se convertit presque entièrement.
+*(C'est encore la famille M2 : un chiffre emprunté à une population de 22 appliqué à une
+population de 10.)*
+
+**Mais le fil menait ailleurs, et à deux choses réelles.**
+
+**(a) 60 % du temps passé en rôle de presseur se joue alors que PERSONNE ne tient le
+ballon** — il est en vol ou libre. La mission de pressing est un compte à rebours de deux
+secondes qui ne regarde pas si le porteur existe encore : quand la passe part à 17 m/s, le
+presseur continue de « presser » un ballon parti. D'où une distance au ballon pendant le
+rôle de **p10 4,6 · médiane 7,9 · p90 29,4 m** — le p90 à trente mètres est la queue du
+ballon en vol.
+
+**(b) Nos durées de pressing sont un pic, pas une distribution.** Mesuré **p10 1,36 · médiane
+2,01 · p90 2,02 s** contre un réel **1,10 · 2,10 · 4,40**. La médiane tombe juste *par
+construction* — la mission dure 2,0 s en dur — et **le p90 est à 2,02 là où la réalité dit
+4,40**. Aucun de nos pressings ne dure plus que le minuteur. C'est un défaut de **forme** que
+la médiane cachait, et il est **indépendant de l'hypothèse de chorégraphie**.
+
+**Conséquence sur la prédiction** : la densité de pressing a donc **deux leviers possibles**,
+pas un. Si elle bouge après l'étape 4, il faudra distinguer lequel a joué — et c'est pour ça
+que les deux sont écrits ici, avant.
+
+**Et une question de référence que je ne tranche pas seul.** Les 7,01 épisodes/minute sont
+mesurés sur du football à **22 joueurs**. Sur nos matchs à **dix**, la même densité de
+surface est conservée (324 m²/joueur) mais il y a deux fois moins de défenseurs. Deux
+lectures s'opposent, et elles ne donnent pas le même verdict :
+
+| lecture | notre chiffre | le réel | verdict |
+|---|---:|---:|---|
+| **par match** (épisodes/minute) | 5,50 | 7,01 | nous sommes **22 % en dessous** |
+| **par joueur** (part du temps-joueur) | 1,46 % | 1,12 % | nous sommes **31 % au-dessus** |
+
+Les deux sont exacts ; ils ne mesurent pas la même chose. Tant que la question n'est pas
+tranchée, **la dette de densité repose sur une référence dont la transférabilité n'est pas
+établie** — et la règle est qu'une référence se remesure sur la population pertinente, elle
+ne se réinterprète pas.
