@@ -277,3 +277,73 @@ instruments. Tant que 1,76 et 5,50 ne sont pas réconciliés, **aucun verdict de
 recevable**, quel que soit le dénominateur choisi.
 
 C'est exactement le genre de chose qu'on préfère apprendre avant d'avoir écrit huit gabarits.
+
+
+---
+
+## Amendement IV — l'anomalie était un fantôme, et la comparaison appariée existait déjà
+
+### 1. Mes deux colonnes n'étaient pas deux lectures, c'était une identité
+
+Par construction : `part par joueur = taux × durée ÷ (60 × pions)`. En remontant la durée
+implicite de mes trois cellules :
+
+| pions | taux | part | **durée implicite** |
+|---:|---:|---:|---:|
+| 11 | 1,76/min | 0,59 % | 2,21 s |
+| 16 | 6,64/min | 1,43 % | 2,07 s |
+| 22 | 11,31/min | 1,72 % | 2,01 s |
+
+C'est **mon minuteur de deux secondes** qui ressort dans les trois. « Aucune des deux
+lectures n'est stable » était donc **un seul fait énoncé deux fois**. La vraie question n'a
+jamais été « par match ou par joueur » : c'est **comment le taux monte avec l'effectif**, et
+sur les cellules exploitables il monte en `P^1,67`.
+
+### 2. La comparaison qui ne demande aucun argument de transférabilité était déjà dans la table
+
+Le vrai football, c'est 22 joueurs sur 104 × 68. La décision 50 donne **exactement ce
+terrain** à 22 pions. La cellule à 22 pions est donc **appariée**, sans rien transposer :
+
+> **11,31/min chez nous contre 7,01/min réel — +61 %.**
+
+Même effectif, même terrain, même densité spatiale. Il n'y a pas de question de transfert :
+il y a une cellule appariée, et elle dit que **nous avons 61 % de pressing en trop**, pas
+22 % en moins. La dette ne change pas seulement de signe : **elle est plus grande** que ce
+que les deux lectures laissaient croire.
+
+**Et la faute qui l'avait cachée est la nôtre de la semaine, une strate plus haut.** Le
+« 5,50 contre 7,01 » comparait une **moyenne prise sur des effectifs mélangés** à une
+référence à 22 joueurs. La moyenne est tirée vers le bas par les petits effectifs, et le
+verdict **s'inverse dès qu'on apparie**. Cette fois ce n'était pas la population des
+*épisodes* qui bougeait, c'était celle des **matchs**.
+
+### 3. L'anomalie à 3× : classée, c'était un fantôme
+
+Relevé demandé : la distribution d'effectifs des matchs que joue la recette (huit matchs,
+protocole identique).
+
+| match | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| pions | 10 | 11 | 11 | 13 | 13 | 14 | 14 | 13 |
+
+**Médiane 13 pions**, étendue 10-14 — pas onze, et pas seize. En interpolant à 13 pions avec
+la loi `P^1,67`, depuis la cellule à 16 comme depuis celle à 22, on attend **≈ 4,7/min**. La
+recette mesure **5,50**. Écart : **+17 %**, un écart d'échantillon ordinaire.
+
+**Il n'y a donc rien à réconcilier.** Le 3× était fabriqué par ma cellule à onze pions et ses
+**trois épisodes** — un chiffre qui ne prouvait rien, opposé à un chiffre qui en valait onze.
+Dix minutes de requête au lieu d'une journée d'enquête.
+
+### Ce qui lève la suspension — et ce n'est pas ce que je croyais
+
+La dette de densité **reste suspendue**, mais plus pour la raison écrite à l'amendement III.
+Elle ne se lèvera pas en tranchant « par match ou par joueur » — cette question n'existe pas.
+Elle se lèvera en **comparant à effectif égal**, et cette comparaison n'est anchrée qu'en un
+point : **22 pions**, le seul endroit où notre terrain et le terrain réel coïncident.
+
+**Conséquence pour la recette** : son assertion de densité compare aujourd'hui une **moyenne
+sur 10-14 pions** à une référence à 22. Elle doit soit se restreindre aux matchs à
+22 pions, soit ne rien affirmer. La première option coûte du temps de recette — il faut
+forcer le niveau 9 et rejouer — et c'est un arbitrage à rendre. En attendant, la ligne
+reste suspendue plutôt que rouge, et **le chiffre à retenir est celui de la cellule
+appariée : +61 %**.
