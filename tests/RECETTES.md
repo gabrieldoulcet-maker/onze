@@ -112,7 +112,7 @@ retouche à glisser en fin de livraison.
 | Dette | Mesuré (cumul) | Cible | Échéance |
 |---|---|---|---|
 | 1 à 3 options de passe ouvertes | **53 %** sur 142 passes | **88 %** (médiane 2) | étape 4 |
-| Densité de pressing | ⏸ **SUSPENDUE** — 5,50/min mesurés sur des matchs à 10-14 pions, référence 7,01 valable à 22 joueurs ; à effectif apparié (22 pions) : **11,31/min, soit +61 %** | référence à apparier | *se lève en mesurant à 22 pions* |
+| Densité de pressing | ⏸ **SUSPENDUE** — 5,50/min mesurés sur des matchs à 10-14 pions, référence 7,01 valable à 22 joueurs ; à effectif apparié (22 pions, **27 épisodes**) : **excédent démontré en direction, ampleur à confirmer** (11,3/min ; IC 90 % : +14 à +123 %) | référence à apparier | *se lève en mesurant à 22 pions* |
 | Part des pressings fermant sous 3 m | **53 %** sur 197 épisodes — *n ≥ 160 atteint, la dette est DÉMONTRÉE* | **65,9 %** (épisodes ≥ 1 s) | étape 4 |
 | Dispersion des pressings entre matchs | 0,64 à 1,16 selon le cumul | **≈ 1,05** (le vrai football : 5,56 sur des matchs entiers) | étape 4 — *la seule qui se mesure sur n = MATCHS* |
 | Poids à l'ouverture, PIRE tirage (`da.spec.js`) | **1 580 Ko**, six passages sur six (socle 1 208 + les 5 key arts les plus lourds 372) | **≤ 1 500 Ko** | la livraison qui différera `match-scene.js` |

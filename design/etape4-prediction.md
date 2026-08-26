@@ -304,12 +304,19 @@ sur les cellules exploitables il monte en `P^1,67`.
 Le vrai football, c'est 22 joueurs sur 104 × 68. La décision 50 donne **exactement ce
 terrain** à 22 pions. La cellule à 22 pions est donc **appariée**, sans rien transposer :
 
-> **11,31/min chez nous contre 7,01/min réel — +61 %.**
+> **11,31/min chez nous contre 7,01/min réel.**
 
 Même effectif, même terrain, même densité spatiale. Il n'y a pas de question de transfert :
-il y a une cellule appariée, et elle dit que **nous avons 61 % de pressing en trop**, pas
-22 % en moins. La dette ne change pas seulement de signe : **elle est plus grande** que ce
-que les deux lectures laissaient croire.
+il y a une cellule appariée, et elle dit que nous avons du pressing **en trop**, pas en
+moins.
+
+*Correction du 26 août, au standard de la cellule écartée : ce chiffre vient de **3 matchs
+et 27 épisodes** (143 s). Le même critère qui a fait juger la cellule à 11 pions « sans
+valeur » (3 épisodes) impose de qualifier celle-ci : IC exact de Poisson à 90 % sur
+l'excédent = **+14 % à +123 %**. La **direction** est robuste — la borne basse (8,0/min)
+reste au-dessus de 7,01 — mais l'**ampleur** est connue à un facteur deux près. On écrit
+donc « excédent, ampleur à confirmer », jamais « +61 % » nu : personne ne doit calibrer les
+gabarits pour retirer 61 % d'une grandeur connue à ±50 %.*
 
 **Et la faute qui l'avait cachée est la nôtre de la semaine, une strate plus haut.** Le
 « 5,50 contre 7,01 » comparait une **moyenne prise sur des effectifs mélangés** à une
@@ -345,5 +352,5 @@ point : **22 pions**, le seul endroit où notre terrain et le terrain réel coï
 sur 10-14 pions** à une référence à 22. Elle doit soit se restreindre aux matchs à
 22 pions, soit ne rien affirmer. La première option coûte du temps de recette — il faut
 forcer le niveau 9 et rejouer — et c'est un arbitrage à rendre. En attendant, la ligne
-reste suspendue plutôt que rouge, et **le chiffre à retenir est celui de la cellule
-appariée : +61 %**.
+reste suspendue plutôt que rouge, et **le fait à retenir est celui de la cellule appariée :
+un excédent démontré en direction, d'ampleur à confirmer** (IC 90 % : +14 à +123 %).

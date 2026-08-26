@@ -1553,7 +1553,15 @@ const dette = (nom, ok, quand) => {
      nommé. (C'était la faute de la semaine une strate plus haut : la
      population qui bougeait n'était plus celle des épisodes, mais celle
      des matchs.) */
-  console.log(`   ⏸ Étape 3 — densité de pressing SUSPENDUE : ${tauxMin.toFixed(2)}/min mesurés sur ${cumul.secondes.toFixed(0)} s (matchs à 10-14 pions) — la référence 7,01/min vaut à 22 joueurs, et à effectif apparié nous sommes à +61 % (11,31/min). Se lève en restreignant la mesure aux matchs à 22 pions, ou avec une référence appariée à l'effectif courant`);
+  /* Le chiffre apparié porte son n et son intervalle, pas un pourcentage
+     nu : la cellule à 22 pions vient du banc d'échelle — 3 matchs,
+     27 épisodes sur 143 s. Le même standard qui a fait écarter la
+     cellule à 11 pions (3 épisodes) impose de le dire. IC exact de
+     Poisson à 90 % sur l'excédent : +14 % à +123 % — la DIRECTION est
+     robuste (borne basse 8,0/min > 7,01), l'AMPLEUR ne l'est pas.
+     Personne ne doit calibrer les gabarits pour retirer « 61 % » d'une
+     grandeur connue à un facteur deux près. */
+  console.log(`   ⏸ Étape 3 — densité de pressing SUSPENDUE : ${tauxMin.toFixed(2)}/min mesurés sur ${cumul.secondes.toFixed(0)} s (matchs à 10-14 pions) — la référence 7,01/min vaut à 22 joueurs. À effectif apparié : EXCÉDENT démontré en direction, ampleur à confirmer (11,3/min sur 27 épisodes, IC 90 % de l'excédent +14 à +123 %). Se lève en restreignant la mesure aux matchs à 22 pions, ou avec une référence appariée à l'effectif courant`);
   /* MÊME RAISONNEMENT ICI, ET IL DÉBLOQUE LA DETTE. La part sous 3 m est
      une proportion comparée à une référence EXACTE (65,9 %, mesurée sur
      6 306 épisodes) : un test binomial unilatéral tranche sans attendre
