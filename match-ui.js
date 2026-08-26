@@ -635,6 +635,18 @@ const ONZE_UI = (() => {
         `<span style="font-size:0.66rem;color:var(--craie-sourde)">${detail}</span></div>`;
     }).join("");
     const coutCadre = fiche.icone || fiche.cout === 5 ? "var(--cout-5)" : `var(--cout-${fiche.cout || 1}, var(--ligne-forte))`;
+    /* LE LIEN QUÊTE → JOUEUR : les quêtes actives que CE joueur fait
+       avancer. Aucune quête active concernée = aucun cadre (un cadre
+       vide est une promesse non tenue). Voir quetes-lien.js. */
+    const quetes = typeof ONZE_LIEN !== "undefined" ? ONZE_LIEN.quetesVisiblesDuJoueur(fiche) : [];
+    const blocQuetes = quetes.length ? `<div class="fiche-quetes">
+      <div class="fiche-quetes-titre">🎯 Il fait avancer ${quetes.length === 1 ? "une quête" : quetes.length + " quêtes"}</div>
+      ${quetes.map((q) => `<div class="fiche-quete${q.debloquee ? " acquise" : ""}">
+        <strong>${q.nom}</strong>
+        <small>${q.condition}</small>
+        <span class="fiche-quete-progres">${q.progression}</span>
+      </div>`).join("")}
+    </div>` : "";
     const pilule = (contenu) => `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--nuit-profonde);border-radius:var(--r-pilule);padding:2px 8px;font-size:0.66rem;font-weight:700;color:var(--craie-claire)">${contenu}</span>`;
     voile.innerHTML = `<div class="fiche-joueur" style="position:relative;overflow:hidden;border:2.5px solid ${coutCadre}">
       <div class="filigrane-note">${note}</div>
@@ -660,6 +672,7 @@ const ONZE_UI = (() => {
       }).join("")}
       ${(fiche.staffCartes || []).map((c) => `<div class="sous-titre">🧰 ${c} <small>(en attente d'une 2ᵉ carte)</small></div>`).join("")}
       ${lignes}
+      ${blocQuetes}
       <div style="color:var(--craie-sourde);font-size:0.68rem;margin-top:8px">Valeur <span style="color:var(--gazon-electrique)">verte</span> = boostée par tes synergies. Chaque duel du match lit 2 de ces stats.</div>
       <button class="fermer">Fermer</button>
     </div>`;

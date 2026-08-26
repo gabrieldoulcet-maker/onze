@@ -15,6 +15,7 @@ export default [
         // consomment dans le navigateur — pas des globales de lint
         ONZE: "readonly", ONZE_UI: "readonly", ONZE_SCENE: "readonly", ONZE_JUICE: "readonly", ONZE_ECUSSONS: "readonly", ONZE_IA: "readonly", ONZE_ICONES_SYS: "readonly",
         ONZE_ICONES: "readonly", ONZE_FAMILLES: "readonly", ONZE_ECO: "readonly", ONZE_STADE: "readonly",
+        ONZE_LIEN: "readonly", ONZE_PORTRAITS: "readonly", ONZE_TERRAINS: "readonly",
       },
     },
     rules: {
@@ -24,6 +25,15 @@ export default [
       "no-redeclare": ["error", { builtinGlobals: false }],
       "eqeqeq": "off", "no-empty": "off",
     },
+  },
+  {
+    /* quetes-lien.js est le pont entre les quêtes (icones.js) et l'état
+       de la partie, qui vit dans partie.html. Il lit `partie` et
+       `tousLesJoueurs` — toujours sous garde `typeof … !== "undefined"`,
+       pour rester chargeable seul (les tests l'exigent). C'est le SEUL
+       module autorisé à les nommer. */
+    files: ["quetes-lien.js"],
+    languageOptions: { globals: { partie: "readonly", tousLesJoueurs: "readonly" } },
   },
   {
     // les specs contiennent du code page.evaluate() exécuté DANS le jeu :

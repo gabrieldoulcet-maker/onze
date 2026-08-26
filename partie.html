@@ -1421,6 +1421,7 @@
   <script src="donnees-eco.js"></script>
   <script src="match-moteur.js"></script>
   <script src="icones.js"></script>
+  <script src="quetes-lien.js"></script>
   <script src="synergies-data.js"></script>
   <script src="ecussons.js"></script>
   <script src="portraits.js"></script>
@@ -2998,66 +2999,222 @@
        joueurs (+ Icônes découvertes) : ces joueurs BRILLENT en boutique,
        et le calepin montre les paliers que ta cible activerait.
        « Photographier mon équipe » importe l'existant. */
+    /* ================= LE CARNET DU RECRUTEUR (§6) =================
+       Le modèle est le guide de TFT : une GRILLE DENSE rangée en
+       colonnes par coût — on voit une quarantaine de joueurs d'un
+       coup d'œil, et le rangement enseigne l'économie du jeu sans
+       une ligne de texte. Un bandeau de filtres toujours visible
+       recompose la grille sans jamais la reconstruire ; un tap
+       ouvre le détail À CÔTÉ, sans quitter la grille.
+
+       C'est aussi ici que le lien avec les quêtes se voit : le
+       détail d'un joueur liste les quêtes qu'il fait avancer, et
+       les puces de quêtes du bandeau filtrent la grille sur les
+       joueurs qu'une quête pointe (quetes-lien.js).
+
+       Le garde-fou : tests/carnet.spec.js (six contrats). */
+    const COUTS_CARNET = [1, 2, 3, 4, 5];
     function ouvrirCalepin() {
       const volet = document.createElement("div");
-      volet.className = "volet";
-      // le filtre par famille (post-playtest 6) : École et/ou archétype
-      const filtre = { ecole: "", archetype: "" };
-      const rendre = () => {
-        const cibles = partie.calepin.map((nom) => tousLesJoueurs.find((j) => j.nom === nom)).filter(Boolean);
-        const apercu = cibles.length ? ONZE.equipeDepuisFiches("Cible", "Toi", cibles) : null;
-        const disponibles = [...tousLesJoueurs]
-          .filter((j) => (!filtre.ecole || j.ecole === filtre.ecole) &&
-            (!filtre.archetype || j.archetype === filtre.archetype))
-          .sort((a, b) => a.cout - b.cout || a.nom.localeCompare(b.nom));
-        const options = (familles, choisi, tous) => `<option value="">${tous}</option>` +
-          Object.keys(familles).map((nom) =>
-            `<option value="${nom}"${nom === choisi ? " selected" : ""}>${nom}</option>`).join("");
-        volet.innerHTML = `<div class="panneau" style="max-width:560px">
-          <strong>📝 Le Calepin du recruteur</strong>
-          <small style="color:var(--craie-sourde)">· ${partie.calepin.length}/11 épinglés — ils brilleront en boutique</small>
-          <div style="margin:6px 0">
-            <button class="fermer-volet" style="width:auto;margin:0;padding:6px 10px" data-action="photo">📸 Photographier mon équipe</button>
-            <button class="fermer-volet" style="width:auto;margin:0;padding:6px 10px" data-action="vider">🗑 Vider</button>
-          </div>
-          ${apercu ? `<div class="synergies" style="margin-bottom:6px">${ONZE_UI.badges(apercu)}</div>` : ""}
-          <div class="filtres-galerie">
-            <select data-filtre="ecole">${options(ONZE_UI.GLYPHES.ecoles, filtre.ecole, "Toutes les Écoles")}</select>
-            <select data-filtre="archetype">${options(ONZE_UI.GLYPHES.archetypes, filtre.archetype, "Tous les archétypes")}</select>
-            ${filtre.ecole || filtre.archetype
-              ? `<span style="color:var(--craie-sourde);font-size:0.68rem">${disponibles.length} joueur${disponibles.length > 1 ? "s" : ""}</span>` : ""}
-          </div>
-          <div class="galerie">${disponibles.map((j) => {
-            const epingle = partie.calepin.includes(j.nom);
-            return `<div class="carte-galerie${epingle ? " epingle" : ""}" data-nom="${j.nom.replace(/"/g, "&quot;")}">
-              <span class="pastille p-${j.poste}">${ONZE_UI.GLYPHES.postes[j.poste]}</span>
-              <strong>${j.nom}</strong> <span style="color:var(--or-trophee)">${j.cout}M</span><br>
-              <span class="glyphes-famille">${ONZE_UI.glyphe(j.ecole)}${ONZE_UI.glyphe(j.archetype)}</span></div>`;
-          }).join("") || `<div style="color:var(--craie-sourde);font-size:0.72rem;padding:8px">Personne ne cumule ces deux familles — change un filtre.</div>`}</div>
-          <button class="fermer-volet" data-action="fermer">Fermer</button>
+      volet.className = "volet carnet-volet";
+      // le filtre est un ÉTAT, pas un rechargement : on le change, la grille se recompose
+      const filtre = { poste: "", ecole: "", archetype: "", quete: "" };
+      let selection = null; // le joueur ouvert dans le détail
+
+      const echapper = (t) => String(t == null ? "" : t).replace(/"/g, "&quot;");
+      const retenu = (j) =>
+        (!filtre.poste || j.poste === filtre.poste) &&
+        (!filtre.ecole || j.ecole === filtre.ecole) &&
+        (!filtre.archetype || j.archetype === filtre.archetype) &&
+        (!filtre.quete || ONZE_LIEN.quetesDuJoueur(j).some((q) => q.id === filtre.quete));
+
+      /* Les quêtes actives qui pointent au moins un joueur : elles
+         deviennent des filtres. Une quête qui ne pointe personne
+         (« Verrouiller la boutique ») n'a rien à faire ici. */
+      const quetesFiltrantes = () => partie.quetesVisibles
+        .map((id) => ONZE_ICONES.parId(id)).filter(Boolean)
+        .filter((q) => ONZE_LIEN.joueursDeLaQuete(q.id).length > 0);
+
+      const vignette = (j) => {
+        const art = ONZE_PORTRAITS.frontale(j) || ONZE_PORTRAITS.carte(j);
+        const visuel = art
+          ? `<img class="carnet-art" src="${art}" alt="" loading="lazy" decoding="async"
+               onerror="this.closest('.carnet-vignette').classList.add('art-absent'); this.remove()">`
+          : (ONZE_ECUSSONS.mini(j.ecole, 22) || ONZE_ICONES_SYS.ic("maillot", 18));
+        const epingle = partie.calepin.includes(j.nom);
+        return `<div class="carnet-vignette cout-${j.cout}${epingle ? " epingle" : ""}${selection && selection.nom === j.nom ? " choisie" : ""}"
+          data-nom="${echapper(j.nom)}" data-cout="${j.cout}" data-poste="${j.poste}"
+          data-ecole="${echapper(j.ecole)}" data-archetype="${echapper(j.archetype)}"
+          role="button" tabindex="0" aria-label="${echapper(j.nom)}, ${j.cout}M">
+          <span class="carnet-visuel">${visuel}</span>
+          <span class="carnet-nom">${j.nom}</span>
+          <span class="carnet-epingle" data-epingler="${echapper(j.nom)}" role="button" tabindex="0"
+            aria-label="Épingler ${echapper(j.nom)}">${epingle ? "📌" : "＋"}</span>
         </div>`;
       };
-      rendre();
-      volet.addEventListener("change", (e) => {
-        const cle = e.target.dataset && e.target.dataset.filtre;
-        if (!cle) return;
-        filtre[cle] = e.target.value;
-        rendre();
-      });
+
+      /* On ne remplace JAMAIS le nœud .carnet-grille : on réécrit le
+         contenu de ses cinq colonnes. Le filtre recompose, il ne
+         recharge pas — c'est la différence qu'on sent au doigt. */
+      const rendreGrille = () => {
+        const grille = volet.querySelector(".carnet-grille");
+        if (!grille) return;
+        const gardes = tousLesJoueurs.filter(retenu);
+        for (const cout of COUTS_CARNET) {
+          const col = grille.querySelector(`.carnet-colonne[data-cout="${cout}"]`);
+          if (!col) continue;
+          const siens = gardes.filter((j) => j.cout === cout)
+            .sort((a, b) => a.nom.localeCompare(b.nom));
+          col.querySelector(".carnet-colonne-corps").innerHTML = siens.map(vignette).join("");
+          col.querySelector(".carnet-colonne-compte").textContent = siens.length;
+          col.classList.toggle("vide", siens.length === 0);
+        }
+        const compte = volet.querySelector(".carnet-compte");
+        if (compte) compte.textContent = `${partie.calepin.length}/11 épinglés`;
+      };
+
+      const rendreDetail = () => {
+        const boite = volet.querySelector(".carnet-detail");
+        if (!boite) return;
+        if (!selection) { boite.innerHTML = ""; boite.classList.add("vide"); return; }
+        boite.classList.remove("vide");
+        const j = selection;
+        const stats = ONZE.genererStats(j);
+        const note = ONZE.noteGlobale(stats);
+        const art = ONZE_PORTRAITS.carte(j) || ONZE_PORTRAITS.frontale(j);
+        const quetes = ONZE_LIEN.quetesVisiblesDuJoueur(j);
+        const epingle = partie.calepin.includes(j.nom);
+        boite.innerHTML = `
+          <div class="carnet-detail-tete cout-${j.cout}">
+            ${art ? `<img src="${art}" alt="" loading="lazy" decoding="async">` : ""}
+            <span class="carnet-detail-note">${note}</span>
+          </div>
+          <strong class="carnet-detail-nom">${j.nom}</strong>
+          <div class="carnet-detail-familles">
+            <span class="pastille p-${j.poste}">${ONZE_UI.GLYPHES.postes[j.poste] || j.poste}</span>
+            ${j.ecole ? `<button class="carnet-lien-famille" data-ecole="${echapper(j.ecole)}">${ONZE_UI.glyphe(j.ecole)} ${j.ecole}</button>` : ""}
+            ${j.archetype ? `<button class="carnet-lien-famille" data-archetype="${echapper(j.archetype)}">${ONZE_UI.glyphe(j.archetype)} ${j.archetype}</button>` : ""}
+            <span class="carnet-detail-cout">${j.cout}M</span>
+          </div>
+          ${j.unique ? `<div class="carnet-detail-ligne unique">✦ ${j.unique} — Unique</div>` : ""}
+          ${quetes.length ? `<div class="fiche-quetes">
+            <div class="fiche-quetes-titre">🎯 Il fait avancer ${quetes.length === 1 ? "une quête" : quetes.length + " quêtes"}</div>
+            ${quetes.map((q) => `<div class="fiche-quete${q.debloquee ? " acquise" : ""}">
+              <strong>${q.nom}</strong><small>${q.condition}</small>
+              <span class="fiche-quete-progres">${q.progression}</span></div>`).join("")}
+          </div>` : ""}
+          <button class="carnet-detail-epingler" data-epingler="${echapper(j.nom)}">${epingle ? "📌 Retirer du calepin" : "＋ Épingler au calepin"}</button>
+          <button class="carnet-detail-plus" data-fiche="${echapper(j.nom)}">Voir la fiche complète</button>`;
+      };
+
+      const rendreFiltres = () => {
+        volet.querySelectorAll(".carnet-filtres [data-poste], .carnet-filtres [data-ecole], " +
+          ".carnet-filtres [data-archetype], .carnet-filtres [data-quete]").forEach((b) => {
+          const d = b.dataset;
+          const actif = (d.poste && d.poste === filtre.poste) || (d.ecole && d.ecole === filtre.ecole) ||
+            (d.archetype && d.archetype === filtre.archetype) || (d.quete && d.quete === filtre.quete);
+          b.classList.toggle("actif", !!actif);
+        });
+      };
+
+      const puce = (cle, valeur, contenu, titre) =>
+        `<button class="carnet-puce" data-${cle}="${echapper(valeur)}" title="${echapper(titre || valeur)}">${contenu}</button>`;
+
+      volet.innerHTML = `<div class="panneau carnet-panneau">
+        <div class="carnet-tete">
+          <strong>📝 Le Carnet</strong>
+          <span class="carnet-compte">${partie.calepin.length}/11 épinglés</span>
+          <button class="carnet-bouton" data-action="photo" title="Photographier mon équipe">📸</button>
+          <button class="carnet-bouton" data-action="vider" title="Tout dépingler">🗑</button>
+          <button class="carnet-bouton carnet-fermer" data-action="fermer" aria-label="Fermer">✕</button>
+        </div>
+        <div class="carnet-filtres">
+          ${["GAR", "DÉF", "MIL", "ATT"].map((p) =>
+            puce("poste", p, `<span class="pastille p-${p}">${ONZE_UI.GLYPHES.postes[p]}</span>`, p)).join("")}
+          <span class="carnet-separateur"></span>
+          ${Object.keys(ONZE_UI.GLYPHES.ecoles).map((nom) =>
+            puce("ecole", nom, ONZE_ECUSSONS.mini(nom, 20) || ONZE_UI.glyphe(nom), nom)).join("")}
+          <span class="carnet-separateur"></span>
+          ${Object.keys(ONZE_UI.GLYPHES.archetypes).map((nom) =>
+            puce("archetype", nom, ONZE_UI.glyphe(nom), nom)).join("")}
+          ${quetesFiltrantes().length ? `<span class="carnet-separateur"></span>` +
+            quetesFiltrantes().map((q) => puce("quete", q.id, `🎯 ${q.nom}`, q.condition)).join("") : ""}
+        </div>
+        <div class="carnet-corps">
+          <div class="carnet-grille">
+            ${COUTS_CARNET.map((cout) => `<div class="carnet-colonne cout-${cout}" data-cout="${cout}">
+              <div class="carnet-colonne-tete">${cout}M <span class="carnet-colonne-compte">0</span></div>
+              <div class="carnet-colonne-corps"></div>
+            </div>`).join("")}
+          </div>
+          <div class="carnet-detail vide"></div>
+        </div>
+      </div>`;
+
+      rendreGrille();
+      rendreFiltres();
+
       volet.addEventListener("click", (e) => {
         if (e.target === volet) return volet.remove();
-        const action = e.target.closest("[data-action]") && e.target.closest("[data-action]").dataset.action;
-        if (action === "fermer") { volet.remove(); afficher(); return; }
-        if (action === "photo") { partie.calepin = partie.terrain.filter((j) => !j.icone || true).map((j) => j.nom.replace(/ ★+$/, "")).slice(0, 11); rendre(); return; }
-        if (action === "vider") { partie.calepin = []; rendre(); return; }
-        const carte = e.target.closest("[data-nom]");
-        if (!carte) return;
-        const nom = carte.dataset.nom;
-        if (partie.calepin.includes(nom)) partie.calepin = partie.calepin.filter((x) => x !== nom);
-        else if (partie.calepin.length < 11) partie.calepin.push(nom);
-        else return signaler("11 épinglés maximum.");
-        rendre();
+
+        const action = e.target.closest("[data-action]");
+        if (action) {
+          const quoi = action.dataset.action;
+          if (quoi === "fermer") { volet.remove(); afficher(); return; }
+          if (quoi === "photo") {
+            partie.calepin = partie.terrain.map((j) => ONZE_LIEN.nomNu(j)).slice(0, 11);
+            rendreGrille(); rendreDetail(); return;
+          }
+          if (quoi === "vider") { partie.calepin = []; rendreGrille(); rendreDetail(); return; }
+        }
+
+        // l'épinglage, depuis la vignette comme depuis le détail
+        const ep = e.target.closest("[data-epingler]");
+        if (ep) {
+          e.stopPropagation();
+          const nom = ep.dataset.epingler;
+          if (partie.calepin.includes(nom)) partie.calepin = partie.calepin.filter((x) => x !== nom);
+          else if (partie.calepin.length < 11) partie.calepin.push(nom);
+          else return signaler("11 épinglés maximum.");
+          rendreGrille(); rendreDetail(); return;
+        }
+
+        // une famille du détail renvoie au filtre : les synergies sont cliquables
+        const lien = e.target.closest(".carnet-lien-famille");
+        if (lien) {
+          if (lien.dataset.ecole) { filtre.ecole = filtre.ecole === lien.dataset.ecole ? "" : lien.dataset.ecole; }
+          if (lien.dataset.archetype) { filtre.archetype = filtre.archetype === lien.dataset.archetype ? "" : lien.dataset.archetype; }
+          rendreFiltres(); rendreGrille(); return;
+        }
+
+        const puceFiltre = e.target.closest(".carnet-filtres .carnet-puce");
+        if (puceFiltre) {
+          for (const cle of ["poste", "ecole", "archetype", "quete"]) {
+            const v = puceFiltre.dataset[cle];
+            if (v === undefined) continue;
+            filtre[cle] = filtre[cle] === v ? "" : v;
+          }
+          rendreFiltres(); rendreGrille(); return;
+        }
+
+        const plus = e.target.closest("[data-fiche]");
+        if (plus) {
+          const j = ONZE_LIEN.catalogue().find((x) => x.nom === plus.dataset.fiche);
+          if (j) ONZE_UI.ouvrirFiche(j);
+          return;
+        }
+
+        const v = e.target.closest(".carnet-vignette");
+        if (v) {
+          const j = tousLesJoueurs.find((x) => x.nom === v.dataset.nom);
+          if (!j) return;
+          selection = selection && selection.nom === j.nom ? null : j;
+          rendreDetail();
+          volet.querySelectorAll(".carnet-vignette.choisie").forEach((x) => x.classList.remove("choisie"));
+          if (selection) v.classList.add("choisie");
+        }
       });
+
       el("app").appendChild(volet);
     }
 
@@ -4522,6 +4679,7 @@
         let progres = ""; try { progres = icone.progression(partie, apercu); } catch (e) {}
         return `<span class="badge inactif" style="cursor:pointer;display:block;text-align:left" onclick="voletQuetes()">🎯 ${icone.nom}<br><small style="color:#9CC4EF">${progres}</small></span>`;
       }).join("");
+      ONZE_LIEN.memoriserApercu(apercu); // les fiches liront la même progression
       verifierQuetes(apercu);
       majBasculeGauche();
       tutoNotifier("etat"); // les étapes à déclencheur (orbes, staff, M4) se réveillent ici
@@ -4601,6 +4759,7 @@
     }
     function voletQuetes() {
       const apercu = equipeDuClub();
+      ONZE_LIEN.memoriserApercu(apercu);
       const volet = document.createElement("div");
       volet.className = "volet";
       volet.innerHTML = `<div class="panneau">
@@ -4611,13 +4770,38 @@
           return `<div class="coach" style="display:block;margin-top:6px">
             <strong>${icone.nom}</strong> <span style="color:var(--or-trophee)">(${icone.poste === "DUO" ? "duo " : ""}${icone.cout}M)</span><br>
             <small>${icone.condition} — <span style="color:#9CC4EF">${progres}</span></small><br>
-            <small style="color:var(--craie-sourde);font-style:italic">${icone.identite}</small></div>`;
+            <small style="color:var(--craie-sourde);font-style:italic">${icone.identite}</small>
+            ${chipsJoueurs(id)}</div>`;
         }).join("")}
         ${partie.icônesDebloquees.length ? `<div class="coach" style="margin-top:8px"><span>🏆 Débloquées : ${partie.icônesDebloquees.map((id) => ONZE_ICONES.parId(id).nom).join(", ")}</span></div>` : ""}
         <button class="fermer-volet">Fermer</button>
       </div>`;
-      volet.addEventListener("click", (e) => { if (e.target === volet || e.target.classList.contains("fermer-volet")) volet.remove(); });
+      volet.addEventListener("click", (e) => {
+        // LE RETOUR DU LIEN : taper un joueur listé sous une quête ouvre sa fiche
+        const chip = e.target.closest("[data-quete-joueur]");
+        if (chip) {
+          const j = ONZE_LIEN.catalogue().find((x) => x.nom === chip.dataset.queteJoueur);
+          if (j) ONZE_UI.ouvrirFiche(j);
+          return;
+        }
+        if (e.target === volet || e.target.classList.contains("fermer-volet")) volet.remove();
+      });
       el("app").appendChild(volet);
+    }
+
+    /* Sous une quête, les joueurs qu'elle pointe (quetes-lien.js).
+       Ceux qu'on a déjà d'abord — la quête dit alors « continue » ;
+       les autres ensuite, du moins cher au plus cher — elle dit
+       « recrute-le ». Une quête qui ne pointe personne n'affiche rien. */
+    function chipsJoueurs(id, maxi = 6) {
+      const vises = ONZE_LIEN.joueursDeLaQueteTries(id);
+      if (!vises.length) return "";
+      const montres = vises.slice(0, maxi);
+      const reste = vises.length - montres.length;
+      return `<div class="quete-joueurs">${montres.map((v) =>
+        `<span class="quete-joueur${v.possede ? " possede" : ""}" data-quete-joueur="${v.fiche.nom}" role="button" tabindex="0">` +
+        `${v.possede ? "✓ " : ""}${v.fiche.nom}<span class="cout-pastille">${v.fiche.cout}M</span></span>`).join("")}` +
+        `${reste > 0 ? `<span class="quete-joueur" style="cursor:default;opacity:0.6">+${reste}</span>` : ""}</div>`;
     }
 
     /* ================= Sauvegarde locale =================
@@ -5064,6 +5248,9 @@
     ])
       .then(([donnees]) => {
         tousLesJoueurs = donnees;
+        // le catalogue du lien quête ↔ joueur : le roster ET les starters
+        // (Gus et Titi sont pointés nommément par une quête)
+        ONZE_LIEN.definirCatalogue(() => tousLesJoueurs.concat(STARTERS));
         el("btn-match").addEventListener("click", jouerManche);
         el("btn-refresh").addEventListener("click", refresh);
         el("btn-xp").addEventListener("click", acheterXP);
