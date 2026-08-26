@@ -468,6 +468,40 @@ async function empreinteVisuel(page, indice, zone) {
        ne prouvent donc rien. On provoque la condition : une annonce est
        posée sur la zone, et `zoneInerte` doit la voir bouger. Sans ça, la
        précondition serait un décor. */
+    /* LE CONTRE-TEST DE LA PRÉCONDITION, construit sur la propriété
+       REVENDIQUÉE et non sur le scénario du défaut. Trois essais avaient
+       échoué en courant après la fenêtre entre deux photos ; celui-ci
+       change la page ENTRE LES DEUX PASSES de la mesure — franchement,
+       sans course. À dire : ça ne reproduit pas la synchronisation exacte
+       du défaut réel, mais ça éprouve exactement ce que l'assertion
+       promet. */
+    const zoneCT = await page.evaluate(() => {
+      const j = document.querySelector(".ligne-terrain .jeton");
+      const r = j.getBoundingClientRect();
+      return { x: Math.max(0, Math.round(r.x)), y: Math.max(0, Math.round(r.y)),
+        width: Math.round(r.width), height: Math.round(r.height) };
+    });
+    const masquerCT = (v) => page.evaluate((etat) => {
+      const j = document.querySelectorAll(".ligne-terrain .jeton")[0];
+      j.querySelectorAll("img.frontale, svg.frontale").forEach((e) => { e.style.visibility = etat; });
+    }, v);
+    const ctCalme = await MESURE.empreinte(page, zoneCT, () => masquerCT("hidden"), () => masquerCT(""));
+    const ctAgite = await MESURE.empreinte(page, zoneCT, () => masquerCT("hidden"), () => masquerCT(""),
+      () => page.evaluate(() => {
+        const im = document.querySelectorAll(".ligne-terrain .jeton")[0]
+          .querySelector("img.frontale, svg.frontale");
+        if (im) im.style.opacity = "0.3";
+      }));
+    await page.evaluate(() => {
+      const im = document.querySelectorAll(".ligne-terrain .jeton")[0]
+        .querySelector("img.frontale, svg.frontale");
+      if (im) im.style.opacity = "";
+    });
+    verifier(`${taille.nom} : la précondition d'inertie voit une page qui change entre deux passes ` +
+      `(inerte : écart ${ctCalme.ecart} px · changée : écart ${ctAgite.ecart} px)`,
+      ctCalme.inerte && !ctAgite.inerte,
+      `calme ${ctCalme.ecart}, agitée ${ctAgite.ecart} — la précondition ne discrimine pas`);
+
     /* LA PRÉCONDITION D'INERTIE EST UN VERDICT, pas une note de bas de
        page : si deux mesures identiques n'ont pas donné le même nombre,
        la page bougeait et TOUS les chiffres de cette recette sont
