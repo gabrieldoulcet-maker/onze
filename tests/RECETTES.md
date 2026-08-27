@@ -1,6 +1,6 @@
 # Les recettes d'ONZE — le dénominateur
 
-**23 fichiers de recette.** Ce nombre est le dénominateur de « suite complète
+**24 fichiers de recette.** Ce nombre est le dénominateur de « suite complète
 verte » : une livraison le cite, et un écart entre le nombre cité et le nombre sur le
 disque est un **échec de livraison**, pas un détail de rédaction (règle M5).
 
@@ -63,6 +63,7 @@ Deux garde-fous, complémentaires :
 | `tests/quetes-lien.spec.js` | le lien quête ↔ joueur : aucune quête muette, la relation symétrique dans les deux sens, la fiche qui liste ses quêtes, le retour cliquable |
 | `tests/quetes.spec.js` | les quêtes hors de la colonne (§10) : accès dans le bandeau, cible à 26 px, pastille des quêtes prêtes, panneau qui tient dans son cadre |
 | `tests/lanceur.spec.js` | le verrou du lanceur : un seul passage à la fois, sinon un rapport mélange deux passages |
+| `tests/habillage.spec.js` | l'habillage (playtest 26/08 15:32) : un seul monde pendant le match, le commentaire dans la scène, le médaillon sur sa piste, « 0 M » sans jeton à zéro, le creux sans glyphe, l'indice qui se ferme au premier geste |
 | `tests/accueil.spec.js` | la home : contraste de chaque texte, invite d'installation, matière des composants |
 | `tests/achat.spec.js` | l'achat au tap, l'appui long, la modale de première partie |
 | `tests/da.spec.js` | la direction artistique : luminosité des illustrations, arène, épuration |

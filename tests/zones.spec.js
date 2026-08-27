@@ -361,6 +361,7 @@ async function ouvrir(page) {
           const banc = document.querySelector("#banc");
           const bandeau = document.querySelector(".haut");
           return { terrain: b("#terrain-scene"), fond: b("#fond-terrain"), scene: b(".scene-match"),
+            plateau: b(".plateau"),
             hautBanc: banc ? banc.getBoundingClientRect().y : null,
             basBandeau: bandeau ? bandeau.getBoundingClientRect().bottom : null,
             peint: document.querySelector(".plateau").classList.contains("terrain-peint") };
@@ -376,7 +377,16 @@ async function ouvrir(page) {
            pousser au-dessus de lui » (`margeHaut`). La scène prend donc la
            LARGEUR du décor à l'unité près, commence SOUS le bandeau, et
            s'arrête au banc. Le décor, lui, reste plein cadre. */
-        const s2 = couture.scene, f2 = couture.fond;
+        /* CLAUSE (c), SECOND AMENDEMENT (playtest 26/08, point 1). Le décor
+           de placement est ÉTEINT pendant le match — deux mondes sur un
+           écran, jamais. La référence de largeur devient donc le CADRE que
+           le décor remplissait (.plateau) : même rectangle, mais lui
+           existe encore quand le décor n'existe plus. Et l'assertion
+           vérifie l'extinction : un décor de placement visible pendant le
+           match est un rouge, plus une référence. */
+        const s2 = couture.scene, f2 = couture.plateau;
+        verifier(`${taille.nom} · match : le décor de placement est éteint (deux mondes, jamais)`,
+          couture.fond && couture.fond.cache === true, JSON.stringify(couture.fond));
         const memeLargeur = s2 && f2 && !s2.cache && !f2.cache &&
           Math.abs(s2.x - f2.x) < 0.5 && Math.abs(s2.w - f2.w) < 0.5;
         const sousBandeau = s2 && couture.basBandeau !== null &&
@@ -384,10 +394,10 @@ async function ouvrir(page) {
         const sarrete = s2 && couture.hautBanc !== null && Math.abs((s2.y + s2.h) - couture.hautBanc) < 0.5;
         verifier(`${taille.nom} · match : la scène prend la largeur du décor, commence sous le bandeau ` +
           `et s'arrête au banc (scène ${s2 ? Math.round(s2.w) + "×" + Math.round(s2.h) : "—"} à y=${s2 ? Math.round(s2.y) : "—"}, ` +
-          `décor ${f2 ? Math.round(f2.w) : "—"} px de large, bandeau jusqu'à ${Math.round(couture.basBandeau)} px, ` +
+          `cadre du décor ${f2 ? Math.round(f2.w) : "—"} px de large, bandeau jusqu'à ${Math.round(couture.basBandeau)} px, ` +
           `banc à ${Math.round(couture.hautBanc)} px)`,
           memeLargeur && sousBandeau && sarrete,
-          JSON.stringify({ scene: s2, largeurDecor: f2 && f2.w, basBandeau: couture.basBandeau, hautBanc: couture.hautBanc }));
+          JSON.stringify({ scene: s2, largeurCadre: f2 && f2.w, basBandeau: couture.basBandeau, hautBanc: couture.hautBanc }));
         verifier(`${taille.nom} · match : sur décor peint, la scène ne peint pas son propre sol`,
           !couture.peint || (s2 && s2.fond === "none"), s2 ? String(s2.fond).slice(0, 60) : "—");
 

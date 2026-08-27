@@ -328,6 +328,10 @@ Registre des décisions actées. Une décision qui n'est pas ici n'existe pas.
 
     L'identifiant de passage (règle M3 ter) ne suffisait pas : **il identifie une SORTIE, pas un FICHIER partagé**. Le lanceur pose donc un verrou nommant son passage ; un second refuse de démarrer et **ne produit aucun chiffre**, comme pour le serveur absent. Un verrou dont le processus est mort ne bloque rien — sinon on apprendrait vite à le supprimer sans le lire.
 
+71. **Pendant le match, un seul monde — et la piste du médaillon a un plafond mesuré (actée août 2026, playtest 15:32).** Le décor d'entraînement restait peint sous la scène de match : l'arène de nuit en haut, le jardin de jour en dessous, dalles de banc comprises. Quand la couche de match existe, le décor de placement est **éteint** et le fond est neutre et sombre — c'est la moitié « fond » du chantier partagé avec la conversation scène (leur moitié : la surface de jeu sur l'arène peinte ; amendement b bis du contrat de couture). La clause (c) se mesure désormais contre **le cadre du décor** (`.plateau`), pas contre le décor éteint, et l'extinction elle-même est une assertion.
+
+    Sur le même playtest : le médaillon d'or recouvrait 588 px² d'une carte de boutique en mercato déplié. Il reçoit une **piste réservée** en haut de la bande, facturée au terrain (doctrine de la bande : jamais aux cartes) — et cette facture a un **plafond mesuré** : à 26 px de croissance, le balayage de tap sortait rouge (un titulaire recouvert par son voisin sur 844×390) ; à **14 px**, avec un médaillon compact de ~20 px, tout passe. Quelqu'un voudra regrossir le médaillon : la limite est écrite ici avec sa mesure. Et à zéro million le jeton s'efface — « M 0 M » se lisait « Man of the Match » ; on lit « 0 M ».
+
 ## Backlog priorisé (battue TFT, août 2026 — dans cet ordre)
 
 1. ✅ **Le clone fantôme** (fait) : nombre impair de survivants → au lieu d'un exempt, un coach affronte « l'équipe B » (le clone) d'un club vivant, traitée comme une entité à part entière dans l'appariement.

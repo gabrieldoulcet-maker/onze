@@ -30,6 +30,20 @@ tons posé par-dessus les efface. Le choix se lit sur `terr.image`, exactement c
 `disposerPlateau()` le fait déjà. Sur un thème dessiné (pas d'image), la scène garde
 son dégradé — c'est alors elle qui fait le sol.
 
+**(b bis) Pendant le match, le décor de placement est ÉTEINT (amendement du 26/08, playtest 15:32).**
+Le jardin d'entraînement restait peint sous la scène — l'arène de nuit en haut, le
+jour en dessous, dalles de banc comprises : deux mondes sur un écran. Désormais,
+quand la couche de match existe, `#fond-terrain` est éteint côté placement
+(`#app.match-en-scene`) et le fond sous la scène est neutre et sombre. **Le partage
+du chantier : le FOND est au placement (fait), la SURFACE DE JEU est à la scène** —
+Gabriel demande de supprimer le terrain dessiné de la vue match pour jouer sur
+l'arène peinte. Quand vous poserez l'arène en pleine surface, le fond neutre est
+déjà là ; si la scène veut un jour un fond à elle (ciel, tribunes étendues), il se
+peint DANS `.scene-match`, jamais en rallumant le décor de placement.
+Conséquence pour la mesure : la référence de largeur de la clause (c) n'est plus le
+décor (éteint) mais **le cadre qu'il remplissait, `.plateau`** — même rectangle, et
+`zones.spec.js` vérifie en plus l'extinction elle-même.
+
 **(c) Le rectangle de la couche est exactement celui du décor, tolérance 0 px** —
 à une exception déclarée : **elle s'arrête au-dessus du banc**. Le banc reste visible
 pendant le match ; c'est une demande explicite de Gabriel (« le banc ne s'affiche pas
