@@ -1577,9 +1577,9 @@ const dette = (nom, ok, quand) => {
   const tauxM = cumul.mVus ? cumul.mBons / cumul.mVus : 0;
   const tauxBrutM = sacMarquage.tous ? sacMarquage.tousBons / sacMarquage.tous : 0;
   if (tauxM < 0.7 && tauxM >= 0.55 && cumul.mMatchs < 25) {
-    console.log(`   ⚠ Décision 33 — marquage goal-side à ${Math.round(tauxM * 100)} % sur le cumul (${cumul.mBons}/${cumul.mVus}, ${cumul.mMatchs} matchs) : NON CONCLUANT sous 25 matchs — relancer la recette élargit le cumul (relevés corrélés dans un match : le n effectif est en matchs)`);
+    console.log(`   ⚠ Décision 33 — marquage goal-side à ${Math.round(tauxM * 100)} % sur ${cumul.mMatchs} MATCHS cumulés : NON CONCLUANT sous 25 matchs — relancer la recette élargit le cumul. (${cumul.mBons}/${cumul.mVus} relevés, mais la puissance se compte en MATCHS : les relevés d'un même match sont corrélés — mêmes marqueurs, mêmes battus)`);
   } else {
-    verifier(`Décision 33 — le marquage se voit : EN POSITION, le marqueur est goal-side ${Math.round(tauxM * 100)} % du temps (${cumul.mBons}/${cumul.mVus} relevés, CUMUL sur ${cumul.mMatchs} matchs et ${nbPassages} passage(s)) — ${Math.round(tauxBrutM * 100)} % en comptant ceux qui courent encore sur ce passage`,
+    verifier(`Décision 33 — le marquage se voit : EN POSITION, le marqueur est goal-side ${Math.round(tauxM * 100)} % du temps sur ${cumul.mMatchs} MATCHS cumulés (${nbPassages} passage(s) ; ${cumul.mBons}/${cumul.mVus} relevés, corrélés dans un match — la puissance se compte en matchs) — ${Math.round(tauxBrutM * 100)} % en comptant ceux qui courent encore sur ce passage`,
       cumul.mVus >= ECHANTILLON_MARQUAGE && tauxM >= 0.7);
   }
   /* LA DENSITÉ EST SUSPENDUE — SA RÉFÉRENCE N'EST PAS APPARIÉE À
