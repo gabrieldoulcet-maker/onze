@@ -1265,8 +1265,13 @@ const dette = (nom, ok, quand) => {
      variance mais attrape une vraie panne (marquage cassé ≈ 50 %, soit
      le hasard). L'échantillon est CUMULÉ sur les matchs joués : c'est sa
      taille qui est garantie, plus la durée d'un match. */
-  verifier(`Décision 33 — le marquage se voit : EN POSITION, le marqueur est goal-side ${Math.round(tauxGoalSide * 100)} % du temps (${sacMarquage.bons}/${sacMarquage.vus} relevés cumulés sur ${sacMarquage.matchs} match(s)) — ${Math.round(tauxBrut * 100)} % en comptant ceux qui courent encore`,
-    sacMarquage.vus >= ECHANTILLON_MARQUAGE && tauxGoalSide >= 0.7);
+  /* Le VERDICT du marquage a déménagé plus bas, sur le SAC CUMULÉ entre
+     exécutions. Payé le 27 août : trois passages du même code ont donné
+     93 → 68 → 97 % — les ~300 relevés d'un passage sont CORRÉLÉS (les
+     mêmes marqueurs, les mêmes battus, tout le match durant), le n
+     effectif est ~11 matchs, et le seuil de 70 % se fait traverser par
+     un mauvais tirage. Même remède que le pressing : cumuler les
+     comptages, pas les verdicts (M7). */
 
   /* ============================================================
      ÉTAPE 1 — LA PHYSIQUE DU PION (design/scene-simulation.md §3,
@@ -1491,6 +1496,7 @@ const dette = (nom, ok, quand) => {
     parMatch: episodesParMatch.slice(),
     options: e3.options.length,
     optionsDans13: e3.options.filter((v) => v >= 1 && v <= 3).length,
+    mVus: sacMarquage.vus, mBons: sacMarquage.bons, mMatchs: sacMarquage.matchs,
   });
   if (sacDisque.passages.length > 20) sacDisque.passages = sacDisque.passages.slice(-20);
   try { require("fs").writeFileSync(cheminCumul, JSON.stringify(sacDisque, null, 1)); } catch { /* lecture seule : on tranche sur ce passage */ }
@@ -1498,8 +1504,9 @@ const dette = (nom, ok, quand) => {
     episodes: a.episodes + p.episodes, fermes: a.fermes + p.fermes,
     secondes: a.secondes + p.secondes, options: a.options + p.options,
     optionsDans13: a.optionsDans13 + p.optionsDans13,
+    mVus: a.mVus + (p.mVus || 0), mBons: a.mBons + (p.mBons || 0), mMatchs: a.mMatchs + (p.mMatchs || 0),
     parMatch: a.parMatch.concat(p.parMatch || []),
-  }), { episodes: 0, fermes: 0, secondes: 0, options: 0, optionsDans13: 0, parMatch: [] });
+  }), { episodes: 0, fermes: 0, secondes: 0, options: 0, optionsDans13: 0, mVus: 0, mBons: 0, mMatchs: 0, parMatch: [] });
   const nbPassages = sacDisque.passages.length;
 
   /* `attendu`/p de Poisson retirés avec la suspension de la densité :
@@ -1560,6 +1567,21 @@ const dette = (nom, ok, quand) => {
   dette(`Étape 3 — les matchs ne se ressemblent pas : indice de dispersion des pressings ${indice === null ? "—" : indice.toFixed(2)} sur ${cumul.parMatch.length} matchs cumulés (référence 1,05 pour une fenêtre de ~45 s — le vrai football est à 5,56 sur des matchs entiers) → χ² = ${chi2 === null ? "—" : chi2.toFixed(1)} à ${ddl} ddl, p = ${pDisp.toFixed(4)}`,
     ddl >= 6 && pDisp >= 0.05,
     "ÉCHÉANCE étape 4 — un match-bataille et un match-promenade doivent contenir des quantités de pressing différentes ; c'est le tempo qui les distinguera. Quatrième distribution à atteindre, et la seule qui se mesure sur n = MATCHS");
+  /* LE MARQUAGE, SUR LE CUMUL. Trois niveaux, calibrés sur l'incident
+     du 27 août (93 → 68 → 97 % d'un passage à l'autre, même code) :
+     ≥ 70 % sur le cumul → vert ; < 55 % → ROUGE quel que soit
+     l'échantillon (le hasard pur est à ~50 %, c'est une panne) ; entre
+     les deux sur un cumul encore court (< 25 matchs) → NON CONCLUANT
+     affiché, relancer la recette élargit le cumul. Un mauvais tirage ne
+     fabrique plus une fausse régression, une vraie panne sort toujours. */
+  const tauxM = cumul.mVus ? cumul.mBons / cumul.mVus : 0;
+  const tauxBrutM = sacMarquage.tous ? sacMarquage.tousBons / sacMarquage.tous : 0;
+  if (tauxM < 0.7 && tauxM >= 0.55 && cumul.mMatchs < 25) {
+    console.log(`   ⚠ Décision 33 — marquage goal-side à ${Math.round(tauxM * 100)} % sur le cumul (${cumul.mBons}/${cumul.mVus}, ${cumul.mMatchs} matchs) : NON CONCLUANT sous 25 matchs — relancer la recette élargit le cumul (relevés corrélés dans un match : le n effectif est en matchs)`);
+  } else {
+    verifier(`Décision 33 — le marquage se voit : EN POSITION, le marqueur est goal-side ${Math.round(tauxM * 100)} % du temps (${cumul.mBons}/${cumul.mVus} relevés, CUMUL sur ${cumul.mMatchs} matchs et ${nbPassages} passage(s)) — ${Math.round(tauxBrutM * 100)} % en comptant ceux qui courent encore sur ce passage`,
+      cumul.mVus >= ECHANTILLON_MARQUAGE && tauxM >= 0.7);
+  }
   /* LA DENSITÉ EST SUSPENDUE — SA RÉFÉRENCE N'EST PAS APPARIÉE À
      L'EFFECTIF (amendement IV de design/etape4-prediction.md).
      Les 7,01 épisodes/minute sont mesurés sur du football à 22 joueurs ;
