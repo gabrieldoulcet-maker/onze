@@ -215,9 +215,69 @@ const ONZE_SCENE = (() => {
      Chaque temps porte sa PROMESSE (texte au futur, R5) ; le
      texte du moteur ne sert que de CONSTAT sur le temps d'issue.
      ============================================================ */
+  /* ============================================================
+     ÉTAPE 4 · LE CASTING DES GABARITS (design/scene-simulation.md §6).
+     Le tempo signe la situation : un spectateur reconnaît un contre à
+     sa vitesse, pas à sa forme. Le choix vient des DONNÉES DU MOTEUR —
+     type d'événements, École de l'équipe, protagonistes — jamais d'un
+     tirage. Chaque casting porte sa RAISON, consultable, comme les
+     rôles du cerveau (décision 33).
+     Références réelles (design/football-chiffre.md §6) :
+       gabarit        tempo m/s   durée   part réelle
+       construction   0,04        6,9 s   13,5 %
+       création       1,3         6,1 s   31,8 %
+       chaos          3,3         2,6 s   23,7 %
+       contre         4,2         7,4 s    1,2 %
+       transition     5,4        10,9 s    1,7 %
+       jeu direct     13          3,2 s    8,1 %
+       finition       —           6,1 s   16,0 %
+       coup de pied arrêté : PAS DE SOURCE MOTEUR aujourd'hui (le moteur
+       ne produit ni corner ni coup franc) — jamais casté, et c'est dit
+       ici plutôt que caché.
+     ============================================================ */
+  const GABARITS = {
+    construction: { tempo: 0.04, duree: 6.9 },
+    creation:     { tempo: 1.3,  duree: 6.1 },
+    chaos:        { tempo: 3.3,  duree: 2.6 },
+    contre:       { tempo: 4.2,  duree: 7.4 },
+    transition:   { tempo: 5.4,  duree: 10.9 },
+    jeu_direct:   { tempo: 13,   duree: 3.2 },
+    finition:     { tempo: 0.9,  duree: 6.1 },
+  };
+  function casterGabarit(phase, eqA, eqB) {
+    const evts = phase.evenements || [];
+    const evContre = evts.find((e) => e.type === "contre");
+    const evPercee = evts.find((e) => e.type === "percee");
+    const evLong = evts.find((e) => e.type === "ballon_long" || e.type === "lambretta");
+    const evPossession = evts.find((e) => e.type === "possession");
+    const evFinal = evts.find((e) => e.but || e.type === "arret" || e.type === "blocage");
+    const rebonds = evts.filter((e) => e.type === "rebond").length;
+    const equipeAttaque = evFinal ? (evFinal.but ? evFinal.equipe : (eqA.nom === evFinal.equipe ? eqB.nom : eqA.nom))
+      : evPercee ? evPercee.equipe : evContre ? evContre.equipe : evPossession ? evPossession.equipe : eqA.nom;
+    const equipe = eqA.nom === equipeAttaque ? eqA : eqB;
+    const style = styleDe(equipe).style;
+    const choix = (gabarit, raison) => ({ gabarit, equipe: equipeAttaque, style, raison, ...GABARITS[gabarit] });
+
+    // l'ordre est une PRIORITÉ, comme les rôles du cerveau : le premier
+    // signal du moteur qui s'applique gagne
+    if (evContre && evPercee && evPercee.sousType === "course")
+      return choix("transition", "récupération + sprint dans l'espace : le terrain se traverse");
+    if (evContre) return choix("contre", "le moteur a produit une récupération qui renverse");
+    if (evLong || (style === "kickrush" && !evPossession))
+      return choix("jeu_direct", evLong ? "ballon long du moteur : projection instantanée" : "Kick & Rush sans phase de possession");
+    if (rebonds >= 1) return choix("chaos", "ballon qui traîne : le moteur a produit un rebond");
+    if (evPercee && (evPercee.sousType === "centre" || evPercee.sousType === "aerien"))
+      return choix("finition", "l'action vit dans le tiers adverse : centre ou duel aérien");
+    if (evPossession && (style === "catenaccio" || styleDe(equipe).style === "grinta") && !evPercee)
+      return choix("construction", "possession sans percée d'un bloc bas : on garde, on n'avance pas");
+    if (evPossession) return choix("creation", "possession qui cherche l'intervalle au milieu");
+    return choix("creation", "défaut : rien d'autre ne se lit dans la phase");
+  }
+
   function construireAction(phase, eqA, eqB) {
     const evts = phase.evenements;
     const temps = [];
+    const gabarit = casterGabarit(phase, eqA, eqB);
     const evPossession = evts.find((e) => e.type === "possession");
     const evPercee = evts.find((e) => e.type === "percee");
     const evGeste = evts.find((e) => e.type === "geste");
@@ -324,6 +384,8 @@ const ONZE_SCENE = (() => {
     temps.situation = situation;
     temps.equipe = equipeAttaque;
     temps.style = style;
+    // étape 4 : la séquence porte son gabarit — le tempo signera la situation
+    temps.gabarit = gabarit;
     return temps;
   }
 
@@ -2527,7 +2589,7 @@ const ONZE_SCENE = (() => {
     }
   }
 
-  return { creer, couleurFamille, styleDe, construireAction, separerDisques,
+  return { creer, couleurFamille, styleDe, construireAction, casterGabarit, separerDisques,
            dimensionsTerrain, RAYON_PION_M,
            maillots: () => ({ ...maillots }), majMaillots, MAILLOTS_DEFAUT,
            OMBRE_CONTACT, LISERE_HAUT,

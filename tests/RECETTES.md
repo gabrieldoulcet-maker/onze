@@ -1,6 +1,6 @@
 # Les recettes d'ONZE — le dénominateur
 
-**24 fichiers de recette.** Ce nombre est le dénominateur de « suite complète
+**25 fichiers de recette.** Ce nombre est le dénominateur de « suite complète
 verte » : une livraison le cite, et un écart entre le nombre cité et le nombre sur le
 disque est un **échec de livraison**, pas un détail de rédaction (règle M5).
 
@@ -66,6 +66,7 @@ Deux garde-fous, complémentaires :
 | `tests/habillage.spec.js` | l'habillage (playtest 26/08 15:32) : un seul monde pendant le match, le commentaire dans la scène, le médaillon sur sa piste, « 0 M » sans jeton à zéro, le creux sans glyphe, l'indice qui se ferme au premier geste |
 | `tests/accueil.spec.js` | la home : contraste de chaque texte, invite d'installation, matière des composants |
 | `tests/achat.spec.js` | l'achat au tap, l'appui long, la modale de première partie |
+| `tests/casting.spec.js` | le casting des gabarits (étape 4a) : chaque phase du moteur reçoit un gabarit avec sa raison, la Catenaccio joue des contres et la Tiki des créations SANS scripting — recette PURE, moteur réel, zéro navigateur |
 | `tests/da.spec.js` | la direction artistique : luminosité des illustrations, arène, épuration |
 | `tests/drag.spec.js` | le glisser-déposer JOUÉ AU POINTEUR, du pointerdown au pointerup (règle M1) |
 | `tests/gardien.spec.js` | un seul gardien sur le terrain |
