@@ -120,12 +120,20 @@ const RELEVE = `(zones) => {
        manque. */
     const propre = [...e.childNodes].filter((n) => n.nodeType === 3)
       .map((n) => n.textContent).join("").trim();
+    /* La bande de commentaire est un RÉCIT, pas un libellé : ses « … »
+       sont du suspense écrit (« L'appel est lancé… mais la ligne est
+       montée ! »), pas une coupure. Le défaut est devenu visible avec la
+       décision 73 : le match démarre assez vite pour qu'une phrase
+       chaude soit à l'écran quand cette recette photographie. Le CLIP
+       géométrique (coupeX/coupeY plus bas) surveille toujours cette
+       bande — seule la chasse au caractère « … » l'exempte. */
+    const recit = (e.className || "").toString().includes("texte-commentaire");
     /* ATTENTION : ce bloc vit dans un LITTÉRAL DE GABARIT, où « \\. » se
        résout en « . » avant d'atteindre l'expression régulière — un point
        qui matche n'importe quoi. Écrit simplement, le motif déclarait
        33 à 63 textes tronqués là où il n'y en avait aucun. Les
        échappements se doublent ici. */
-    if (propre && /…|\\.\\.\\.\\s*$/.test(propre)) {
+    if (propre && !recit && /…|\\.\\.\\.\\s*$/.test(propre)) {
       const st0 = getComputedStyle(e);
       const r0 = e.getBoundingClientRect();
       if (st0.display !== "none" && st0.visibility !== "hidden" && r0.width > 4) {
@@ -145,7 +153,7 @@ const RELEVE = `(zones) => {
       (st.textOverflow === "ellipsis" || st.overflowX === "hidden" || st.overflow === "hidden");
     const coupeY = e.scrollHeight - e.clientHeight > 1 &&
       (st.overflowY === "hidden" || st.overflow === "hidden") && st.whiteSpace !== "nowrap";
-    if (coupeX || coupeY || /…|\\.\\.\\.$/.test(t)) {
+    if (coupeX || coupeY || (!recit && /…|\\.\\.\\.$/.test(t))) {
       tronques.push(t.slice(0, 18) + " (" + e.tagName.toLowerCase() + "." +
         (e.className || "").toString().split(" ")[0] + ")");
     }

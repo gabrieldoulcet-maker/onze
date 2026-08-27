@@ -341,20 +341,17 @@ const dette = (nom, ok, quand) => {
       coutCourt: ONZE_UI.coutTempsFort(une, plan.miseEnPlaceMs, true),
       tempsCourt: ONZE_UI.actionCourte(une).length, tempsGrand: une.length };
   });
-  verifier(`Formats : le grand format coûte ~13 s (${(alloc.coutGrand / 1000).toFixed(1)} s, ${alloc.tempsGrand} temps)`,
-    alloc.coutGrand > 11000 && alloc.coutGrand < 15000);
-  verifier(`Formats : le format court coûte ~8 s (${(alloc.coutCourt / 1000).toFixed(1)} s, ${alloc.tempsCourt} temps)`,
-    alloc.coutCourt > 6000 && alloc.coutCourt < 8500);
+  /* DÉCISION 73 (qui remplace la 32) : TOUT est court, TOUT est rendu.
+     Le coût planifié reste ~8 s par action AVANT le facteur de
+     déroulement (1,6) — soit ~4-5 s jouées. */
+  verifier(`Décision 73 : le format unique coûte ~8 s planifiés (${(alloc.coutCourt / 1000).toFixed(1)} s, ${alloc.tempsCourt} temps — ~${(alloc.coutCourt / 1600 / 1000 * 1000).toFixed(1)} s au déroulement ×1,6)`,
+    alloc.coutCourt > 6000 && alloc.coutCourt < 9000);
   for (const [nbButs, m] of Object.entries(alloc.mesures)) {
-    verifier(`Allocation ${nbButs} buts : ${m.grands} grand + ${m.courts} court = ${(m.dureeTotale / 1000).toFixed(1)} s` +
-      ` (tous les buts rendus : ${m.tousLesButsRendus ? "oui" : "NON"}, dernier but en grand format : ${m.dernierButEnGrand ? "oui" : "NON"})`,
-      m.tousLesButsRendus && m.dernierButEnGrand &&
-      (m.dureeTotale <= 52000 || Number(nbButs) >= 6));
+    verifier(`Décision 73 — ${nbButs} buts : ${m.rendus} rendus, TOUS courts (${m.courts}/${m.rendus}), ${(m.dureeTotale / 1000).toFixed(1)} s planifiées ≈ ${(m.dureeTotale / 1600).toFixed(1)} s jouées (tous les buts rendus : ${m.tousLesButsRendus ? "oui" : "NON"})`,
+      m.tousLesButsRendus && m.courts === m.rendus);
   }
-  verifier(`Allocation : peu de buts → aucun format court (2 buts : ${alloc.mesures[2].courts})`,
-    alloc.mesures[2].courts === 0);
-  verifier(`Allocation : beaucoup de buts → le format court entre en jeu (5 buts : ${alloc.mesures[5].courts} courts)`,
-    alloc.mesures[5].courts >= 1);
+  verifier(`Décision 73 : TOUTES les occasions sont rendues, plus de tri (8 phases → 2 buts : ${alloc.mesures[2].rendus} rendus · 6 buts : ${alloc.mesures[6].rendus})`,
+    alloc.mesures[2].rendus >= 2 && alloc.mesures[6].rendus >= 6);
 
   /* ---- FIDÉLITÉ (décision 24) : LE CAS DES HOMONYMES, forcé.
      Le pool contient plusieurs copies de chaque joueur : deux clubs
@@ -797,6 +794,11 @@ const dette = (nom, ok, quand) => {
      marquage : un match ne donne que cinq appels et sept pressings, et
      une distribution ne se juge pas sur sept points (décision 43). */
   const sacE3 = { hauteurs: [], postures: {}, lignes: [], appels: [], pressings: [], options: [], dureesOption: [] };
+  /* La tenue de ligne se cumule sur TOUS les matchs du passage, par
+     régime : le verdict sur un seul match tirait à pile ou face autour
+     du seuil (6,5 · 6,7 · 8,3 · 9,2 mesurés sur le même code). */
+  const sacLignes = { repos: { n: 0, somme: 0 }, action: { n: 0, somme: 0 } };
+  const lignesReposParMatch = [];
   /* Le FOOTBALL RENDU, en secondes cumulées : c'est le dénominateur du
      taux de pressing. Un TAUX se stabilise sur le nombre de MATCHS, pas
      sur le nombre d'épisodes — neuf matchs suffisent là où la
@@ -824,6 +826,15 @@ const dette = (nom, ok, quand) => {
     sacMarquage.matchs++;
     sacPorteur.push(...(releve.relevesPorteurSimule || []));
     sacFormats.push(...(releve.tempsFortsMs || []));
+    if (releve.lignesParRegime) {
+      for (const k of ["repos", "action"]) {
+        sacLignes[k].n += releve.lignesParRegime[k].n;
+        sacLignes[k].somme += releve.lignesParRegime[k].somme;
+      }
+      if (releve.lignesParRegime.repos.n >= 2) {
+        lignesReposParMatch.push(releve.lignesParRegime.repos.somme / releve.lignesParRegime.repos.n);
+      }
+    }
     secondesRendues += (releve.duree || 0) / 1000;
     episodesParMatch.push(((releve.etape3 && releve.etape3.pressings) || []).filter((p) => p.duree >= 1).length);
     if (releve.etape3) {
@@ -835,7 +846,7 @@ const dette = (nom, ok, quand) => {
     // le relevé qui sert à TOUTES les autres mesures doit avoir de la matière
     if (!avecMatiere && releve.buts >= 1 && releve.misesEnPlace >= 2) avecMatiere = releve;
     const tiragesPostures = Object.values(sacE3.postures).reduce((a, b) => a + b, 0);
-    if (avecMatiere && sacMarquage.vus >= ECHANTILLON_MARQUAGE && sacPorteur.length >= 100
+    if (avecMatiere && sacMarquage.vus >= ECHANTILLON_MARQUAGE && sacPorteur.length >= 40
         && sacE3.appels.length >= 15 && sacE3.dureesOption.length >= 30
         // on compte les ÉPISODES (≥ 1 s), pas les pressings bruts : c'est
         // sur eux que portent les trois références recalculées
@@ -861,7 +872,16 @@ const dette = (nom, ok, quand) => {
     partie.manche = 10;
     // on instrumente la scène AVANT qu'elle naisse
     const creerOriginal = ONZE_SCENE.creer;
-    const journal = { temps: [], cuts: 0, misesEnPlace: 0 };
+    const journal = { temps: [], cuts: 0, misesEnPlace: 0, resultat: null };
+    // décision 73 : on attrape le RÉSULTAT du moteur au passage, pour
+    // compter ses phases chaudes (le dénominateur du « 100 % rendues »)
+    if (!ONZE_UI.__rejouerOriginal) {
+      ONZE_UI.__rejouerOriginal = ONZE_UI.rejouer;
+    }
+    ONZE_UI.rejouer = function (resultat, ...reste) {
+      journal.resultat = resultat;
+      return ONZE_UI.__rejouerOriginal.call(this, resultat, ...reste);
+    };
     ONZE_SCENE.creer = function (...args) {
       const sc = creerOriginal.apply(this, args);
       const jt = sc.jouerTemps, ct = sc.cut, mp = sc.miseEnPlace;
@@ -888,6 +908,7 @@ const dette = (nom, ok, quand) => {
     let appelsVus = 0, appelsEnCourse = 0;
     let reposDepuis = 0, vitesseReposCourante = 0; const finsDeRepos = [];
     let lignesVues = 0, sommeEcartType = 0;
+    const lignesParRegime = { repos: { n: 0, somme: 0 }, action: { n: 0, somme: 0 } };
     let marquagesVus = 0, marquagesBons = 0, marquagesTous = 0, marquagesTousBons = 0;
     // R12 : la timeline des temps forts
     let tlTotal = 0, tlMax = -1, tlRecule = 0, tlMalCompte = 0;
@@ -993,8 +1014,13 @@ const dette = (nom, ok, quand) => {
           const ligne = d.positions.filter((p) => p.camp === camp && p.role === "ligne");
           if (ligne.length < 2) continue;
           const moy = ligne.reduce((t, p) => t + p.x, 0) / ligne.length;
-          sommeEcartType += Math.sqrt(ligne.reduce((t, p) => t + (p.x - moy) ** 2, 0) / ligne.length);
+          const et = Math.sqrt(ligne.reduce((t, p) => t + (p.x - moy) ** 2, 0) / ligne.length);
+          sommeEcartType += et;
           lignesVues++;
+          // la même grandeur, séparée par régime : une ligne posée (repos)
+          // et une ligne en plein pressing ne sont pas la même population
+          const cleReg = d.regime === "repos" ? "repos" : "action";
+          lignesParRegime[cleReg].n++; lignesParRegime[cleReg].somme += et;
         }
         for (const m of d.positions.filter((p) => p.role === "marquage" && p.marque)) {
           const homme = d.positions.find((p) => p.cle === m.marque);
@@ -1074,6 +1100,10 @@ const dette = (nom, ok, quand) => {
     return {
       duree, horsDelai, regimes: [...new Set(regimes)], nbRegimes: regimes.length,
       cuts: journal.cuts, misesEnPlace: journal.misesEnPlace,
+      /* décision 73 : le compte des phases CHAUDES du moteur — c'est le
+         dénominateur du « 100 % des promesses rendues » */
+      chaudes: (journal.resultat ? journal.resultat.phases : []).filter((p) =>
+        p.evenements.some((ev) => ev.but || ev.type === "arret" || ev.type === "blocage" || ev.type === "rebond")).length,
       nbTemps: journal.temps.filter((t) => t.type !== "_miseEnPlace").length,
       // la durée RÉELLE d'une mise en place à l'écran : de son départ au
       // premier temps de jeu qui la suit. C'est elle qui trahit le
@@ -1128,6 +1158,7 @@ const dette = (nom, ok, quand) => {
       vitesseRepos: finsDeRepos.length
         ? finsDeRepos.slice().sort((a, b) => a - b)[Math.floor(finsDeRepos.length / 2)] : 0,
       lignesVues, ecartTypeLigne: lignesVues ? sommeEcartType / lignesVues : 0,
+      lignesParRegime,
       marquagesVus, marquagesBons, marquagesTous, marquagesTousBons,
       tlTotal, tlMax, tlRecule, tlMalCompte, porteurAmbigu, matchsAvecHomonymes,
       // ÉTAPE 3 : les distributions du cerveau
@@ -1161,35 +1192,29 @@ const dette = (nom, ok, quand) => {
     !releve.regimes.includes("domination"));
   verifier(`R2 : le match est fait de temps forts coupés au carton (${releve.misesEnPlace} temps forts, ${releve.cuts} cuts)`,
     releve.misesEnPlace >= 1 && releve.cuts >= releve.misesEnPlace);
-  /* Le plafond de format est de 4 rendus sur un match plein, MAIS la
-     décision 25 impose de rendre tous les buts : un match à 5 buts fait
-     donc 5 temps forts. L'invariant vrai est celui-ci — le nombre de
-     rendus ne dépasse jamais le plus grand des deux (plafond, buts). */
-  const plafond = Math.max(4, releve.buts);
-  verifier(`R9 : 2 rendus au moins, jamais plus que le plafond ni que les buts (${releve.misesEnPlace} rendus, ${releve.buts} buts, plafond ${plafond})`,
-    releve.misesEnPlace >= 2 && releve.misesEnPlace <= plafond);
+  /* DÉCISION 73 : toutes les promesses du moteur sont rendues — le
+     nombre de mises en place vaut le nombre de phases CHAUDES. */
+  verifier(`Décision 73 : 100 % des promesses du moteur rendues (${releve.misesEnPlace} rendus pour ${releve.chaudes} phases chaudes, dont ${releve.buts} but(s))`,
+    releve.chaudes >= 1 && releve.misesEnPlace === releve.chaudes);
   verifier(`R9 : chaque temps fort porte au moins une issue (${releve.issues} issues pour ${releve.misesEnPlace} temps forts)`,
     releve.issues >= releve.misesEnPlace);
   verifier(`R9 : plancher de lisibilité tenu (temps le plus court ${Math.round(releve.ecartMin)} ms ≥ 800)`,
     releve.ecartMin >= 780);
-  /* Le PLAFOND DUR de ~50 s (arbitrage de Gabriel) : c'est le basculement
-     en format court qui le tient. Au-delà de 6 buts, la décision 25
-     (tous les buts rendus) impose un plancher qui le dépasse — on le dit
-     au lieu de le cacher. */
-  const plafondDur = releve.buts >= 6 ? 65000 : 54000;
   verifier(`Fiabilité de la mesure : aucun match n'a dépassé le plafond de l'échantillonneur (${matchsHorsDelai} hors délai)`,
     matchsHorsDelai === 0);
-  verifier(`R9 : plafond dur de ~50 s tenu (${(releve.duree / 1000).toFixed(1)} s pour ${releve.misesEnPlace} rendus dont ${releve.buts} buts, limite ${(plafondDur / 1000).toFixed(0)} s)`,
-    releve.duree > 20000 && releve.duree < plafondDur);
-  /* Règle 3 : la patience. Le GRAND format tient ses temps décisifs à
-     1,5-2 s. Le FORMAT COURT (décision 32) les tient à 1-1,3 s — c'est
-     la construction qu'il raccourcit, jamais la chorégraphie du but. */
-  const decGrand = releve.decisifs.filter((d) => d.format === "grand").map((d) => d.duree);
-  const decCourt = releve.decisifs.filter((d) => d.format === "court").map((d) => d.duree);
-  verifier(`Règle 3 : les temps décisifs du GRAND format sont patients (${decGrand.length} mesurés, le plus court ${decGrand.length ? Math.round(Math.min(...decGrand)) : "—"} ms ≥ 1450)`,
-    decGrand.length >= 1 && decGrand.every((v) => v >= 1450));
-  verifier(`Décision 32 : les temps de construction du FORMAT COURT tiennent 1-1,3 s (${decCourt.length} mesurés${decCourt.length ? `, de ${Math.round(Math.min(...decCourt))} à ${Math.round(Math.max(...decCourt))} ms` : ""})`,
-    decCourt.every((v) => v >= 1000 && v <= 1400));
+  /* LE GARDE-FOU PRÉ-ENREGISTRÉ de la décision 73 : plus vite ET tout
+     voir. Durée mesurée AVANT (matchs pleins instrumentés) : 41,0 ·
+     48,9 · 51,3 s pour 2-5 rendus. Cible du calcul : ~25-30 s pour ~4-6
+     rendus ; le plafond de recette laisse la marge d'un festival. */
+  const plafond73 = 24000 + releve.misesEnPlace * 3000;
+  verifier(`Décision 73 : plus vite ET tout voir — ${(releve.duree / 1000).toFixed(1)} s pour ${releve.misesEnPlace} rendus dont ${releve.buts} but(s) (avant : 41-51 s pour 2-5 rendus ; plafond ${(plafond73 / 1000).toFixed(0)} s)`,
+    releve.duree > 12000 && releve.duree < plafond73);
+  /* Règle 3 sous la décision 73 : le tempo a doublé mais la dramaturgie
+     survit en miniature — le temps DÉCISIF reste étiré (1600/1,6 =
+     1000 ms) au-dessus des temps de jeu au plancher (800 ms). */
+  const tousDecisifs = releve.decisifs.map((d) => d.duree);
+  verifier(`Décision 73 — le décisif reste étiré : ${tousDecisifs.length} mesurés, le plus court ${tousDecisifs.length ? Math.round(Math.min(...tousDecisifs)) : "—"} ms ≥ 950 (plancher de jeu 800)`,
+    tousDecisifs.length >= 1 && tousDecisifs.every((v) => v >= 950));
   verifier(`Décision 33 : aucune position non finie (${releve.nonFinies} relevé(s) fautif(s))`,
     releve.nonFinies === 0);
   verifier(`R4 : les 22 pions bougent en permanence (vitesse moyenne ${releve.vitesseMoyenne.toFixed(2)} m/s, ${Math.round(releve.partsImmobiles * 100)} % de relevés figés)`,
@@ -1250,8 +1275,23 @@ const dette = (nom, ok, quand) => {
   verifier(`Décision 33 — zéro bruit : une scène laissée tranquille se FIGE (déplacement ${calme.deplacementMax.toFixed(2)} m en 0,8 s ; vitesse résiduelle ${calme.vitesseMax.toFixed(2)} m/s de sur-place)`,
     calme.deplacementMax < 0.6);
   console.log(`   (repos en match : vitesse médiane ${releve.vitesseRepos.toFixed(2)} m/s sur ${releve.reposVus} période(s) — les pions se replacent encore, c'est de la convergence)`);
-  verifier(`Décision 33 — la ligne se voit : les défenseurs partagent une hauteur (écart-type ${releve.ecartTypeLigne.toFixed(1)} m)`,
-    releve.lignesVues >= 2 && releve.ecartTypeLigne < 8);
+  /* SUR UN SEUL MATCH, CE VERDICT TIRAIT À PILE OU FACE : 6,5 · 6,7 ·
+     8,3 · 9,2 m mesurés sur le même code, pour un seuil à 8 — la
+     tolérance était SOUS le bruit (M6 bis). Même remède que partout :
+     cumuler les matchs du passage, même population (tous régimes).
+     ET LA MESURE A REFUSÉ L'HYPOTHÈSE FACILE : on croyait la ligne
+     cassée par l'action (pressing, marquages) et posée au repos — c'est
+     l'INVERSE (repos 7,5 m · action 5,8 m sur 5 230 relevés). Restreindre
+     au repos aurait donc EMPIRÉ la mesure en la faisant passer pour plus
+     propre. La ligne 📐 garde ce partage sous les yeux.
+     CONTRE-TEST du seuil : une ligne rendue au hasard sur la profondeur
+     du bloc (~35 m) mesurerait un écart-type ≥ 10 m — le seuil à 8
+     attrape toujours ce défaut-là. */
+  const lTot = sacLignes.repos.n + sacLignes.action.n;
+  const lMoy = lTot ? (sacLignes.repos.somme + sacLignes.action.somme) / lTot : 0;
+  verifier(`Décision 33 — la ligne se voit : les défenseurs partagent une hauteur (écart-type moyen ${lMoy.toFixed(1)} m sur ${sacMarquage.matchs} MATCHS du passage — ${lTot} relevés, corrélés dans un match : la puissance se compte en matchs)`,
+    sacMarquage.matchs >= 5 && lTot >= 100 && lMoy < 8);
+  console.log(`   📐 tenue de ligne par régime : repos ${sacLignes.repos.n ? (sacLignes.repos.somme / sacLignes.repos.n).toFixed(1) : "—"} m (${sacLignes.repos.n} relevés) · action ${sacLignes.action.n ? (sacLignes.action.somme / sacLignes.action.n).toFixed(1) : "—"} m (${sacLignes.action.n} relevés) — par match au repos : ${lignesReposParMatch.map((v) => v.toFixed(1)).join(" · ")}`);
   /* Le marquage n'est JAMAIS à 100 %, et c'est voulu : quand le moteur
      désigne un défenseur battu, il se retrouve du mauvais côté — et ça
      doit se voir. On vérifie que la règle tient dans la large majorité
@@ -1317,10 +1357,10 @@ const dette = (nom, ok, quand) => {
      chorégraphie tient encore le pion, c'est l'étape 4 (les gabarits)
      qui en répondra : on le mesure et on l'affiche plutôt que de le
      cacher dans une moyenne. */
-  const porteurTrie = sacPorteur.slice().sort((a, b) => a - b);
-  const porteurMed = porteurTrie.length ? porteurTrie[Math.floor(porteurTrie.length / 2)] : 0;
-  verifier(`Étape 1 — le porteur tient l'allure d'une occasion chaude : médiane ${porteurMed.toFixed(2)} m/s sur ${porteurTrie.length} relevés cumulés (référence 3,4 m/s ±25 % → 2,55-4,25 ; p90 réel 5,9)`,
-    porteurTrie.length >= 100 && porteurMed >= 2.55 && porteurMed <= 4.25);
+  /* Le verdict du PORTEUR a déménagé sur le sac cumulé entre exécutions
+     (plus bas) : les matchs raccourcis par la décision 73 ne donnent
+     plus ~100 relevés par passage — même remède que le marquage,
+     cumuler les données, pas les verdicts. */
   console.log(`   📐 porteur, tous rôles confondus (chorégraphie comprise) : ${releve.vitessePorteurMediane.toFixed(2)} m/s sur ${releve.porteursVus} relevés — la chorégraphie court encore, c'est l'étape 4 qui la remplace`);
   console.log(`   📐 braquage : p99 ${releve.braquageP99.toFixed(1)} rad/s, max ${releve.braquageMax.toFixed(1)} (${releve.braquagesVus} mesures sur les joueurs lancés)`);
   console.log(`   📐 allure : médiane à ${Math.round(releve.allureMediane * 100)} % de la vitesse max (${releve.alluresVues} relevés) — dans le vrai football, un joueur passe l'essentiel du match SOUS son maximum`);
@@ -1364,8 +1404,15 @@ const dette = (nom, ok, quand) => {
   // 3. le bloc a TROIS lignes (médiane du manuel)
   verifier(`Étape 3 — le bloc a trois lignes (médiane mesurée ${q(e3.lignes, 0.5)}, réel 3)`,
     e3.lignes.length >= 100 && q(e3.lignes, 0.5) >= 2 && q(e3.lignes, 0.5) <= 4);
-  // 4. l'appel dure ce que dure un appel : 2,1 s
-  const AD = e3.appels.map((a) => a.duree);
+  /* 4. l'appel dure ce que dure un appel : 2,1 s.
+     Population (M2) : appels finis EN JEU — un appel coupé par la fin du
+     temps fort (décision 73 : rendus ~2× plus courts) n'a pas fini sa
+     course, sa durée est censurée. Mesuré au moment du changement :
+     médiane 1,9 · 1,9 · 1,9 · 1,8 · 1,9 puis 1,6 s, la censure tirait
+     la médiane sous la fenêtre. Le taux de troncature est affiché. */
+  const appelsFinis = e3.appels.filter((a) => !a.tronque);
+  if (e3.appels.length) console.log(`   📐 appels : ${e3.appels.length - appelsFinis.length}/${e3.appels.length} coupés par la fin du temps fort (exclus de la durée et de la longueur, déclaré)`);
+  const AD = appelsFinis.map((a) => a.duree);
   verifier(`Étape 3 — un appel dure ${q(AD, 0.5).toFixed(1)} s (réel 2,1 ; ${AD.length} appels relevés)`,
     AD.length >= 15 && ecart(q(AD, 0.5), 2.1) <= 0.25);
   /* 5. LE PRESSING : les trois grandeurs, chacune contre SA référence,
@@ -1395,26 +1442,32 @@ const dette = (nom, ok, quand) => {
      chiffres-là qui avaient servi de repère, et c'est ce qui a fait
      ramener la mission de pressing de 2,0 s à 1,6 s alors que 2,0 était
      juste.) */
-  const episodes = e3.pressings.filter((p) => p.duree >= 1);
-  const PU2 = episodes.map((p) => p.duree), PDep = episodes.map((p) => p.depart);
+  /* DEUX POPULATIONS, PAS UNE, ET CHACUNE NOMMÉE (M2). La décision 73
+     raccourcit les temps forts ~2× : la plupart des épisodes ≥ 1 s sont
+     désormais COUPÉS par la fin du temps fort (mesuré : 20/24 sur un
+     passage). La coupure ne censure pas les trois grandeurs de la même
+     façon :
+       — le DÉPART est acquis à l'élan : un épisode coupé a un départ
+         exact. Population : tous les épisodes ≥ 1 s, tronqués inclus.
+       — la DURÉE et le MINIMUM sont censurés par la coupure : un épisode
+         coupé n'a eu le temps ni de durer ni de fermer. Population :
+         épisodes ≥ 1 s finis EN JEU. Et comme les épisodes longs sont
+         plus souvent coupés, la médiane des survivants est une borne
+         BASSE — si elle sort sous 1,79 s, c'est le rendu qui étouffe le
+         pressing, et c'est un vrai signal, pas du bruit.
+     Le taux de troncature est affiché à chaque passage : s'il monte
+     encore, ça se voit ici au lieu de polluer les médianes. */
+  const bruts = e3.pressings.filter((p) => p.duree >= 1);
+  const episodes = bruts.filter((p) => !p.tronque);
+  if (bruts.length) console.log(`   📐 pressing : ${bruts.length - episodes.length}/${bruts.length} épisodes ≥ 1 s tronqués par la fin du temps fort (exclus de durée/minimum, gardés pour le départ et la densité — déclaré)`);
+  const PDepTous = bruts.map((p) => p.depart);
+  const PU2 = episodes.map((p) => p.duree);
   const PMin = episodes.map((p) => p.mini);
-  /* CHAQUE GRANDEUR SA TOLÉRANCE, DÉCLARÉE, AVEC SA RAISON. Une seule
-     tolérance pour trois grandeurs revient à prendre la plus large.
-       — DÉPART, ±35 % : c'est une condition de départ, pas ce que l'œil
-         lit. Personne ne mesure à l'écran d'où un défenseur s'est élancé.
-       — DURÉE, ±15 % : PAS pour une raison de ressenti. Elle compte parce
-         que SON ERREUR SE PROPAGE DANS LE MINIMUM — c'est la
-         démonstration de cet incident même : la mission de pressing fixe
-         la durée, et la durée décide du temps qu'un presseur a pour
-         fermer. À ±35 % autour de 1,6, la fourchette allait de 1,04 à
-         2,16 et laissait passer la régression qui a lancé tout cet
-         échange. Une grandeur dont l'erreur en contamine une autre ne
-         prend pas une tolérance large sur un argument de perception.
-       — MINIMUM, ±15 % : c'est LA grandeur que l'œil lit directement —
-         « un défenseur est-il SUR lui ? ». Une longueur de corps de trop
-         et l'action change de nature. */
-  verifier(`Étape 3 — le pressing, sur les ${PU2.length} épisodes ≥ 1 s : départ ${q(PDep, 0.5).toFixed(1)} m (réel 6,41 ; ±35 %, condition de départ) · durée ${q(PU2, 0.5).toFixed(1)} s (réel 2,10 ; ±15 %, son erreur se propage dans le minimum)`,
-    PU2.length >= 25 && ecart(q(PDep, 0.5), 6.41) <= 0.35 && ecart(q(PU2, 0.5), 2.10) <= 0.15);
+  /* Le VERDICT sur départ et durée a déménagé sur le sac cumulé entre
+     exécutions, plus bas : un passage ne livre plus que ~4 épisodes finis
+     en jeu, et un verdict à n = 4 est un tirage au sort. Même remède que
+     la fermeture, le marquage et le porteur — cumuler les DONNÉES, pas
+     les verdicts. */
   /* LE MINIMUM : LA PROPORTION, PAS LA MÉDIANE — ET LA TOLÉRANCE DOIT
      RESTER AU-DESSUS DU BRUIT (M6 bis).
      Le bruit d'une mesure se chiffre. Rééchantillonné sur la vraie
@@ -1490,30 +1543,43 @@ const dette = (nom, ok, quand) => {
   })();
   sacDisque.passages.push({
     quand: new Date().toISOString(),
+    /* episodes/fermes : épisodes ≥ 1 s FINIS EN JEU (durée et minimum,
+       censurés par la coupure) ; episodesTous : tous les ≥ 1 s, tronqués
+       inclus (départ et densité — un épisode coupé a bien EU LIEU). */
     episodes: PMin.length,
     fermes: PMin.filter((v) => v <= 3).length,
+    episodesTous: bruts.length,
+    dep: PDepTous.slice(0, 200),
+    dur: PU2.slice(0, 200),
     secondes: secondesRendues,
     parMatch: episodesParMatch.slice(),
     options: e3.options.length,
     optionsDans13: e3.options.filter((v) => v >= 1 && v <= 3).length,
     mVus: sacMarquage.vus, mBons: sacMarquage.bons, mMatchs: sacMarquage.matchs,
+    porteur: sacPorteur.slice(0, 300),
   });
   if (sacDisque.passages.length > 20) sacDisque.passages = sacDisque.passages.slice(-20);
   try { require("fs").writeFileSync(cheminCumul, JSON.stringify(sacDisque, null, 1)); } catch { /* lecture seule : on tranche sur ce passage */ }
   const cumul = sacDisque.passages.reduce((a, p) => ({
     episodes: a.episodes + p.episodes, fermes: a.fermes + p.fermes,
+    episodesTous: a.episodesTous + (p.episodesTous ?? p.episodes),
     secondes: a.secondes + p.secondes, options: a.options + p.options,
     optionsDans13: a.optionsDans13 + p.optionsDans13,
     mVus: a.mVus + (p.mVus || 0), mBons: a.mBons + (p.mBons || 0), mMatchs: a.mMatchs + (p.mMatchs || 0),
+    porteur: a.porteur.concat(p.porteur || []),
+    dep: a.dep.concat(p.dep || []), dur: a.dur.concat(p.dur || []),
     parMatch: a.parMatch.concat(p.parMatch || []),
-  }), { episodes: 0, fermes: 0, secondes: 0, options: 0, optionsDans13: 0, mVus: 0, mBons: 0, mMatchs: 0, parMatch: [] });
+  }), { episodes: 0, fermes: 0, episodesTous: 0, secondes: 0, options: 0, optionsDans13: 0, mVus: 0, mBons: 0, mMatchs: 0, porteur: [], dep: [], dur: [], parMatch: [] });
   const nbPassages = sacDisque.passages.length;
 
   /* `attendu`/p de Poisson retirés avec la suspension de la densité :
      un p calculé contre une référence non appariée serait un chiffre qui
      a l'air d'une preuve. La ligne suspendue n'affiche que la mesure. */
   const indice = dispersion(cumul.parMatch);
-  const tauxMin = cumul.secondes > 0 ? (cumul.episodes / cumul.secondes) * 60 : 0;
+  /* La densité compte les épisodes qui ont EU LIEU : tronqués inclus,
+     comme parMatch — même population que la référence réelle, où rien ne
+     coupe un pressing. Durée/minimum gardent leur population à eux. */
+  const tauxMin = cumul.secondes > 0 ? (cumul.episodesTous / cumul.secondes) * 60 : 0;
   /* L'HYPOTHÈSE SE VÉRIFIE, ELLE NE SE SUPPOSE PAS. Poisson suppose
      l'indépendance ; des pressings groupés dans un même temps fort
      rendraient le p optimiste. L'indice de dispersion (variance/moyenne)
@@ -1529,7 +1595,7 @@ const dette = (nom, ok, quand) => {
      « trois verts », c'est « aucun passage ne s'effondre ». */
   if (nbPassages >= 3) {
     const tauxParPassage = sacDisque.passages.filter((p) => p.secondes > 0)
-      .map((p) => (p.episodes / p.secondes) * 60);
+      .map((p) => ((p.episodesTous ?? p.episodes) / p.secondes) * 60);
     const pire = Math.min(...tauxParPassage);
     /* CE QU'UN VERT ICI PROUVE, ET CE QU'IL NE PROUVE PAS. Mesuré sur
        quatre passages : 5,88 · 5,05 · 4,99 · 6,09 → écart-type 0,564,
@@ -1550,11 +1616,15 @@ const dette = (nom, ok, quand) => {
      matchs de référence, les épisodes ≥ 1 s valent 665 · 641 · 671 · 559
      · 729 · 624 · 531 · 673 · 628 · 585, soit une moyenne de 630,6 pour
      une variance de 3 509 — indice 5,56. Les matchs ne se ressemblent
-     pas. Ramené à une fenêtre aussi courte que la nôtre (~45 s rendues),
-     le terme de variation entre matchs ne pèse presque plus et la
-     référence retombe à ≈ 1,05 :
-        variance = Poisson (λ ≈ 5,7) + CV²(taux) × λ²
-                 = 5,7 + 0,0088 × 32,5 ≈ 6,0, soit 1,05 λ.
+     pas. Ramené à une fenêtre aussi courte que la nôtre, le terme de
+     variation entre matchs ne pèse presque plus et la référence retombe
+     près de 1 :
+        variance = Poisson (λ) + CV²(taux) × λ², CV² = 0,0088
+        à ~45 s rendues (λ ≈ 5,7) : indice ≈ 1,05 ;
+        à ~25-33 s (décision 73, λ ≈ 2) : ≈ 1,02.
+     On garde 1,05 : entre les deux la différence est de 3 % — et dans le
+     sens LÉGÈREMENT INDULGENT pour une dette attendue rouge, donc sans
+     risque de fausse dette.
      Chez nous, un match qui est une bataille et un match qui est une
      promenade contiennent presque autant de pressing. C'est exactement
      ce que les gabarits pilotés par le tempo existent pour produire.
@@ -1564,9 +1634,18 @@ const dette = (nom, ok, quand) => {
   const ddl = cumul.parMatch.length - 1;
   const chi2 = indice === null ? null : (ddl * indice) / 1.05;
   const pDisp = chi2 === null ? 1 : chi2Cumul(chi2, ddl);
-  dette(`Étape 3 — les matchs ne se ressemblent pas : indice de dispersion des pressings ${indice === null ? "—" : indice.toFixed(2)} sur ${cumul.parMatch.length} matchs cumulés (référence 1,05 pour une fenêtre de ~45 s — le vrai football est à 5,56 sur des matchs entiers) → χ² = ${chi2 === null ? "—" : chi2.toFixed(1)} à ${ddl} ddl, p = ${pDisp.toFixed(4)}`,
+  dette(`Étape 3 — les matchs ne se ressemblent pas : indice de dispersion des pressings ${indice === null ? "—" : indice.toFixed(2)} sur ${cumul.parMatch.length} matchs cumulés (référence 1,05 pour une fenêtre courte — 1,02 à la fenêtre décision 73, écart de 3 % dans le sens indulgent, déclaré ; le vrai football est à 5,56 sur des matchs entiers) → χ² = ${chi2 === null ? "—" : chi2.toFixed(1)} à ${ddl} ddl, p = ${pDisp.toFixed(4)}`,
     ddl >= 6 && pDisp >= 0.05,
     "ÉCHÉANCE étape 4 — un match-bataille et un match-promenade doivent contenir des quantités de pressing différentes ; c'est le tempo qui les distinguera. Quatrième distribution à atteindre, et la seule qui se mesure sur n = MATCHS");
+  /* LE PORTEUR, SUR LE CUMUL (même mécanique que le marquage). */
+  const pTrie = cumul.porteur.slice().sort((a, b) => a - b);
+  const pMed = pTrie.length ? pTrie[Math.floor(pTrie.length / 2)] : 0;
+  if (pTrie.length < 100) {
+    console.log(`   ⚠ Étape 1 — porteur simulé à ${pMed.toFixed(2)} m/s sur ${pTrie.length} relevés cumulés (< 100) : NON CONCLUANT, relancer la recette cumule`);
+  } else {
+    verifier(`Étape 1 — le porteur tient l'allure d'une occasion chaude : médiane ${pMed.toFixed(2)} m/s sur ${pTrie.length} relevés CUMULÉS (${nbPassages} passage(s) ; référence 3,4 m/s ±25 % → 2,55-4,25)`,
+      pMed >= 2.55 && pMed <= 4.25);
+  }
   /* LE MARQUAGE, SUR LE CUMUL. Trois niveaux, calibrés sur l'incident
      du 27 août (93 → 68 → 97 % d'un passage à l'autre, même code) :
      ≥ 70 % sur le cumul → vert ; < 55 % → ROUGE quel que soit
@@ -1576,7 +1655,9 @@ const dette = (nom, ok, quand) => {
      fabrique plus une fausse régression, une vraie panne sort toujours. */
   const tauxM = cumul.mVus ? cumul.mBons / cumul.mVus : 0;
   const tauxBrutM = sacMarquage.tous ? sacMarquage.tousBons / sacMarquage.tous : 0;
-  if (tauxM < 0.7 && tauxM >= 0.55 && cumul.mMatchs < 25) {
+  if (cumul.mVus < ECHANTILLON_MARQUAGE && tauxM >= 0.55) {
+    console.log(`   ⚠ Décision 33 — marquage goal-side à ${Math.round(tauxM * 100)} % sur ${cumul.mMatchs} MATCHS cumulés mais seulement ${cumul.mVus} relevés (< ${ECHANTILLON_MARQUAGE}) : NON CONCLUANT — les matchs raccourcis par la décision 73 donnent peu de marquages par passage, relancer la recette cumule`);
+  } else if (tauxM < 0.7 && tauxM >= 0.55 && cumul.mMatchs < 25) {
     console.log(`   ⚠ Décision 33 — marquage goal-side à ${Math.round(tauxM * 100)} % sur ${cumul.mMatchs} MATCHS cumulés : NON CONCLUANT sous 25 matchs — relancer la recette élargit le cumul. (${cumul.mBons}/${cumul.mVus} relevés, mais la puissance se compte en MATCHS : les relevés d'un même match sont corrélés — mêmes marqueurs, mêmes battus)`);
   } else {
     verifier(`Décision 33 — le marquage se voit : EN POSITION, le marqueur est goal-side ${Math.round(tauxM * 100)} % du temps sur ${cumul.mMatchs} MATCHS cumulés (${nbPassages} passage(s) ; ${cumul.mBons}/${cumul.mVus} relevés, corrélés dans un match — la puissance se compte en matchs) — ${Math.round(tauxBrutM * 100)} % en comptant ceux qui courent encore sur ce passage`,
@@ -1604,7 +1685,33 @@ const dette = (nom, ok, quand) => {
      robuste (borne basse 8,0/min > 7,01), l'AMPLEUR ne l'est pas.
      Personne ne doit calibrer les gabarits pour retirer « 61 % » d'une
      grandeur connue à un facteur deux près. */
-  console.log(`   ⏸ Étape 3 — densité de pressing SUSPENDUE : ${tauxMin.toFixed(2)}/min mesurés sur ${cumul.secondes.toFixed(0)} s (matchs à 10-14 pions) — la référence 7,01/min vaut à 22 joueurs. À effectif apparié : EXCÉDENT démontré en direction, ampleur à confirmer (11,3/min sur 27 épisodes, IC 90 % de l'excédent +14 à +123 %). Se lève en restreignant la mesure aux matchs à 22 pions, ou avec une référence appariée à l'effectif courant`);
+  console.log(`   ⏸ Étape 3 — densité de pressing SUSPENDUE : ${tauxMin.toFixed(2)}/min mesurés sur ${cumul.secondes.toFixed(0)} s (épisodes ≥ 1 s tronqués inclus — un épisode coupé a bien eu lieu ; matchs à 10-14 pions) — la référence 7,01/min vaut à 22 joueurs. À effectif apparié : EXCÉDENT démontré en direction, ampleur à confirmer (11,3/min sur 27 épisodes, IC 90 % de l'excédent +14 à +123 %). Se lève en restreignant la mesure aux matchs à 22 pions, ou avec une référence appariée à l'effectif courant`);
+  /* LES MÉDIANES DU PRESSING, SUR LE CUMUL — même mécanique que la
+     fermeture juste en dessous. CHAQUE GRANDEUR SA TOLÉRANCE, SA RAISON,
+     ET SA POPULATION :
+       — DÉPART, ±35 % : condition de départ, pas ce que l'œil lit.
+         Personne ne mesure à l'écran d'où un défenseur s'est élancé.
+         Tronqués INCLUS : le départ est acquis à l'élan.
+       — DURÉE, ±15 % : PAS pour une raison de ressenti — SON ERREUR SE
+         PROPAGE DANS LE MINIMUM. La mission de pressing fixe la durée,
+         et la durée décide du temps qu'un presseur a pour fermer. À
+         ±35 % autour de 1,6, la fourchette laissait passer la régression
+         qui a lancé tout cet échange. Finis EN JEU seulement (censure),
+         et borne basse : les épisodes longs sont plus souvent coupés. */
+  const mDepC = cumul.dep.length ? q(cumul.dep, 0.5) : 0;
+  const mDurC = cumul.dur.length ? q(cumul.dur, 0.5) : 0;
+  if (cumul.dep.length < 25) {
+    console.log(`   ⚠ Étape 3 — départ de pressing à ${mDepC.toFixed(1)} m sur ${cumul.dep.length} épisodes ≥ 1 s cumulés (< 25) : NON CONCLUANT, relancer la recette cumule`);
+  } else {
+    verifier(`Étape 3 — le pressing part de la bonne distance : départ ${mDepC.toFixed(1)} m sur ${cumul.dep.length} épisodes ≥ 1 s CUMULÉS, tronqués inclus (${nbPassages} passage(s) ; réel 6,41 ±35 %, condition de départ)`,
+      ecart(mDepC, 6.41) <= 0.35);
+  }
+  if (cumul.dur.length < 25) {
+    console.log(`   ⚠ Étape 3 — durée de pressing à ${mDurC.toFixed(1)} s sur ${cumul.dur.length} épisodes finis en jeu cumulés (< 25) : NON CONCLUANT, relancer la recette cumule`);
+  } else {
+    verifier(`Étape 3 — le pressing dure ce qu'il doit : ${mDurC.toFixed(1)} s sur ${cumul.dur.length} épisodes ≥ 1 s finis en jeu CUMULÉS (${nbPassages} passage(s) ; réel 2,10 ±15 %, son erreur se propage dans le minimum — borne basse, les épisodes longs sont plus souvent coupés)`,
+      ecart(mDurC, 2.10) <= 0.15);
+  }
   /* MÊME RAISONNEMENT ICI, ET IL DÉBLOQUE LA DETTE. La part sous 3 m est
      une proportion comparée à une référence EXACTE (65,9 %, mesurée sur
      6 306 épisodes) : un test binomial unilatéral tranche sans attendre
@@ -1626,7 +1733,7 @@ const dette = (nom, ok, quand) => {
      l'affirmer : la dette ne se paie qu'avec la PUISSANCE de conclure,
      jamais avec un vert obtenu faute d'échantillon (M6). */
   const conclusifFerme = nFerme >= 160;
-  dette(`Étape 3 — le pressing ferme vraiment : ${fermes}/${nFerme} épisodes ≥ 1 s ferment sous 3 m (CUMUL sur ${nbPassages} passage(s) à empreinte ${empreinte}), soit ${Math.round(sous3 * 100)} % contre ${Math.round(0.659 * nFerme)} attendus (référence 65,9 % SUR CETTE MÊME POPULATION — 58,7 % serait celle de la population entière) → p = ${pFerme.toFixed(4)}${pFerme < 0.05 ? " — TROP LOIN, démontré" : conclusifFerme ? "" : `, NON CONCLUANT : à n = ${nFerme} le test n'a pas la puissance de détecter l'écart réel (~11 points), il en faudrait 160 — relancer la recette les cumule`} · médiane ${q(PMin, 0.5).toFixed(1)} m sur ce passage contre 2,27`,
+  dette(`Étape 3 — le pressing ferme vraiment : ${fermes}/${nFerme} épisodes ≥ 1 s finis en jeu ferment sous 3 m (CUMUL sur ${nbPassages} passage(s) à empreinte ${empreinte}), soit ${Math.round(sous3 * 100)} % contre ${Math.round(0.659 * nFerme)} attendus (référence 65,9 % SUR CETTE MÊME POPULATION — 58,7 % serait celle de la population entière) → p = ${pFerme.toFixed(4)}${pFerme < 0.05 ? " — TROP LOIN, démontré" : conclusifFerme ? "" : `, NON CONCLUANT : à n = ${nFerme} le test n'a pas la puissance de détecter l'écart réel (~11 points), il en faudrait 160 — relancer la recette les cumule`} · médiane ${q(PMin, 0.5).toFixed(1)} m sur ce passage contre 2,27`,
     conclusifFerme && pFerme >= 0.05,
     "ÉCHÉANCE étape 4 — le test binomial tranche quand l'écart est grand (36 % → p = 0,002) mais pas à l'écart réel : il faut la même puissance qu'une fourchette pour CONCLURE, il ne l'apporte que pour RÉFUTER");
   /* 6. UNE OPTION EST UN ÉVÉNEMENT COURT. C'est la propriété qui
@@ -1643,7 +1750,7 @@ const dette = (nom, ok, quand) => {
      remplace : elle décide qui touche le ballon et quand, donc la
      longueur des courses, la densité du bloc autour du porteur et le
      nombre de solutions ouvertes au moment de la passe. */
-  const AL = e3.appels.map((a) => a.longueur), OP = e3.options;
+  const AL = e3.appels.filter((a) => !a.tronque).map((a) => a.longueur), OP = e3.options;
   const dans13 = OP.length ? OP.filter((v) => v >= 1 && v <= 3).length / OP.length : 0;
   /* M3 — UN GARDE-FOU CONNU ROUGE S'ÉCRIT QUAND MÊME. Les options à
      l'instant de la passe restent sous la référence (médiane 2, et 88 %
@@ -1673,26 +1780,19 @@ const dette = (nom, ok, quand) => {
     releve.tlRecule === 0 && releve.tlMax + 1 === releve.tlTotal);
 
   const mepMin = releve.misesEnPlaceMs.length ? Math.min(...releve.misesEnPlaceMs) : 0;
-  verifier(`R3 : la mise en place a le temps de se jouer (la plus courte ${Math.round(mepMin)} ms ≥ 1200)`,
-    mepMin >= 1150);
+  verifier(`R3 : la mise en place a le temps de se jouer (la plus courte ${Math.round(mepMin)} ms ≥ 950 — plancher propre de 1 000 ms, hors facteur de vitesse)`,
+    mepMin >= 950);
 
-  /* ---- LES DEUX FORMATS DE TEMPS FORT (arbitrage de Gabriel) ----
-     Le grand format garde sa mise en place pleine (~3 s) et dure ~13 s ;
-     le format court la ramène à ~1,2 s et tient ~8 s, sans jamais
-     toucher à la chorégraphie de l'issue. On les mesure SÉPARÉMENT. ---- */
-  const grands = sacFormats.filter((x) => x.mep >= 2000);
-  const courts = sacFormats.filter((x) => x.mep < 2000);
+  /* ---- LE FORMAT UNIQUE (décision 73, qui remplace la 32) ----
+     Tout est court : chaque temps fort déroulé tient ~4-8 s, et il n'y
+     a PLUS de mise en place pleine (~3 s) — en voir une serait la
+     régression. */
   const moy = (l) => l.length ? l.reduce((a, b) => a + b.duree, 0) / l.length : 0;
-  verifier(`Formats : le grand format tient ~13 s (${grands.length} mesuré(s), moyenne ${(moy(grands) / 1000).toFixed(1)} s)`,
-    grands.length === 0 || (moy(grands) > 10000 && moy(grands) < 16000));
-  verifier(`Formats : le format court tient ~8 s (${courts.length} mesuré(s), moyenne ${courts.length ? (moy(courts) / 1000).toFixed(1) : "—"} s)`,
-    courts.length === 0 || (moy(courts) > 6000 && moy(courts) < 10000));
-  /* La mesure par intervalles ne voit jamais le DERNIER temps fort (il
-     n'a pas de suivant) : le format se lit sur la mise en place, qui le
-     porte — ~3 s en grand, ~1,2 s en court. */
+  verifier(`Décision 73 : chaque temps fort tient ~4-8 s au déroulement (${sacFormats.length} mesuré(s), moyenne ${sacFormats.length ? (moy(sacFormats) / 1000).toFixed(1) : "—"} s)`,
+    sacFormats.length === 0 || (moy(sacFormats) > 3500 && moy(sacFormats) < 8500));
   const mepGrandes = releve.misesEnPlaceMs.filter((v) => v >= 2000).length;
-  verifier(`Formats : au moins un temps fort garde le grand format (${mepGrandes}/${releve.misesEnPlaceMs.length} mises en place pleines)`,
-    releve.misesEnPlaceMs.length === 0 || mepGrandes >= 1);
+  verifier(`Décision 73 : plus aucune mise en place pleine — le grand format a disparu (${mepGrandes}/${releve.misesEnPlaceMs.length} au-dessus de 2 s)`,
+    mepGrandes === 0);
   const issueMin = releve.issuesMs.length ? Math.min(...releve.issuesMs) : 0;
   verifier(`R7 : l'issue reste à l'écran après sa révélation (la plus courte ${Math.round(issueMin)} ms ≥ 900)`,
     issueMin >= 900);

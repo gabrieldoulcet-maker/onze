@@ -113,12 +113,12 @@ retouche à glisser en fin de livraison.
 
 | Dette | Mesuré (cumul) | Cible | Échéance |
 |---|---|---|---|
-| 1 à 3 options de passe ouvertes | **53 %** sur 142 passes | **88 %** (médiane 2) | étape 4 |
-| Densité de pressing | ⏸ **SUSPENDUE** — 5,50/min mesurés sur des matchs à 10-14 pions, référence 7,01 valable à 22 joueurs ; à effectif apparié (22 pions, **27 épisodes**) : **excédent démontré en direction, ampleur à confirmer** (11,3/min ; IC 90 % : +14 à +123 %) | référence à apparier | *se lève en mesurant à 22 pions* |
-| Part des pressings fermant sous 3 m | **53 %** sur 197 épisodes — *n ≥ 160 atteint, la dette est DÉMONTRÉE* | **65,9 %** (épisodes ≥ 1 s) | étape 4 |
-| Dispersion des pressings entre matchs | 0,64 à 1,16 selon le cumul | **≈ 1,05** (le vrai football : 5,56 sur des matchs entiers) | étape 4 — *la seule qui se mesure sur n = MATCHS* |
-| Poids à l'ouverture, PIRE tirage, densité 1 (`da.spec.js`) | **1 582 Ko** (socle 1 211 + les 5 key arts les plus lourds 372 — était 1 580 avant l'habillage, +2 Ko de source) | **≤ 1 500 Ko** | la livraison qui différera `match-scene.js` |
-| Poids à l'ouverture, PIRE tirage, densité 2 (`terrains.spec.js`) | **1 701 Ko** — la marge d'1 Ko signalée le 26/08 est tombée avec les +2 Ko de l'habillage | **≤ 1 700 Ko** | la même : différer `match-scene.js` (~130 Ko) règle les deux |
+| 1 à 3 options de passe ouvertes | **19-29 %** sur ~190 passes par passage (la décision 73 a **aggravé** la mesure, comme prévu qualitativement : fenêtres plus courtes, moins de mouvement installé — cumul redémarré, empreinte nouvelle) | **88 %** (médiane 2) | étape 4 |
+| Densité de pressing | ⏸ **SUSPENDUE** — 3,4-3,7/min sur les passages décision 73 (épisodes ≥ 1 s **tronqués inclus** : un épisode coupé a eu lieu ; 5,50 avant la 73), matchs à 10-14 pions, référence 7,01 valable à 22 joueurs ; à effectif apparié (22 pions, **27 épisodes**) : **excédent démontré en direction, ampleur à confirmer** (11,3/min ; IC 90 % : +14 à +123 %) | référence à apparier | *se lève en mesurant à 22 pions* |
+| Part des pressings fermant sous 3 m | la démonstration (53 % sur 197, p = 0,0002) vaut pour l'**ancien code** — la décision 73 a changé le code ET la population (épisodes **finis en jeu**), le cumul est reparti de zéro et n'avance que de **2-4 épisodes par passage** (troncature ~85-90 %) | **65,9 %** (épisodes ≥ 1 s finis en jeu) | étape 4 |
+| Dispersion des pressings entre matchs | cumul redémarré avec l'empreinte 73 (0,64 à 1,16 sur l'ancien code) | **≈ 1,05** (le vrai football : 5,56 sur des matchs entiers) | étape 4 — *la seule qui se mesure sur n = MATCHS* |
+| Poids à l'ouverture, PIRE tirage, densité 1 (`da.spec.js`) | **1 595 Ko** (socle 1 223 + les 5 key arts les plus lourds 372 — 1 580 → 1 582 → 1 595 au fil des livraisons d'habillage et de scène : la source grossit, la cause reste le même fichier) | **≤ 1 500 Ko** | la livraison qui différera `match-scene.js` |
+| Poids à l'ouverture, PIRE tirage, densité 2 (`terrains.spec.js`) | **1 714 Ko** (même dérive, passage P-260827-210246) | **≤ 1 700 Ko** | la même : différer `match-scene.js` (~130 Ko) règle les deux |
 
 ### Ce que le cumul a changé, en chiffres
 
@@ -274,3 +274,38 @@ ratés, ce sont des pressings qui n'ont pas eu lieu). Les chiffres relevés avan
 changement ne sont **pas lisibles** contre ceux d'après — notamment la durée « 0,8 s »
 citée dans un tableau antérieur, qui valait 1,6 s sur l'ancienne population. Règle M2 : la
 transformation se déclare à côté du chiffre.
+
+### La décision 73 et la recette de scène : la censure entre dans les mesures
+
+Les temps forts rendus sont ~2× plus courts, et la recette l'a payé de trois façons —
+chacune traitée par le remède déjà gravé, jamais en desserrant un seuil.
+
+**1. La censure, étiquetée à la source.** Un pressing ou un appel coupé par la fin du
+temps fort n'a pas fini : sa durée, son minimum, sa longueur sont **censurés**, pas faux.
+`match-scene.js` étiquette `tronque` au moment où l'épisode se ferme ; les médianes ne
+comptent que les épisodes **finis en jeu**, et le taux de troncature s'affiche à chaque
+passage (mesuré : **~85-90 % des pressings ≥ 1 s, ~60 % des appels**). S'il monte encore,
+c'est le rendu qui étouffe le jeu — et ça se voit au lieu de polluer les médianes. La
+densité, elle, compte les épisodes **tronqués inclus** : un épisode coupé a bien eu lieu.
+Sur la population finie en jeu, l'appel est revenu à **2,1 s pile** (la médiane glissait
+à 1,6 sous la censure) — le moteur n'avait pas bougé, c'est la mesure qui mentait.
+
+**2. Les verdicts affamés déménagent sur le cumul.** À 2-4 épisodes finis par passage,
+départ et durée du pressing tranchent désormais sur le **sac disque** (comme fermeture,
+marquage, porteur), avec branche « NON CONCLUANT » sous 25. Le départ garde les tronqués
+(il est acquis à l'élan) ; la durée est une **borne basse déclarée** : les épisodes longs
+sont plus souvent coupés.
+
+**3. La tenue de ligne tirait à pile ou face** : 6,5 · 6,7 · 8,3 · 9,2 m sur le même
+code, seuil à 8 — tolérance sous le bruit (M6 bis). Le verdict porte maintenant sur
+**tous les matchs du passage** (14 matchs, ~5 000 relevés, ≈ 7,0 m). Et la mesure a
+refusé l'hypothèse facile : on croyait la ligne cassée par l'action — c'est l'inverse
+(**repos 7,5-9,1 m · action 5,8-5,9 m**). Restreindre au repos l'aurait « améliorée » en
+la faussant ; le partage par régime reste affiché.
+
+**Et l'assertion neuve a attrapé un vrai défaut à son premier jour** : « 100 % des
+promesses rendues » est sortie rouge (3 rendus pour 4 phases chaudes) parce que l'ancien
+**budget de temps** lâchait encore la dernière occasion d'un match court. Le budget est
+retiré de la sélection — c'est le format court qui tient la durée totale, le garde-fou
+de durée (≤ 39 s) le vérifie. Contre-test grandeur nature : la recette garde bien ce
+qu'elle prétend garder.

@@ -124,7 +124,8 @@ const ONZE_UI = (() => {
   const TEMPS_TRANSITION_MS = 1000;  // récupération, relais, conduite, geste…
   const TEMPS_DECISIF_MS = 1600;     // la percée et l'armement de la frappe
   const TEMPS_ISSUE_MS = 1800;       // la frappe voyage, PUIS l'issue tombe
-  const PLANCHER_MS = 800;           // on ne descend JAMAIS dessous
+  const PLANCHER_MS = 800;           // on ne descend JAMAIS dessous en automatique
+  const PLANCHER_CHOIX_MS = 640;     // …sauf sur choix EXPLICITE du joueur (décision 29)
   const CUT_MS = 900;                // le carton minute + score
   const RESPIRATION_MS = 700;        // le souffle après une issue
   const CELEBRATION_MS = 1100;       // le constat d'un but (ou d'un presque-but)
@@ -159,15 +160,20 @@ const ONZE_UI = (() => {
   const CONSTRUCTION_COURTE = 2;
   // La cible reste ~40 s (décision 20) ; le plafond dur est ce qui
   // déclenche le basculement en format court.
-  const PLAFOND_DUR_MS = 50000;
+  /* Le plafond dur de 50 s (décision 32) est retiré avec elle : en tout-
+     court (décision 73), même un festival de 8 buts tient sous ~48 s,
+     et le garde-fou vivant est « durée ≤ l'ancienne », mesuré en recette. */
 
   const dureeMiseEnPlace = (nbPhases) => nbPhases <= 4 ? 2000 : nbPhases <= 6 ? 2600 : 3000;
   /* Sont DÉCISIFS : la percée, la frappe et l'issue — les trois temps où
      se joue la promesse. Tout le reste est de la construction. */
   const estDecisif = (t) => t.issue || t.decisif || t.type === "percee";
+  /* Le DÉCISIF garde son étirement même en format court (décision 73 :
+     la dramaturgie survit en miniature) — seuls les temps de
+     construction descendent au plancher. */
   const dureeTemps = (t, court) => t.issue ? TEMPS_ISSUE_MS
-    : court ? TEMPS_COURT_MS
-    : estDecisif(t) ? TEMPS_DECISIF_MS : TEMPS_TRANSITION_MS;
+    : estDecisif(t) ? TEMPS_DECISIF_MS
+    : court ? TEMPS_COURT_MS : TEMPS_TRANSITION_MS;
 
   /* Le format court garde l'ossature de l'action : sa naissance, son
      temps le plus parlant, l'armement — et TOUTES les issues (avec
@@ -195,7 +201,6 @@ const ONZE_UI = (() => {
 
   const estChaude = (phase) => phase.evenements.some((ev) =>
     ev.but || ev.type === "arret" || ev.type === "blocage" || ev.type === "rebond");
-  const aBut = (phase) => phase.evenements.some((ev) => ev.but);
   const prioriteDe = (phase) => Math.max(...phase.evenements.map((ev) =>
     ev.but ? 100 : ev.type === "arret" ? (ev.pres ? 60 : 40) : ev.type === "blocage" ? 30 : ev.type === "rebond" ? 20 : 0));
   const coutTempsFort = (action, miseEnPlaceMs, court) =>
@@ -257,53 +262,33 @@ const ONZE_UI = (() => {
      Sortie : { actions, rendues, courtes, miseEnPlaceMs, dureeMorte }
      ============================================================ */
   function planifierTempsForts(resultat, equipeA, equipeB, opts = {}) {
-    const { delaiPhase = DELAI_PHASE_MS, vitesse: v = 1, resume = false } = opts;
+    const { delaiPhase = DELAI_PHASE_MS } = opts;
     const nbPhases = resultat.phases.length;
     const budgetTotal = delaiPhase * nbPhases;
     const miseEnPlaceMs = dureeMiseEnPlace(nbPhases);
-    // les budgets de la spec : amical 1 rendu, manches 4-9 : 2-3,
-    // match plein : 3-4. En ×2, seuls les buts sont rendus.
-    const maxRendus = resume ? 99 : v === 2 ? 0 : nbPhases <= 4 ? 1 : nbPhases <= 6 ? 3 : 4;
-
+    /* DÉCISION 73 : le match rend TOUTES les promesses du moteur,
+       chacune courte — plus de tri à 2-4, plus de budget qui lâche la
+       dernière occasion d'un match court, et le ×2 ne supprime plus
+       rien (tout est déjà court). L'ancienne table (amical 1, manches
+       4-9 : 2-3, plein : 3-4 ; ×2 → buts seuls) est remplacée : c'est
+       le format court qui fait tenir la durée totale, pas un tri. */
     const actions = new Map();
     for (const phase of resultat.phases) {
       if (estChaude(phase)) actions.set(phase, ONZE_SCENE.construireAction(phase, equipeA, equipeB));
     }
-    const candidates = [...actions.keys()]
-      .sort((a, b) => (aBut(b) - aBut(a)) || (prioriteDe(b) - prioriteDe(a)));
-    const rendues = new Set();
+    const rendues = new Set(actions.keys());
     let coutTotal = 0;
-    for (const phase of candidates) {
-      const cout = coutTempsFort(actions.get(phase), miseEnPlaceMs, false);
-      if (aBut(phase)) { rendues.add(phase); coutTotal += cout; continue; }
-      if (rendues.size < maxRendus && (resume || coutTotal + cout <= budgetTotal)) {
-        rendues.add(phase); coutTotal += cout;
-      }
-    }
 
-    /* ---- L'ALLOCATION DES FORMATS ---- */
+    /* ---- TOUT EST COURT (décision 73, qui remplace la 32) ----
+       Le grand format n'existe plus : chaque rendu est un format court
+       de 3-5 temps, et l'étirement dramatique vit dans le TEMPS DÉCISIF
+       (1000 ms au déroulement contre 800 au plancher), plus dans la
+       longueur de l'action. L'importance sert encore au récit
+       (dernier but, célébrations), plus à l'allocation. */
     const { importance, derniereAvecBut } = importancesDes(resultat.phases, equipeA.nom);
-    const courtes = new Set();
-    if (!resume) {
-      const parImportance = [...rendues].sort((a, b) => importance.get(a) - importance.get(b));
-      const majeurs = parImportance.slice(-2);           // les 2 moments les plus importants
-      const cout = () => [...rendues].reduce((t, p) =>
-        t + coutTempsFort(actions.get(p), miseEnPlaceMs, courtes.has(p)), 0);
-      // 1er passage : tout sauf les 2 moments majeurs
-      for (const phase of parImportance) {
-        if (cout() <= PLAFOND_DUR_MS) break;
-        if (majeurs.includes(phase)) continue;
-        courtes.add(phase);
-      }
-      // dernier recours (festival de buts) : le 2ᵉ moment majeur bascule
-      // lui aussi ; le dernier but du match, JAMAIS.
-      for (const phase of parImportance) {
-        if (cout() <= PLAFOND_DUR_MS) break;
-        if (phase === derniereAvecBut) continue;
-        courtes.add(phase);
-      }
-      coutTotal = cout();
-    }
+    const courtes = new Set(rendues);
+    coutTotal = [...rendues].reduce((t, p) =>
+      t + coutTempsFort(actions.get(p), miseEnPlaceMs, true), 0);
 
     // le temps mort restant se répartit sur les phases non rendues
     const nbMortes = nbPhases - rendues.size;
@@ -329,8 +314,15 @@ const ONZE_UI = (() => {
     /* Les deux vitesses INDÉPENDANTES de FM (R10) : temps forts et
        temps morts. Le bouton ×2 du jeu se multiplie par-dessus. */
     const regVitesse = (typeof ONZE_SCENE !== "undefined") ? ONZE_SCENE.reglages() : { vitesseFort: 1, vitesseMort: 1 };
-    const facteurFort = () => (regVitesse.vitesseFort || 1) * (vitesse === 2 ? 1.6 : 1);
-    const facteurMort = () => (regVitesse.vitesseMort || 1) * (vitesse === 2 ? 4 : 1);
+    /* DÉCISION 73 (« trop lent — double la vitesse, et toutes les
+       actions ») : LE NOUVEAU ×1 EST L'ANCIEN ×2 EN VITESSE DE JEU.
+       Le facteur de base passe à 1,6 — et « temps de jeu au plancher,
+       temps décisif étiré » en ÉMERGE : 1000/1,6 = 625 → plancher
+       800 ms ; le décisif 1600/1,6 = 1000 ms reste au-dessus. Le ×2
+       reste par-dessus (×1,25 de plus) : c'est LUI, le choix explicite
+       du joueur, qui a droit au plancher de 640 ms (décision 29). */
+    const facteurFort = () => (regVitesse.vitesseFort || 1) * 1.6 * (vitesse === 2 ? 1.25 : 1);
+    const facteurMort = () => (regVitesse.vitesseMort || 1) * 2 * (vitesse === 2 ? 2 : 1);
 
     const jouerEvenement = (ev) => {
       evenementsJoues.push(ev);
@@ -458,9 +450,13 @@ const ONZE_UI = (() => {
         //    et l'horloge se remet à courir pour tout le temps fort (R8) —
         //    3 minutes de jeu, jamais plus : au-delà, la scène dépasserait
         //    la minute de la phase suivante et MENTIRAIT.
-        pousser(mepMs, false, 0, () => {
+        /* La mise en place a un PLANCHER À ELLE (1 000 ms) : le cerveau
+           doit poser 10-22 pions, et la diviser par le facteur de
+           vitesse la rendrait plus courte que la course des joueurs —
+           l'action partirait de nulle part. */
+        pousser(mepMs, false, 1000, () => {
           const f = facteurFort();
-          options.scene.miseEnPlace(action, mepMs / f);
+          options.scene.miseEnPlace(action, Math.max(1000, mepMs / f));
           options.scene.reglerMinute(phase.minute + 3, (mepMs + dureeJouee) / f);
         });
         // 3. les temps du temps fort
@@ -534,10 +530,14 @@ const ONZE_UI = (() => {
       const etape = etapes.shift();
       if (!etape) return;
       const diviseur = options.scene ? (etape.mort ? facteurMort() : facteurFort()) : vitesse;
-      // Le plancher de lisibilité : un temps de temps fort ne se brouille
-      // JAMAIS — même le réglage « plus vite » et le ×2 s'arrêtent à
-      // 0,8 s. C'est la règle 3 de la spec, prise au mot.
-      const delai = Math.max(etape.plancher || 0, etape.delai / diviseur);
+      /* Le plancher de lisibilité : 0,8 s par temps de jeu en
+         AUTOMATIQUE ; 0,64 s SEULEMENT sur choix explicite du joueur —
+         le ×2 ou un réglage de vitesse poussé (décision 29). Si le
+         tempo doublé passe dessous, c'est le nombre de temps qui se
+         réduit (actionCourte), jamais la lisibilité. */
+      const choixExplicite = vitesse === 2 || (regVitesse.vitesseFort || 1) > 1;
+      const plancher = etape.plancher === PLANCHER_MS && choixExplicite ? PLANCHER_CHOIX_MS : (etape.plancher || 0);
+      const delai = Math.max(plancher, etape.delai / diviseur);
       setTimeout(() => { etape.action(); suivante(); }, delai);
     })();
   }

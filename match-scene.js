@@ -1221,7 +1221,10 @@ const ONZE_SCENE = (() => {
           const e = p.episodeAppel;
           const duree = horloge - e.t0;
           const longueur = Math.hypot(p.x - e.x0, p.y - e.y0);
-          if (duree > 0.2) ranger(mesures.appels, { type: e.type, longueur, duree, vitesse: longueur / duree });
+          /* Même étiquette que le pressing (M2) : un appel coupé par la
+             fin du temps fort n'a pas fini sa course — sa durée et sa
+             longueur sont censurées, pas fausses. */
+          if (duree > 0.2) ranger(mesures.appels, { type: e.type, longueur, duree, vitesse: longueur / duree, tronque: regime !== "action" });
           p.episodeAppel = null;
         }
         /* --- le pressing : distance au DÉPART, distance MINIMALE
@@ -1234,7 +1237,15 @@ const ONZE_SCENE = (() => {
         } else if (p.episodePress) {
           const e = p.episodePress;
           const duree = horloge - e.t0;
-          if (duree > 0.2) ranger(mesures.pressings, { depart: e.depart, mini: e.mini, duree });
+          /* SOUS-POPULATION DÉCLARÉE (M2) : un épisode fermé parce que le
+             TEMPS FORT s'arrête (cut, repos) n'est pas un pressing qui a
+             fini — il est TRONQUÉ par le rendu. Depuis la décision 73
+             (temps forts ~2× plus courts), les troncatures pèsent assez
+             pour tirer la durée médiane sous le réel : on les étiquette,
+             et les recettes de durée/fermeture ne comptent que les
+             épisodes finis EN JEU. */
+          if (duree > 0.2) ranger(mesures.pressings,
+            { depart: e.depart, mini: e.mini, duree, tronque: regime !== "action" });
           p.episodePress = null;
         }
       }
