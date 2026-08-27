@@ -5,5 +5,5 @@
    la révision serait donc toujours celle du parent. */
 window.ONZE_VERSION = {
   build: "27/08 17:57",
-  horodatage: "2026-08-27T17:57:00.571Z",
+  horodatage: "2026-08-27T17:57:52.599Z",
 };

@@ -366,6 +366,17 @@
        de Gabriel (« le banc ne s'affiche pas pendant les match » est
        signalé comme un manque, pas comme un choix). Sa géométrie est
        écrite par disposerPlateau(), comme celle du reste. */
+    /* PENDANT LE MATCH, UN SEUL MONDE (playtest 26/08, point 1).
+       L'arène de nuit jouait au-dessus du jardin de jour : le décor
+       d'entraînement restait peint sous la scène, dalles de banc
+       comprises. Quand la couche de match existe, le décor de placement
+       n'existe plus — le fond sous la scène est neutre et sombre.
+       (Ma moitié du chantier partagé : le FOND. La surface de jeu est à
+       la conversation scène — design/contrat-scene.md.)
+       `match-en-scene` est posé au montage de la couche et retiré par
+       rangerCoucheMatch() : le nettoyage est automatique. */
+    #app.match-en-scene .fond-terrain { display: none; }
+    #app.match-en-scene .plateau { background: var(--nuit-profonde, #060A07); }
     .couche-match {
       position: absolute; z-index: 4; overflow: hidden; border-radius: 10px;
       pointer-events: none;
@@ -770,12 +781,23 @@
       /* les deux largeurs de chrome, déclarées UNE fois : ce sont des
          plafonds, pas des réservations prises sur les cartes */
       --chrome-gauche: 96px; --chrome-droite: 84px;
+      /* LA PISTE DU MÉDAILLON (playtest 26/08, point 3) : dépliée, la
+         bande réserve une piste de 26 px en haut — le médaillon y vit
+         entier, « Les Revanchards » de la carte du dessous ne passe plus
+         sous lui. La hauteur est AJOUTÉE à la bande, pas prise sur les
+         cartes : c'est le terrain qui se comprime (doctrine ci-dessus). */
+      /* La piste est FACTURÉE AU TERRAIN (doctrine ci-dessus) — et cette
+         facture a un plafond mesuré : à 26 px, le balayage de tap de
+         zones.spec.js sortait rouge (un titulaire recouvert par son
+         voisin sur 844×390). Le médaillon se fait donc compact (~20 px)
+         et la piste s'arrête à 14 px de croissance. */
+      --piste-medaillon: 24px;
       flex: 0 0 auto; display: flex; gap: 6px; align-items: stretch;
-      min-height: max(96px, 30vh);
+      min-height: max(110px, calc(30vh + 14px));
       background: var(--plaque-fond);                          /* matière PLAQUE */
       border-top: var(--plaque-bord);
       box-shadow: var(--arete-haute-forte), 0 -10px 24px rgba(0, 0, 0, 0.55);
-      padding: 10px 8px calc(6px + env(safe-area-inset-bottom));
+      padding: var(--piste-medaillon) 8px calc(6px + env(safe-area-inset-bottom));
     }
     /* LE MÉDAILLON A UNE PLACE, PAS UN FLOTTEMENT (décision 64 · P1).
        À `top: -13px` il était à cheval sur la couture : mesuré, 12 de ses
@@ -783,21 +805,22 @@
        celle-ci le coupait en deux — on n'en voyait que la moitié haute.
        Il appartient à la bande basse : il s'y range entièrement. */
     .medaillon-or {
-      position: absolute; top: 3px; left: 50%; transform: translateX(-50%); z-index: 6;
+      position: absolute; top: 2px; left: 50%; transform: translateX(-50%); z-index: 6;
       display: flex; align-items: center; gap: 5px;
       /* matière JETON, en or : c'est une MONNAIE, elle doit avoir une
          tranche et un reflet, pas être un aplat sombre cerclé */
       background: linear-gradient(180deg, #2A2410 0%, #171205 62%, #0B0903 100%);
-      border: 1.5px solid var(--or-trophee);
-      border-radius: var(--r-pilule); padding: 2px 12px;
-      font-weight: 800; font-size: 0.85rem; font-variant-numeric: tabular-nums; color: var(--or-trophee);
+      border: 1px solid var(--or-trophee);
+      border-radius: var(--r-pilule); padding: 1px 10px;
+      font-weight: 800; font-size: 0.78rem; line-height: 1.35; font-variant-numeric: tabular-nums; color: var(--or-trophee);
       box-shadow: var(--arete-haute-forte), var(--elev-pose), 0 0 14px rgba(242, 193, 78, 0.35);
     }
+    .medaillon-or.sans-le-sou .piece { display: none; }
     .medaillon-or .piece {
       /* le jeton reste une pièce, mais il s'écarte du chiffre : collé, il
          formait « M 0 M » et se lisait « Man of the Match » */
       margin-right: 3px;
-      width: 16px; height: 16px; border-radius: 50%; background: var(--orbe-or);
+      width: 14px; height: 14px; border-radius: 50%; background: var(--orbe-or);
       color: #1A1405; font-size: 0.58rem; font-weight: 800;
       display: flex; align-items: center; justify-content: center;
     }
@@ -942,11 +965,9 @@
       background: var(--creux-fond); border: 1px solid var(--vert-bordure);
       box-shadow: var(--creux-ombre); color: transparent;
     }
-    .carte-boutique.vendue::after {
-      content: ""; position: absolute; inset: 0; margin: auto;
-      width: 26%; height: 3px; border-radius: 2px;
-      background: rgba(237, 245, 236, 0.14);
-    }
+    /* Pas de ::after : la barre discrète était la TROISIÈME forme de
+       placeholder de l'écran et lisait encore comme un bug (playtest
+       26/08, point 5). Le creux — fond sombre, ombre interne — suffit. */
     /* L'ÉTAT GRISÉ (pas les moyens) : il DÉSATURE, il n'éteint pas.
        L'ancien brightness(0,6) faisait tomber l'illustration à 59 % de la
        luminance de sa source — les personnages devenaient des silhouettes
@@ -3941,7 +3962,18 @@
     const CLE_DETENTE = "onze-mode-detente";
     let modeDetente = false;
     // « Commentaires seuls » (réglage Vue, R10) : pas de scène, le journal en grand
-    let modeCommentaire = (typeof ONZE_SCENE !== "undefined" && ONZE_SCENE.reglages().vue === "bandeau");
+    /* L'INDICE DES SYNERGIES SE FERME AU PREMIER GESTE (playtest 26/08,
+       point 6). En manche 1, aucun starter ne porte d'École : la bulle
+       restait ouverte sur le terrain et couvrait le gardien. Elle vit
+       jusqu'au premier pointerdown — après, on sait où sont les
+       synergies, la place revient au terrain. */
+    let indiceSynergiesFerme = false;
+    window.addEventListener("pointerdown", () => {
+      indiceSynergiesFerme = true;
+      document.querySelectorAll(".indice-synergies").forEach((e) => e.remove());
+    }, { capture: true, once: true });
+
+        let modeCommentaire = (typeof ONZE_SCENE !== "undefined" && ONZE_SCENE.reglages().vue === "bandeau");
     try { if (localStorage.getItem("onze-commentaire") === "on") modeCommentaire = true; } catch (e) {}
     let dernierMatch = null; // { resultat, eqA, eqB } — pour le recap ⚔️
     let sceneMatch = null; // la scène animée du match (match-scene.js)
@@ -4500,6 +4532,9 @@
       el("manche").textContent = partie.manche;
       el("prestige").textContent = moi().prestige;
       el("or").textContent = partie.or;
+      // « M » + « 0 » + « M » se lisait « Man of the Match » : à zéro le
+      // jeton s'efface, on lit « 0 M » — dès 1M la pièce revient
+      el("medaillon-or").classList.toggle("sans-le-sou", partie.or === 0);
       el("niveau").textContent = partie.niveau;
       el("xp").textContent = partie.xp;
       el("xp-suivant").textContent = XP_POUR_MONTER[partie.niveau] || "MAX";
@@ -4634,7 +4669,8 @@
       // Synergies + mini ADN
       const apercu = equipeDuClub();
       el("synergies-club").innerHTML = ONZE_UI.badges(apercu) ||
-        `<span class="indice-synergies">Réunis des joueurs d'une même École ou d'un même archétype.</span>`;
+        (indiceSynergiesFerme ? "" :
+          `<span class="indice-synergies">Réunis des joueurs d'une même École ou d'un même archétype.</span>`);
       // Le son de palier : une famille vient de s'allumer ou de monter
       const clesSynergies = new Set(apercu.synergies.map((sy) => sy.nom + "|" + sy.s));
       if (synergiesConnues) {
