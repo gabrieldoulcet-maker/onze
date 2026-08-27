@@ -738,14 +738,18 @@
     .journal.replie { display: none; }
     .journal { z-index: 8; }
     .tableau-match { z-index: 9; }
-    /* PHASE 1, RATTRAPAGE MESURÉ (août 2026) : le bandeau flottant se pose
-       sur TOUT le haut du cadre — il recouvrait le tableau de match (score,
-       chrono, nom de l'adversaire, jauge de domination) et mangeait le tap
-       du bouton Journal, mesuré au test de survol. Le tableau se cale donc
-       sous la hauteur RÉELLE du bandeau, publiée par disposerPlateau(), et
-       passe devant lui. Rien d'autre du match ne bouge. */
+    /* PHASE 1, RATTRAPAGE MESURÉ (août 2026), CORRIGÉ à l'arrivée de
+       l'arène-terrain : l'offset `--haut-bandeau + 5px` datait d'une
+       couche qui partait du HAUT de l'écran, sous le bandeau. Depuis le
+       contrat de couture, la couche commence DÉJÀ sous le bandeau
+       (mesuré : couche à y=45, bandeau 0-41) — l'offset était compté
+       DEUX fois et le tableau flottait à 46-76 px DANS la scène, sur le
+       rond central (capture de Gabriel du 26/08 15:32). Le tableau vit
+       désormais en haut de la couche, DANS la bande que la géométrie de
+       la scène réserve (stade.js, mode arène : 40 px) — P1 : le tableau
+       a une place, il ne flotte plus sur le jeu. */
     #app.scene-pleine .tableau-match {
-      top: calc(var(--haut-bandeau, 41px) + 5px); z-index: 31;
+      top: 5px; z-index: 31;
     }
     .tableau-match .btn-journal {
       background: none; border: 1px solid var(--ligne); border-radius: 6px;

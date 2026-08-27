@@ -94,6 +94,13 @@ const ONZE_STADE = (() => {
       fond: "da/arenes/A02.webp",
       terrain: { gauche: 0.184, droite: 0.819, haut: 0.231, bas: 0.800 },
       fondTaille: { w: 900, h: 416 },
+      /* LE QUADRILATÈRE DU TERRAIN PEINT (décision de Gabriel, août 2026 :
+         « je veux qu'ils jouent sur mon arène »). Les quatre coins de la
+         surface de jeu DANS l'image, calibrés visuellement au zoom ×4 sur
+         chaque coin (résidu ≤ 4 px sur 900). C'est LUI la surface de jeu
+         de la scène — le terrain plat n'est plus dessiné par-dessus. */
+      quad: { hautGauche: [0.2313, 0.2392], hautDroite: [0.7663, 0.2386],
+        basGauche: [0.1472, 0.8024], basDroite: [0.8620, 0.8017] },
       // le sol RELEVÉ sur l'image (le bitume mouillé) : c'est contre lui que
       // la lisibilité des pions se mesure, pas contre le gazon dessiné
       sol: "#1D2531",
@@ -116,6 +123,13 @@ const ONZE_STADE = (() => {
       fond: "da/arenes/A12.webp",
       terrain: { gauche: 0.174, droite: 0.825, haut: 0.221, bas: 0.808 },
       fondTaille: { w: 900, h: 416 },
+      /* LE QUADRILATÈRE DU TERRAIN PEINT (décision de Gabriel, août 2026 :
+         « je veux qu'ils jouent sur mon arène »). Les quatre coins de la
+         surface de jeu DANS l'image, calibrés visuellement au zoom ×4 sur
+         chaque coin (résidu ≤ 4 px sur 900). C'est LUI la surface de jeu
+         de la scène — le terrain plat n'est plus dessiné par-dessus. */
+      quad: { hautGauche: [0.2256, 0.2603], hautDroite: [0.7831, 0.2609],
+        basGauche: [0.1503, 0.7875], basDroite: [0.8550, 0.7906] },
       // le sol RELEVÉ sur l'image (le gazon givré) : c'est contre lui que
       // la lisibilité des pions se mesure, pas contre le gazon dessiné
       sol: "#39817B",
@@ -138,6 +152,13 @@ const ONZE_STADE = (() => {
       fond: "da/arenes/A13.webp",
       terrain: { gauche: 0.174, droite: 0.823, haut: 0.224, bas: 0.810 },
       fondTaille: { w: 900, h: 416 },
+      /* LE QUADRILATÈRE DU TERRAIN PEINT (décision de Gabriel, août 2026 :
+         « je veux qu'ils jouent sur mon arène »). Les quatre coins de la
+         surface de jeu DANS l'image, calibrés visuellement au zoom ×4 sur
+         chaque coin (résidu ≤ 4 px sur 900). C'est LUI la surface de jeu
+         de la scène — le terrain plat n'est plus dessiné par-dessus. */
+      quad: { hautGauche: [0.2308, 0.2445], hautDroite: [0.7775, 0.2438],
+        basGauche: [0.1550, 0.7923], basDroite: [0.8553, 0.7909] },
       // le sol RELEVÉ sur l'image (la pelouse en pleine lumière) : c'est contre lui que
       // la lisibilité des pions se mesure, pas contre le gazon dessiné
       sol: "#20A40A",
@@ -285,6 +306,65 @@ const ONZE_STADE = (() => {
   }
 
   function geometrie(largeur, hauteur, t, terrain) {
+    /* ============================================================
+       MODE ARÈNE (thème à `quad`) : la surface de jeu EST le terrain
+       peint de la photo. On zoome l'arène pour que le quadrilatère
+       remplisse le cadre (3 % d'air), quitte à rogner des tribunes —
+       jamais l'inverse (un terrain plaqué par-dessus). Une BANDE est
+       réservée en haut pour le tableau de score (P1 : rien ne flotte,
+       tout a une place réservée).
+       Mesuré avant d'écrire (protocole de la décision) : pire cas
+       667×320 à 22 pions → figurine 16,9 px, pion Ø 14,1 px — 1,7× le
+       seuil qui avait fait échouer la décision 37, 3× le plancher.
+       ============================================================ */
+    if (t && t.quad && t.fondTaille) {
+      const q = t.quad;
+      /* 40 px : le tableau de score vit en haut de la couche (top 5 px,
+         ~30 px de haut — l'offset doublé qui le faisait flotter à
+         46-76 px sur le rond central est corrigé dans partie.html). La
+         bande doit le contenir ENTIER (P1 : il a une place, il ne
+         flotte pas sur le jeu) ; zones.spec.js vérifie le
+         non-recouvrement en match. */
+      const bande = Math.round(Math.max(40, hauteur * 0.14));
+      const iw0 = t.fondTaille.w, ih0 = t.fondTaille.h;
+      const quadWf = Math.max(q.hautDroite[0] - q.hautGauche[0], q.basDroite[0] - q.basGauche[0]);
+      const quadHf = ((q.basGauche[1] + q.basDroite[1]) - (q.hautGauche[1] + q.hautDroite[1])) / 2;
+      const e = Math.min((largeur * 0.97) / (quadWf * iw0), ((hauteur - bande) * 0.97) / (quadHf * ih0));
+      const iw = iw0 * e, ih = ih0 * e;
+      const cxq = (Math.min(q.hautGauche[0], q.basGauche[0]) + Math.max(q.hautDroite[0], q.basDroite[0])) / 2;
+      const cyq = (q.hautGauche[1] + q.basGauche[1]) / 2;
+      const ox = largeur / 2 - cxq * iw;
+      const oy = bande + (hauteur - bande) / 2 - cyq * ih;
+      const P = (f) => [ox + f[0] * iw, oy + f[1] * ih];
+      const [hx0, hy] = P(q.hautGauche), [hx1] = P(q.hautDroite);
+      const [bx0, by] = P(q.basGauche), [bx1] = P(q.basDroite);
+      const m = terrain && terrain.L && terrain.W ? terrain : TERRAIN_PLEIN;
+      return {
+        largeur, hauteur, marge: bande, plat: false, m,
+        pose: { ox, oy, iw, ih },
+        fenetreImage: { x0: -ox / iw, y0: -oy / ih, x1: (largeur - ox) / iw, y1: (hauteur - oy) / ih },
+        quadPx: { yHaut: hy, yBas: by, hautX0: hx0, hautX1: hx1, basX0: bx0, basX1: bx1 },
+        x: Math.min(hx0, bx0), y: hy, w: Math.max(hx1, bx1) - Math.min(hx0, bx0), h: by - hy,
+        /* la projection MÉTRIQUE : (x, y) en mètres, origine au centre →
+           pixels de la zone. Bilinéaire sur le quad, comme l'écran de
+           placement (ONZE_TERRAINS.projeter) — la technique éprouvée. */
+        projX: (xm, ym) => {
+          const v = (ym + m.W / 2) / m.W, u = (xm + m.L / 2) / m.L;
+          const g = hx0 + (bx0 - hx0) * v, d = hx1 + (bx1 - hx1) * v;
+          return g + u * (d - g);
+        },
+        projY: (ym) => hy + ((ym + m.W / 2) / m.W) * (by - hy),
+        /* une LONGUEUR en mètres → px, à la profondeur ym : c'est
+           l'échelle HORIZONTALE locale — celle qui fait qu'un joueur du
+           fond est plus petit qu'un joueur du premier plan. */
+        metresEnPx: (mv, ym) => {
+          const v = ym === undefined ? 0.5 : (ym + m.W / 2) / m.W;
+          const g = hx0 + (bx0 - hx0) * v, d = hx1 + (bx1 - hx1) * v;
+          return mv * ((d - g) / m.L);
+        },
+        kTrace: 1, zoom: 1,
+      };
+    }
     const marge = Math.round(hauteur * (t ? t.marge : 0.10));
     /* `terrain` = le rectangle de jeu PEINT dans l'arène, relevé sur
        l'image (fractions de l'image, pas du canvas). C'est lui qui donne
@@ -316,7 +396,12 @@ const ONZE_STADE = (() => {
     const m = terrain && terrain.L && terrain.W ? terrain : TERRAIN_PLEIN;
     return {
       largeur, hauteur, marge,
-      x, y, w, h, m,
+      x, y, w, h, m, plat: true,
+      // la même interface de projection que le mode arène : UNE seule
+      // voie de dessin dans la scène, deux géométries derrière
+      projX: (xm) => x + ((xm + m.L / 2) / m.L) * w,
+      projY: (ym) => y + ((ym + m.W / 2) / m.W) * h,
+      metresEnPx: (mv) => (mv / m.W) * h,
       // conversion mètres → pixels du canvas, origine au CENTRE du terrain
       mpx: (xm) => x + ((xm + m.L / 2) / m.L) * w,
       mpy: (ym) => y + ((ym + m.W / 2) / m.W) * h,
@@ -386,6 +471,17 @@ const ONZE_STADE = (() => {
 
   /* ---- Le décor complet, sous les pions ---- */
   function dessiner(ctx, geo, t, temps) {
+    /* MODE ARÈNE : la photo est le terrain — on ne peint NI gazon, NI
+       bandes, NI tracé, NI cages par-dessus (décision de Gabriel : le
+       terrain plat recollé disparaît). Seule l'ambiance (vignette)
+       reste, et la scène garde ses accents (couronne, ballon). */
+    if (geo.plat === false) {
+      ctx.fillStyle = t.tribunes.fond;
+      ctx.fillRect(0, 0, geo.largeur, geo.hauteur);
+      const areneQ = image(t.fond);
+      if (areneQ) ctx.drawImage(areneQ, geo.pose.ox, geo.pose.oy, geo.pose.iw, geo.pose.ih);
+      return;
+    }
     const { x, y, w, h } = geo;
     // 1. le fond (ce qui dépasse du terrain) — une ARÈNE le remplace
     const arene = image(t.fond);

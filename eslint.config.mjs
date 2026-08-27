@@ -6,7 +6,7 @@ export default [
       sourceType: "script",
       globals: {
         window: "readonly", document: "readonly", localStorage: "readonly", sessionStorage: "readonly",
-        navigator: "readonly", performance: "readonly", requestAnimationFrame: "readonly",
+        navigator: "readonly", performance: "readonly", requestAnimationFrame: "readonly", ResizeObserver: "readonly",
         setTimeout: "readonly", clearTimeout: "readonly", setInterval: "readonly", clearInterval: "readonly",
         module: "writable", require: "readonly", process: "readonly", console: "readonly",
         AudioContext: "readonly", webkitAudioContext: "readonly", screen: "readonly", confirm: "readonly", alert: "readonly",

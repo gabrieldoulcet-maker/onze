@@ -53,10 +53,21 @@ const TAILLES = [
       const ctx = toile.getContext("2d");
       const dpr = toile.width / toile.clientWidth;
       const geo = d.cadre, r = d.rayonPion;
-      // décision 50 : le diagnostic parle MÈTRES, origine au centre
-      const T = d.terrain;
-      const px = (p) => ({ X: geo.x + ((p.x + T.L / 2) / T.L) * geo.w,
-                           Y: geo.y + ((p.y + T.W / 2) / T.W) * geo.h });
+      /* Le diagnostic parle MÈTRES, origine au centre (décision 50) — et
+         la scène peut projeter en PERSPECTIVE sur le terrain peint de
+         l'arène (décision de Gabriel). La sonde calcule comme la scène,
+         via la projection exposée. */
+      const T = d.terrain, pj = d.projection;
+      const px = (p) => {
+        const u = (p.x + T.L / 2) / T.L, v = (p.y + T.W / 2) / T.W;
+        if (pj && pj.plat === false && pj.quadPx) {
+          const q = pj.quadPx;
+          const g = q.hautX0 + (q.basX0 - q.hautX0) * v;
+          const dr = q.hautX1 + (q.basX1 - q.hautX1) * v;
+          return { X: g + u * (dr - g), Y: q.yHaut + v * (q.yBas - q.yHaut) };
+        }
+        return { X: geo.x + u * geo.w, Y: geo.y + v * geo.h };
+      };
       /* La scène bouge entre la lecture du diagnostic et celle des
          pixels : on ne cherche donc pas UN pixel, on balaie le
          voisinage du joueur. La question posée reste la bonne — « à
@@ -81,20 +92,37 @@ const TAILLES = [
       const anneau = po ? balayer(px(po), (r * 2 + 8) * dpr,
         (R, V, B) => R > 205 && V > 205 && B > 195) : null;
       return { ratio: d.ratioPion, rayon: r, hauteur: geo.h, gardienOr, anneau,
-        terrain: d.terrain, rayonM: d.rayonPionM };
+        terrain: d.terrain, rayonM: d.rayonPionM, projection: d.projection };
     });
-    /* L'ÉCHELLE DU PION — attendue, pas devinée (étape 2). Le pion a une
-       taille RÉELLE (1,84 m de rayon) ; sa part de la hauteur affichée
-       vaut donc son diamètre divisé par la largeur du terrain de CE
-       match. Sur un terrain complet ça redonne les ~5,4 % de FM ; sur un
-       terrain réduit ça monte, et c'est voulu — un joueur ne rétrécit pas
-       quand le terrain rétrécit. Un seuil figé à 4,5-6,5 % mesurait
-       l'ancienne règle (rayon en fraction du terrain), pas celle-ci. */
+    /* L'ÉCHELLE DU PION. En mode PLAT : attendue depuis la taille réelle
+       (1,84 m sur la largeur du terrain). En mode ARÈNE (perspective),
+       le modèle vit dans la géométrie elle-même — comparer code à code
+       serait une tautologie : on assert donc les PLANCHERS ABSOLUS, ceux
+       de la mesure publiée avant le rendu — une figurine du FOND jamais
+       sous 10 px (le seuil qui avait fait échouer la décision 37), un
+       rayon jamais sous 2,4 px. */
     const ratioPct = echelle.ratio * 100;
-    const attendu = (2 * echelle.rayonM / echelle.terrain.W) * 100;
-    const ratioOk = Math.abs(ratioPct - attendu) / attendu <= 0.10
-      && ratioPct >= 4 && ratioPct <= 9 && echelle.rayon >= 2.4;
-    console.log(`${ratioOk ? "✅" : "❌"} ${taille.nom} : pions à ${ratioPct.toFixed(1)} % de la hauteur du terrain (attendu ${attendu.toFixed(1)} % pour un terrain de ${echelle.terrain.L}×${echelle.terrain.W} m — rayon ${echelle.rayon.toFixed(1)} px, terrain ${echelle.hauteur.toFixed(0)} px)`);
+    let ratioOk, detail;
+    if (echelle.projection && echelle.projection.plat === false) {
+      const q = echelle.projection.quadPx;
+      const pxmFond = (q.hautX1 - q.hautX0) / echelle.terrain.L;
+      const figFond = 1.2 * 2 * echelle.rayonM * pxmFond;
+      ratioOk = figFond >= 10 && echelle.rayon >= 2.4;
+      detail = `ARÈNE : figurine du fond ${figFond.toFixed(1)} px (plancher 10 — le seuil de la décision 37), rayon centre ${echelle.rayon.toFixed(1)} px`;
+      /* DETTE VISIBLE, dépendance nommée : à 22 pions (terrain 104 m),
+         le fond passe sous le plancher tant que la couche de match garde
+         sa hauteur actuelle — c'est la hauteur que le repli de la
+         boutique doit rendre (chantier de mise en page, contrat de
+         couture). Quand elle arrivera, ce chiffre remontera tout seul. */
+      const fond104 = 1.2 * 2 * echelle.rayonM * pxmFond * echelle.terrain.L / 104;
+      if (fond104 < 10) console.log(`   ⏸ ${taille.nom} : à 22 pions la figurine du fond ferait ${fond104.toFixed(1)} px (< 10) — bloqué par la hauteur de la couche de match, rendue par le repli de la boutique (contrat de couture)`);
+    } else {
+      const attendu = (2 * echelle.rayonM / echelle.terrain.W) * 100;
+      ratioOk = Math.abs(ratioPct - attendu) / attendu <= 0.10
+        && ratioPct >= 4 && ratioPct <= 9 && echelle.rayon >= 2.4;
+      detail = `pions à ${ratioPct.toFixed(1)} % de la hauteur (attendu ${attendu.toFixed(1)} % pour ${echelle.terrain.L}×${echelle.terrain.W} m — rayon ${echelle.rayon.toFixed(1)} px)`;
+    }
+    console.log(`${ratioOk ? "✅" : "❌"} ${taille.nom} : ${detail}`);
     if (!ratioOk) total++;
     const identifiable = echelle.gardienOr !== false && echelle.anneau !== false;
     console.log(`${identifiable ? "✅" : "❌"} ${taille.nom} : gardien (or ${echelle.gardienOr}) et porteur (anneau ${echelle.anneau}) identifiables à cette taille`);

@@ -558,11 +558,29 @@ const dette = (nom, ok, quand) => {
       if (!th) continue;
       for (const [L, H] of tailles) {
         const g = ONZE_STADE.geometrie(L, H, th, { L: 104, W: 68 });
-        rapports.push({ nom: th.nom, peint: !!(th.fond && th.terrain), L, H, rapport: g.w / g.h });
+        /* La caméra d'un thème : dessiné → le rapport imposé 2,40 ;
+           ARÈNE (mode quad) → celui de SON terrain peint, sans
+           déformation — le rendu doit reproduire exactement le rapport
+           du quadrilatère de l'image (renversement de la décision 51,
+           « ils jouent sur mon arène »). */
+        let rapportImage = null;
+        if (th.quad) {
+          const q2 = th.quad;
+          const wf = Math.max(q2.hautDroite[0] - q2.hautGauche[0], q2.basDroite[0] - q2.basGauche[0]) * th.fondTaille.w;
+          const hf = ((q2.basGauche[1] + q2.basDroite[1]) - (q2.hautGauche[1] + q2.hautDroite[1])) / 2 * th.fondTaille.h;
+          rapportImage = wf / hf;
+        }
+        rapports.push({ nom: th.nom, arene: !!th.quad, L, H, rapport: g.w / g.h, rapportImage });
         if (!th.fond || !th.terrain) continue;    // pas d'image : rien à rogner
         const f = g.fenetreImage;
         if (!f) { sortie.push({ nom: th.nom, L, H, ok: false, pourquoi: "aucune fenêtre" }); continue; }
-        const q = th.terrain;
+        // en mode quad, ce qui ne doit jamais être rogné est le QUAD lui-même
+        const q = th.quad
+          ? { gauche: Math.min(th.quad.hautGauche[0], th.quad.basGauche[0]),
+              droite: Math.max(th.quad.hautDroite[0], th.quad.basDroite[0]),
+              haut: Math.min(th.quad.hautGauche[1], th.quad.hautDroite[1]),
+              bas: Math.max(th.quad.basGauche[1], th.quad.basDroite[1]) }
+          : th.terrain;
         const marge = Math.min(q.gauche - f.x0, f.x1 - q.droite, q.haut - f.y0, f.y1 - q.bas);
         sortie.push({ nom: th.nom, L, H, ok: marge >= 0, marge,
           // la marge la plus faible, en pixels du cadre
@@ -571,14 +589,17 @@ const dette = (nom, ok, quand) => {
     }
     return { sortie, rapports, nbThemes: ONZE_STADE.liste().length };
   });
-  /* LA CAMÉRA, sur TOUS les thèmes et toutes les tailles. Décision 51 :
-     la scène de match voit à 2,40:1, le rapport relevé sur ses arènes.
-     Un thème qui laisse son rectangle suivre la fenêtre n'a pas de
-     caméra du tout — et cette recette sort rouge dessus. */
-  const rMin = Math.min(...cadrages.rapports.map((r) => r.rapport));
-  const rMax = Math.max(...cadrages.rapports.map((r) => r.rapport));
-  const horsCamera = cadrages.rapports.filter((r) => Math.abs(r.rapport - 2.40) > 0.12);
-  verifier(`Étape 2 — une seule caméra pour tous les stades : rapport ${rMin.toFixed(2)}-${rMax.toFixed(2)} sur ${cadrages.nbThemes} thèmes × 5 tailles (décision 51 : 2,40:1)${horsCamera.length ? ` — hors caméra : ${[...new Set(horsCamera.map((r) => r.nom))].join(", ")}` : ""}`,
+  /* LA CAMÉRA, sur TOUS les thèmes et toutes les tailles — RENVERSEMENT
+     PARTIEL de la décision 51 (« ils jouent sur mon arène ») : une ARÈNE
+     n'a plus de rapport imposé, sa caméra est celle de son terrain
+     PEINT, et le rendu doit le reproduire SANS déformation (rapport
+     rendu = rapport image, à 2 % près). Les thèmes DESSINÉS gardent le
+     2,40 de la décision 51 — eux n'ont pas d'artwork pour le dicter. */
+  const horsCamera = cadrages.rapports.filter((r) => (r.arene
+    ? Math.abs(r.rapport - r.rapportImage) / r.rapportImage > 0.02
+    : Math.abs(r.rapport - 2.40) > 0.12));
+  const aRendus = cadrages.rapports.filter((r) => r.arene);
+  verifier(`Étape 2 — chaque stade suit SA caméra : arènes sans déformation (rendu = terrain peint, ${[...new Set(aRendus.map((r) => `${r.nom} ${r.rapportImage.toFixed(2)}`))].join(" · ")}), thèmes dessinés à 2,40 (décision 51 renversée en partie : « ils jouent sur mon arène »)${horsCamera.length ? ` — fautifs : ${[...new Set(horsCamera.map((r) => r.nom))].join(", ")}` : ""}`,
     cadrages.rapports.length >= 25 && horsCamera.length === 0);
 
   const pires = {};

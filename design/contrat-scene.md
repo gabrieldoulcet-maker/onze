@@ -50,7 +50,16 @@ La règle qui gouverne tout le reste : **on désigne un pixel et on demande au
 navigateur qui répond.** Ni classe, ni `z-index`, ni géométrie recalculée — c'est ce
 qui a attrapé le défaut que trois livraisons avaient laissé passer.
 
-## Le point qui reste ouvert, et qui n'est pas à moi seul
+## Le point ouvert est TRANCHÉ par Gabriel (26 août) : une bande réservée
+
+La contradiction §2/§7 est résolue par la **bande** : la géométrie de la scène
+(stade.js, mode arène) réserve les **40 premiers px** de la couche, et le tableau de
+score y vit (`top: 5px` en `scene-pleine` — son ancien décalage `--haut-bandeau`
+datait d'une couche pleine hauteur et était compté deux fois depuis la couture). Le
+terrain peint commence SOUS la bande : le tableau a une place, il ne flotte plus sur
+le jeu. `tests/zones.spec.js` continue de faire foi au pixel désigné.
+
+## L'historique du point, tel qu'il était posé
 
 Le brief demande deux choses qui, pendant un match, ne peuvent pas être vraies
 ensemble :

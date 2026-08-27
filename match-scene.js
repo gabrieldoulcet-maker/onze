@@ -529,11 +529,11 @@ const ONZE_SCENE = (() => {
       for (const a of assistants) bouger(a, cibleAssistant(a));
     }
     function dessinerFigurants() {
-      const r = rayonPion() * 0.82;            // un peu plus petits qu'un joueur
+      const r = rayonPion(arbitre.y) * 0.82;   // un peu plus petits qu'un joueur
       ctx.save();
       // les assistants : un trait sur la touche, discret
       for (const a of assistants) {
-        const Xa = X(a.x), Ya = Y(a.y);
+        const Xa = X(a.x, a.y), Ya = Y(a.y);
         ctx.beginPath();
         ctx.ellipse(Xa, Ya, r * 0.72, r * 0.5, 0, 0, 6.283);
         ctx.fillStyle = "rgba(18,22,20,0.9)"; ctx.fill();
@@ -541,7 +541,7 @@ const ONZE_SCENE = (() => {
         ctx.strokeStyle = "rgba(242,193,78,0.75)"; ctx.stroke();   // le drapeau
       }
       // l'arbitre : disque noir marqué « A »
-      const Xa = X(arbitre.x), Ya = Y(arbitre.y);
+      const Xa = X(arbitre.x, arbitre.y), Ya = Y(arbitre.y);
       ctx.beginPath();
       ctx.ellipse(Xa + r * 0.16, Ya + r * 0.55, r * 0.9, r * 0.36, 0, 0, 6.283);
       ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fill();
@@ -1882,14 +1882,29 @@ const ONZE_SCENE = (() => {
     }
     dimensionner();
     const surResize = () => dimensionner();
+    /* LA SCÈNE SUIT SON CONTENEUR, pas la fenêtre. Le canvas se
+       dimensionnait à la création — AVANT que la couche de match soit
+       posée par la mise en page — et seul un resize de fenêtre le
+       corrigeait : mesuré, la couche faisait 231 px et le canvas en
+       lisait 173. Un ResizeObserver absorbe la pose initiale ET toute
+       hauteur rendue plus tard (le repli de la boutique, contrat de
+       couture — la géométrie de la couche est au chantier de mise en
+       page, s'y adapter est à la scène). */
+    const observateur = typeof ResizeObserver !== "undefined" ? new ResizeObserver(surResize) : null;
+    if (observateur) observateur.observe(racine);
     /* La conversion MÈTRES → PIXELS, le seul endroit où elle a lieu.
        Le terrain de ce match (TERRAIN.L × TERRAIN.W) est étiré dans le
        rectangle peint : le mouvement reste identique à toute taille
        d'écran, et les chiffres du football restent lisibles dans le
        code. (Le cadrage du décor sur la portion utile est l'étape 2.) */
-    const X = (xm) => geo.x + ((xm + DEMI_L) / TERRAIN.L) * geo.w;
-    const Y = (ym) => geo.y + ((ym + DEMI_W) / TERRAIN.W) * geo.h;
-    const enPixels = (m) => (m / TERRAIN.W) * geo.h;   // une longueur verticale
+    /* La conversion vit désormais dans la GÉOMÉTRIE DU DÉCOR (stade.js) :
+       plate pour un thème dessiné, en perspective sur le quadrilatère du
+       terrain peint pour une arène (décision de Gabriel : « ils jouent
+       sur mon arène »). X a besoin de ym — en perspective, la position
+       horizontale dépend de la profondeur. */
+    const X = (xm, ym) => geo.projX(xm, ym);
+    const Y = (ym) => geo.projY(ym);
+    const enPixels = (m, ym) => geo.metresEnPx(m, ym);
     window.addEventListener("resize", surResize);
     /* L'ÉCHELLE DES PIONS (décision 33, campagne de mesures FM n°2).
        FM affiche des disques d'un diamètre ≈ 5 % de la hauteur du
@@ -1897,7 +1912,8 @@ const ONZE_SCENE = (() => {
        à cette taille on ne lit plus ni les blocs ni les courses.
        Cible : diamètre 5-6 % → rayon = 2,7 % de la hauteur, avec un
        plancher de lisibilité pour les très petits écrans. */
-    const rayonPion = () => Math.max(enPixels(RAYON_PION_M), 2.4);
+    // le rayon SUIT LA PROFONDEUR : un joueur du fond est plus petit
+    const rayonPion = (ym) => Math.max(enPixels(RAYON_PION_M, ym), 2.4);
 
     /* Le pion de scène, habillage ALLÉGÉ (décision 33) : à 5 % de la
        hauteur du terrain, un jeton en relief avec étoiles n'a plus de
@@ -1942,8 +1958,8 @@ const ONZE_SCENE = (() => {
        déséquilibre entre les deux camps — un artefact d'ordre de dessin,
        pas de lisibilité. */
     function dessinerSolPion(p) {
-      const r = rayonPion() * p.echelle;
-      const Xp = X(p.x), Yp = Y(p.y);
+      const r = rayonPion(p.y) * p.echelle;
+      const Xp = X(p.x, p.y), Yp = Y(p.y);
       ctx.save();
       ctx.beginPath();
       ctx.ellipse(Xp, Yp, r * 0.95, r * 0.36, 0, 0, 6.283);
@@ -1958,9 +1974,9 @@ const ONZE_SCENE = (() => {
       ctx.restore();
     }
     function dessinerFigurine(p, temps) {
-      const r = rayonPion() * p.echelle;
+      const r = rayonPion(p.y) * p.echelle;
       const H = HAUTEUR_FIGURINE * 2 * r;
-      const Xp = X(p.x), Yp = Y(p.y);          // le point au SOL
+      const Xp = X(p.x, p.y), Yp = Y(p.y);     // le point au SOL
       const maillot = maillotDe(p);
       ctx.save();
       if (p.aura > 0) { ctx.shadowColor = p.auraCouleur; ctx.shadowBlur = 10; }
@@ -2006,7 +2022,7 @@ const ONZE_SCENE = (() => {
       // le pion qui se jette : un trait de glissade derrière lui
       if (p.plonge > 0) {
         ctx.beginPath();
-        ctx.moveTo(Xp - enPixels(p.vx * 0.7), Yp); ctx.lineTo(Xp, Yp);
+        ctx.moveTo(Xp - enPixels(p.vx * 0.7, p.y), Yp); ctx.lineTo(Xp, Yp);
         ctx.strokeStyle = "rgba(253,248,234,0.35)";
         ctx.lineWidth = r * 0.7; ctx.stroke();
       }
@@ -2015,8 +2031,8 @@ const ONZE_SCENE = (() => {
 
     function dessinerPion(p, temps) {
       if (reg.figurines !== false) return dessinerFigurine(p, temps);
-      const r = rayonPion() * p.echelle;
-      const Xp = X(p.x), Yp = Y(p.y);
+      const r = rayonPion(p.y) * p.echelle;
+      const Xp = X(p.x, p.y), Yp = Y(p.y);
       const numeroLisible = r >= 4;      // en dessous, le chiffre ne rentre plus
       ctx.save();
       if (p.aura > 0) { ctx.shadowColor = p.auraCouleur; ctx.shadowBlur = 10; }
@@ -2072,7 +2088,7 @@ const ONZE_SCENE = (() => {
        portent le numéro et les étoiles, que le disque n'a plus la place
        d'afficher. */
     function dessinerEtiquettes() {
-      const r = rayonPion();
+      const r = rayonPion(0);
       const taille = borne(geo.h * 0.055, 8, 11);
       ctx.save();
       ctx.font = `700 ${taille}px Archivo, system-ui, sans-serif`;
@@ -2085,7 +2101,7 @@ const ONZE_SCENE = (() => {
         const etoiles = p.etoiles >= 2 ? " " + "★".repeat(Math.min(p.etoiles, 3)) : "";
         const nom = `${p.num} ${court}${etoiles}`;
         const l = ctx.measureText(nom).width + 8;
-        const Xe = X(p.x);
+        const Xe = X(p.x, p.y);
         let yb = Y(p.y) + r + 2.5;
         // évitement : on descend tant que ça recouvre une étiquette posée
         for (let essai = 0; essai < 4; essai++) {
@@ -2107,7 +2123,7 @@ const ONZE_SCENE = (() => {
     function dessinerBallon(x, y, z, trainee) {
       const r = Math.max(geo.h * 0.013, 2.2);   // ~la moitié d'un pion
       // l'ombre au sol : c'est elle qui donne la hauteur (le long ballon)
-      const Xb = X(x), Ysol = Y(y), Yb = Ysol - enPixels(z);
+      const Xb = X(x, y), Ysol = Y(y), Yb = Ysol - enPixels(z, y);
       ctx.save();
       ctx.beginPath();
       const ec = 1 + z * 0.05;
@@ -2116,7 +2132,7 @@ const ONZE_SCENE = (() => {
       for (let i = 0; i < trainee.length; i++) {
         const t = trainee[i];
         ctx.beginPath();
-        ctx.arc(X(t.x), Y(t.y) - enPixels(t.z || 0), r * 0.62, 0, 6.283);
+        ctx.arc(X(t.x, t.y), Y(t.y) - enPixels(t.z || 0, t.y), r * 0.62, 0, 6.283);
         ctx.fillStyle = `rgba(255,255,255,${((i + 1) / trainee.length) * 0.34})`; ctx.fill();
       }
       // le ballon est un JETON DE THÈME : halo et contour viennent du stade,
@@ -2312,7 +2328,7 @@ const ONZE_SCENE = (() => {
           dessinerBallon(ballon.x, ballon.y, ballon.z, []);
         }
       }
-      ONZE_STADE.dessinerCages(ctx, geo, theme, tremblements, temps);
+      if (geo.plat) ONZE_STADE.dessinerCages(ctx, geo, theme, tremblements, temps);
       ONZE_STADE.dessinerAmbiance(ctx, geo, theme);
 
       majJauge(dtBrut);
@@ -2411,17 +2427,19 @@ const ONZE_SCENE = (() => {
           optionsPasse: mesures.optionsPasse.slice(), dureesOption: mesures.dureesOption.slice(),
           tiragesPosture: { ...mesures.tiragesPosture } },
         // décision 33 : l'échelle des pions, mesurée par la recette
-        rayonPion: geo ? rayonPion() : null,
+        rayonPion: geo ? rayonPion(0) : null,
+        // la projection, pour que les sondes de recette calculent comme la scène
+        projection: geo ? { plat: geo.plat, quadPx: geo.quadPx || null } : null,
         rayonPionM: RAYON_PION_M,
         /* étape A : la figurine. Sa hauteur est accrochée au diamètre du
            pion — un seul rapport, donc elle suit le terrain élastique. */
         figurine: geo ? {
           active: reg.figurines !== false,
-          hauteur: HAUTEUR_FIGURINE * 2 * rayonPion(),
+          hauteur: HAUTEUR_FIGURINE * 2 * rayonPion(0),
           rapport: HAUTEUR_FIGURINE,           // × le diamètre du pion
           partTete: PART_TETE,
         } : null,
-        ratioPion: geo ? (2 * rayonPion()) / geo.h : null,
+        ratioPion: geo ? (2 * rayonPion(0)) / geo.h : null,
         jauge: { affichee: jauge.affichee, cible: jauge.cible },
         possessionPct: { moi: possessionPct.moi, eux: possessionPct.eux },
         nbDisques: listePions.length,
@@ -2458,6 +2476,7 @@ const ONZE_SCENE = (() => {
       detruire: () => {
         detruit = true;
         window.removeEventListener("resize", surResize);
+        if (observateur) observateur.disconnect();
         racine.remove();
       },
     };
