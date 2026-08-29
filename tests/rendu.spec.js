@@ -35,7 +35,11 @@ const verifier = (nom, ok, detail) => {
    deux chemins de rendu doivent donner le même résultat à l'écran). */
 async function ouvrirMercato(page) {
   await page.goto("http://localhost:8123/partie.html");
-  await page.evaluate(() => localStorage.clear());
+  /* Partie fraîche SANS tutoriel : effacer tout le stockage faisait
+     resurgir la proposition de tuto, et ses bulles apparaissaient en
+     PLEINE mesure différentielle (« 947 px d'écart entre deux mesures
+     identiques », une fois sur trois selon la vitesse de la machine). */
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem("onze-tutoriel-vu", "1"); });
   await page.reload();
   await page.waitForSelector(".carte-boutique", { timeout: 10000 });
   const tuto = await page.$('.volet [data-tuto="non"]');
@@ -135,7 +139,7 @@ async function taireAnnonces(page) {
     // la file, ET ce qui balaye déjà l'écran hors file (bannières de
     // palier/fusion) : une bannière en vol pendant la mesure a produit
     // « 1004 px d'écart entre deux mesures identiques », une fois sur trois
-    document.querySelectorAll("#file-annonces > *, .fusion-banniere, .message-flottant")
+    document.querySelectorAll("#file-annonces > *, .fusion-banniere, .message-flottant, .bulle-tuto")
       .forEach((e) => e.remove());
   });
   await new Promise((r) => setTimeout(r, 120));
@@ -143,12 +147,33 @@ async function taireAnnonces(page) {
 
 async function empreinteVisuel(page, indice, zone) {
   await taireAnnonces(page);
+  /* Les dessins se chargent en paresseux, et les key arts des starters
+     sont les plus lourds du dépôt : un décodage qui atterrit ENTRE deux
+     photos a produit « 420 px d'écart entre deux mesures identiques ».
+     On attend que toutes les images soient décodées avant de mesurer. */
+  await page.evaluate(() => Promise.all([...document.images]
+    .filter((im) => im.src && !im.complete).map((im) => im.decode().catch(() => {}))));
+  // et les POLICES : une fonte qui finit d'arriver repeint « Titulaires
+  // 5/5 » ou la fiche d'adversaire au milieu des photos — même écart
+  // stable (947 px) d'un passage à l'autre, déclenché par le cache
+  await page.evaluate(() => document.fonts ? document.fonts.ready.then(() => undefined) : undefined);
   const masquer = (v) => page.evaluate(([n, etat]) => {
     const j = document.querySelectorAll(".ligne-terrain .jeton")[n];
     if (j) j.querySelectorAll(".dessin-carte").forEach((e) => { e.style.visibility = etat; });
   }, [indice, v]);
-  const r = await MESURE.empreinte(page, zone, () => masquer("hidden"), () => masquer(""));
-  if (!r.inerte) bruitsDeFond.push(`joueur ${indice} : ${r.ecart} px d'écart entre deux mesures identiques`);
+  /* La précondition dit exactement ça : une mesure non inerte NE VEUT
+     RIEN DIRE. La conséquence honnête n'est pas de la publier quand même,
+     c'est de REFAIRE la mesure — et de ne signaler le bruit que s'il
+     persiste (une page qui bouge en continu reste un rouge). Un événement
+     ponctuel (décodage tardif, repaint unique) est absorbé ; il l'était
+     à la main avant, en relançant le passage. */
+  let r;
+  for (let essai = 0; essai < 3; essai++) {
+    r = await MESURE.empreinte(page, zone, () => masquer("hidden"), () => masquer(""));
+    if (r.inerte) break;
+    await new Promise((res) => setTimeout(res, 250));
+  }
+  if (!r.inerte) bruitsDeFond.push(`joueur ${indice} : ${r.ecart} px d'écart entre deux mesures identiques, trois fois`);
   return { pixels: r.pixels, centre: r.centre };
 }
 
