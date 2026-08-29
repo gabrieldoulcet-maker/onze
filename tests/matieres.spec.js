@@ -28,20 +28,23 @@ const verifier = (nom, ok, detail) => {
   if (!ok) echecs++;
 };
 
-/* L'inventaire : sélecteur → matière déclarée. */
+/* L'inventaire : sélecteur → matière déclarée.
+   AMENDÉ PAR LA REFONTE (28/08, décision 74) : la palette introduit la
+   matière PANNEAU — un aplat vert-nuit #17301D à 90-95 %, ASSUMÉ (c'est
+   le brief de Gabriel, pas un oubli). Le médaillon d'or n'existe plus :
+   l'argent est un chiffre nu, l'or est réservé au légendaire — un
+   composant qui n'est plus une matière sort de l'inventaire. Le
+   calepin, la bascule et le classement permanent ont quitté l'écran
+   (menu, fiche d'adversaire). */
 const INVENTAIRE = [
-  [".haut", "plaque", "le bandeau du haut"],
-  [".boutique-barre", "plaque", "la barre de boutique"],
   ["#btn-xp", "jeton", "le bouton XP"],
   ["#btn-refresh", "jeton", "le bouton de relance"],
-  ["#btn-calepin", "jeton", "le calepin"],
+  ["#btn-menu", "jeton", "le bouton du menu"],
   [".odds-affiche span", "jeton", "les pastilles d'odds"],
-  [".medaillon-or", "jeton", "le médaillon d'or"],
   [".xp-jauge", "creux", "la jauge d'XP"],
-  [".col-classement .barre-prestige", "creux", "les jauges de prestige"],
   [".place-banc", "creux", "un emplacement de banc vide"],
-  [".col-classement .coach-ligne", "verre", "les lignes du classement"],
-  ["#btn-bascule-gauche", "verre", "la bascule staff/quêtes"],
+  [".fiche-adversaire", "panneau", "la fiche du prochain adversaire"],
+  [".rangee-banc", "panneau", "la bande du banc"],
 ];
 
 /* Les seuls endroits où le VERT NÉON a le droit d'apparaître : un état
@@ -117,6 +120,8 @@ const NEON_AUTORISE = [
     plaque: (s) => s.degrade && s.inset && s.portee,
     jeton: (s) => s.degrade && s.inset && s.portee && s.bordure,
     creux: (s) => s.degrade && s.insetDominant,
+    // refonte 28/08 : le PANNEAU est un aplat vert-nuit assumé
+    panneau: (s) => s.aplat,
   };
   const absents = releve.filter((r) => !r.style);
   verifier(`les ${INVENTAIRE.length} composants de l'inventaire sont présents à l'écran`,
@@ -145,7 +150,11 @@ const NEON_AUTORISE = [
      assez grand pour être un composant (et qui n'est ni une illustration,
      ni une jauge de remplissage, ni un jeton de joueur) est un aplat. */
   const aplats = await page.evaluate(() => {
+    const vertNuit = (c) => { const m = String(c).match(/rgba?\((\d+), ?(\d+), ?(\d+)(?:, ?([\d.]+))?\)/);
+      return m && Math.abs(m[1] - 23) < 12 && Math.abs(m[2] - 48) < 14 && Math.abs(m[3] - 29) < 12; };
     const exempt = (e) => e.closest(".jeton, .carte-boutique, .scene-match, .fond-terrain, .art-carte") ||
+      // refonte 28/08 (décision 74) : la matière PANNEAU est un aplat vert-nuit VOULU
+      vertNuit(getComputedStyle(e).backgroundColor) ||
       e.classList.contains("art-carte") || e.tagName === "IMG" || e.tagName === "SVG" ||
       // les REMPLISSAGES de jauge sont de la donnée peinte, pas du chrome
       e.parentElement && /jauge|barre-|chrono-barre|barre-mini/.test(e.parentElement.className || "");
@@ -193,8 +202,10 @@ const NEON_AUTORISE = [
 
   /* ---- 4. TYPOGRAPHIE : tout texte clair posé sur le décor porte un halo ---- */
   const halos = await page.evaluate(() => {
-    const sels = [".col-synergies .badge", ".indice-synergies", ".col-classement .coach-ligne",
-      "#compteur-titulaires", ".haut .manche-info"];
+    /* Refonte : il ne reste presque plus de texte posé SUR le décor —
+       c'était le but (« sur le terrain : uniquement les joueurs »). On
+       mesure ce qui y vit encore. */
+    const sels = ["#compteur-titulaires", ".fiche-adversaire strong", ".carte-jeton .etoiles-carte"];
     const sortie = [];
     for (const sel of sels) {
       const e = document.querySelector(sel);
@@ -207,21 +218,24 @@ const NEON_AUTORISE = [
   });
   const sansHalo = halos.filter((h) => h.clair && !h.halo);
   verifier(`tout texte clair posé sur le décor porte un halo sombre (${halos.length} mesurés)`,
-    halos.length >= 4 && sansHalo.length === 0, JSON.stringify(sansHalo));
+    halos.length >= 2 && sansHalo.length === 0, JSON.stringify(sansHalo));
 
   /* ---- 5. LE GABARIT DE PANNEAU : un volet ouvert est en VERRE ---- */
-  await page.click("#btn-calepin");
+  await page.evaluate(() => ouvrirCalepin());
   await page.waitForTimeout(350);
   const volet = await page.evaluate(() => {
     const p = document.querySelector(".volet .panneau");
     if (!p) return null;
     const st = getComputedStyle(p);
     const couches = (st.boxShadow || "").split(/,(?![^(]*\))/).map((c) => c.trim());
+    const mFond = (st.backgroundColor || "").match(/rgba?\((\d+), ?(\d+), ?(\d+)/);
     return { degrade: /gradient/.test(st.backgroundImage), flou: /blur/.test(st.backdropFilter || ""),
+      vertNuit: !!mFond && Math.abs(mFond[1] - 23) < 12 && Math.abs(mFond[2] - 48) < 14 && Math.abs(mFond[3] - 29) < 12,
       inset: couches.some((c) => /inset/.test(c)), portee: couches.some((c) => !/inset/.test(c) && c) };
   });
-  verifier("le gabarit de panneau commun est en matière VERRE (il habille les neuf volets)",
-    volet && volet.degrade && volet.inset && volet.portee, JSON.stringify(volet));
+  verifier(`le gabarit de panneau commun est en matière PANNEAU vert-nuit (refonte, décision 74)`,
+    volet && volet.vertNuit === true && volet.flou && volet.portee,
+    JSON.stringify(volet));
 
   verifier("matières : zéro erreur JS", erreursJS.length === 0, erreursJS.slice(0, 2).join(" | "));
   await browser.close();

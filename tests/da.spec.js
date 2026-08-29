@@ -229,65 +229,47 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
     afficher();
   }, avantLumiere);
 
-  // ---- 5. l'ÉPURATION (brief habillage v2) : silhouettes nues, dalles de
-  //         poste, et le niveau d'étoiles lu dans la TAILLE ----
+  // ---- 5. (AMENDÉ PAR LA REFONTE, décision 74) : les CARTES ----
+  //      L'« épuration » (silhouettes nues, dalles de poste, étoiles
+  //      dans la taille du corps) était le contrat de l'ère 3D. Les
+  //      contrats de la carte : cadre couleur du poste, banc à taille
+  //      UNIQUE (une bande de rangement), étoiles dans la taille SUR LE
+  //      TERRAIN (1★ 100 % · 2★ 118 %), 3★ seul auréolé d'or, aucun nom.
   const scene = await page.evaluate(() => {
-    const parPoste = (p, n = 0) => tousLesJoueurs.filter((j) => j.poste === p && ONZE_PORTRAITS.frontale(j.nom))[n];
+    const parPoste = (p, n = 0) => tousLesJoueurs.filter((j) => j.poste === p && ONZE_PORTRAITS.carte(j))[n];
     partie.banc = [
       { ...parPoste("GAR"), etoiles: 1, uid: "e1" }, { ...parPoste("DÉF"), etoiles: 1, uid: "e2" },
       { ...parPoste("MIL"), etoiles: 1, uid: "e3" }, { ...parPoste("ATT"), etoiles: 2, uid: "e4" },
       { ...parPoste("DÉF", 1), etoiles: 3, uid: "e5" },
     ];
     partie.niveau = 8;
-    partie.terrain = [{ ...parPoste("GAR", 1), ligne: "GAR", etoiles: 1, uid: "t1" },
+    partie.terrain = [{ ...parPoste("MIL", 2), ligne: "MIL", etoiles: 1, uid: "t1" },
       { ...parPoste("MIL", 1), ligne: "MIL", etoiles: 2, uid: "t2" }];
     afficher();
-    const teinte = (j) => getComputedStyle(j).getPropertyValue("--teinte-poste").trim();
-    const jetons = [...document.querySelectorAll("#banc .jeton.figurine")];
-    /* La LIGNE DE SOL, c'est le POINT D'APPUI, plus le bas de l'image :
-       depuis que chaque figurine déclare son ancrage, deux unités posées
-       sur la même ligne n'ont plus le même bas d'image — et c'est
-       exactement ce qu'on veut. */
-    const mesure = (j) => {
-      const st = getComputedStyle(j);
-      const ay = parseFloat(st.getPropertyValue("--ancrage-y")) || 1;
-      const im = j.querySelector(".frontale").getBoundingClientRect();
-      return { h: Math.round(im.height * 10) / 10,
-        sol: Math.round((im.bottom - (1 - ay) * im.height) * 10) / 10 };
-    };
-    const m = jetons.map(mesure);
-    const parEtoile = partie.banc.map((f, i) => ({ etoiles: f.etoiles, ...m[i], poste: f.poste, teinte: teinte(jetons[i]),
+    const jetons = [...document.querySelectorAll("#banc .jeton.carte-jeton")];
+    const banc = partie.banc.map((f, i) => ({ etoiles: f.etoiles, poste: f.poste,
+      h: Math.round(jetons[i].getBoundingClientRect().height * 10) / 10,
+      bord: getComputedStyle(jetons[i]).borderTopColor,
       legende: jetons[i].classList.contains("legende") }));
-    const surGazon = [...document.querySelectorAll(".ligne-terrain .jeton.figurine")];
-    const habillage = surGazon.map((j) => {
-      const cs = getComputedStyle(j);
-      return { bordure: parseFloat(cs.borderTopWidth), fond: cs.backgroundImage, ombre: cs.boxShadow,
-        nom: !!j.querySelector(".nom-jeton"), pastille: !!j.querySelector(".pastille"),
-        etoiles: !!j.querySelector(".etoiles, .etoiles-tete") };
-    });
-    return { banc: parEtoile, terrain: habillage, nbGazon: surGazon.length };
+    const surGazon = [...document.querySelectorAll(".ligne-terrain .jeton.carte-jeton")];
+    const terrain = surGazon.map((j) => ({
+      h: j.getBoundingClientRect().height,
+      nom: !!j.querySelector(".nom-jeton"), pastille: !!j.querySelector(".pastille") }));
+    return { banc, terrain, nbGazon: surGazon.length };
   });
-
-  const un = scene.banc.filter((b) => b.etoiles === 1);
-  const deux = scene.banc.find((b) => b.etoiles === 2);
-  const trois = scene.banc.find((b) => b.etoiles === 3);
-  verifier(`banc : hauteur commune à niveau d'étoile égal (${un.length} joueurs 1★ à ${un[0].h} px)`,
-    new Set(un.map((b) => b.h)).size === 1, JSON.stringify(un.map((b) => b.h)));
-  verifier(`banc : la ligne de sol (le point d'appui) est la même pour tous, étoiles et ancrages compris`,
-    new Set(scene.banc.map((b) => b.sol)).size === 1, JSON.stringify(scene.banc.map((b) => b.sol)));
-  const r2 = deux.h / un[0].h, r3 = trois.h / un[0].h;
-  verifier(`étoiles dans la taille : 1★ 100 % · 2★ ${Math.round(r2 * 100)} % · 3★ ${Math.round(r3 * 100)} %`,
-    Math.abs(r2 - 1.18) < 0.02 && Math.abs(r3 - 1.38) < 0.02, `${r2.toFixed(3)} / ${r3.toFixed(3)}`);
-  verifier("le 3★ allume le sol en or, et lui seul",
-    trois.legende && !deux.legende && un.every((b) => !b.legende));
+  verifier(`banc : la bande range à taille unique (${scene.banc.map((b) => b.h).join(" · ")} px)`,
+    new Set(scene.banc.map((b) => b.h)).size === 1, JSON.stringify(scene.banc.map((b) => b.h)));
+  verifier("le 3★ est seul auréolé d'or (classe legende)",
+    scene.banc.filter((b) => b.legende).length === 1 && scene.banc.find((b) => b.etoiles === 3).legende);
   const COULEUR = { GAR: "245, 197, 49", "DÉF": "62, 155, 224", MIL: "61, 204, 110", ATT: "232, 80, 63" };
-  const dallesJustes = scene.banc.every((b) => b.teinte.includes(COULEUR[b.poste]));
-  verifier("banc : chaque dalle porte la couleur de son poste",
-    dallesJustes, JSON.stringify(scene.banc.map((b) => [b.poste, b.teinte])));
-  verifier(`terrain : plus aucun habillage sur les ${scene.nbGazon} silhouettes ` +
-    `(ni cadre, ni fond, ni nom, ni étoiles, ni pastille)`,
-    scene.nbGazon > 0 && scene.terrain.every((t) => t.bordure === 0 && t.fond === "none" &&
-      t.ombre === "none" && !t.nom && !t.pastille && !t.etoiles),
+  verifier("banc : chaque cadre porte la couleur de son poste",
+    scene.banc.every((b) => b.bord.includes(COULEUR[b.poste])),
+    JSON.stringify(scene.banc.map((b) => [b.poste, b.bord])));
+  const rEtoiles = scene.terrain.length === 2 ? scene.terrain[1].h / scene.terrain[0].h : 0;
+  verifier(`terrain : les étoiles se lisent dans la taille (2★ à ${Math.round(rEtoiles * 100)} % du 1★)`,
+    Math.abs(rEtoiles - 1.18) < 0.06, String(rEtoiles.toFixed(3)));
+  verifier(`terrain : aucun nom ni pastille sur les ${scene.nbGazon} cartes`,
+    scene.nbGazon > 0 && scene.terrain.every((t) => !t.nom && !t.pastille),
     JSON.stringify(scene.terrain[0]));
   verifier("banc : les emplacements vides restent visibles",
     await page.evaluate(() => document.querySelectorAll("#banc .place-banc").length > 0));
@@ -309,19 +291,25 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
     while (!document.querySelector(".scene-match canvas") && garde++ < 200) {
       await new Promise((r) => setTimeout(r, 100));
     }
-    const pendant = document.querySelectorAll(".jeton.figurine").length;
+    /* Refonte : le BANC reste visible pendant le match (clause c du
+       contrat de couture) et il porte des cartes — la promesse vaut pour
+       le TERRAIN : aucune carte de terrain VISIBLE tant que la scène est
+       à l'écran (la scène a ses propres pions). */
+    const visibles = () => [...document.querySelectorAll(".ligne-terrain .jeton.carte-jeton")]
+      .filter((j) => j.offsetParent !== null && j.getBoundingClientRect().width > 0).length;
+    const pendant = visibles();
     // on range le match SANS toucher au drapeau : c'est l'état de la
     // cérémonie de butin, où matchEnCours vaut encore true
     rangerLeMatch();
     await new Promise((r) => setTimeout(r, 250));
     return { pendant, drapeau: partie.matchEnCours,
-      ceremonie: document.querySelectorAll(".jeton.figurine").length,
+      ceremonie: visibles(),
       scene: !!document.querySelector(".scene-match") };
   });
-  verifier(`match : aucune figurine tant que la SCÈNE est à l'écran (${enMatch.pendant})`,
+  verifier(`match : aucune carte de terrain tant que la SCÈNE est à l'écran (${enMatch.pendant})`,
     enMatch.pendant === 0, JSON.stringify(enMatch));
-  verifier(`cérémonie : les figurines reviennent dès que la scène est rangée, même si ` +
-    `matchEnCours vaut encore ${enMatch.drapeau} (${enMatch.ceremonie} figurines, scène ${enMatch.scene})`,
+  verifier(`cérémonie : les cartes reviennent dès que la scène est rangée, même si ` +
+    `matchEnCours vaut encore ${enMatch.drapeau} (${enMatch.ceremonie} cartes, scène ${enMatch.scene})`,
     enMatch.ceremonie > 0 && enMatch.scene === false, JSON.stringify(enMatch));
 
   // ---- 1 & 2. table VIDE puis PARTIELLE : le jeu reste jouable ----
@@ -342,13 +330,14 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
     return { cartes: document.querySelectorAll("#boutique .carte-boutique").length,
       illustrees: document.querySelectorAll(".carte-boutique.illustree").length,
       jetons: jetons.length,
-      figurines: jetons.filter((j) => j.classList.contains("figurine")).length,
-      silhouettes: jetons.filter((j) => j.querySelector("svg.frontale")).length,
-      textes: jetons.filter((j) => (j.innerText || "").trim()).length,
+      figurines: jetons.filter((j) => j.classList.contains("carte-jeton")).length,
+      silhouettes: jetons.filter((j) => j.querySelector(".dessin-carte.absent")).length,
+      // refonte : la carte porte coût/étoiles — le NOM seul reste interdit
+      textes: jetons.filter((j) => /[A-Za-zÀ-ÿ]{2,}/.test(j.innerText || "")).length,
       // la carte ENTIÈRE est la cible d'achat : plus de bouton à compter
       boutons: document.querySelectorAll("#boutique .carte-boutique[data-boutique]").length };
   });
-  verifier("table VIDE : cartes Blason en boutique, silhouettes neutres sur le terrain, achat possible",
+  verifier("table VIDE : cartes Blason en boutique, cartes-glyphes sur le terrain, achat possible",
     vide.cartes === 5 && vide.illustrees === 0 && vide.boutons === 5 &&
     vide.jetons > 0 && vide.figurines === vide.jetons && vide.silhouettes === vide.jetons && vide.textes === 0,
     JSON.stringify(vide));
@@ -368,10 +357,10 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
     return { illustrees: document.querySelectorAll(".carte-boutique.illustree").length,
       cartes: document.querySelectorAll("#boutique .carte-boutique").length,
       jetons: jetons.length,
-      silhouettes: jetons.filter((j) => j.querySelector("svg.frontale")).length,
-      textes: jetons.filter((j) => (j.innerText || "").trim()).length };
+      silhouettes: jetons.filter((j) => j.querySelector(".dessin-carte.absent") || j.querySelector("img.dessin-carte")).length,
+      textes: jetons.filter((j) => /[A-Za-zÀ-ÿ]{2,}/.test(j.innerText || "")).length };
   });
-  verifier("table PARTIELLE : une carte illustrée, les autres en Blason, silhouettes neutres au sol",
+  verifier("table PARTIELLE : une carte illustrée, les autres en Blason, cartes-glyphes au sol",
     partielle.illustrees === 1 && partielle.cartes === 5 &&
     partielle.silhouettes === partielle.jetons && partielle.textes === 0,
     JSON.stringify(partielle));
@@ -414,11 +403,11 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
       const r = e.getBoundingClientRect();
       return r.bottom > window.innerHeight + 1 || r.right > window.innerWidth + 1 || r.top < -1;
     });
-    return { figurines: document.querySelectorAll(".jeton.figurine").length,
+    return { figurines: document.querySelectorAll(".jeton.carte-jeton").length,
       debordeJetons: deborde(".jeton"), debordeBoutons: deborde("#boutique .carte-boutique button"),
       barre: Math.round(document.getElementById("boutique-barre").getBoundingClientRect().bottom) };
   });
-  verifier(`effectif complet (${serre.figurines} figurines) à 667×320 : rien ne déborde`,
+  verifier(`effectif complet (${serre.figurines} cartes) à 667×320 : rien ne déborde`,
     serre.figurines >= 15 && !serre.debordeJetons && !serre.debordeBoutons && serre.barre <= 321,
     JSON.stringify(serre));
   await petit.close();

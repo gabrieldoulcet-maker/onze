@@ -61,11 +61,10 @@ const verifier = (nom, ok, detail) => {
       afficher();
       await Promise.all([...document.images].filter((i) => i.src && !i.complete).map((i) => i.decode().catch(() => {})));
       await new Promise((r) => setTimeout(r, 350));
-      /* On mesure la FIGURINE (le visuel), pas la case : c'est elle que
-         l'œil compare. Une case peut être grande et son occupant petit. */
+      /* REFONTE 28/08 (décision 74) : le visuel EST la carte — le jeton
+         carré lui-même. On mesure sa boîte : c'est elle que l'œil compare. */
       const haut = (racine) => [...document.querySelectorAll(racine + " .jeton")].map((j) => {
-        const v = j.querySelector("img.frontale, svg.frontale");
-        const r = (v || j).getBoundingClientRect();
+        const r = j.getBoundingClientRect();
         /* Les étoiles se lisent dans l'ÉTAT DE LA PARTIE, pas dans une
            variable CSS qui peut ne pas exister : une lecture qui rend
            `null` transforme la comparaison en silence. */
@@ -129,12 +128,11 @@ const verifier = (nom, ok, detail) => {
     const perspective = await page.evaluate(() => {
       const out = [];
       for (const j of document.querySelectorAll(".ligne-terrain .jeton")) {
-        const v = j.querySelector("img.frontale, svg.frontale");
-        if (!v || !j.dataset.liste) continue;
+        if (!j.dataset.liste) continue; // refonte : la CARTE est le visuel
         const fiche = partie[j.dataset.liste][Number(j.dataset.indice)];
         const st = getComputedStyle(j);
         const attendue = parseFloat(st.getPropertyValue("--h-figurine"));
-        out.push({ mesuree: v.getBoundingClientRect().height, attendue,
+        out.push({ mesuree: j.getBoundingClientRect().height, attendue,
           ligne: (j.closest(".ligne-terrain") || {}).id,
           etoiles: fiche ? (fiche.etoiles || 1) : 1 });
       }

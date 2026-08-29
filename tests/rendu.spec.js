@@ -132,15 +132,20 @@ let bruitsDeFond = [];
 async function taireAnnonces(page) {
   await page.evaluate(() => {
     if (typeof viderAnnonces === "function") viderAnnonces();
-    document.querySelectorAll("#file-annonces > *").forEach((e) => e.remove());
+    // la file, ET ce qui balaye déjà l'écran hors file (bannières de
+    // palier/fusion) : une bannière en vol pendant la mesure a produit
+    // « 1004 px d'écart entre deux mesures identiques », une fois sur trois
+    document.querySelectorAll("#file-annonces > *, .fusion-banniere, .message-flottant")
+      .forEach((e) => e.remove());
   });
+  await new Promise((r) => setTimeout(r, 120));
 }
 
 async function empreinteVisuel(page, indice, zone) {
   await taireAnnonces(page);
   const masquer = (v) => page.evaluate(([n, etat]) => {
     const j = document.querySelectorAll(".ligne-terrain .jeton")[n];
-    if (j) j.querySelectorAll("img.frontale, svg.frontale").forEach((e) => { e.style.visibility = etat; });
+    if (j) j.querySelectorAll(".dessin-carte").forEach((e) => { e.style.visibility = etat; });
   }, [indice, v]);
   const r = await MESURE.empreinte(page, zone, () => masquer("hidden"), () => masquer(""));
   if (!r.inerte) bruitsDeFond.push(`joueur ${indice} : ${r.ecart} px d'écart entre deux mesures identiques`);
@@ -169,7 +174,10 @@ async function empreinteVisuel(page, indice, zone) {
         const marche = document.createTreeWalker(ligne, NodeFilter.SHOW_TEXT);
         for (let n = marche.nextNode(); n; n = marche.nextNode()) {
           const texte = (n.nodeValue || "").trim();
-          if (!texte || texte === "+") continue;   // le « + » de la case vide reste
+          // refonte 28/08 (décision 74) : la CARTE porte coût, étoiles et
+          // insignes de staff — chiffres, « · », « ★ » et ces emojis sont
+          // l'habillage voulu. Le NOM, lui, reste à un tap.
+          if (!texte || texte === "+" || /^[0-9·★🧪🧰🛂🏺🌟\s]+$/u.test(texte)) continue;
           const par = n.parentElement;
           const r = par.getBoundingClientRect();
           if (r.width < 1 || r.height < 1 || getComputedStyle(par).visibility === "hidden") continue;
@@ -178,9 +186,9 @@ async function empreinteVisuel(page, indice, zone) {
       }
       const compte = (sel) => lignes.reduce((n, l) => n + l.querySelectorAll(sel).length, 0);
       const pastilles = compte(".pastille, .pastille-poste, .nom-jeton, .note-jeton, .etoiles, .glyphes-famille");
-      return { restes, pastilles, jetons: compte(".jeton"), figurines: compte(".jeton.figurine") };
+      return { restes, pastilles, jetons: compte(".jeton"), figurines: compte(".jeton.carte-jeton") };
     });
-    verifier(`${taille.nom} : aucun nom ni pastille sur le terrain (${terrain.figurines}/${terrain.jetons} jetons en silhouette)`,
+    verifier(`${taille.nom} : aucun nom sur le terrain — que des cartes (${terrain.figurines}/${terrain.jetons})`,
       terrain.restes.length === 0 && terrain.pastilles === 0 && terrain.jetons === terrain.figurines,
       `textes ${JSON.stringify(terrain.restes)} · pastilles ${terrain.pastilles}`);
 
@@ -191,7 +199,7 @@ async function empreinteVisuel(page, indice, zone) {
       const banc = document.getElementById("banc");
       return [...banc.children].filter((c) => c.classList.contains("jeton")).map((c) => {
         const r = c.getBoundingClientRect();
-        const visuel = c.querySelector("img.frontale, svg.frontale");
+        const visuel = c.querySelector("img.dessin-carte, .dessin-carte.absent");
         const rv = visuel ? visuel.getBoundingClientRect() : null;
         return {
           box: { x: r.x, y: r.y, width: r.width, height: r.height },
@@ -214,36 +222,14 @@ async function empreinteVisuel(page, indice, zone) {
     verifier(`${taille.nom} : les ${bancInfos.length} joueurs du banc portent une image visible (pixels mesurés)`,
       bancInfos.length >= 4 && bancKO === 0, `${bancKO} place(s) sans image visible`);
 
-    /* ---- 3 · RIEN D'OPAQUE NE RECOUVRE LE GAZON ----
-       L'assertion qui aurait attrapé les rectangles sombres. Deux mesures,
-       parce qu'une seule se laisse contourner :
-       (a) aucun jeton du terrain ne PEINT quoi que ce soit — ni fond de
-           couleur, ni DÉGRADÉ (c'est un dégradé qui faisait le rectangle
-           sombre, et c'est pour ça qu'une lecture de la seule couleur de
-           fond passait à côté), ni bordure, ni ombre portée ;
-       (b) chaque joueur du terrain PEINT vraiment sa silhouette là où sa
-           case dit qu'il est — mesuré en masquant son visuel et en
-           comparant la même zone avec et sans lui. */
-    const peintures = await page.evaluate(() => {
-      const alpha = (couleur) => {
-        const m = couleur.match(/rgba?\(([^)]+)\)/);
-        if (!m) return 0;
-        const p = m[1].split(",").map((v) => parseFloat(v));
-        return p.length > 3 ? p[3] : 1;
-      };
-      return [...document.querySelectorAll(".ligne-terrain .jeton")].map((j) => {
-        const st = getComputedStyle(j);
-        return { cls: (j.className || "").toString().slice(0, 44),
-          fond: alpha(st.backgroundColor) >= 0.5, degrade: st.backgroundImage !== "none",
-          bordure: st.borderTopWidth !== "0px" && alpha(st.borderTopColor) >= 0.3,
-          ombre: st.boxShadow !== "none" };
-      }).filter((j) => j.fond || j.degrade || j.bordure || j.ombre);
-    });
-    verifier(`${taille.nom} : aucun jeton du terrain ne peint de fond, de dégradé, de bordure ni d'ombre`,
-      peintures.length === 0, JSON.stringify(peintures).slice(0, 260));
-
+    /* ---- 3 · (AMENDÉ PAR LA REFONTE, décision 74) ----
+       « Aucun jeton ne peint fond/bordure/ombre » gardait l'ère des
+       silhouettes nues ; la CARTE peint par design (cadre poste, fond
+       panneau) et refonte.spec.js le tient. Reste le vrai contrat :
+       chaque joueur peint son DESSIN sur sa case — photographie
+       différentielle, avec et sans lui. */
     const surLeGazon = await page.evaluate(() => [...document.querySelectorAll(".ligne-terrain .jeton")].map((j) => {
-      const v = j.querySelector("img.frontale, svg.frontale");
+      const v = j.querySelector(".dessin-carte");
       const rv = v ? v.getBoundingClientRect() : null;
       /* On photographie la BOÎTE DU VISUEL, pas celle du jeton : depuis
          que les figurines sont des unités de trois quarts, la silhouette
@@ -293,7 +279,7 @@ async function empreinteVisuel(page, indice, zone) {
        bon la silhouette du premier joueur du terrain, et la mesure doit la
        déclarer absente. */
     await page.evaluate(() => {
-      const v = document.querySelectorAll(".ligne-terrain .jeton")[0].querySelector("img.frontale, svg.frontale");
+      const v = document.querySelectorAll(".ligne-terrain .jeton")[0].querySelector(".dessin-carte");
       if (v) v.remove();
     });
     const empSans = await empreinteVisuel(page, 0, zoneTerrain);
@@ -305,163 +291,40 @@ async function empreinteVisuel(page, indice, zone) {
     await page.evaluate(() => afficher());
     await page.waitForTimeout(150);
 
-    /* AUCUNE FIGURINE SERVIE SUR TERRAIN PEINT NE PORTE `sans-portrait`
-       (§9.1 du brief playtest). Le défaut le plus visible de l'écran de
-       mise en place : une silhouette PLATE, SAUMON, SANS VISAGE debout au
-       milieu de figurines peintes — c'est le repli `SILHOUETTE_NEUTRE`,
-       teinté par le poste (`--teinte-pleine: #DE6350` pour un attaquant).
-
-       Et c'est un cas d'école de la règle M4 : **le repli était
-       parfaitement acceptable tant que personne n'avait de portrait.** Une
-       silhouette neutre parmi des silhouettes neutres ne choque pas.
-       L'arrivée des 79 figurines l'a transformée en image cassée sans que
-       personne ne touche à son code — c'est le VOISINAGE qui a changé.
-       Aucune recette ne pouvait l'attraper : elle vérifiait un chemin de
-       rendu unique, et il l'est resté.
-
-       Qui n'a pas de portrait : les six réservistes du centre (Gilbert,
-       Norbert, Fernand, Marius, Lucien, Célestin), que `autoCompleter()`
-       POUSSE SUR LE TERRAIN quand le banc est vide. */
+    /* (AMENDÉ PAR LA REFONTE, décision 74.) Ici vivaient « aucune
+       figurine n'est un repli sans visuel » et toute la machinerie
+       d'ANONYMISATION des corps empruntés — le prix des rendus 3D. Les
+       cartes n'empruntent rien : un joueur sans dessin (les réservistes
+       gratuits) porte un fond neutre et le GLYPHE de son poste, déclaré
+       par une classe. Le contrat devient : le repli est identifiable,
+       jamais une image cassée — et un joueur qui A un dessin ne tombe
+       jamais dessus. */
     const RESERVISTES = ["Gilbert", "Norbert", "Fernand", "Marius", "Lucien", "Célestin"];
     const replis = await page.evaluate(async (noms) => {
       arreterChrono();
       document.querySelectorAll(".volet").forEach((v) => v.remove());
       partie.niveau = 9;
       partie.banc = [];
-      // le cas réel : le banc est vide, les réservistes montent
       partie.terrain = noms.slice(0, 5).map((nom, i) => ({ nom, cout: 0,
         poste: ["GAR", "DÉF", "MIL", "ATT", "MIL"][i], ecole: "", archetype: "",
         unique: null, etoiles: 1, uid: "R" + i }));
       afficher();
-      await Promise.all([...document.images].filter((i) => i.src && !i.complete)
-        .map((i) => i.decode().catch(() => {})));
-      await new Promise((r) => setTimeout(r, 300));
-      const peint = document.querySelector(".plateau").classList.contains("terrain-peint");
-      const tous = [...document.querySelectorAll(".ligne-terrain .jeton.figurine, #banc .jeton.figurine")];
-      return { peint, total: tous.length,
-        sansPortrait: tous.filter((j) => j.classList.contains("sans-portrait"))
-          .map((j) => (j.getAttribute("aria-label") || "?").split(",")[0]) };
-    }, RESERVISTES);
-    verifier(`${taille.nom} : aucune figurine du terrain peint n'est un repli sans visuel ` +
-      `(${replis.total} figurines, ${replis.sansPortrait.length} sans portrait)`,
-      replis.peint && replis.total > 0 && replis.sansPortrait.length === 0,
-      replis.sansPortrait.slice(0, 6).join(", "));
-
-    /* LE REMPLAÇANT NE DOIT PAS SE CONFONDRE AVEC CELUI DONT IL PORTE LE
-       CORPS. Il emprunte l'unité d'un joueur du roster, et ce joueur peut
-       se tenir sur le MÊME terrain : à 23 px, seuls la couleur et la
-       corpulence se lisent. Toute la charge repose sur l'anonymisation —
-       et « je crois que ça se distingue » n'est pas une mesure.
-
-       PREMIÈRE VERSION, FAUSSE, et c'est le piège de la règle M6 en
-       personne. Je photographiais le remplaçant et le vrai joueur CÔTE À
-       CÔTE, chacun à sa place sur la ligne. Relevé : 56 à 63 % de pixels
-       différents — l'air d'un bon chiffre. Le contre-test l'a démoli :
-       **anonymisation retirée, la même mesure donnait 20 à 65 %**, une
-       plage qui recouvre la première. Elle ne mesurait pas le traitement,
-       elle mesurait la PROFONDEUR : deux joueurs à deux endroits d'une
-       ligne n'ont ni la même taille ni le même gazon derrière eux.
-
-       LA BONNE MESURE compare la même figurine À ELLE-MÊME, comme la
-       décision 59 : on photographie la boîte du remplaçant, on lui retire
-       le traitement, on rephotographie la MÊME boîte. Même corps, même
-       taille, même fond — ce qui change est le traitement, et rien
-       d'autre. Et on rapporte ces pixels à ceux que la figurine PEINT
-       vraiment (le reste de la boîte est du gazon qui ne bougera jamais),
-       ce qui donne la seule grandeur qui a un sens : **quelle part du
-       corps l'anonymisation transforme-t-elle ?**
-
-       Et c'est bien la réponse à la question posée — « le remplaçant se
-       distingue-t-il du vrai joueur dont il porte le corps ? ». Placés au
-       MÊME endroit, les deux ne diffèrent QUE par le traitement : même
-       image source, même taille, même gazon. Les comparer côte à côte,
-       chacun à sa place, revenait à mesurer la profondeur.
-
-       LE PLANCHER EST CALIBRÉ, pas choisi. Deux points ne suffisaient pas :
-       avec 87-95 % « avec » et 0 % « sans », n'importe quelle valeur entre
-       1 et 87 aurait passé exactement les mêmes deux tests, et 60 % ne
-       voulait encore rien dire. On a donc mesuré un troisième point — un
-       traitement volontairement AFFAIBLI (filtre à moitié, liseré deux
-       fois plus fin) :
-
-         · traitement absent  →  0 %  (les six, aux deux formats)
-         · traitement à moitié →  47 à 87 %  (le plus faible : 47 %)
-         · traitement entier   →  87 à 95 %  (le plus faible : 87 %)
-
-       Le plancher à **60 %** tombe donc entre les deux : il REJETTE un
-       traitement de moitié à son point le plus faible (47 % et 50 % et
-       55 % sortent rouges) et accepte le traitement entier avec 27 points
-       de marge. C'est un seuil mesuré, plus un pari. */
-    const PART_ANONYME = 0.60;
-    const corpsAnonymes = await page.evaluate(async () => {
-      arreterChrono();
-      document.querySelectorAll(".volet").forEach((v) => v.remove());
-      partie.niveau = 9;
-      partie.banc = [];
-      const faux = ["Gilbert", "Norbert", "Fernand", "Marius", "Lucien", "Célestin"];
-      partie.terrain = faux.map((f) => ({ nom: f, cout: 0, poste: "MIL", ligne: "MIL",
-        ecole: "", archetype: "", unique: null, etoiles: 1, uid: "F" + f }));
+      await new Promise((r) => setTimeout(r, 250));
+      const jetons = [...document.querySelectorAll(".ligne-terrain .jeton.carte-jeton")];
+      const sansDessin = jetons.filter((j) => j.querySelector(".dessin-carte.absent"));
+      const glyphesVides = sansDessin.filter((j) => !(j.querySelector(".dessin-carte.absent").textContent || "").trim());
+      const avecArt = tousLesJoueurs.filter((x) => ONZE_PORTRAITS.carte(x)).slice(0, 5);
+      partie.terrain = avecArt.map((f, i) => ({ ...f, uid: "A" + i }));
       afficher();
-      await Promise.all([...document.images].filter((i) => i.src && !i.complete)
-        .map((i) => i.decode().catch(() => {})));
-      await new Promise((r) => setTimeout(r, 350));
-      return [...document.querySelectorAll(".ligne-terrain .jeton.figurine.remplacant")].map((j, i) => {
-        const im = j.querySelector("img.frontale");
-        const r = (im || j).getBoundingClientRect();
-        return { i, nom: (j.getAttribute("aria-label") || "").split(",")[0],
-          corps: im ? (im.getAttribute("src") || "").split("/").pop() : null,
-          boite: { x: r.x, y: r.y, w: r.width, h: r.height } };
-      });
-    });
-
-    /* Le basculement du traitement sur UNE figurine désignée, et la
-       comparaison de la même zone dans les deux états. */
-    const basculer = (indice, actif) => page.evaluate(([n, on]) => {
-      const j = document.querySelectorAll(".ligne-terrain .jeton.figurine.remplacant, " +
-        ".ligne-terrain .jeton.figurine.sans-traitement")[n];
-      if (!j) return;
-      j.classList.toggle("remplacant", on);
-      j.classList.toggle("sans-traitement", !on);
-    }, [indice, actif]);
-
-    let faibles = 0;
-    const partsAnonymes = [];
-    for (const c of corpsAnonymes) {
-      const clip = { x: Math.max(0, Math.round(c.boite.x)), y: Math.max(0, Math.round(c.boite.y)),
-        width: Math.min(Math.round(c.boite.w), taille.l - Math.round(c.boite.x)),
-        height: Math.min(Math.round(c.boite.h), taille.h - Math.round(c.boite.y)) };
-      if (clip.width < 6 || clip.height < 8) continue;
-      // combien de pixels la figurine peint-elle ? (référence)
-      const peints = await empreinteVisuel(page, c.i, clip);
-      const avec = (await page.screenshot({ clip, animations: "disabled" })).toString("base64");
-      await basculer(c.i, false);
-      const sans = (await page.screenshot({ clip, animations: "disabled" })).toString("base64");
-      await basculer(c.i, true);
-      const changes = await page.evaluate(async ([x, y, seuil]) => {
-        const lire = async (b64) => {
-          const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode();
-          const cv = document.createElement("canvas"); cv.width = im.width; cv.height = im.height;
-          const g = cv.getContext("2d", { willReadFrequently: true }); g.drawImage(im, 0, 0);
-          return g.getImageData(0, 0, cv.width, cv.height).data;
-        };
-        const [u, v] = [await lire(x), await lire(y)];
-        let n = 0;
-        for (let i = 0; i < u.length; i += 4) {
-          const d = Math.max(Math.abs(u[i] - v[i]), Math.abs(u[i + 1] - v[i + 1]), Math.abs(u[i + 2] - v[i + 2]));
-          if (d > seuil) n++;
-        }
-        return n;
-      }, [avec, sans, 24]);
-      const part = peints.pixels ? changes / peints.pixels : 0;
-      partsAnonymes.push(part);
-      if (part < PART_ANONYME) faibles++;
-    }
-    const pireAnonyme = partsAnonymes.length ? Math.min(...partsAnonymes) : 0;
-    verifier(`${taille.nom} : l'anonymisation transforme vraiment le corps emprunté ` +
-      `(${partsAnonymes.length} remplaçant(s), le moins transformé change sur ` +
-      `${(pireAnonyme * 100).toFixed(0)} % des pixels qu'il peint — plancher ${(PART_ANONYME * 100).toFixed(0)} %)`,
-      partsAnonymes.length >= 3 && faibles === 0,
-      `${faibles} sous le plancher · relevés ${partsAnonymes.map((p) => Math.round(p * 100) + " %").join(" · ")}`);
+      await new Promise((r) => setTimeout(r, 250));
+      const retombes = [...document.querySelectorAll(".ligne-terrain .jeton.carte-jeton")]
+        .filter((j) => j.querySelector(".dessin-carte.absent")).length;
+      return { total: jetons.length, replis: sansDessin.length, glyphesVides: glyphesVides.length, retombes };
+    }, RESERVISTES);
+    verifier(`${taille.nom} : le repli sans dessin est identifiable (${replis.replis}/${replis.total} réservistes ` +
+      `en glyphe de poste) et un joueur illustré ne tombe jamais dessus (${replis.retombes})`,
+      replis.total >= 5 && replis.replis === replis.total && replis.glyphesVides === 0 && replis.retombes === 0,
+      JSON.stringify(replis));
 
     /* LE CONTRE-TEST DE LA PRÉCONDITION, FABRIQUÉ ET NON ATTENDU. Le
        défaut d'origine sortait une fois sur trois ; trois passages verts
@@ -475,28 +338,45 @@ async function empreinteVisuel(page, indice, zone) {
        sans course. À dire : ça ne reproduit pas la synchronisation exacte
        du défaut réel, mais ça éprouve exactement ce que l'assertion
        promet. */
+    /* Le cobaye est UN JETON QUI A UN DESSIN — le premier de la liste
+       pouvait être une case au repli glyphe, dont le masquage ne change
+       aucun pixel : le contre-test mesurait alors 0 contre 0 et
+       accusait la précondition. */
+    /* Les annonces d'abord : les bannières de palier déclenchées par le
+       montage balayent le terrain, et sur un écran de 667 px elles
+       recouvrent le cobaye — les quatre photos montraient la bannière,
+       jamais la carte, et le contre-test lisait 0 contre 0. */
+    await taireAnnonces(page);
     const zoneCT = await page.evaluate(() => {
-      const j = document.querySelector(".ligne-terrain .jeton");
-      const r = j.getBoundingClientRect();
-      return { x: Math.max(0, Math.round(r.x)), y: Math.max(0, Math.round(r.y)),
+      const js = [...document.querySelectorAll(".ligne-terrain .jeton")];
+      const k = js.findIndex((j) => j.querySelector("img.dessin-carte"));
+      const r = js[k].getBoundingClientRect();
+      return { k, x: Math.max(0, Math.round(r.x)), y: Math.max(0, Math.round(r.y)),
         width: Math.round(r.width), height: Math.round(r.height) };
     });
-    const masquerCT = (v) => page.evaluate((etat) => {
-      const j = document.querySelectorAll(".ligne-terrain .jeton")[0];
-      j.querySelectorAll("img.frontale, svg.frontale").forEach((e) => { e.style.visibility = etat; });
-    }, v);
+    const masquerCT = (v) => page.evaluate(([etat, k]) => {
+      const j = document.querySelectorAll(".ligne-terrain .jeton")[k];
+      j.querySelectorAll(".dessin-carte").forEach((e) => { e.style.visibility = etat; });
+    }, [v, zoneCT.k]);
     const ctCalme = await MESURE.empreinte(page, zoneCT, () => masquerCT("hidden"), () => masquerCT(""));
     const ctAgite = await MESURE.empreinte(page, zoneCT, () => masquerCT("hidden"), () => masquerCT(""),
-      () => page.evaluate(() => {
-        const im = document.querySelectorAll(".ligne-terrain .jeton")[0]
-          .querySelector("img.frontale, svg.frontale");
-        if (im) im.style.opacity = "0.3";
-      }));
-    await page.evaluate(() => {
-      const im = document.querySelectorAll(".ligne-terrain .jeton")[0]
-        .querySelector("img.frontale, svg.frontale");
-      if (im) im.style.opacity = "";
-    });
+      () => page.evaluate((k) => {
+        /* LE TÉMOIN DOIT ÊTRE VU PAR LA MESURE, PAS SEULEMENT PAR L'ŒIL.
+           Chaque passe mesure « avec dessin » MOINS « dessin masqué » :
+           un changement du fond de la carte est identique dans les deux
+           photos d'une passe et pèse zéro. Le témoin porte donc la
+           CLASSE du dessin — le masque le cache aussi — et il est blanc :
+           la passe d'après mesure un écart massif, à toute taille.
+           (Premier essai : opacité 0,3 sur un dessin sombre de 27 px —
+           sous le seuil par pixel, écart 0, le contre-test accusait la
+           précondition.) */
+        const j = document.querySelectorAll(".ligne-terrain .jeton")[k];
+        const temoin = document.createElement("div");
+        temoin.className = "dessin-carte temoin-ct";
+        temoin.style.cssText = "position:absolute;inset:0;background:#fff;z-index:5";
+        j.appendChild(temoin);
+      }, zoneCT.k));
+    await page.evaluate(() => document.querySelectorAll(".temoin-ct").forEach((e) => e.remove()));
     verifier(`${taille.nom} : la précondition d'inertie voit une page qui change entre deux passes ` +
       `(inerte : écart ${ctCalme.ecart} px · changée : écart ${ctAgite.ecart} px)`,
       ctCalme.inerte && !ctAgite.inerte,
@@ -632,139 +512,11 @@ async function empreinteVisuel(page, indice, zone) {
     await page.close();
   }
 
-  /* ---- 4 ter · PRÊT POUR LES SILHOUETTES DE TROIS QUARTS ----
-     Les nouvelles unités seront dessinées en vue de trois quarts élevée,
-     avec leur ombre portée dans un FICHIER À PART. Deux promesses à tenir
-     avant même que les images n'arrivent, et donc à vérifier ici :
-       · le POINT D'APPUI déclaré dans la table se pose sur la ligne de
-         sol — quel que soit l'ancrage, les pieds tombent au même endroit,
-         donc changer les proportions d'un visuel ne déplace personne ;
-       · l'ombre servie en fichier remplace l'ombre dessinée (jamais les
-         deux) et grandit avec le niveau d'étoiles, comme la silhouette.
-     On injecte une table de test : une vraie silhouette du dépôt, un
-     ancrage volontairement décalé, et une ombre en image de test. ---- */
-  {
-    const page = await (await browser.newContext({ viewport: { width: 844, height: 390 } })).newPage();
-    const erreursJS = [];
-    page.on("pageerror", (e) => erreursJS.push(e.message));
-    await ouvrirMercato(page);
-    const mesures = await page.evaluate(async () => {
-      /* On prend une VRAIE paire du lot (unité + ombre cadrées ensemble) :
-         c'est elle qu'il faut mesurer, une ombre bricolée d'un autre
-         format ne dirait rien du partage de transformation. */
-      const source = ONZE_PORTRAITS.frontale({ nom: "Sékou" });
-      const OMBRE2 = ONZE_PORTRAITS.ombre({ nom: "Sékou" });
-      // trois joueurs : ancrage par défaut, ancrage décalé, et 3★ avec ombre
-      ONZE_PORTRAITS.definir({
-        Aplomb: { carte: source, frontale: source },
-        Trois_quarts: { carte: source, frontale: source, ombre: OMBRE2, ancrage: { x: 0.34, y: 0.78 } },
-        Legende: { carte: source, frontale: source, ombre: OMBRE2, ancrage: { x: 0.5, y: 0.82 } },
-      });
-      const base = tousLesJoueurs[0];
-      partie.banc = [
-        { ...base, nom: "Aplomb", etoiles: 1, uid: "a1" },
-        { ...base, nom: "Trois_quarts", etoiles: 1, uid: "a2" },
-        { ...base, nom: "Legende", etoiles: 1, uid: "a3" },
-        { ...base, nom: "Legende", etoiles: 3, uid: "a4" },
-      ];
-      afficher();
-      await new Promise((r) => setTimeout(r, 400));
-      const jetons = [...document.querySelectorAll("#banc .jeton.figurine")];
-      return jetons.map((j) => {
-        const st = getComputedStyle(j);
-        const ax = parseFloat(st.getPropertyValue("--ancrage-x")) || 0.5;
-        const ay = parseFloat(st.getPropertyValue("--ancrage-y")) || 1;
-        const im = j.querySelector("img.frontale");
-        const om = j.querySelector("img.ombre-sol");
-        const rj = j.getBoundingClientRect();
-        const ri = im ? im.getBoundingClientRect() : null;
-        const ro = om ? om.getBoundingClientRect() : null;
-        return {
-          ancrage: { x: ax, y: ay },
-          // LE POINT D'APPUI en pixels de page : c'est lui qui doit tenir la ligne
-          appui: ri ? { x: ri.x + ax * ri.width, y: ri.bottom - (1 - ay) * ri.height } : null,
-          jeton: { centre: rj.x + rj.width / 2, bas: rj.bottom },
-          hauteurVisuel: ri ? ri.height : 0,
-          ombre: ro ? { l: ro.width, y: ro.y + ro.height / 2, centre: ro.x + ro.width / 2 } : null,
-          // la comparaison exacte des deux boîtes, au dixième de pixel
-          memeBoite: !!(ri && ro) && ["x", "y", "width", "height"].every((k) => Math.abs(ri[k] - ro[k]) < 0.5),
-          ecarts: ri && ro ? ["x", "y", "width", "height"].map((k) => Math.round((ro[k] - ri[k]) * 10) / 10) : null,
-          // l'ombre DESSINÉE vit dans le ::before : on lit le pseudo-élément
-          // lui-même, sinon on ne mesure rien (la première version lisait
-          // le « content » de l'élément, qui ne veut rien dire ici)
-          ombreDessinee: getComputedStyle(j, "::before").content !== "none",
-          avecOmbre: j.classList.contains("avec-ombre"),
-        };
-      });
-    });
-
-    // 1. tous les points d'appui sur la MÊME ligne de sol, ancrages différents compris
-    const lignes = mesures.map((m) => Math.round(m.appui.y * 10) / 10);
-    const ecart = Math.max(...lignes) - Math.min(...lignes);
-    verifier(`ancrage : les points d'appui tiennent la même ligne de sol quel que soit l'ancrage ` +
-      `(${mesures.map((m) => m.ancrage.y).join(" / ")} → écart ${ecart.toFixed(1)} px)`,
-      ecart <= 1, JSON.stringify(lignes));
-
-    // 2. le point d'appui est CENTRÉ sur l'emplacement, ancrage horizontal compris
-    const decentres = mesures.filter((m) => Math.abs(m.appui.x - m.jeton.centre) > 1);
-    verifier("ancrage : le point d'appui est centré sur l'emplacement, même avec un ancrage décalé",
-      decentres.length === 0, JSON.stringify(decentres.map((m) => [m.ancrage.x, Math.round(m.appui.x - m.jeton.centre)])));
-
-    // 3. l'ombre de fichier remplace l'ombre dessinée, et suit les étoiles
-    const avecOmbre = mesures.filter((m) => m.avecOmbre);
-    const sansOmbre = mesures.filter((m) => !m.avecOmbre);
-    verifier(`ombre en fichier : servie aux joueurs qui en ont une (${avecOmbre.length}), ` +
-      `l'ombre dessinée reste aux autres (${sansOmbre.length})`,
-      avecOmbre.length === 3 && sansOmbre.length === 1 && avecOmbre.every((m) => m.ombre && m.ombre.l > 4));
-    /* LA RÈGLE QUI NE DOIT JAMAIS CÉDER : une seule ombre au sol par
-       joueur. L'ombre dessinée est un REPLI — dès qu'un fichier existe
-       elle disparaît, et elle reste pour ceux qui n'en ont pas. Deux
-       ombres superposées feraient une tache, et personne ne le verrait
-       venir en ajoutant des ombres ailleurs dans l'interface. */
-    verifier("une seule ombre au sol par joueur : le fichier chasse l'ombre dessinée, jamais les deux",
-      avecOmbre.every((m) => !m.ombreDessinee) && sansOmbre.every((m) => m.ombreDessinee),
-      JSON.stringify(mesures.map((m) => [m.avecOmbre, m.ombreDessinee])));
-    const un = avecOmbre.find((m) => m.ancrage.y === 0.82 && m.hauteurVisuel < 60);
-    const trois = avecOmbre[avecOmbre.length - 1];
-    const rapport = un && trois ? trois.hauteurVisuel / un.hauteurVisuel : 0;
-    verifier(`ombre et unité grandissent ensemble avec les étoiles (1★ ${un ? Math.round(un.hauteurVisuel) : "?"} px → ` +
-      `3★ ${trois ? Math.round(trois.hauteurVisuel) : "?"} px, rapport ${rapport.toFixed(2)} ≈ 1,38)`,
-      Math.abs(rapport - 1.38) < 0.06, String(rapport));
-    /* 4. L'OMBRE ET L'UNITÉ PARTAGENT LA MÊME TRANSFORMATION.
-       Les deux images sont cadrées ensemble (600 × 900) : l'ombre est
-       déjà dessinée à sa place dedans. Elle ne doit donc recevoir NI
-       taille propre, NI translation propre — même boîte, même pivot,
-       même échelle que l'unité. Si elles divergent à l'écran, c'est le
-       code qui décale, pas les images. */
-    const divergentes = avecOmbre.filter((m) => !m.memeBoite);
-    verifier("ombre et unité : même boîte, même pivot, même échelle (aucune transformation propre)",
-      divergentes.length === 0, JSON.stringify(divergentes.map((m) => m.ecarts)));
-    /* La sélection doit rester visible AU SOL même quand l'ombre dessinée
-       a disparu : sans ça, un joueur à ombre de fichier n'aurait plus
-       aucun retour visuel quand on le choisit. */
-    const selection = await page.evaluate(async () => {
-      const jetons = [...document.querySelectorAll("#banc .jeton.figurine")];
-      const avec = jetons.find((j) => j.classList.contains("avec-ombre"));
-      const sans = jetons.find((j) => !j.classList.contains("avec-ombre"));
-      const lire = (j) => {
-        j.classList.add("choisi");
-        const st = getComputedStyle(j.querySelector("img.ombre-sol") || j);
-        const pseudo = getComputedStyle(j, "::before");
-        // le repère au sol est vert, qu'il passe par le fond du pseudo,
-        // sa lueur, ou le filtre de l'ombre-fichier
-        const vert = /61, ?226, ?107/;
-        const marque = (st.filter && st.filter !== "none") ||
-          vert.test(pseudo.backgroundImage || "") || vert.test(pseudo.boxShadow || "");
-        j.classList.remove("choisi");
-        return marque;
-      };
-      return { avecOmbre: lire(avec), sansOmbre: lire(sans) };
-    });
-    verifier("sélection : le repère reste AU SOL, ombre de fichier comprise",
-      selection.avecOmbre && selection.sansOmbre, JSON.stringify(selection));
-    verifier("silhouettes de trois quarts : zéro erreur JS", erreursJS.length === 0, erreursJS.slice(0, 2).join(" | "));
-    await page.close();
-  }
+  /* ---- 4 ter · (RETIRÉE PAR LA REFONTE, décision 74) ----
+     Elle vérifiait les promesses des silhouettes de trois quarts :
+     point d'appui posé sur la ligne de sol, ombre-fichier qui remplace
+     l'ombre dessinée. Les cartes carrées n'ont ni ancrage ni ombre au
+     sol — le contrat n'a plus d'objet. ---- */
 
   /* ---- 5 · LE SEUL ÉTAT OÙ UN TAP N'ACHÈTE PAS : une modale ouverte.
      C'est le piège de méthode qui a fait croire à un achat cassé — la
@@ -781,7 +533,7 @@ async function empreinteVisuel(page, indice, zone) {
     await ouvrirMercato(page);
     await page.evaluate(() => { partie.or = 60; partie.banc = []; afficher(); });
     await page.waitForTimeout(250);
-    await page.click("#btn-calepin");
+    await page.evaluate(() => ouvrirCalepin()); // refonte : le carnet vit au menu
     await page.waitForTimeout(350);
     const ouverte = await page.evaluate(() => {
       const c = document.querySelector(".carte-boutique[data-boutique]");

@@ -93,95 +93,63 @@ const config = JSON.parse(fs.readFileSync(path.join(racine, "design/terrains.jso
       verifier(`${terrain.nom} · ${taille.nom} : neuf emplacements rendus`, cadre.places.length === 9,
         String(cadre.places.length));
 
-      /* On relit les PIXELS du plateau. Détection directe et robuste : un
-         mat peint est un CREUX SOMBRE, donc le centre de chaque
-         emplacement calculé doit être nettement plus sombre que les
-         intervalles qui l'encadrent. (La première version comptait des
-         « segments sombres » sur toute la bande ; depuis que la scène
-         occupe tout le cadre, le balayage attrape d'autres ombres du
-         décor et le compte devenait faux alors que la géométrie était
-         juste — vérifié à l'œil, repères magenta sur les mats peints.)
-         Écart mesuré sur les 3 décors × 5 tailles : 45 à 91 unités de
-         luminance. Le seuil est posé à 25 : large sous le pire cas réel,
-         très au-dessus d'un alignement raté. */
-      const ECART_MIN = 25;
-      const png = (await page.screenshot({ clip: cadre.plateau })).toString("base64");
-      const verdict = await page.evaluate(async ([b64, places, zoneL]) => {
-        const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode();
-        const c = document.createElement("canvas"); c.width = im.width; c.height = im.height;
-        const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(im, 0, 0);
-        const dpr = im.width / zoneL;
-        const lum = (x, y) => {
-          const d = g.getImageData(Math.round(x * dpr), Math.round(y * dpr), 1, 1).data;
-          return (d[0] + d[1] + d[2]) / 3;
-        };
-        const y = places.reduce((t, p) => t + p.y + p.h / 2, 0) / places.length;
-        const centres = places.map((p) => lum(p.x + p.l / 2, y));
-        const trous = [];
-        for (let i = 1; i < places.length; i++) {
-          trous.push(lum((places[i - 1].x + places[i - 1].l + places[i].x) / 2, y));
-        }
-        const ecarts = centres.map((v, i) => {
-          const voisins = [trous[i - 1], trous[i]].filter((t) => t !== undefined);
-          return voisins.length ? Math.min(...voisins.map((t) => t - v)) : 0;
-        });
-        return { ecarts: ecarts.map((v) => Math.round(v)),
-          fautifs: ecarts.map((v, i) => (v < 25 ? i : null)).filter((v) => v !== null) };
-      }, [png, cadre.places, cadre.plateau.width]);
-      const pireEcart = Math.min(...verdict.ecarts);
-      verifier(`${terrain.nom} · ${taille.nom} : les 9 emplacements tombent dans les rectangles peints ` +
-        `(chaque mat est plus sombre que ses intervalles de ${pireEcart} unités au minimum, seuil ${ECART_MIN})`,
-        verdict.fautifs.length === 0 && pireEcart >= ECART_MIN,
-        "emplacements hors mat : " + verdict.fautifs.join(", "));
+      /* (AMENDÉ PAR LA REFONTE, décision 74.) Ici vivaient deux contrats
+         de l'ère des mats peints : « les 9 emplacements tombent dans les
+         rectangles peints » et « chaque remplaçant est POSÉ sur son
+         mat » — lus au pixel dans le décor. Le banc est désormais une
+         BANDE à lui (neuf places égales entre le terrain et la
+         boutique) : le décor peut peindre ce qu'il veut dessous, la
+         bande l'assume. Les contrats deviennent :
+           · la bande est OPAQUE (panneau ≥ 88 %) — pas de double monde
+             entre les mats peints et les places réelles ;
+           · chaque place et chaque joueur vivent DANS la bande ;
+           · un joueur du club n'est JAMAIS invisible (contrat conservé
+             tel quel — il ne dépendait pas des mats). */
+      const bande = await page.evaluate(() => {
+        const b = document.getElementById("banc");
+        const rb = b.getBoundingClientRect();
+        const st = getComputedStyle(b);
+        const m = (st.backgroundColor || "").match(/rgba?\(([^)]+)\)/);
+        const parts = m ? m[1].split(",").map(parseFloat) : [];
+        const alpha = parts.length > 3 ? parts[3] : (m ? 1 : 0);
+        const dehors = [...b.children].filter((c) => {
+          const r = c.getBoundingClientRect();
+          return r.width > 0 && (r.top < rb.top - 1 || r.bottom > rb.bottom + 1 ||
+            r.left < rb.left - 1 || r.right > rb.right + 1);
+        }).length;
+        return { alpha, dehors, places: b.children.length };
+      });
+      verifier(`${terrain.nom} · ${taille.nom} : la bande du banc est opaque (${bande.alpha}) et ses ` +
+        `${bande.places} places vivent dedans (${bande.dehors} dehors)`,
+        bande.alpha >= 0.88 && bande.dehors === 0 && bande.places === 9, JSON.stringify(bande));
 
-      /* ---- LE JOUEUR RENDU EST-IL SUR SON MAT ? ----
-         La vérification ci-dessus prouve que les EMPLACEMENTS calculés
-         tombent sur les rectangles peints. Elle ne dit rien du JOUEUR :
-         une silhouette peut très bien se retrouver à côté de son
-         emplacement. On peuple donc le banc — étoiles mêlées (1★, 2★, 3★
-         n'ont pas la même taille) et un joueur SANS illustration (donc en
-         silhouette neutre) — et on exige, pour chacun, que le centre de sa
-         silhouette ET sa ligne de sol tombent dans le mat qui lui est
-         attribué. Testé avec un banc PLEIN, puis avec un SEUL remplaçant :
-         c'est le cas courant en début de partie. */
       for (const [etiquette, nb] of [["banc plein", 9], ["un seul remplaçant", 1]]) {
-        const pose = await page.evaluate(async (nb) => {
+        const pose = await page.evaluate(async (nbJoueurs) => {
           const prendre = (i) => tousLesJoueurs[i % tousLesJoueurs.length];
-          partie.banc = Array.from({ length: nb }, (_, i) => ({ ...prendre(i), etoiles: (i % 3) + 1, uid: "t" + i }));
-          if (nb > 1) {   // un joueur sans visuel : il se rend en silhouette neutre
-            partie.banc[nb - 1] = { nom: "Gilbert", cout: 0, poste: "DÉF", ligne: "DÉF",
+          partie.banc = Array.from({ length: nbJoueurs }, (_, i) => ({ ...prendre(i), etoiles: (i % 3) + 1, uid: "t" + i }));
+          if (nbJoueurs > 1) {   // un joueur sans dessin : il se rend en glyphe de poste
+            partie.banc[nbJoueurs - 1] = { nom: "Gilbert", cout: 0, poste: "DÉF", ligne: "DÉF",
               ecole: "", archetype: "", etoiles: 1, uid: "tx" };
           }
           afficher();
           await new Promise((r) => setTimeout(r, 260));
-          const plateau = document.getElementById("plateau");
-          const terr = ONZE_TERRAINS.pour((ONZE_SCENE.reglages() || {}).stade);
-          const cadre = ONZE_TERRAINS.cadre(plateau.clientWidth, plateau.clientHeight);
-          const rp = plateau.getBoundingClientRect();
+          const rb = document.getElementById("banc").getBoundingClientRect();
           const hors = [], invisibles = [];
           [...document.getElementById("banc").children].forEach((c, n) => {
-            if (!c.classList.contains("jeton")) return;         // une dalle vide
+            if (!c.classList.contains("jeton")) return;         // une place vide
             if (getComputedStyle(c).display === "none" || getComputedStyle(c).visibility === "hidden") {
               invisibles.push(n); return;                        // un joueur du club JAMAIS invisible
             }
-            const visuel = c.querySelector("img.frontale, svg.frontale");
-            const mat = ONZE_TERRAINS.tuile(terr, cadre, n % ONZE_TERRAINS.NB_TUILES);
-            if (!visuel || !mat) { hors.push({ n, quoi: visuel ? "sans mat" : "sans silhouette" }); return; }
-            const r = visuel.getBoundingClientRect();
-            const centre = r.x + r.width / 2 - rp.x;             // le centre de la silhouette
-            const sol = r.bottom - rp.y;                         // sa ligne de sol
-            const dansX = centre >= mat.x - 1 && centre <= mat.x + mat.largeur + 1;
-            const dansY = sol >= mat.y - 1 && sol <= mat.y + mat.hauteur + 1;
-            if (!dansX || !dansY) {
-              hors.push({ n, centre: Math.round(centre), sol: Math.round(sol),
-                mat: [Math.round(mat.x), Math.round(mat.y), Math.round(mat.largeur), Math.round(mat.hauteur)],
-                dansX, dansY });
-            }
+            const visuel = c.querySelector(".dessin-carte");
+            const r = c.getBoundingClientRect();
+            const dedans = r.top >= rb.top - 1 && r.bottom <= rb.bottom + 1 &&
+              r.left >= rb.left - 1 && r.right <= rb.right + 1;
+            if (!visuel || !dedans) hors.push({ n, quoi: visuel ? "hors bande" : "sans visuel" });
           });
           return { joueurs: partie.banc.length, hors, invisibles };
         }, nb);
-        verifier(`${terrain.nom} · ${taille.nom} · ${etiquette} : chaque remplaçant est POSÉ sur son mat ` +
-          `(centre et ligne de sol dedans, ${pose.joueurs} joueur(s))`,
+        verifier(`${terrain.nom} · ${taille.nom} · ${etiquette} : chaque remplaçant vit dans la bande, ` +
+          `visible et avec son visuel (${pose.joueurs} joueur(s))`,
           pose.hors.length === 0 && pose.invisibles.length === 0,
           JSON.stringify(pose).slice(0, 300));
       }
@@ -217,8 +185,10 @@ const config = JSON.parse(fs.readFileSync(path.join(racine, "design/terrains.jso
         await new Promise((r) => setTimeout(r, 320));
       });
       const cibles = await page.evaluate(() => {
-        const sels = [".haut .manche-info", "#btn-legende", "#btn-bascule-gauche", ".indice-synergies",
-          ".col-synergies .badge", ".col-classement .coach-ligne", "#compteur-titulaires", "#btn-match"];
+        /* Refonte 28/08 (décision 74) : il reste PEU d'information posée
+           sur le décor — c'était le but. On mesure ce qui y vit encore. */
+        const sels = [".bloc-club", ".phase-centre", ".manche-haut", ".fiche-adversaire strong",
+          "#compteur-titulaires", "#btn-match"];
         const sortie = [];
         for (const sel of sels) {
           for (const e of document.querySelectorAll(sel)) {
@@ -254,172 +224,71 @@ const config = JSON.parse(fs.readFileSync(path.join(racine, "design/terrains.jso
       }
       verifier(`${terrain.nom} : l'information flottante reste lisible sur le décor ` +
         `(le pire : ${pire.sel} à ${pire.ratio.toFixed(1)}:1 ≥ 4.5:1, ${cibles.length} éléments mesurés)`,
-        pire.ratio >= 4.5 && cibles.length >= 5, `${pire.sel} ${pire.ratio.toFixed(2)}`);
+        pire.ratio >= 4.5 && cibles.length >= 4, `${pire.sel} ${pire.ratio.toFixed(2)}`);
       await page.close();
     }
   }
 
-  /* ---------- 2 quinquies. LA DALLE DE POSTE SE DÉTACHE DU SOL ----------
-     Défaut mesuré sur les captures avant correction : la dalle ressortait
-     à 1,01:1 contre la pelouse du Grand Soir et 1,03:1 contre le bitume du
-     City Stade — l'information de poste était présente et illisible, et
-     elle l'était INÉGALEMENT selon le stade, ce qui est pire. Une teinte
-     posée sur un fond de couleur libre n'a aucun contraste garanti.
-     La dalle garde sa couleur, mais elle porte maintenant trois signaux :
-     une teinte sur base sombre constante, un liseré franc de la couleur du
-     poste, et un filet sombre à l'extérieur. Aucune valeur unique ne peut
-     tenir 3:1 contre une pelouse ET contre du bitume (la mesure le dit) :
-     les bords se relaient, et la recette exige qu'AU MOINS UN des trois
-     signaux tienne le seuil, sur les trois décors et les quatre postes. ---------- */
+  /* ---------- 2 quinquies. (AMENDÉ PAR LA REFONTE, décision 74) ----------
+     L'ancienne version lisait au pixel les DALLES de poste peintes sous
+     les remplaçants — parties avec les mats. Le poste vit désormais sur
+     le CADRE de la carte, qui ne composite pas avec le décor : les deux
+     contrats se mesurent sur les couleurs rendues des cadres, une fois.
+       · les quatre postes restent distincts ENTRE EUX (ΔE ≥ 15) ;
+       · chaque cadre se détache de la bande du banc (contraste ≥ 1,8:1 —
+         le cadre a AUSSI un halo de sa couleur, la bordure n'est pas
+         seule à porter la distinction). */
   {
-    const SEUIL_DALLE = 3;
+    const page = await (await browser.newContext({ viewport: { width: 844, height: 390 } })).newPage();
+    page.on("pageerror", (e) => erreursJS.push(e.message));
+    await page.addInitScript(() => { try { localStorage.setItem("onze-tutoriel-vu", "1"); } catch (e) {} });
+    await page.goto("http://localhost:8123/partie.html");
+    await page.waitForSelector("#boutique .carte-boutique", { timeout: 15000 });
+    const releve = await page.evaluate(async () => {
+      arreterChrono();
+      const parPoste = {};
+      for (const j2 of tousLesJoueurs) if (!parPoste[j2.poste]) parPoste[j2.poste] = j2;
+      partie.banc = ["GAR", "DÉF", "MIL", "ATT"].map((p2, i) => ({ ...parPoste[p2], uid: "d" + i }));
+      afficher();
+      await new Promise((r) => setTimeout(r, 250));
+      const fond = getComputedStyle(document.getElementById("banc")).backgroundColor;
+      const cartes = [...document.querySelectorAll("#banc .jeton.carte-jeton")].map((c) => ({
+        poste: ([...c.classList].find((k) => k.startsWith("p-")) || "").slice(2),
+        bord: getComputedStyle(c).borderTopColor }));
+      return { fond, cartes };
+    });
+    const rgb = (c) => (String(c).match(/\d+/g) || [0, 0, 0]).slice(0, 3).map(Number);
     const canal2 = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
     const lum2 = ([r, g, b]) => 0.2126 * canal2(r) + 0.7152 * canal2(g) + 0.0722 * canal2(b);
     const contraste2 = (a, b) => { const [x, y] = [lum2(a), lum2(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
-    for (const [id, terrain] of Object.entries(config)) {
-      const page = await (await browser.newContext({ viewport: { width: 844, height: 390 } })).newPage();
-      page.on("pageerror", (e) => erreursJS.push(e.message));
-      await page.addInitScript((s2) => { try {
-        localStorage.setItem("onze-tutoriel-vu", "1");
-        localStorage.setItem("onze-reglages-match", JSON.stringify({ stade: s2 }));
-      } catch (e) {} }, id);
-      await page.goto("http://localhost:8123/partie.html");
-      await page.waitForSelector("#boutique .carte-boutique", { timeout: 15000 });
-      // un remplaçant de chaque poste, et RIEN sur la dalle qui la masque :
-      // on mesure la dalle, pas la silhouette (on la retire le temps du relevé)
-      const boites = await page.evaluate(async () => {
-        arreterChrono();
-        const parPoste = (p) => tousLesJoueurs.find((j) => j.poste === p) || tousLesJoueurs[0];
-        partie.banc = ["GAR", "DÉF", "MIL", "ATT"].map((p, i) => ({ ...parPoste(p), poste: p, ligne: p, etoiles: 1, uid: "z" + i }));
-        afficher();
-        const im = document.getElementById("fond-terrain");
-        if (im && !im.complete) await new Promise((r) => { im.onload = r; im.onerror = r; });
-        await new Promise((r) => setTimeout(r, 320));
-        document.querySelectorAll("#banc .jeton img.frontale, #banc .jeton svg.frontale").forEach((e) => { e.style.visibility = "hidden"; });
-        const plateau = document.getElementById("plateau").getBoundingClientRect();
-        const dalles = [...document.querySelectorAll("#banc .jeton.sur-dalle")].map((j) => {
-          const r = j.getBoundingClientRect();
-          const poste = (j.className.match(/p-([A-ZÉ]+)/) || [])[1];
-          return { poste, x: r.x - plateau.x, y: r.y - plateau.y, l: r.width, h: r.height };
-        });
-        return { plateau: { x: Math.round(plateau.x), y: Math.round(plateau.y),
-          width: Math.round(plateau.width), height: Math.round(plateau.height) }, dalles };
-      });
-      const png = (await page.screenshot({ clip: boites.plateau })).toString("base64");
-      const releve = await page.evaluate(async ([b64, dalles, zoneL]) => {
-        const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode();
-        const c = document.createElement("canvas"); c.width = im.width; c.height = im.height;
-        const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(im, 0, 0);
-        const dpr = im.width / zoneL;
-        const px = (x, y) => {
-          const d = g.getImageData(Math.round(x * dpr), Math.round(y * dpr), 1, 1).data;
-          return [d[0], d[1], d[2]];
-        };
-        /* On prend la MÉDIANE, pas la moyenne : un seul pixel de bord
-           happé par l'échantillon suffirait à rapprocher artificiellement
-           les deux couleurs et à faire échouer une dalle parfaitement
-           lisible — c'est ce qui est arrivé à la première version de ce
-           relevé, qui mesurait la frontière au lieu des surfaces. */
-        const median = (points) => {
-          const v = points.map((pt) => px(pt[0], pt[1]));
-          return [0, 1, 2].map((k) => v.map((p) => p[k]).sort((a, b) => a - b)[v.length >> 1]);
-        };
-        return dalles.map((d, i) => ({
-          poste: d.poste,
-          /* LE SOL : la bande entre deux dalles, à mi-hauteur — c'est une
-             vraie surface, uniforme, et c'est celle contre laquelle l'œil
-             compare. Au-dessus de la dalle, le décor peint alterne des
-             lignes claires et sombres (le rebord du mat, le tablier) : y
-             prélever quelques pixels donne un « sol » qui n'existe pas. */
-          sol: median((() => {
-            const voisin = dalles[i + 1] || dalles[i - 1];
-            const cx = voisin
-              ? (voisin.x > d.x ? (d.x + d.l + voisin.x) / 2 : (voisin.x + voisin.l + d.x) / 2)
-              : d.x + d.l + 6;
-            return [[cx, d.y + d.h * 0.4], [cx, d.y + d.h * 0.6], [cx - 1, d.y + d.h * 0.5],
-              [cx + 1, d.y + d.h * 0.5], [cx, d.y + d.h * 0.75]];
-          })()),
-          // le REMPLISSAGE de la dalle, bien à l'intérieur du liseré
-          fond: median([[d.x + d.l * 0.3, d.y + d.h - 6], [d.x + d.l * 0.7, d.y + d.h - 6],
-            [d.x + d.l / 2, d.y + d.h - 5]]),
-          // le LISERÉ de poste : sur les CÔTÉS, où rien ne le recouvre
-          // (en haut, l'arête claire passe devant lui)
-          lisere: median([[d.x + 1, d.y + d.h * 0.5], [d.x + d.l - 1, d.y + d.h * 0.5],
-            [d.x + 1, d.y + d.h * 0.65], [d.x + d.l - 1, d.y + d.h * 0.65]]),
-          /* l'ARÊTE HAUTE, le liseré clair posé par la lumière du haut :
-             c'est le signal qui rend une dalle sombre lisible sur un sol
-             sombre, là où le filet noir ne peut rien. On prend le pixel
-             le plus CLAIR de la première bande intérieure. */
-          arete: (() => {
-            const pts = [];
-            for (const dx of [0.3, 0.5, 0.7]) for (const dy of [0, 1]) pts.push(px(d.x + d.l * dx, d.y + dy));
-            return pts.sort((a, b) => (b[0] + b[1] + b[2]) - (a[0] + a[1] + a[2]))[0];
-          })(),
-          /* le FILET sombre, juste à l'extérieur : on prend le pixel le
-             plus SOMBRE de la bande de trois pixels qui borde la dalle.
-             Un filet fin est forcément lissé par l'antialiasing — le
-             viser au pixel près donnait un mélange avec le sol, et donc
-             un contraste faussement bas (c'est ce qui faisait échouer le
-             Boxing Day et le City Stade alors que la dalle s'y voit très
-             bien). Ce qu'on mesure ici est la vraie question : « y a-t-il
-             une bande sombre entre la dalle et le sol ? » */
-          filet: (() => {
-            const pts = [];
-            for (const dy of [0.3, 0.5, 0.7]) for (const dx of [1, 2, 3]) {
-              pts.push(px(d.x - dx, d.y + d.h * dy));
-              pts.push(px(d.x + d.l + dx, d.y + d.h * dy));
-            }
-            return pts.sort((a, b) => (a[0] + a[1] + a[2]) - (b[0] + b[1] + b[2]))[0];
-          })(),
-        }));
-      }, [png, boites.dalles, boites.plateau.width]);
-      const lignes = releve.map((r) => {
-        const c = { fond: contraste2(r.fond, r.sol), lisere: contraste2(r.lisere, r.sol),
-          filet: contraste2(r.filet, r.sol), arete: contraste2(r.arete, r.sol) };
-        return { poste: r.poste, ...c, meilleur: Math.max(c.fond, c.lisere, c.filet, c.arete) };
-      });
-      /* SECOND CONTRÔLE, distinct du premier : les quatre postes doivent
-         rester distincts ENTRE EUX, pas seulement visibles contre le sol.
-         Le contour porte la présence de la dalle, la COULEUR porte
-         l'information — un correctif qui sauverait le contour en écrasant
-         la teinte passerait le premier contrôle sans que le joueur puisse
-         encore lire un poste. On mesure donc l'écart ΔE (CIE76, dans
-         l'espace Lab) entre les couleurs dominantes de bord des quatre
-         dalles, sur les six paires. Seuil : 15. */
-      const SEUIL_DELTAE = 15;
-      const versLab = ([r, g, b]) => {
-        const f = (v) => { v /= 255; v = v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); return v; };
-        const [R, G, B] = [f(r), f(g), f(b)];
-        const X = (R * 0.4124 + G * 0.3576 + B * 0.1805) / 0.95047;
-        const Y = (R * 0.2126 + G * 0.7152 + B * 0.0722);
-        const Z = (R * 0.0193 + G * 0.1192 + B * 0.9505) / 1.08883;
-        const h = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
-        return [116 * h(Y) - 16, 500 * (h(X) - h(Y)), 200 * (h(Y) - h(Z))];
-      };
-      const deltaE = (a, b) => {
-        const [l1, a1, b1] = versLab(a), [l2, a2, b2] = versLab(b);
-        return Math.sqrt((l1 - l2) ** 2 + (a1 - a2) ** 2 + (b1 - b2) ** 2);
-      };
-      const paires = [];
-      for (let i = 0; i < releve.length; i++) {
-        for (let j = i + 1; j < releve.length; j++) {
-          paires.push({ paire: `${releve[i].poste}/${releve[j].poste}`,
-            dE: deltaE(releve[i].lisere, releve[j].lisere) });
-        }
-      }
-      const troppProches = paires.filter((p) => p.dE < SEUIL_DELTAE);
-      verifier(`${terrain.nom} : les quatre postes restent distincts entre eux ` +
-        `(ΔE ${Math.round(Math.min(...paires.map((p) => p.dE)))} à ${Math.round(Math.max(...paires.map((p) => p.dE)))} sur les six paires — seuil ${SEUIL_DELTAE})`,
-        paires.length === 6 && troppProches.length === 0,
-        JSON.stringify(troppProches.map((p) => [p.paire, Math.round(p.dE)])));
-
-      const faibles = lignes.filter((l) => l.meilleur < SEUIL_DALLE);
-      verifier(`${terrain.nom} : la dalle se détache du sol pour les quatre postes ` +
-        `(${lignes.map((l) => `${l.poste} ${l.meilleur.toFixed(1)}:1`).join(" · ")} — seuil ${SEUIL_DALLE}:1)`,
-        lignes.length === 4 && faibles.length === 0,
-        JSON.stringify(lignes.map((l) => [l.poste, l.fond.toFixed(2), l.lisere.toFixed(2), l.filet.toFixed(2), l.arete.toFixed(2)])));
-      await page.close();
-    }
+    const versLab = ([r, g, b]) => {
+      const f = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+      const [R, G, B] = [f(r), f(g), f(b)];
+      const X = (R * 0.4124 + G * 0.3576 + B * 0.1805) / 0.95047;
+      const Y = (R * 0.2126 + G * 0.7152 + B * 0.0722);
+      const Z = (R * 0.0193 + G * 0.1192 + B * 0.9505) / 1.08883;
+      const h = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+      return [116 * h(Y) - 16, 500 * (h(X) - h(Y)), 200 * (h(Y) - h(Z))];
+    };
+    const deltaE = (a, b) => { const [l1, a1, b1] = versLab(a), [l2, a2, b2] = versLab(b);
+      return Math.sqrt((l1 - l2) ** 2 + (a1 - a2) ** 2 + (b1 - b2) ** 2); };
+    const paires = [];
+    for (let a = 0; a < releve.cartes.length; a++)
+      for (let b = a + 1; b < releve.cartes.length; b++)
+        paires.push({ paire: `${releve.cartes[a].poste}/${releve.cartes[b].poste}`,
+          dE: deltaE(rgb(releve.cartes[a].bord), rgb(releve.cartes[b].bord)) });
+    const tropProches = paires.filter((x) => x.dE < 15);
+    verifier(`refonte : les cadres des quatre postes restent distincts entre eux ` +
+      `(ΔE ${Math.round(Math.min(...paires.map((x) => x.dE)))} à ${Math.round(Math.max(...paires.map((x) => x.dE)))} — seuil 15)`,
+      paires.length === 6 && tropProches.length === 0,
+      JSON.stringify(tropProches.map((x) => [x.paire, Math.round(x.dE)])));
+    const fondRgb = rgb(releve.fond);
+    const faibles = releve.cartes.map((c) => ({ poste: c.poste, ratio: contraste2(rgb(c.bord), fondRgb) }))
+      .filter((c) => c.ratio < 1.8);
+    verifier(`refonte : le cadre de chaque poste se détache de la bande du banc ` +
+      `(${releve.cartes.map((c) => `${c.poste} ${contraste2(rgb(c.bord), fondRgb).toFixed(1)}:1`).join(" · ")} — seuil 1,8:1)`,
+      releve.cartes.length === 4 && faibles.length === 0, JSON.stringify(faibles));
+    await page.close();
   }
 
   /* ---------- 2 quater. LE REPLI : un thème DESSINÉ n'a pas de mats

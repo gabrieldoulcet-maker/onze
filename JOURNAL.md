@@ -427,3 +427,13 @@ Trois lignes par session : **fait / bloqué / prochaine tâche**. C'est ce qui p
 - **Bloqué :** rien de neuf. Les deux dettes connues (options 24 %, fermeture du pressing) restent affichées, échéance étape 4 — la vitesse les a rendues plus lentes à cumuler, c'est déclaré.
 - **Comment tester :** ouvre le jeu sur ton téléphone, lance un match. Il dure ~25-30 s au lieu de 45-50, et tu vois TOUTES les occasions (arrêts et poteaux compris, plus seulement les buts) — chacune courte, avec le moment décisif encore lisible. Le bouton ×2 marche toujours par-dessus.
 - **Prochaine tâche :** l'étape 4b — les gabarits pilotés par le tempo (les prédictions sont pré-enregistrées dans `design/etape4-prediction.md`).
+
+## Session 56 — 29 août 2026 : la refonte (« ça n'est pas un joli jeu »)
+
+- **Fait :** la refonte complète de l'interface, recette d'abord (`refonte.spec.js`, 26 assertions sorties rouges avant le code — décision 74).
+- **Les cartes remplacent les rendus 3D** : terrain et banc en cartes carrées — dessin, cadre couleur du poste, deux glyphes, pastille de coût. Le repli sans dessin est un glyphe de poste déclaré.
+- **Le chrome se réduit** : plus de panneau gauche (synergies/staff au menu), la droite devient la fiche du prochain adversaire, le bandeau porte vie·niveau·XP / MERCATO · 19 s / Manche N/9 + menu. La manche s'affiche une fois.
+- **Le banc en bande** de neuf places entre le terrain et la boutique ; **l'argent sans or** (chiffre ivoire nu) ; **panneaux vert-nuit #17301D à 92 %**, texte ivoire ; **trois phases** (MERCATO / PLACEMENT / MATCH) qui changent l'écran.
+- **Dix recettes amendées** en citant la décision 74 (quetes, habillage, hierarchie, matieres, parcours, rendu, terrains, unites, da, zones) — chaque assertion de l'ancien design réécrite vers son équivalent carte, jamais supprimée sans remplaçant. Trois instruments réparés au passage : le contre-test d'inertie visait parfois une carte sans dessin puis un changement sous le seuil par pixel (témoin blanc portant la classe du masque) ; les bannières de palier en vol faussaient la photographie différentielle (taireAnnonces les fauche aussi) ; le rapport 2★/1★ comparait deux lignes de profondeurs différentes.
+- **Bloqué :** la dette de poids grandit — **1 623 Ko** (d1) et **1 742 Ko** (d2), la refonte chargeant les key arts du terrain à l'ouverture (+41 Ko). Différer `match-scene.js` (130 Ko) suffit encore, de justesse en d1. Toujours à faire avec la conversation scène.
+- **Prochaine tâche :** différer `match-scene.js`, puis passer les cartes de boutique au même langage (cadre poste + pastille de coût) si Gabriel valide l'aperçu.

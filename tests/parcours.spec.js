@@ -107,8 +107,9 @@ const verifier = (nom, ok) => {
 
   // ---- Iconographie système (Lot 6) : le chrome n'affiche plus d'emojis ----
   verifier("icônes SVG : boutons de panneaux + pastilles de manche + monnaies", await page.evaluate(() => {
-    const boutons = ["btn-calepin", "btn-plein-ecran", "btn-recap", "btn-journal", "btn-match",
-      "btn-xp", "btn-refresh", "btn-verrou", "btn-sac", "btn-bascule-gauche", "btn-historique"];
+    // refonte 28/08 : calepin, plein écran et bascule vivent au MENU
+    const boutons = ["btn-menu", "btn-recap", "btn-journal", "btn-match",
+      "btn-xp", "btn-refresh", "btn-verrou", "btn-sac", "btn-historique"];
     const chromeOk = boutons.every((id) => document.getElementById(id).querySelector("svg.ic-sys"));
     const pastillesOk = [...document.querySelectorAll(".pastille-manche")].every((p) => p.querySelector("svg.ic-sys"));
     const emojiChrome = /[🤝⚔🧭❄🏆📜📝🧪⛶🔒🔓🪙🔄📈🧰🎯⚽🔎💚]/u;
@@ -130,7 +131,9 @@ const verifier = (nom, ok) => {
   // §6 : le carnet est devenu une grille en colonnes par coût, avec un
   // bandeau de puces à la place des deux menus déroulants. Même parcours,
   // mêmes contrats — seuls les noms changent (voir tests/carnet.spec.js).
-  await page.tap("#btn-calepin");
+  await page.tap("#btn-menu");
+  await page.waitForSelector('[data-menu="carnet"]');
+  await page.tap('[data-menu="carnet"]');
   await page.waitForSelector(".carnet-grille .carnet-vignette");
   await page.tap(".carnet-grille .carnet-vignette:nth-child(1) [data-epingler]");
   await page.tap(".carnet-grille .carnet-vignette:nth-child(2) [data-epingler]");
@@ -170,11 +173,14 @@ const verifier = (nom, ok) => {
     document.getElementById("boutique-barre").classList.contains("repliee") &&
     ["or", "btn-refresh", "btn-verrou"].every((id) => document.getElementById(id).getBoundingClientRect().height > 0)));
   await page.tap("#btn-sac");
-  await page.click("#btn-bascule-gauche");
-  verifier("bascule gauche : page staff/quêtes affichée", await page.evaluate(() =>
-    !document.getElementById("page-staff").classList.contains("masque") &&
-    document.getElementById("page-synergies").classList.contains("masque")));
-  await page.click("#btn-bascule-gauche");
+  // refonte 28/08 : plus de bascule — le menu ouvre le volet Synergies·Staff
+  await page.evaluate(() => ouvrirSynergies());
+  verifier("menu : le volet Synergies · ADN · Staff s'ouvre", await page.evaluate(() => {
+    const v = document.querySelector(".volet .panneau");
+    const ok = !!v && /Synergies/.test(v.textContent);
+    document.querySelectorAll(".volet").forEach((x) => x.remove());
+    return ok;
+  }));
 
   // ---- BLOQUANTS post-playtest : limite de titulaires + anti-duplication ----
   // Remplir le terrain à la limite (recrues tirées du pool, donc conservées),
@@ -349,37 +355,33 @@ const verifier = (nom, ok) => {
     partie.terrain[0].specialisations = [];
     afficher();
   });
-  await page.click("#btn-bascule-gauche");
-  const unDragStaff = async () => {
-    const bb = await (await page.$(".badge-staff")).boundingBox();
-    const jb = await (await page.$('.jeton[data-liste="terrain"][data-indice="0"]')).boundingBox();
-    await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2);
-    await page.mouse.down();
-    let apercu = "";
-    for (let p = 1; p <= 6; p++) {
-      await page.mouse.move(bb.x + (jb.x + jb.width / 2 - bb.x) * p / 6, bb.y + (jb.y + jb.height / 2 - bb.y) * p / 6);
-      await page.waitForTimeout(25);
-      const bulle = await page.$(".fantome .etiquette-apercu");
-      if (bulle) apercu = await bulle.textContent();
-    }
-    await page.mouse.up();
-    await page.waitForTimeout(150);
+  /* Refonte 28/08 : l'inventaire staff a quitté la colonne — le chemin
+     du joueur est au TAP : menu → Synergies·Staff → tap un badge →
+     assignerStaff ouvre le sélecteur → tap le joueur. Le drag vivait
+     avec la colonne, il part avec elle. */
+  const unTapStaff = async () => {
+    await page.evaluate(() => { document.querySelectorAll(".volet, .voile-fiche").forEach((v) => v.remove()); ouvrirSynergies(); });
+    await page.waitForSelector(".volet .badge-staff", { timeout: 4000 });
+    await page.evaluate(() => document.querySelector(".volet .badge-staff").click());
+    await page.evaluate(() => { document.querySelectorAll(".volet").forEach((v) => v.remove()); });
+    await page.waitForSelector('.voile-fiche [data-ref="terrain:0"]', { timeout: 4000 });
+    const apercu = await page.$eval('.voile-fiche [data-ref="terrain:0"]', (b) => b.textContent || "");
+    await page.evaluate(() => document.querySelector('.voile-fiche [data-ref="terrain:0"]').click());
+    await page.waitForTimeout(200);
     return apercu;
   };
-  const apercu1 = await unDragStaff();
-  verifier("drag staff 1 : la carte est posée + aperçu « 1ʳᵉ carte » pendant le survol",
-    await page.evaluate(() => partie.staff.length === 1 && (partie.terrain[0].staffCartes || []).length === 1) &&
-    apercu1.includes("1ʳᵉ carte"));
-  const apercu2 = await unDragStaff();
-  verifier("drag staff 2 (consécutif) : aperçu de la spécialisation + demande de confirmation",
+  await unTapStaff();
+  verifier("staff au tap 1 : la carte est posée sur le joueur choisi",
+    await page.evaluate(() => partie.staff.length === 1 && (partie.terrain[0].staffCartes || []).length === 1));
+  const apercu2 = await unTapStaff();
+  verifier("staff au tap 2 : le sélecteur annonce la spécialisation, puis demande confirmation",
     apercu2.includes("→") &&
     await page.evaluate(() => !!document.querySelector("[data-choix='oui']")));
   await page.evaluate(() => document.querySelector("[data-choix='oui']").click());
   verifier("fusion confirmée : spécialisation appliquée, inventaire vidé",
     await page.evaluate(() => partie.staff.length === 0 &&
       ((partie.terrain[0].specialisations || []).length + (partie.terrain[0].emblemes || []).length) >= 1));
-  await page.evaluate(() => { document.querySelectorAll(".fusion-banniere, .voile-fiche").forEach((v) => v.remove()); });
-  await page.click("#btn-bascule-gauche");
+  await page.evaluate(() => { document.querySelectorAll(".fusion-banniere, .voile-fiche, .volet").forEach((v) => v.remove()); });
 
   // ---- Sauvegarde/restauration : recharger la page reprend la partie ----
   const mancheAvant = await page.evaluate(() => { sauvegarder(); return partie.manche; });

@@ -377,6 +377,142 @@
        rangerCoucheMatch() : le nettoyage est automatique. */
     #app.match-en-scene .fond-terrain { display: none; }
     #app.match-en-scene .plateau { background: var(--nuit-profonde, #060A07); }
+    /* ============ LA CARTE CARRÉE (refonte 28/08) ============
+       Le dessin, le cadre couleur du POSTE (halo compris), la pastille
+       de COÛT en petit — l'or ne s'allume que pour le 3★ / légendaire. */
+    .jeton.carte-jeton {
+      position: relative; overflow: hidden; cursor: pointer;
+      border-radius: 10%; background: var(--panneau, #17301D);
+      border: 2px solid var(--couleur-poste, var(--ligne-forte));
+      box-shadow: 0 0 9px -2px var(--couleur-poste, transparent), var(--elev-pose);
+      min-height: 0; padding: 0;
+    }
+    .jeton.carte-jeton.p-GAR { --couleur-poste: var(--poste-g); }
+    .jeton.carte-jeton.p-DÉF { --couleur-poste: var(--poste-d); }
+    .jeton.carte-jeton.p-MIL { --couleur-poste: var(--poste-m); }
+    .jeton.carte-jeton.p-ATT { --couleur-poste: var(--poste-a); }
+    .jeton.carte-jeton.legende { box-shadow: 0 0 12px var(--or-trophee), var(--elev-pose); }
+    .jeton.carte-jeton.choisi { outline: 2px solid var(--ivoire, #FDF8EA); outline-offset: 1px; }
+    .carte-jeton .dessin-carte {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; object-position: 50% 14%; display: block;
+    }
+    .carte-jeton .dessin-carte.absent {
+      display: flex; align-items: center; justify-content: center;
+      font-size: calc(var(--h-figurine, 40px) * 0.4); color: var(--couleur-poste);
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.25));
+    }
+    .carte-jeton .pastille-cout {
+      position: absolute; top: 2px; left: 2px; z-index: 2;
+      width: 13px; height: 13px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.5rem; font-weight: 800; color: #08130B;
+      background: var(--cout-1); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    }
+    .carte-jeton .pastille-cout.c0 { background: #5E6E63; color: var(--ivoire); }
+    .carte-jeton .pastille-cout.c2 { background: var(--cout-2); }
+    .carte-jeton .pastille-cout.c3 { background: var(--cout-3); }
+    .carte-jeton .pastille-cout.c4 { background: var(--cout-4); }
+    .carte-jeton .pastille-cout.c5 { background: var(--cout-5); }
+    .carte-jeton .etoiles-carte {
+      position: absolute; top: 1px; right: 2px; z-index: 2;
+      color: var(--or-trophee); font-size: 0.52rem; text-shadow: 0 1px 2px #000;
+    }
+    .carte-jeton .staff-carte {
+      position: absolute; right: 1px; bottom: 12px; z-index: 2; font-size: 0.44rem;
+      text-shadow: 0 1px 2px #000;
+    }
+    .carte-jeton .glyphes-carte {
+      position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
+      display: flex; justify-content: center; gap: 3px; padding: 5px 0 1px;
+      background: linear-gradient(transparent, rgba(4, 10, 6, 0.78));
+    }
+    .carte-jeton .glyphes-carte .ecusson-mini, .carte-jeton .glyphes-carte svg { width: 10px; height: 10px; }
+
+    /* LE BANC : une bande de neuf places entre le terrain et la boutique. */
+    .plateau.terrain-peint .rangee-banc {
+      position: absolute; left: 0; right: 0; bottom: 0; z-index: 5;
+      height: max(46px, 16%); display: flex; align-items: center;
+      justify-content: space-evenly; gap: 4px; padding: 3px 6px;
+      background: var(--panneau); border-top: var(--verre-bord);
+      box-shadow: var(--arete-haute);
+    }
+    .plateau.terrain-peint .rangee-banc .jeton,
+    .plateau.terrain-peint .rangee-banc .place-banc {
+      height: calc(100% - 6px); aspect-ratio: 1; width: auto; flex: 0 0 auto;
+    }
+    .rangee-banc .place-banc {
+      border-radius: 10%; background: var(--creux-fond);
+      border: 1px solid var(--vert-bordure); box-shadow: var(--creux-ombre);
+    }
+
+    /* ============ LA REFONTE (28/08) — bandeau, adversaire, menu ============
+       Palette : panneaux vert-nuit #17301D à 92 %, texte ivoire #FDF8EA,
+       vert lumineux réservé aux actions, or réservé au légendaire. */
+    :root, #app { --panneau: rgba(23, 48, 29, 0.92); --ivoire: #FDF8EA; }
+    .haut {
+      display: flex; align-items: center; gap: 8px; position: relative;
+      background: var(--panneau); color: var(--ivoire);
+    }
+    .bloc-club {
+      display: flex; align-items: center; gap: 7px; cursor: pointer;
+      font-weight: 800; font-size: 0.78rem; color: var(--ivoire);
+    }
+    .bloc-club .vie { color: #4FA86A; display: inline-flex; align-items: center; gap: 3px; }
+    .bloc-club .vie #prestige { color: var(--ivoire); }
+    .jauge-xp-haut {
+      width: 52px; height: 5px; border-radius: 3px; overflow: hidden;
+      background: rgba(0, 0, 0, 0.45); display: inline-block;
+    }
+    .jauge-xp-haut span { display: block; height: 100%; background: var(--gazon-electrique); }
+    /* la phase au CENTRE de l'écran, très lisible — centrée sur le
+       viewport, pas sur l'espace restant */
+    .phase-centre {
+      position: absolute; left: 50%; transform: translateX(-50%);
+      text-align: center; font-weight: 800; font-size: 1.02rem;
+      letter-spacing: 1.5px; color: var(--ivoire); font-variant-numeric: tabular-nums;
+      pointer-events: none;
+    }
+    .phase-centre .chrono-barre {
+      position: static; width: 120px; height: 3px; margin: 1px auto 0;
+      border-radius: 2px; overflow: hidden; background: rgba(0, 0, 0, 0.45);
+    }
+    .phase-centre #chrono-remplissage { display: block; height: 100%; background: var(--gazon-electrique); }
+    .phase-centre .chrono-barre.urgent #chrono-remplissage { background: var(--alerte-claire, #E4572E); }
+    .manche-haut { margin-left: auto; font-weight: 800; font-size: 0.78rem; cursor: pointer; color: var(--ivoire); }
+    #btn-menu { position: relative; }
+    /* LA FICHE DU PROCHAIN ADVERSAIRE : un panneau de verre en haut à
+       droite du terrain — UN club, le classement à un tap. */
+    .fiche-adversaire {
+      position: absolute; top: calc(var(--haut-bandeau, 41px) + 6px);
+      right: calc(env(safe-area-inset-right, 0px) + 6px); z-index: 6;
+      width: min(148px, 19vw); padding: 6px 8px; cursor: pointer;
+      background: var(--panneau); border: var(--verre-bord); border-radius: 10px;
+      box-shadow: var(--arete-haute), var(--elev-pose); color: var(--ivoire);
+      display: flex; flex-direction: column; gap: 2px; font-size: 0.66rem;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+    }
+    .fiche-adversaire:empty { display: none; }
+    .fiche-adversaire small { color: var(--craie-sourde); text-transform: uppercase; letter-spacing: 0.8px; font-size: 0.56rem; }
+    .fiche-adversaire strong { font-size: 0.72rem; line-height: 1.15; }
+    .fiche-adversaire .prestige-adv { display: inline-flex; align-items: center; gap: 3px; color: #4FA86A; font-weight: 700; }
+    .fiche-adversaire .barre-prestige { height: 4px; }
+    /* pendant le match, la fiche s'efface : le tableau de score parle */
+    #app.phase-match .fiche-adversaire { display: none; }
+    /* le menu : des entrées pleine largeur, sobres */
+    .entree-menu {
+      display: block; width: 100%; text-align: left; cursor: pointer;
+      background: rgba(255, 255, 255, 0.05); color: var(--ivoire);
+      border: 1px solid var(--ligne); border-radius: 9px;
+      padding: 9px 11px; margin-top: 6px; font-size: 0.8rem; font-weight: 700;
+    }
+    .pastille-menu {
+      background: var(--gazon-electrique); color: #04120A; border-radius: var(--r-pilule);
+      padding: 1px 7px; font-size: 0.62rem; font-weight: 800; margin-left: 6px;
+    }
+    /* la barre de progression d'antan est cachée mais alimentée */
+    #reserve-info { display: none; }
+
     .couche-match {
       position: absolute; z-index: 4; overflow: hidden; border-radius: 10px;
       pointer-events: none;
@@ -429,9 +565,12 @@
     .plateau.terrain-peint .ligne-terrain,
     .plateau.terrain-peint .rangee-banc { position: absolute; }
     .plateau.terrain-peint .rangee-banc { overflow: visible; }
-    .plateau.terrain-peint .jeton,
-    .plateau.terrain-peint .case-vide,
-    .plateau.terrain-peint .place-banc { position: absolute; }
+    /* refonte 28/08 : seuls les éléments DU TERRAIN sont projetés en
+       absolu — le banc est une bande en flux, ses places aussi */
+    .plateau.terrain-peint .ligne-terrain .jeton,
+    .plateau.terrain-peint .case-vide { position: absolute; }
+    .plateau.terrain-peint .rangee-banc .jeton,
+    .plateau.terrain-peint .rangee-banc .place-banc { position: relative; }
     /* LISIBILITÉ (brief) : un liseré et une ombre portée détachent le jeton
        du décor — clair sur les terrains sombres, sombre sur les clairs.
        Les couleurs SIGNIFIANTES (poste, coût) ne bougent jamais. */
@@ -676,7 +815,7 @@
     /* UN VIDE SE LIT COMME UN TROU (matière « creux ») : ombre interne en
        haut, lumière en bas — l'inverse exact d'un objet posé. */
     .place-banc {                                             /* matière CREUX */
-      flex: 0 0 56px; min-height: 52px; border: none; border-radius: 5px;
+      border: none; border-radius: 10%;
       background: var(--creux-fond);
       box-shadow: var(--creux-ombre);
     }
@@ -804,18 +943,18 @@
        22 px dépassaient au-dessus de la barre de boutique, et le bord de
        celle-ci le coupait en deux — on n'en voyait que la moitié haute.
        Il appartient à la bande basse : il s'y range entièrement. */
+    /* L'ARGENT (refonte 28/08) : un chiffre, pas un trophée. L'or est
+       réservé au légendaire / coût 5 — la monnaie se lit en ivoire,
+       sobre, centrée au-dessus des cartes. Le jeton « M » ne revient
+       jamais : « M 0 M » se lisait « Man of the Match ». */
     .medaillon-or {
-      position: absolute; top: 2px; left: 50%; transform: translateX(-50%); z-index: 6;
-      display: flex; align-items: center; gap: 5px;
-      /* matière JETON, en or : c'est une MONNAIE, elle doit avoir une
-         tranche et un reflet, pas être un aplat sombre cerclé */
-      background: linear-gradient(180deg, #2A2410 0%, #171205 62%, #0B0903 100%);
-      border: 1px solid var(--or-trophee);
-      border-radius: var(--r-pilule); padding: 1px 10px;
-      font-weight: 800; font-size: 0.78rem; line-height: 1.35; font-variant-numeric: tabular-nums; color: var(--or-trophee);
-      box-shadow: var(--arete-haute-forte), var(--elev-pose), 0 0 14px rgba(242, 193, 78, 0.35);
+      position: absolute; top: 3px; left: 50%; transform: translateX(-50%); z-index: 6;
+      display: flex; align-items: center; gap: 4px;
+      background: none; border: none; box-shadow: none;
+      padding: 0 8px; font-weight: 800; font-size: 0.82rem; line-height: 1.3;
+      font-variant-numeric: tabular-nums; color: var(--ivoire, #FDF8EA);
     }
-    .medaillon-or.sans-le-sou .piece { display: none; }
+    .medaillon-or .piece { display: none !important; }
     .medaillon-or .piece {
       /* le jeton reste une pièce, mais il s'écarte du chiffre : collé, il
          formait « M 0 M » et se lisait « Man of the Match » */
@@ -1208,7 +1347,9 @@
       border: var(--verre-bord);
       box-shadow: var(--arete-haute), var(--elev-pose);
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);              /* halo obligatoire sur le décor */
-      padding: 2px 7px; border-radius: 999px; pointer-events: none;
+      padding: 2px 7px; border-radius: 999px; pointer-events: none;;
+      /* refonte 28/08 : la bande du banc occupe le bas du plateau */
+      bottom: calc(max(46px, 16%) + 5px);
     }
     .compteur-titulaires.alerte {
       color: var(--alerte-claire); background: var(--vendre-fond);
@@ -1288,7 +1429,7 @@
        rayon, même ombre — seule la couleur de bord dit le contexte. */
     /* matière VERRE (phase 4) : le gabarit commun des neuf volets */
     .volet .panneau {
-      background: var(--verre-fond);
+      background: var(--panneau, rgba(23, 48, 29, 0.92));
       border: var(--verre-bord); border-radius: var(--r-panneau);
       backdrop-filter: blur(5px);
       width: 100%; max-width: 420px; max-height: 92vh; overflow-y: auto;
@@ -1296,7 +1437,7 @@
       /* niveau MODALE : elle prend la main, elle porte l'ombre la plus
          franche — et la même arête haute que tout le reste */
       box-shadow: var(--arete-haute-forte), var(--elev-modale);
-      color: var(--craie-claire);
+      color: var(--ivoire, #FDF8EA);
     }
     .volet .panneau > strong:first-child { font-family: var(--police-display); font-weight: 400;
       font-size: 0.95rem; display: inline-block; transform: var(--pente); }
@@ -1333,53 +1474,36 @@
   <div id="app">
 
   <!-- ===== Barre du haut ===== -->
+  <!-- ===== Barre du haut (refonte 28/08) : gauche = le club,
+       centre = la phase et son chrono, droite = la manche et le menu.
+       Tout le reste vit derrière le menu — le bandeau ne porte que ce
+       qu'on doit savoir en permanence. -->
   <div class="haut">
-    <span class="manche-info" id="btn-historique" role="button" aria-label="Classement et historique du club"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-parchemin"></use></svg>
-      <span style="color:#4FA86A"><svg class="ic-sys" width="12" height="12" viewBox="0 0 48 48"><use href="#is-coeur"></use></svg></span> <span id="prestige">40</span> · Niv <span id="niveau">3</span> ·
-      XP <span id="xp">0</span>/<span id="xp-suivant">6</span> ·
-      <span id="serie">—</span> · <svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-staff"></use></svg> <span id="staff">0</span> · <span style="color:var(--alerte-claire)"><svg class="ic-sys" width="12" height="12" viewBox="0 0 48 48"><use href="#is-flamme"></use></svg></span> <span id="ferveur">0</span><span class="masque" id="manche">1</span></span>
-    <div class="progression">
-      <div class="rangee-pastilles" id="progression"></div>
-      <!-- Une barre qui ne dit pas ce qu'elle mesure ne mesure rien pour le
-           joueur : elle porte maintenant son nom et son décompte. -->
-      <div class="chrono-barre masque" id="chrono-barre" role="timer"
-           aria-label="Temps de mercato restant avant la prochaine manche">
-        <div id="chrono-remplissage"></div>
-      </div>
-      <small class="chrono-libelle masque" id="chrono-libelle">mercato · <span id="chrono-secondes">0</span> s</small>
+    <span class="bloc-club" id="btn-historique" role="button" aria-label="Ton club — classement et historique">
+      <span class="vie"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-coeur"></use></svg> <span id="prestige">40</span></span>
+      <span class="niv">Niv <span id="niveau">3</span></span>
+      <span class="jauge-xp-haut" aria-hidden="true"><span id="jauge-xp-haut-remplissage"></span></span>
+    </span>
+    <div class="phase-centre" id="phase-centre" role="timer" aria-label="Phase en cours">
+      <span id="phase-nom">MERCATO</span><span class="phase-chrono masque" id="chrono-libelle"> · <span id="chrono-secondes">0</span> s</span>
+      <div class="chrono-barre masque" id="chrono-barre"><div id="chrono-remplissage"></div></div>
     </div>
-    <!-- LES QUÊTES SORTENT DE LA COLONNE (§10) : elles vivaient
-         derrière la bascule d'une colonne de 17 % de large, donc on
-         ne les regardait jamais. Elles ont maintenant leur accès dans
-         le bandeau, à côté du carnet, et la pastille dit combien sont
-         PRÊTES à tomber — sans qu'on ouvre quoi que ce soit. -->
-    <button id="btn-quetes" aria-label="Les quêtes d'Icônes"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-cible"></use></svg><span class="pastille-quetes masque">0</span></button>
-    <button id="btn-calepin" aria-label="Le calepin du recruteur"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-calepin"></use></svg></button>
-    <button id="btn-plein-ecran" aria-label="Plein écran"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-plein-ecran"></use></svg></button>
+    <span class="manche-haut" id="manche-affiche" role="button" aria-label="La manche en cours" onclick="infoManche(partie.manche)">Manche 1/9</span>
     <button id="btn-recap" class="masque" aria-label="Récapitulatif du match"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-epees"></use></svg></button>
     <button id="btn-vitesse" class="masque" aria-label="Vitesse du match"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-vitesse"></use></svg> ×2</button>
-    <!-- L'ESTAMPILLE. Le bandeau est la zone présente sur TOUTES les
-         captures : une capture dit désormais d'elle-même de quelle
-         version elle date (règle M3 ter). Écrite par
-         outils/estampiller.js, jamais à la main. -->
+    <button id="btn-menu" aria-label="Menu"><svg class="ic-sys" width="17" height="17" viewBox="0 0 48 48"><use href="#is-staff"></use></svg><span class="pastille-quetes masque">0</span></button>
+    <!-- L'ESTAMPILLE (règle M3 ter) : une capture se date toute seule.
+         Écrite par outils/estampiller.js, jamais à la main. -->
     <small class="estampille" id="estampille" title="Version du jeu affichée — à citer avec une capture d'écran"></small>
+    <!-- Les compteurs que le bandeau ne montre plus mais que le code
+         alimente encore : ils vivent cachés, le menu les lit. -->
+    <span class="masque" aria-hidden="true"><span id="xp">0</span><span id="xp-suivant">6</span><span id="serie">—</span><span id="staff">0</span><span id="ferveur">0</span><span id="manche">1</span><span id="progression"></span></span>
   </div>
 
-  <!-- ===== Centre : synergies | plateau + banc | classement ===== -->
+  <!-- ===== Centre : le plateau, et la fiche du prochain adversaire =====
+       (refonte 28/08 : plus de panneau permanent à gauche, plus de
+       classement à huit lignes à droite — le terrain aux joueurs) -->
   <div class="centre">
-    <div class="col-synergies">
-      <button id="btn-legende" style="background:var(--surface-1);color:var(--craie-sourde);border:1px solid var(--ligne);border-radius:6px;font-size:0.6rem;padding:2px;cursor:pointer">？ Légende</button>
-      <button id="btn-bascule-gauche" aria-label="Basculer entre synergies et staff"><svg class="ic-sys" width="13" height="13" viewBox="0 0 48 48"><use href="#is-staff"></use></svg> Staff</button>
-      <div id="page-synergies">
-        <div id="synergies-club"></div>
-      </div>
-      <div id="page-staff" class="masque">
-        <div id="inventaire-staff" style="display:flex;flex-direction:column;gap:3px"></div>
-        <!-- l'ADN du club rejoint la page escamotable : la colonne
-             flottante ne porte QUE les synergies (phase 1 du brief) -->
-        <div class="mini-adn" id="axes-adn"></div>
-      </div>
-    </div>
     <div class="plateau" id="plateau">
       <img class="fond-terrain masque" id="fond-terrain" alt="" decoding="async">
       <!-- LA COUCHE DE MATCH : soeur du conteneur de mise en place, jamais
@@ -1391,8 +1515,6 @@
       <!-- LES ONGLETS DES COLONNES : pendant le match, les deux colonnes
            glissent hors cadre et ne laissent qu'eux. Elles reviennent au
            coup de sifflet ; un tap les rappelle entre-temps. -->
-      <button class="onglet-colonne gauche masque" id="onglet-gauche" aria-label="Afficher les synergies"></button>
-      <button class="onglet-colonne droite masque" id="onglet-droite" aria-label="Afficher le classement"></button>
       <div class="terrain" id="terrain-scene">
         <div class="ligne-terrain" id="ligne-GAR"></div>
         <div class="ligne-terrain" id="ligne-DÉF"></div>
@@ -1411,9 +1533,18 @@
       </div>
       <div class="rangee-banc" id="banc"></div>
     </div>
-    <div class="col-classement" id="col-classement">
-      <div id="classement-liste"></div>
-    </div>
+    <!-- LA FICHE DU PROCHAIN ADVERSAIRE : un club, pas huit. Le
+         classement complet vit derrière un tap (et dans le menu). -->
+    <aside class="fiche-adversaire" id="adversaire" role="button" aria-label="Ton prochain adversaire — tap : le classement" onclick="ouvrirClassement()"></aside>
+  </div>
+
+  <!-- Les panneaux que l'écran ne montre plus en permanence : le code
+       les alimente ici, cachés, et le MENU les présente à la demande. -->
+  <div class="masque" id="reserve-info" aria-hidden="true">
+    <div id="synergies-club"></div>
+    <div id="inventaire-staff"></div>
+    <div class="mini-adn" id="axes-adn"></div>
+    <div id="classement-liste"></div>
   </div>
 
   <!-- ===== Barre boutique du bas (copie TFT) ===== -->
@@ -2446,9 +2577,7 @@
            match, et le match n'a qu'une chose à offrir — voir les joueurs
            jouer (décision 65). Les onglets restent. */
         el("app").classList.add("match-en-scene");
-        el("app").classList.remove("colonnes-rappelees");
-        el("onglet-gauche").classList.remove("masque");
-        el("onglet-droite").classList.remove("masque");
+        /* refonte 28/08 : plus de colonnes à rétracter ni d'onglets */
         /* ET LA BOUTIQUE SE REPLIE. Mesuré sur 390 px de haut pendant un
            match : bandeau 45, scène 173, banc 55, barre de boutique 117 —
            la plus grande chose à l'écran était une barre noire et vide.
@@ -2709,8 +2838,6 @@
       couche.style.pointerEvents = "";
       terrain.classList.remove("masque-match");
       el("app").classList.remove("match-en-scene", "colonnes-rappelees");
-      el("onglet-gauche").classList.add("masque");
-      el("onglet-droite").classList.add("masque");
       // la boutique ne se rouvre que si c'est LE MATCH qui l'avait repliée :
       // un joueur qui l'avait rangée lui-même la retrouve rangée
       if (el("boutique-barre").classList.contains("repliee-par-le-match")) {
@@ -3441,14 +3568,11 @@
 
     /* La bascule du panneau gauche : le bouton affiche la page CACHÉE
        (avec le nombre de cartes staff en attente, l'appel du regard) */
-    function majBasculeGauche() {
-      const versStaff = pageGauche === "synergies";
-      el("page-synergies").classList.toggle("masque", !versStaff);
-      el("page-staff").classList.toggle("masque", versStaff);
-      el("btn-bascule-gauche").innerHTML = versStaff
-        ? `${ONZE_ICONES_SYS.ic("staff", 13)} Staff${partie.staff.length ? " (" + partie.staff.length + ")" : ""}`
-        : "✦ Synergies · ADN";
-    }
+    /* Refonte 28/08 : plus de colonne gauche, donc plus de bascule.
+       Les synergies, l'ADN et le staff vivent dans #reserve-info et le
+       MENU les présente. Gardée en no-op le temps que tous les appels
+       disparaissent. */
+    function majBasculeGauche() {}
 
     /* ================= Volet classement / scouting ================= */
     function ligneClassement() {
@@ -3962,17 +4086,10 @@
     const CLE_DETENTE = "onze-mode-detente";
     let modeDetente = false;
     // « Commentaires seuls » (réglage Vue, R10) : pas de scène, le journal en grand
-    /* L'INDICE DES SYNERGIES SE FERME AU PREMIER GESTE (playtest 26/08,
-       point 6). En manche 1, aucun starter ne porte d'École : la bulle
-       restait ouverte sur le terrain et couvrait le gardien. Elle vit
-       jusqu'au premier pointerdown — après, on sait où sont les
-       synergies, la place revient au terrain. */
-    let indiceSynergiesFerme = false;
-    window.addEventListener("pointerdown", () => {
-      indiceSynergiesFerme = true;
-      document.querySelectorAll(".indice-synergies").forEach((e) => e.remove());
-    }, { capture: true, once: true });
-
+    /* Refonte 28/08 : plus AUCUNE bulle permanente sur le terrain — le
+       playtest du 26/08 (point 6) la faisait déjà fermer au premier
+       geste, la refonte la supprime : les synergies vivent au menu, et
+       leur volet porte l'indice quand le club n'en a aucune. */
         let modeCommentaire = (typeof ONZE_SCENE !== "undefined" && ONZE_SCENE.reglages().vue === "bandeau");
     try { if (localStorage.getItem("onze-commentaire") === "on") modeCommentaire = true; } catch (e) {}
     let dernierMatch = null; // { resultat, eqA, eqB } — pour le recap ⚔️
@@ -4107,98 +4224,36 @@
       <path d="M30 27c-9.5 0-15.5 4.2-16.6 12.2L10 58l7.4 2 3.4-13.2.8 12.4-3.2 37h9.2l2.4-25 2.4 25h9.2l-3.2-37 .8-12.4L43 60l7.4-2-3.4-18.8C45.9 31.2 39.9 27 30.4 27z"></path>
     </svg>`;
     function jetonHTML(fiche, nomListe, indice) {
-      const stats = ONZE.genererStats(fiche);
-      const note = ONZE.noteGlobale(stats);
-      const etoiles = (fiche.etoiles || 1) >= 2 ? `<span class="etoiles">${"★".repeat(fiche.etoiles)}</span>` : "";
       const nbSpecs = (fiche.specialisations || []).length;
       const nbCartes = (fiche.staffCartes || []).length;
       const staff = `${"🧪".repeat(nbSpecs)}${"🧰".repeat(nbCartes)}${fiche.ecoleBonus ? "🛂" : ""}${fiche.relique ? "🏺" : ""}${(fiche.specsIconiques || []).length ? "🌟" : ""}`;
       const choisi = selection && selection.nomListe === nomListe && selection.indice === indice;
       const ouverture = (extra = "") => `class="jeton cout-${fiche.cout}${extra}${choisi ? " choisi" : ""}" data-liste="${nomListe}" data-indice="${indice}" onclick="tapJeton('${nomListe}', ${indice})"`;
-      /* HORS MATCH : le joueur se tient DEBOUT sur son emplacement (DA S2).
-         Pendant le match, on garde les pastilles actuelles — elles sont
-         lisibles à petite taille et la scène en dépend (brief §4). */
-      /* HORS MATCH, il n'y a QU'UN chemin de rendu : la silhouette. Un
-         joueur sans illustration (les réservistes gratuits, par exemple)
-         n'a jamais droit au repli « carte avec son nom » — c'est ce repli
-         qui remettait des noms, des pastilles et des rectangles sombres au
-         milieu du gazon. Il reçoit une silhouette NEUTRE, teintée de son
-         poste, posée sur la même ligne de sol. */
-      /* ATTENTION : `matchEnCours` couvre le jeu ET le bilan de manche — il
-         n'est remis à false que par le bouton Continuer. Il veut dire « un
-         match est commencé et pas encore refermé », pas « la scène est à
-         l'écran ». Ici c'est le bon drapeau (on ne veut pas de figurines
-         tant que le bilan n'est pas fermé) ; pour « la scène est rendue »,
-         c'est l'existence de `sceneMatch` qu'il faut regarder. */
-      /* ET C'EST BIEN `sceneMatch` QU'IL FAUT REGARDER, pas le drapeau —
-         la décision 55 le disait, et voilà le cas qui le prouve. Depuis
-         que le match se range AVANT la cérémonie de butin (décision 64 ·
-         P2), `matchEnCours` vaut encore true pendant que la scène n'existe
-         plus : les joueurs redevenaient des cartes-jetons — rectangles
-         sombres avec nom, badge de poste et note — au milieu des orbes.
-         Un seul chemin de rendu hors match (décision 39) veut dire : hors
-         SCÈNE, pas hors drapeau. */
-      const sceneAlEcran = partie.matchEnCours && !!sceneMatch;
-      if (!sceneAlEcran) {
-        const frontale = ONZE_PORTRAITS.frontale(fiche);   // la fiche, pas le nom : elle porte la variante d'École
-        /* PLUS AUCUN HABILLAGE (brief habillage v2) : ni cadre, ni nom, ni
-           étoiles, ni pastille. Sur le gazon il ne reste que la silhouette
-           et son ombre ; au banc, une dalle teintée du poste. Le niveau
-           d'étoiles passe dans la TAILLE (1★ 100 %, 2★ 118 %, 3★ 138 %),
-           la ligne de sol ne bougeant pas — et le 3★ allume le sol en or.
-           Le nom, le poste, les familles et les étoiles restent à un tap
-           (le menu du joueur, puis sa fiche). */
-        const etoiles = Math.min(3, fiche.etoiles || 1);
-        const poste = ligneDe(fiche);
-        const decor = (nomListe === "banc" ? "sur-dalle" : "sur-gazon") + " p-" + poste;
-        // sans illustration : la silhouette neutre, dessinée (aucun chemin
-        // d'image, elle marche donc même avec une table de portraits vide)
-        /* LE BOUCHE-TROU A UN CORPS, LUI AUSSI (§9.1 du playtest).
-           Sans illustration, on servait `SILHOUETTE_NEUTRE` : une forme
-           PLATE, DE FACE, teintée du poste — saumon pour un attaquant. Le
-           repli était acceptable tant que personne n'avait de portrait ;
-           l'arrivée des 79 figurines de trois quarts l'a transformé en
-           image cassée sans qu'on touche à son code (règle M4 : c'est le
-           VOISINAGE qui a changé).
-           L'arbitrage : on lui donne un visuel plutôt que de le bannir du
-           terrain. Il emprunte une vraie unité — même caméra, même ligne
-           de sol, même ombre en fichier — rendue en SILHOUETTE ANONYME :
-           ni visage, ni couleurs de maillot. Il dit « c'est un
-           bouche-trou », pas « l'image a planté ». Trois emprunts
-           différents, choisis par le nom, pour que six réservistes ne
-           soient pas six clones. */
-        const emprunt = frontale ? null : ONZE_PORTRAITS.emprunt(fiche.nom);
-        const visuel = frontale || (emprunt && emprunt.unite);
-        const corps = visuel
-          ? `<img class="frontale" src="${visuel}" alt="" loading="lazy" decoding="async"
-               onerror="this.closest('.jeton').classList.add('sans-portrait'); this.remove()">`
-          : SILHOUETTE_NEUTRE;
-        /* L'OMBRE AU SOL EN FICHIER (silhouettes de trois quarts) : quand
-           la table en fournit une, c'est elle qui pose le joueur, et
-           l'ombre dessinée en CSS s'efface. Elle grandit avec la
-           silhouette, donc avec le niveau d'étoiles. Si le fichier
-           manque à l'appel, on retombe sur l'ombre dessinée sans qu'il
-           n'arrive rien. */
-        const ombre = frontale ? ONZE_PORTRAITS.ombre(fiche) : (emprunt && emprunt.ombre);
-        const solOmbre = ombre
-          ? `<img class="ombre-sol" src="${ombre}" alt="" aria-hidden="true" loading="lazy" decoding="async"
-               onerror="this.closest('.jeton').classList.remove('avec-ombre'); this.remove()">`
-          : "";
-        /* LE POINT D'APPUI : c'est lui qu'on cale sur la ligne de sol, pas
-           le bas de l'image. Une silhouette de trois quarts, ou recadrée
-           autrement, garde donc les pieds au même endroit. */
-        const ancrage = frontale ? ONZE_PORTRAITS.ancrage(fiche)
-          : (emprunt ? emprunt.ancrage : ONZE_PORTRAITS.ANCRAGE_DEFAUT);
-        const repere = ` style="--ancrage-x:${ancrage.x};--ancrage-y:${ancrage.y}"`;
-        return `<div ${ouverture(` figurine ${decor}${visuel ? "" : " sans-portrait"}` +
-          `${emprunt ? " remplacant" : ""}` +
-          `${ombre ? " avec-ombre" : ""}${etoiles >= 3 ? " legende" : ""}`)}${repere}
-          aria-label="${fiche.nom}, ${poste}${etoiles > 1 ? ", " + etoiles + " étoiles" : ""}">${solOmbre}${corps}</div>`;
-      }
-      return `<div ${ouverture()}>
-        <span class="nom-jeton">${fiche.nom}</span>
-        <span style="display:flex;align-items:center;gap:2px">${pastilleHTML(fiche)} <span class="note-jeton">${note}</span><span style="margin-left:auto">${etoiles}</span></span>
-        <span class="glyphes-famille" style="display:flex;gap:2px;align-items:center">${ONZE_UI.glyphe(fiche.ecole)}${ONZE_UI.glyphe(fiche.archetype)}<span style="font-size:0.5rem">${staff}</span></span></div>`;
+      /* LA CARTE CARRÉE (refonte 28/08). Plus de rendus 3D sur la
+         préparation ni le banc : le DESSIN (key art), le cadre à la
+         couleur du POSTE, deux glyphes de famille, la pastille de coût.
+         Les étoiles jouent sur la taille (terrain) et un insigne ; le 3★
+         garde son halo or — l'or est au légendaire (palette refonte).
+         Un joueur sans dessin (les réservistes gratuits) reçoit un fond
+         neutre et le glyphe de son poste : ça dit « bouche-trou », pas
+         « image cassée » (règle M4). */
+      const poste = ligneDe(fiche);
+      const et = Math.min(3, fiche.etoiles || 1);
+      const art = ONZE_PORTRAITS.carte(fiche);
+      const visuel = art
+        ? `<img class="dessin-carte" src="${art}" alt="" loading="lazy" decoding="async"
+             onerror="this.closest('.jeton').classList.add('sans-dessin'); this.remove()">`
+        : `<span class="dessin-carte absent">${ONZE_UI.GLYPHES.postes[poste] || ""}</span>`;
+      const glyphes = (fiche.ecole || fiche.archetype)
+        ? `<span class="glyphes-carte">${ONZE_UI.glyphe(fiche.ecole)}${ONZE_UI.glyphe(fiche.archetype)}</span>` : "";
+      return `<div ${ouverture(` carte-jeton p-${poste}${et >= 3 ? " legende" : ""}${fiche.unique ? " unique" : ""}`)}
+        aria-label="${fiche.nom}, ${poste}${et > 1 ? ", " + et + " étoiles" : ""}">
+        ${visuel}
+        <span class="pastille-cout c${fiche.cout || 0}">${fiche.cout || "·"}</span>
+        ${et >= 2 ? `<span class="etoiles-carte">${"★".repeat(et)}</span>` : ""}
+        ${staff ? `<span class="staff-carte">${staff}</span>` : ""}
+        ${glyphes}
+      </div>`;
     }
     /* ================= LA MISE EN PLACE SUR LE TERRAIN PEINT =================
        Le décor est en perspective : on projette la grille dans le
@@ -4246,7 +4301,7 @@
          surface d'une figurine voisine, c'est-à-dire PLUS qu'un joueur,
          alors qu'elle ne représente rien. La surface de TAP, elle, ne
          bouge pas : c'est le dessin qui rétrécit, pas la cible du doigt. */
-      terrain: { part: 1.28, recouvrement: 1.45, minLisible: 26, max: 72, largeur: 0.88, bande: 0.9,
+      terrain: { part: 1.06, recouvrement: 1.45, minLisible: 26, max: 64, largeur: 0.88, bande: 0.9,
         vide: 0.8, repereH: 0.20, repereL: 0.52, cibleDoigt: 34 },
       /* Le plancher du banc était PLUS HAUT que celui du terrain (30
          contre 26) : à lui seul il garantissait qu'un remplaçant finisse
@@ -4415,26 +4470,24 @@
              rien ne la retient d'être minuscule — mesuré 24 px de côté
              sur un petit téléphone, sous le seuil du doigt. Elle garde
              donc un plancher, invisible et confortable. */
+          /* refonte 28/08 : la carte est CARRÉE — son côté suit la
+             profondeur (base) et les étoiles, son bas se pose sur le
+             point projeté. Une case vide garde sa cible de doigt. */
+          const cote = vide ? 0 : base * facteurEtoile(fiche);
           const boite = vide
             ? Math.max(ECHELLE.terrain.cibleDoigt, base * ECHELLE.terrain.vide)
-            : base * ECHELLE.etoiles[3];   // la boîte tient le plus grand
+            : cote;
           const l = vide
             ? Math.max(ECHELLE.terrain.cibleDoigt, Math.min(base * ECHELLE.terrain.largeur,
               (Math.max(...xs) - Math.min(...xs)) * ECHELLE.terrain.bande))
-            : Math.min(base * ECHELLE.terrain.largeur,
-              (Math.max(...xs) - Math.min(...xs)) * ECHELLE.terrain.bande);
+            : cote;
           c.style.width = l + "px";
           c.style.height = boite + "px";
           c.style.left = (x - zone.offsetLeft - l / 2) + "px";
-          c.style.top = (y - zone.offsetTop - boite) + "px";   // les PIEDS sur le point projeté
+          c.style.top = (y - zone.offsetTop - boite) + "px";   // le BAS sur le point projeté
           c.style.minHeight = "0";
-          const hFigurine = base * facteurEtoile(fiche);
-          c.style.setProperty("--h-figurine", hFigurine + "px");
-          // les hauteurs du terrain : elles encadreront celle du banc
-          if (!vide) hauteursTerrain.push(hFigurine);
-          c.style.setProperty("--sol", "0px");                 // ligne de sol commune
-          c.style.setProperty("--l-ombre", ECHELLE.ombre.terrain);
-          c.style.setProperty("--h-ombre", Math.max(4, base * 0.16) + "px");
+          c.style.setProperty("--h-figurine", boite + "px");
+          if (!vide) hauteursTerrain.push(boite);
           if (vide) {
             // le repère de sol : un ovale aux pieds, pas un rectangle
             c.style.setProperty("--l-repere", Math.max(10, l * ECHELLE.terrain.repereL) + "px");
@@ -4443,82 +4496,19 @@
         });
       }
 
-      // ---- les 9 places de banc, calées sur les tuiles PEINTES ----
-      const places = [...banc.children];
-      // LA HAUTEUR CANONIQUE du banc : une seule pour tout le monde, tirée
-      // de la largeur MÉDIANE des tuiles peintes — sinon les silhouettes
-      // dansent d'une tuile à l'autre. Les étoiles la multiplient ensuite.
-      const largeurs = [], hauteurs = [];
-      for (let n = 0; n < ONZE_TERRAINS.NB_TUILES; n++) {
-        const t = ONZE_TERRAINS.tuile(terr, cadre, n);
-        if (t) { largeurs.push(t.largeur); hauteurs.push(t.hauteur); }
+      /* ---- LE BANC (refonte 28/08) : une BANDE à lui, entre le terrain
+         et la boutique — plus les tuiles peintes du décor. Neuf places
+         égales ; la taille vient de la feuille de style (la bande fait
+         sa hauteur, les cartes la remplissent). On efface les positions
+         que l'ancien calage a pu laisser en dur sur les éléments. */
+      for (const c of banc.children) {
+        c.style.position = ""; c.style.left = ""; c.style.top = "";
+        c.style.width = ""; c.style.height = ""; c.style.minHeight = "";
+        c.style.flex = ""; c.style.display = "";
+        c.style.removeProperty("--h-figurine");
+        c.style.removeProperty("--sol");
       }
-      largeurs.sort((a, b) => a - b);
-      hauteurs.sort((a, b) => a - b);
-      const hauteurMediane = hauteurs[hauteurs.length >> 1] || 16;
-      /* LE BANC RESTE SOUS LE TERRAIN. Mesuré à effectif plein : les
-         remplaçants montaient à 80 px (le plafond `banc.max` de 58,
-         multiplié par les étoiles) pendant que le plus petit titulaire
-         tombait à 27 px, au plancher de lisibilité. La hiérarchie était
-         exactement à l'envers — la zone secondaire servie à son plafond,
-         la zone principale écrasée au plancher.
-         Le plafond du banc n'est donc plus une constante : c'est la plus
-         petite figurine du terrain, mesurée juste au-dessus, qui le
-         fixe. Le plancher de lisibilité reste prioritaire — on préfère
-         un banc lisible à une hiérarchie parfaite sur un écran minuscule,
-         et la recette le dit. */
-      /* UN ENCADREMENT, PAS UN PLAFOND SEUL (décision 64 · P4, corrigée).
-         Plafonner le banc sur la PLUS PETITE figurine du terrain l'a rendu
-         minuscule : la plus petite est celle du FOND, et le banc est au
-         PREMIER PLAN — il héritait d'une taille d'arrière-plan alors qu'il
-         est devant. Il est donc borné des deux côtés : jamais plus grand
-         que la plus GRANDE figurine du terrain, jamais plus petit que la
-         MÉDIANE. */
-      hauteursTerrain.sort((a, b) => a - b);
-      const medianeTerrain = hauteursTerrain.length
-        ? hauteursTerrain[hauteursTerrain.length >> 1] : 0;
-      const plusGrandTerrain = hauteursTerrain.length
-        ? hauteursTerrain[hauteursTerrain.length - 1] : 0;
-      const plafondBanc = plusGrandTerrain > 0
-        ? Math.min(ECHELLE.banc.max, plusGrandTerrain / ECHELLE.etoiles[3])
-        : ECHELLE.banc.max;
-      const plancherBanc = medianeTerrain > 0
-        ? Math.max(ECHELLE.banc.minLisible, medianeTerrain / ECHELLE.etoiles[3])
-        : ECHELLE.banc.minLisible;
-      const baseBanc = Math.max(Math.min(plancherBanc, plafondBanc),
-        Math.min(plafondBanc, (largeurs[largeurs.length >> 1] || 34) * ECHELLE.banc.part));
-      places.forEach((c, n) => {
-        /* Plus de joueurs que de mats peints ne devrait jamais arriver
-           (le banc et les mats font tous les deux 9, et l'invariant du
-           club le vérifie) — mais si ça arrivait, un joueur du club ne
-           doit JAMAIS devenir invisible : il se pose sur le mat suivant
-           dans le tour, décalé, et l'invariant le signalera. */
-        const t = ONZE_TERRAINS.tuile(terr, cadre, n % ONZE_TERRAINS.NB_TUILES);
-        if (!t) { c.style.display = "none"; return; }
-        const debord = Math.floor(n / ONZE_TERRAINS.NB_TUILES) * 6;
-        c.style.display = "";
-        /* La position est écrite EN DUR sur l'élément, pas héritée d'une
-           classe : un emplacement calculé ne doit pas dépendre de la
-           présence de « terrain-peint » au moment du rendu — sans quoi un
-           left/top posé sur un élément resté « relative » décalerait le
-           joueur de sa place au lieu de l'y poser. */
-        c.style.position = "absolute";
-        // la DALLE occupe la tuile peinte ; la silhouette la dépasse vers
-        // le haut (débordement visible), sa ligne de sol ne bouge pas
-        c.style.left = (t.x - banc.offsetLeft + debord) + "px";
-        c.style.top = (t.y - banc.offsetTop) + "px";
-        c.style.width = t.largeur + "px";
-        c.style.height = t.hauteur + "px";
-        c.style.minHeight = "0";
-        c.style.flex = "none";
-        const fiche = c.classList.contains("place-banc") ? null : partie.banc[Number(c.dataset.indice)];
-        c.style.setProperty("--h-figurine", (baseBanc * facteurEtoile(fiche)) + "px");
-        // une SEULE ligne de sol pour tout le banc (la hauteur médiane des
-        // mats) : une valeur par mat la ferait onduler d'un pixel
-        c.style.setProperty("--sol", (hauteurMediane * ECHELLE.ombre.solBanc) + "px");
-        c.style.setProperty("--l-ombre", ECHELLE.ombre.banc);
-        c.style.setProperty("--h-ombre", Math.max(4, t.hauteur * ECHELLE.ombre.hauteurBanc) + "px");
-      });
+      void hauteursTerrain; // l'encadrement du banc est parti avec les tuiles
     }
 
     function afficher() {
@@ -4530,6 +4520,9 @@
       compteur.classList.toggle("alerte", !invar.ok);
       compteur.title = invar.ok ? "" : invar.erreurs.join(" · ");
       el("manche").textContent = partie.manche;
+      // la manche, UNE fois à l'écran : « Manche 3/9 » (9 = la fenêtre de
+      // progression historique) — au-delà, le compte seul
+      el("manche-affiche").textContent = partie.manche <= 9 ? `Manche ${partie.manche}/9` : `Manche ${partie.manche}`;
       el("prestige").textContent = moi().prestige;
       el("or").textContent = partie.or;
       // « M » + « 0 » + « M » se lisait « Man of the Match » : à zéro le
@@ -4537,6 +4530,8 @@
       el("medaillon-or").classList.toggle("sans-le-sou", partie.or === 0);
       el("niveau").textContent = partie.niveau;
       el("xp").textContent = partie.xp;
+      el("jauge-xp-haut-remplissage").style.width =
+        Math.round(100 * partie.xp / Math.max(1, XP_POUR_MONTER[partie.niveau] || partie.xp || 1)) + "%";
       el("xp-suivant").textContent = XP_POUR_MONTER[partie.niveau] || "MAX";
       el("serie").innerHTML = moi().serie > 0 ? ONZE_ICONES_SYS.ic("flamme", 11) + moi().serie : moi().serie < 0 ? ONZE_ICONES_SYS.ic("flocon", 11) + (-moi().serie) : "—";
       el("staff").textContent = partie.staff.length;
@@ -4668,9 +4663,7 @@
 
       // Synergies + mini ADN
       const apercu = equipeDuClub();
-      el("synergies-club").innerHTML = ONZE_UI.badges(apercu) ||
-        (indiceSynergiesFerme ? "" :
-          `<span class="indice-synergies">Réunis des joueurs d'une même École ou d'un même archétype.</span>`);
+      el("synergies-club").innerHTML = ONZE_UI.badges(apercu) || "";
       // Le son de palier : une famille vient de s'allumer ou de monter
       const clesSynergies = new Set(apercu.synergies.map((sy) => sy.nom + "|" + sy.s));
       if (synergiesConnues) {
@@ -4726,15 +4719,17 @@
       majPastilleQuetes(apercu);
       ONZE_LIEN.memoriserApercu(apercu); // les fiches liront la même progression
       verifierQuetes(apercu);
-      majBasculeGauche();
+      renduAdversaire();
+      majPhase();
       tutoNotifier("etat"); // les étapes à déclencheur (orbes, staff, M4) se réveillent ici
 
       // Bouton de manche
       if (!partie.matchEnCours) {
         const verdict = verdictFormation();
         el("btn-match").disabled = !!verdict;
+        // « Manche N » vit dans le bandeau, UNE fois : ici, l'ACTION
         el("btn-match").innerHTML = verdict ? `${ONZE_ICONES_SYS.ic("ballon", 13)} ` + verdict
-          : `${ONZE_ICONES_SYS.ic("ballon", 13)} Manche ${partie.manche}` + (formationIncomplete() ? " 😬" : "");
+          : `${ONZE_ICONES_SYS.ic("ballon", 13)} Match` + (formationIncomplete() ? " 😬" : "");
       }
       disposerPlateau();
       sauvegarder();
@@ -4762,24 +4757,127 @@
       afficher();
     }
 
+    /* ================= LE MENU (refonte 28/08) =================
+       Tout ce que le bandeau ne montre plus : synergies, staff, carnet,
+       quêtes, classement, légende, plein écran. Un seul point d'entrée,
+       en haut à droite. */
+    function ouvrirMenu() {
+      const volet = document.createElement("div");
+      volet.className = "volet";
+      const pretes = quetesPretes();
+      const entree = (action, contenu) =>
+        `<button class="entree-menu" data-menu="${action}">${contenu}</button>`;
+      volet.innerHTML = `<div class="panneau panneau-menu">
+        <strong>☰ Menu</strong>
+        ${entree("synergies", `✦ Synergies · ADN · Staff${partie.staff.length ? " (" + partie.staff.length + ")" : ""}`)}
+        ${entree("quetes", `🎯 Quêtes${pretes ? ` <span class="pastille-menu">${pretes} prête${pretes > 1 ? "s" : ""}</span>` : ""}`)}
+        ${entree("carnet", "📝 Le carnet du recruteur")}
+        ${entree("classement", "🏆 Classement des huit clubs")}
+        ${entree("legende", "？ Légende des symboles")}
+        ${entree("plein-ecran", "⛶ Plein écran")}
+        <button class="fermer-volet">Fermer</button>
+      </div>`;
+      volet.addEventListener("click", (e) => {
+        if (e.target === volet || e.target.classList.contains("fermer-volet")) return volet.remove();
+        const b = e.target.closest("[data-menu]");
+        if (!b) return;
+        volet.remove();
+        const quoi = b.dataset.menu;
+        if (quoi === "synergies") ouvrirSynergies();
+        else if (quoi === "quetes") voletQuetes();
+        else if (quoi === "carnet") ouvrirCalepin();
+        else if (quoi === "classement") ouvrirClassement();
+        else if (quoi === "legende") ouvrirLegende();
+        else if (quoi === "plein-ecran") basculerPleinEcran();
+      });
+      el("app").appendChild(volet);
+    }
+
+    /* Les synergies, l'ADN et le staff — la vue à la demande : elle
+       présente les nœuds vivants de #reserve-info (alimentés par
+       afficher()), en photographie. */
+    function ouvrirSynergies() {
+      const volet = document.createElement("div");
+      volet.className = "volet";
+      volet.innerHTML = `<div class="panneau">
+        <strong>✦ Synergies du club</strong>
+        <div class="synergies" style="margin-top:6px">${el("synergies-club").innerHTML ||
+          `<span class="indice-synergies">Réunis des joueurs d'une même École ou d'un même archétype.</span>`}</div>
+        ${el("inventaire-staff").innerHTML ? `<div style="margin-top:8px;display:flex;flex-direction:column;gap:3px">${el("inventaire-staff").innerHTML}</div>` : ""}
+        <div class="mini-adn" style="margin-top:8px">${el("axes-adn").innerHTML}</div>
+        <button class="fermer-volet">Fermer</button>
+      </div>`;
+      volet.addEventListener("click", (e) => {
+        if (e.target === volet || e.target.classList.contains("fermer-volet")) volet.remove();
+      });
+      el("app").appendChild(volet);
+    }
+
+    async function basculerPleinEcran() {
+      const standalone = window.matchMedia("(display-mode: fullscreen)").matches ||
+        window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+      if (standalone || !document.documentElement.requestFullscreen)
+        return signaler("Déjà en plein écran (app installée).");
+      if (document.fullscreenElement) { document.exitFullscreen(); return; }
+      try {
+        await document.documentElement.requestFullscreen({ navigationUI: "hide" });
+        if (screen.orientation && screen.orientation.lock) await screen.orientation.lock("landscape").catch(() => {});
+      } catch (e) { signaler("Plein écran refusé par le navigateur."); }
+    }
+
+    /* ================= LES TROIS PHASES (refonte 28/08) =================
+       L'interface VARIE : MERCATO (boutique dépliée, le chrono au
+       centre), PLACEMENT (boutique repliée, place au terrain), MATCH
+       (la scène). Une classe sur #app, un libellé au centre — les
+       feuilles de style font le reste. */
+    function majPhase() {
+      const app = el("app");
+      if (!app || !partie) return;
+      const enMatch = partie.matchEnCours && !!sceneMatch;
+      const repliee = el("boutique-barre").classList.contains("repliee");
+      const phase = enMatch ? "match" : repliee ? "placement" : "mercato";
+      app.classList.remove("phase-mercato", "phase-placement", "phase-match");
+      app.classList.add("phase-" + phase);
+      el("phase-nom").textContent = phase === "match" ? "MATCH" : phase === "placement" ? "PLACEMENT" : "MERCATO";
+      // le chrono ne se lit qu'au mercato ; il continue de tourner derrière
+      if (phase !== "mercato") { el("chrono-libelle").classList.add("masque"); el("chrono-barre").classList.add("masque"); }
+      else if (chrono.intervalle) { el("chrono-libelle").classList.remove("masque"); el("chrono-barre").classList.remove("masque"); }
+    }
+
+    /* La fiche du prochain adversaire : UN club, pas huit. */
+    function renduAdversaire() {
+      const a = el("adversaire");
+      if (!a || !partie.appariement) { if (a) a.innerHTML = ""; return; }
+      const ap = partie.appariement;
+      const nom = String(ap.nomAdversaire || "").replace(/^Amical — /, "").replace(/^🏆 Coupe — /, "");
+      const type = ap.amical ? "Amical" : ap.coupe ? "🏆 Coupe" : "Adversaire";
+      const club = ap.monAdversaire;
+      const serie = club && club.serie > 1 ? ` · ${ONZE_ICONES_SYS.ic("flamme", 10)}${club.serie}` : "";
+      a.innerHTML = `<small>${type}</small><strong>${nom}</strong>` +
+        (club ? `<span class="prestige-adv"><svg class="ic-sys" width="10" height="10" viewBox="0 0 48 48"><use href="#is-coeur"></use></svg> ${club.prestige}${serie}</span>
+          <div class="barre-prestige"><div style="width:${Math.round(100 * club.prestige / PRESTIGE_DEPART)}%"></div></div>` : "");
+    }
+
+    const quetesPretes = () => partie.quetesVisibles.filter((id) => {
+      const q = ONZE_ICONES.parId(id);
+      return q && ONZE_LIEN.estDebloquee(q);
+    }).length;
+
     /* La pastille du bandeau : le nombre de quêtes actives PRÊTES à
        tomber. Zéro prête = pastille éteinte, bouton discret ; sinon
        le bouton s'allume. Une récompense qui attend sans le dire est
        une récompense ratée. */
     function majPastilleQuetes(apercu) {
-      const bouton = el("btn-quetes");
+      const bouton = el("btn-menu"); // refonte 28/08 : la pastille vit sur le menu
       if (!bouton) return;
       ONZE_LIEN.memoriserApercu(apercu);
-      const pretes = partie.quetesVisibles.filter((id) => {
-        const q = ONZE_ICONES.parId(id);
-        return q && ONZE_LIEN.estDebloquee(q);
-      }).length;
+      const pretes = quetesPretes();
       const p = bouton.querySelector(".pastille-quetes");
       if (p) { p.textContent = String(pretes); p.classList.toggle("masque", pretes === 0); }
       bouton.classList.toggle("pretes", pretes > 0);
       bouton.setAttribute("aria-label", pretes
-        ? `Les quêtes d'Icônes — ${pretes} prête${pretes > 1 ? "s" : ""} à tomber`
-        : "Les quêtes d'Icônes");
+        ? `Menu — ${pretes} quête${pretes > 1 ? "s" : ""} prête${pretes > 1 ? "s" : ""} à tomber`
+        : "Menu");
     }
 
     /* ================= Les quêtes d'Icônes (design/icones.md) ================= */
@@ -5320,9 +5418,8 @@
         el("btn-refresh").addEventListener("click", refresh);
         el("btn-xp").addEventListener("click", acheterXP);
         el("btn-historique").addEventListener("click", ouvrirClassement);
-        el("btn-legende").addEventListener("click", ouvrirLegende);
-        el("btn-calepin").addEventListener("click", ouvrirCalepin);
-        el("btn-quetes").addEventListener("click", voletQuetes);
+
+        el("btn-menu").addEventListener("click", ouvrirMenu);
         el("btn-recap").addEventListener("click", () => {
           if (dernierMatch) ONZE_UI.ouvrirRecap(dernierMatch.resultat, dernierMatch.eqA, dernierMatch.eqB,
             { enCours: partie.matchEnCours }); // en direct : zéro spoiler
@@ -5334,36 +5431,19 @@
           // dès que le joueur y touche, c'est lui qui commande
           el("boutique-barre").classList.remove("repliee-par-le-match");
           el("btn-sac").textContent = replie ? "👜" : "🪙";
+          majPhase(); // boutique repliée = PLACEMENT, dépliée = MERCATO
           if (typeof disposerPlateau === "function") disposerPlateau();
         });
         // Le journal complet du match, replié derrière 📜 pendant la scène
         el("btn-journal").addEventListener("click", () => el("recit").classList.toggle("replie"));
-        // les onglets rappellent les colonnes pendant un match, et les renvoient
-        for (const id of ["onglet-gauche", "onglet-droite"]) {
-          el(id).addEventListener("click", () => el("app").classList.toggle("colonnes-rappelees"));
-        }
-        // Bascule du panneau gauche : synergies+ADN ⇄ staff
-        el("btn-bascule-gauche").addEventListener("click", () => {
-          pageGauche = pageGauche === "synergies" ? "staff" : "synergies";
-          majBasculeGauche();
-        });
-        // Plein écran (Fullscreen API au premier geste) + verrou paysage natif
-        const standalone = window.matchMedia("(display-mode: fullscreen)").matches ||
-          window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
-        if (standalone || !document.documentElement.requestFullscreen) el("btn-plein-ecran").classList.add("masque");
-        el("btn-plein-ecran").addEventListener("click", async () => {
-          try {
-            await document.documentElement.requestFullscreen({ navigationUI: "hide" });
-            if (screen.orientation && screen.orientation.lock) await screen.orientation.lock("landscape").catch(() => {});
-            el("btn-plein-ecran").classList.add("masque");
-          } catch (e) { signaler("Plein écran refusé par le navigateur."); }
-        });
-        document.addEventListener("fullscreenchange", () => {
-          if (!document.fullscreenElement && !standalone) el("btn-plein-ecran").classList.remove("masque");
-        });
+
+        /* refonte 28/08 : légende, carnet et plein écran vivent dans le
+           MENU (ouvrirMenu) ; le verrou paysage reste dans basculerPleinEcran */
         // Écran « tourne ton téléphone » : en app installée, la promo
         // PWA n'a plus lieu d'être (le message de rotation, lui, reste —
         // iOS n'honore pas le verrou d'orientation du manifest).
+        const standalone = window.matchMedia("(display-mode: fullscreen)").matches ||
+          window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
         if (standalone) el("promo-pwa").classList.add("masque");
         // L'invite « Ajouter à l'écran d'accueil » vit sur l'ACCUEIL
         // (index.html) — plus jamais par-dessus le terrain en plein match.

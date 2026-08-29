@@ -56,25 +56,23 @@ const verifier = (nom, ok, detail) => {
     await page.waitForSelector(".carte-boutique", { timeout: 15000 });
     await page.evaluate(() => arreterChrono());
 
-    /* ---- 6 · L'INDICE SE FERME AU PREMIER GESTE ----
-       Mesuré AVANT tout geste : le premier pointerdown est justement
-       ce qu'on teste. */
-    const avantGeste = await page.evaluate(() => {
-      const i = document.querySelector(".indice-synergies");
-      return { present: !!i, visible: !!i && i.getBoundingClientRect().width > 0 };
+    /* ---- 6 · PLUS DE BULLE PERMANENTE, ET L'INDICE VIT AU MENU ----
+       AMENDÉ PAR LA REFONTE (28/08, décision 74) : la version d'avant
+       fermait la bulle au premier geste ; la refonte la supprime — le
+       terrain ne porte QUE les joueurs. L'indice vit dans le volet
+       Synergies du menu, seulement quand le club n'a aucune synergie. */
+    const indice = await page.evaluate(async () => {
+      const surTerrain = document.querySelector(".indice-synergies");
+      ouvrirSynergies();
+      await new Promise((r) => setTimeout(r, 200));
+      const auVolet = document.querySelector(".volet .indice-synergies");
+      const texte = auVolet ? auVolet.textContent : "";
+      document.querySelectorAll(".volet").forEach((v) => v.remove());
+      return { surTerrain: !!surTerrain, auVolet: !!auVolet, texte };
     });
-    await page.mouse.click(Math.round(taille.l / 2), Math.round(taille.h / 2));
-    await page.waitForTimeout(200);
-    const apresGeste = await page.evaluate(async () => {
-      afficher(); // le rendu suivant ne doit pas le faire revenir
-      await new Promise((r) => setTimeout(r, 100));
-      const i = document.querySelector(".indice-synergies");
-      return { revenu: !!i && i.getBoundingClientRect().width > 0 };
-    });
-    verifier(`${taille.nom} : l'indice des synergies est là avant le premier geste (précondition)`,
-      avantGeste.present && avantGeste.visible, JSON.stringify(avantGeste));
-    verifier(`${taille.nom} : le premier geste ferme l'indice, et le rendu suivant ne le ramène pas`,
-      !apresGeste.revenu, JSON.stringify(apresGeste));
+    verifier(`${taille.nom} : aucune bulle permanente sur le terrain — l'indice vit au menu`,
+      !indice.surTerrain && indice.auVolet && /École|archétype/.test(indice.texte),
+      JSON.stringify(indice));
 
     /* ---- 3 · LE MÉDAILLON NE CHEVAUCHE AUCUNE CARTE (mercato déplié) ---- */
     const medaillon = await page.evaluate(() => {
@@ -118,8 +116,10 @@ const verifier = (nom, ok, detail) => {
     verifier(`${taille.nom} : à 0M le jeton s'efface et on lit « ${lecture.aZero.texte} », pas « M 0 M »`,
       lecture.aZero.pieceVisible === false && lecture.aZero.texte === "0 M",
       JSON.stringify(lecture.aZero));
-    verifier(`${taille.nom} : dès 5M le jeton revient (« ${lecture.aCinq.texte} »)`,
-      lecture.aCinq.pieceVisible === true && /5 M$/.test(lecture.aCinq.texte),
+    /* AMENDÉ PAR LA REFONTE : l'or est réservé au légendaire — le jeton
+       « M » ne revient plus jamais, à 5M on lit « 5 M » nu. */
+    verifier(`${taille.nom} : dès 5M on lit « ${lecture.aCinq.texte} », toujours sans jeton`,
+      lecture.aCinq.pieceVisible === false && /^5 M$/.test(lecture.aCinq.texte),
       JSON.stringify(lecture.aCinq));
 
     /* ---- 5 · L'EMPLACEMENT VIDE NE PEINT AUCUN GLYPHE ---- */

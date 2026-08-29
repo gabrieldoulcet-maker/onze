@@ -1,6 +1,6 @@
 # Les recettes d'ONZE — le dénominateur
 
-**25 fichiers de recette.** Ce nombre est le dénominateur de « suite complète
+**26 fichiers de recette.** Ce nombre est le dénominateur de « suite complète
 verte » : une livraison le cite, et un écart entre le nombre cité et le nombre sur le
 disque est un **échec de livraison**, pas un détail de rédaction (règle M5).
 
@@ -67,6 +67,7 @@ Deux garde-fous, complémentaires :
 | `tests/accueil.spec.js` | la home : contraste de chaque texte, invite d'installation, matière des composants |
 | `tests/achat.spec.js` | l'achat au tap, l'appui long, la modale de première partie |
 | `tests/casting.spec.js` | le casting des gabarits (étape 4a) : chaque phase du moteur reçoit un gabarit avec sa raison, la Catenaccio joue des contres et la Tiki des créations SANS scripting — recette PURE, moteur réel, zéro navigateur |
+| `tests/refonte.spec.js` | la refonte de l'interface (28/08, décision 74) : plus de panneau gauche, la fiche du prochain adversaire, le bandeau vie/phase/manche+menu, cartes carrées cadre-poste, le banc en bande, l'argent sans or, panneaux vert-nuit, les trois phases |
 | `tests/da.spec.js` | la direction artistique : luminosité des illustrations, arène, épuration |
 | `tests/drag.spec.js` | le glisser-déposer JOUÉ AU POINTEUR, du pointerdown au pointerup (règle M1) |
 | `tests/gardien.spec.js` | un seul gardien sur le terrain |

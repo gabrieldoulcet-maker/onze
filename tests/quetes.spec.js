@@ -9,6 +9,12 @@
 
    ⚠ ÉCRITE AVANT LE CODE, elle doit sortir ROUGE (règle M3).
 
+   AMENDÉE PAR LA REFONTE (28/08, décision 74) : le bandeau ne porte
+   plus que la manche et le MENU — l'accès aux quêtes est le bouton de
+   menu, qui porte la pastille des quêtes prêtes, et l'entrée « Quêtes »
+   du menu ouvre le panneau. Les contrats restent les mêmes, la cible
+   du doigt change.
+
    Les cinq contrats :
      1. UN ACCÈS PROPRE, dans le bandeau du haut, présent sur
         l'écran de mise en place comme pendant le match ;
@@ -50,7 +56,7 @@ const verifier = (nom, ok, detail) => {
 
     /* ---- 1 et 2 · UN ACCÈS PROPRE, À LA BONNE TAILLE ---- */
     const bouton = await page.evaluate(() => {
-      const b = document.getElementById("btn-quetes");
+      const b = document.getElementById("btn-menu");
       if (!b) return { absent: true };
       const r = b.getBoundingClientRect();
       return { dansLeHaut: !!b.closest(".haut"), dansLaColonne: !!b.closest(".col-synergies"),
@@ -58,7 +64,7 @@ const verifier = (nom, ok, detail) => {
         visible: r.width > 0 && r.height > 0 && getComputedStyle(b).visibility !== "hidden" &&
           r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth };
     });
-    verifier(`${taille.nom} : les quêtes ont un accès dans le bandeau du haut`,
+    verifier(`${taille.nom} : les quêtes ont un accès dans le bandeau (le menu et sa pastille)`,
       !bouton.absent && bouton.dansLeHaut && !bouton.dansLaColonne && bouton.visible,
       JSON.stringify(bouton));
     verifier(`${taille.nom} : la cible fait sa taille (${bouton.l || 0}×${bouton.h || 0} px, seuil ${MIN_LISIBLE})`,
@@ -69,7 +75,7 @@ const verifier = (nom, ok, detail) => {
        et redevenir discret quand plus rien n'est prêt. */
     const pastille = await page.evaluate(async () => {
       const lire = () => {
-        const b = document.getElementById("btn-quetes");
+        const b = document.getElementById("btn-menu");
         const p = b && b.querySelector(".pastille-quetes");
         return { marque: !!b && b.classList.contains("pretes"),
           texte: p ? (p.textContent || "").trim() : null };
@@ -92,30 +98,37 @@ const verifier = (nom, ok, detail) => {
       pastille.prete.marque === true && pastille.prete.texte === "1" &&
       pastille.repos.marque === false, JSON.stringify(pastille));
 
-    /* ---- 4 · PLUS RIEN DANS LA COLONNE ---- */
+    /* ---- 4 · PLUS RIEN DANS LA COLONNE ----
+       Refonte : la colonne gauche n'existe plus DU TOUT — c'est la
+       forme la plus forte du contrat. Absente = contrat tenu. */
     const colonne = await page.evaluate(async () => {
       // on ouvre la page escamotable où les quêtes vivaient
       const bascule = document.getElementById("btn-bascule-gauche");
       if (bascule) bascule.click();
       await new Promise((r) => setTimeout(r, 200));
       const col = document.querySelector(".col-synergies");
-      if (!col) return { sansColonne: true };
+      if (!col) return { plusDeColonne: true, nb: 0, listeEncoreLa: false };
       const restes = [...col.querySelectorAll("*")].filter((e) =>
         /🎯/.test(e.childNodes.length === 1 && e.firstChild && e.firstChild.nodeType === 3 ? e.textContent : "") ||
         e.id === "quetes-liste");
       return { restes: restes.map((e) => e.id || e.className || e.tagName).slice(0, 4),
         nb: restes.length, listeEncoreLa: !!document.getElementById("quetes-liste") };
     });
-    verifier(`${taille.nom} : la colonne gauche ne rend plus de quêtes`,
-      !colonne.sansColonne && colonne.nb === 0 && !colonne.listeEncoreLa, JSON.stringify(colonne));
+    verifier(`${taille.nom} : la colonne gauche ne rend plus de quêtes (elle n'existe plus)`,
+      colonne.nb === 0 && !colonne.listeEncoreLa, JSON.stringify(colonne));
 
     /* ---- 5 · LE PANNEAU TIENT DANS SON CADRE ---- */
     const panneau = await page.evaluate(async () => {
       document.querySelectorAll(".volet").forEach((v) => v.remove());
       partie.quetesVisibles = ["gus-et-titi", "surdoue", "le-patient"];
-      const b = document.getElementById("btn-quetes");
-      if (!b) return { sansBouton: true };
-      b.click();
+      // le chemin réel du joueur : menu → entrée Quêtes
+      const menu = document.getElementById("btn-menu");
+      if (!menu) return { sansBouton: true };
+      menu.click();
+      await new Promise((r) => setTimeout(r, 250));
+      const entree = document.querySelector('[data-menu="quetes"]');
+      if (!entree) return { sansEntree: true };
+      entree.click();
       await new Promise((r) => setTimeout(r, 300));
       const p = document.querySelector(".volet .panneau");
       if (!p) return { pasOuvert: true };
