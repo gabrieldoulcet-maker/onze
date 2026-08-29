@@ -4,6 +4,6 @@
    révision : `estampiller.js` tourne AVANT le commit qui la contient,
    la révision serait donc toujours celle du parent. */
 window.ONZE_VERSION = {
-  build: "29/08 15:52",
-  horodatage: "2026-08-29T15:52:06.652Z",
+  build: "29/08 16:03",
+  horodatage: "2026-08-29T16:03:28.418Z",
 };

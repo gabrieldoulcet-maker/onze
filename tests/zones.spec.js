@@ -409,72 +409,24 @@ async function ouvrir(page) {
         verifier(`${taille.nom} · match : sur décor peint, la scène ne peint pas son propre sol`,
           !couture.peint || (s2 && s2.fond === "none"), s2 ? String(s2.fond).slice(0, 60) : "—");
 
-        /* LES COLONNES SE RÉTRACTENT, ET ON PEUT LES RAPPELER (décision
-           65). Deux moitiés, et la seconde compte autant : elles GLISSENT
-           hors cadre — pas de disparition sèche — et un onglet fin reste,
-           qui les ramène. Sans lui, l'information serait perdue au lieu
-           d'être rangée. */
-        const retrait = await page.evaluate(async () => {
-          const lire = () => {
-            const g = document.querySelector(".col-synergies").getBoundingClientRect();
-            const d = document.querySelector(".col-classement").getBoundingClientRect();
-            const og = document.getElementById("onglet-gauche");
-            const od = document.getElementById("onglet-droite");
-            const vu = (e) => e && getComputedStyle(e).display !== "none" &&
-              e.getBoundingClientRect().width > 4;
-            return { gDroite: g.x + g.width, dGauche: d.x, onglets: vu(og) && vu(od) };
-          };
-          const range = lire();
-          document.getElementById("onglet-gauche").click();
-          await new Promise((r) => setTimeout(r, 420));
-          const rappele = lire();
-          document.getElementById("onglet-gauche").click();
-          await new Promise((r) => setTimeout(r, 420));
-          return { range, rappele, largeur: innerWidth };
-        });
-        const sorties = retrait.range.gDroite <= 0.5 && retrait.range.dGauche >= retrait.largeur - 0.5;
-        verifier(`${taille.nom} · match : les colonnes glissent hors cadre et leurs onglets restent ` +
-          `(bord droit de la gauche à ${Math.round(retrait.range.gDroite)} px, bord gauche de la droite à ` +
-          `${Math.round(retrait.range.dGauche)} px sur ${retrait.largeur})`,
-          sorties && retrait.range.onglets,
-          JSON.stringify(retrait.range));
-        verifier(`${taille.nom} · match : l'onglet rappelle la colonne ` +
-          `(elle revient à ${Math.round(retrait.rappele.gDroite)} px)`,
-          retrait.rappele.gDroite > retrait.range.gDroite + 20,
-          JSON.stringify(retrait.rappele));
-
-        /* RÉTRACTÉE VEUT DIRE PARTIE, PAS SEULEMENT DÉCALÉE. Les colonnes
-           glissaient mais restaient entièrement LISIBLES pendant le match,
-           et les languettes se dessinaient par-dessus — sur une capture,
-           la languette gauche coupait les mots d'une infobulle. Deux
-           choses à exiger, et la seconde manquait :
-             · le rectangle d'une colonne rétractée est hors du cadre ;
-             · aucune languette ne recouvre une colonne. */
-        const dehors = await page.evaluate(() => {
-          const b = (s) => { const e = document.querySelector(s); if (!e) return null;
+        /* (AMENDÉ PAR LA REFONTE, décision 74 — remplace la décision 65.)
+           Les colonnes ne se rétractent plus : ELLES N'EXISTENT PLUS.
+           Plus de panneau permanent à gauche, la droite est la fiche du
+           prochain adversaire — qui s'efface pendant le match (le tableau
+           de score parle). Le contrat : ni colonne, ni onglet, ni fiche
+           d'adversaire visibles pendant le match. */
+        const chromeMatch = await page.evaluate(() => {
+          const vu = (sel) => { const e = document.querySelector(sel); if (!e) return false;
             const st = getComputedStyle(e); const r = e.getBoundingClientRect();
-            return { x: r.x, right: r.right, w: r.width, top: r.top, bottom: r.bottom,
-              vu: st.display !== "none" && st.visibility !== "hidden" && parseFloat(st.opacity) > 0.05 }; };
-          const g = b(".col-synergies"), d = b(".col-classement");
-          const og = b("#onglet-gauche"), od = b("#onglet-droite");
-          const chevauche = (a, c) => {
-            if (!a || !c || !a.vu || !c.vu) return 0;
-            const L = Math.max(0, Math.min(a.right, c.right) - Math.max(a.x, c.x));
-            const H = Math.max(0, Math.min(a.bottom, c.bottom) - Math.max(a.top, c.top));
-            return Math.round(L * H);
-          };
-          return { g, d, largeur: innerWidth,
-            ongletSurColonne: chevauche(og, g) + chevauche(od, d) };
+            return st.display !== "none" && st.visibility !== "hidden" && r.width > 0; };
+          return { colonneG: vu(".col-synergies"), colonneD: vu(".col-classement"),
+            onglets: vu("#onglet-gauche") || vu("#onglet-droite"),
+            adversaire: vu("#adversaire") };
         });
-        const gPartie = !dehors.g.vu || dehors.g.right <= 0.5;
-        const dPartie = !dehors.d.vu || dehors.d.x >= dehors.largeur - 0.5;
-        verifier(`${taille.nom} · match : une colonne rétractée est hors du cadre, pas seulement décalée ` +
-          `(gauche : droite à ${Math.round(dehors.g.right)} px${dehors.g.vu ? "" : ", invisible"} · ` +
-          `droite : gauche à ${Math.round(dehors.d.x)} px sur ${dehors.largeur}${dehors.d.vu ? "" : ", invisible"})`,
-          gPartie && dPartie, JSON.stringify({ g: dehors.g, d: dehors.d }));
-        verifier(`${taille.nom} · match : aucune languette ne recouvre une colonne ` +
-          `(${dehors.ongletSurColonne} px² de recouvrement)`,
-          dehors.ongletSurColonne === 0);
+        verifier(`${taille.nom} · match : ni colonne, ni onglet, ni fiche d'adversaire à l'écran ` +
+          `(le match n'a qu'une chose à offrir : voir les joueurs jouer)`,
+          !chromeMatch.colonneG && !chromeMatch.colonneD && !chromeMatch.onglets && !chromeMatch.adversaire,
+          JSON.stringify(chromeMatch));
       }
 
       /* UNE CAPTURE D'ÉCRAN DIT DE QUAND ELLE DATE (règle M3 ter).
