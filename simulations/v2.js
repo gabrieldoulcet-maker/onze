@@ -58,7 +58,9 @@ const P = {
   //   MARGE et les COPAINS, qui sont les deux leviers du concept
   valeur: { parTier: [2, 4, 8, 14, 22], forme: 0.12, progression: 0.03 },
   masseSalariale: 0.06,
-  suffisance: { serieMin: 4, ratioForce: 1.2, changementsMin: 3, malus: 0.78, pente: 0.75, plancher: 0.7 },
+  // M2 tour 14 : pente 0,75 -> 0,5 — les paliers ×2 musclaient tout le monde
+  // et le piège sans rotation perdait 44,3 % (cible ~33) ; à 0,5 : 33,9 %.
+  suffisance: { serieMin: 4, ratioForce: 1.2, changementsMin: 3, malus: 0.78, pente: 0.5, plancher: 0.7 },
   // M2 tour 11 : pente 0,5 → 0,75, plancher 0,72 → 0,70 — au banc, la pente
   //   douce ne faisait perdre le suffisant que 11,5 % (cible ~33)
   // M2 tour 3 : malus 0,88 → 0,84 (sans rotation perdait 27 %, cible ~33) et
@@ -71,12 +73,17 @@ const P = {
   //   64 % de défaites en écologique contre 36 % au banc d'essai. Plus
   //   l'écart est grand, plus on prend de haut — et ça se borne tout seul.
   forceDiv: 58,
+  bonusPaliers: 2,   // M2 tour 12 (arbitrage Gabriel) : paliers ×2 -> 50,3 % au +20 % (l'écrêtage à 99 masquait la molette, levé)
+  degats: 1.4,       // M2 tour 13 (arbitrage Gabriel) : dégâts ×1,4 -> médiane 18 manches (cible v1 : 15-19)
   notesTier: [[40, 55], [48, 62], [55, 70], [62, 78], [70, 88]],
   plafondMaxParTier: [30, 26, 20, 15, 10],   // les petits tiers portent les grandes fourchettes
   effectifMax: 15,
 };
 for (const a of process.argv) {
   let m = a.match(/^--masse=([\d.]+)/); if (m) P.masseSalariale = Number(m[1]);
+  m = a.match(/^--paliers=([\d.]+)/); if (m) P.bonusPaliers = Number(m[1]);
+  m = a.match(/^--degats=([\d.]+)/); if (m) P.degats = Number(m[1]);
+  m = a.match(/^--pente=([\d.]+)/); if (m) P.suffisance.pente = Number(m[1]);
   if (a === "--suffisance=off") P.suffisance.malus = 1;
 }
 
@@ -130,7 +137,16 @@ function equipePourMatch(coach, onze, malusSuffisance = 1) {
     const source = onze.find((x) => x.nom === j.nom);
     const facteur = ((source ? source.note : 55) / P.forceDiv) * malusSuffisance;
     for (const stat of Object.keys(j.stats)) {
-      j.stats[stat] = Math.max(1, Math.min(99, j.stats[stat] * facteur));
+      // M2 tour 12 : le renfort des paliers s'applique à la part BOOST avant
+      // l'échelle de note. On lit le VRAI boost dans j.boosts (le moteur
+      // écrête stats à 99, donc stats − statsBase ment dès que la base est
+      // haute : un gardien base 95 + boost 12 perdait 8 points, et la
+      // molette --paliers amplifiait la part tronquée — d'où le plateau à
+      // 43-45 %). Pas de plafond à 99 ici : les stats sont des poids dans
+      // des formules continues, le moteur les tolère au-delà.
+      const base = j.statsBase ? j.statsBase[stat] : j.stats[stat];
+      const boost = j.boosts ? (j.boosts[stat] || 0) : 0;
+      j.stats[stat] = Math.max(1, (base + boost * P.bonusPaliers) * facteur);
     }
   }
   return eq;
@@ -397,7 +413,7 @@ function unePartie(mesures) {
           if (ecart === 0) return;
           g.serie = g.serie > 0 ? g.serie + 1 : 1;
           p.serie = p.serie < 0 ? p.serie - 1 : -1;
-          p.prestige = Math.max(0, p.prestige - M.degatsPrestige(ecart, manche));
+          p.prestige = Math.max(0, p.prestige - Math.round(M.degatsPrestige(ecart, manche) * P.degats));
           if (p.prestige === 0 && p.vivant) { p.vivant = false; p.mancheElim = manche; }
           g.or += g.primeVictoire || 0;
         };

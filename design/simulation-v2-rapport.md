@@ -172,3 +172,66 @@ postérieure au correctif.
 **Reproduction** : `node simulations/v2.js 2000 --graine=76` ·
 contre-tests : `--masse=0`, `--masse=0.25`, `--suffisance=off` ·
 bancs : `--pieges`, `--h2h --ecart=0..4` · trajectoires : `--diag`.
+
+---
+
+## Addendum du 30/08 — les arbitrages de Gabriel, chiffrés (décision 77)
+
+Gabriel a tranché les trois points : **paliers vers 50 %**, **dégâts
+vers la durée v1**, **masse gardée à 6 % avec son rôle réécrit**.
+Trois tours de molette (M2, tours 12–14), consignés ici.
+
+### Tour 12 — paliers ×2 (`bonusPaliers: 1 → 2`)
+
+La molette a d'abord **plafonné à 43–45 %** de ×1,15 jusqu'à ×2,0 :
+suspect. Diagnostic (M6) : l'écrêtage des stats à 99 **tronquait les
+boosts posés sur des bases hautes** — témoin mesuré : sur une équipe à
+familles empilées, 6 boosts tronqués, dont le gardien (base réflexes
+95 + boost 12 → 8 points perdus) — et la molette amplifiait la part
+*déjà tronquée* (`stats − statsBase`). Correction : lecture du vrai
+boost dans `j.boosts` (le détail non tronqué du moteur), plafond à 99
+levé dans la simulation (les stats y sont des poids de formules
+continues). **À retenir pour l'implémentation : le renfort des paliers
+doit s'appliquer avant tout plafond.**
+
+Balayage après correction (écart +2, n = 2 000/point) :
+
+| molette | ×1 | ×1,3 | ×1,6 | **×2,0** |
+|---|---|---|---|---|
+| victoires synergies | 44,0 % | 46,3 % | 47,4 % | **50,3 % (IC ±2,6)** |
+
+Contre-vérifications à ×2,0 : graine 42 → 52,1 % (stable) ; gradient
+d'écart 0→4 : **65,7 / 58,3 / 50,3 / 43,7 / 36,7** — à budget égal la
+famille gagne nettement, à +20 % c'est pile-ou-face, au-delà le talent
+brut l'emporte. Le dilemme voulu.
+
+### Tour 13 — dégâts de prestige ×1,4 (`degats: 1 → 1.4`)
+
+Balayage : ×1,2 → 20 manches · **×1,4 → médiane 18 (moyenne 18,5)** ·
+×1,6 → 17. Retenu ×1,4 : dans la cible v1 (15–19).
+
+### Tour 14 — la suffisance recalée (`pente: 0,75 → 0,5`)
+
+Effet de bord des paliers ×2 : toutes les équipes musclées, le malus
+proportionnel mordait trop — le piège sans rotation perdait **44,3 %**
+(cible ~33). Balayage de pente : 0,6 → 42,8 % · **0,5 → 33,9 %
+(IC ±5,9)** · 0,4 → 25,7 %. Contre-test (M6) suffisance coupée :
+11,3 % — l'écart 33,9 − 11,3 est bien l'œuvre du mécanisme.
+
+### La configuration figée (défauts du fichier) — les cinq critères
+
+| critère | mesure (n = 2 000 parties, graine 76) | verdict |
+|---|---|---|
+| durée | médiane 18 manches (moyenne 18,5) | ✅ 15–19 |
+| 1 · la note | médiane 6,5 · ≥8 : 6,9 % · gardien héroïque 28,2 % des défaites | ✅ |
+| 2 · la progression | moyen +8,9 · pépite +21,7 · jamais aligné 0 | ✅ |
+| 3 · boule de neige | leader M5 gagne 24,1 % · moyen → top 4 : 52,5 % | ✅ |
+| 4 · la suffisance | piège sans rotation perd 33,9 % (IC ±5,9) · banc : avec rotation 2,0 % | ✅ |
+| 5 · paliers vs budget | 50,3 % à +20 % (IC ±2,6) | ✅ |
+
+Note d'honnêteté : « avec rotation » en écologique ne compte que
+n = 17 pièges (IC ±18) — inutilisable seul ; le banc d'essai construit
+(n = 1 000) donne 2,0 %, sous la cible < 10.
+
+**La règle d'or est levée. L'implémentation commence : phases du
+concept (§11), recettes rouges d'abord.**

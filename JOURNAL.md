@@ -470,3 +470,9 @@ Trois lignes par session : **fait / bloqué / prochaine tâche**. C'est ce qui p
 - **Les surprises** : la boule de neige est douce PAR STRUCTURE (22 % contre 70-80 prédits) — la masse salariale n'est pas un frein, c'est un égalisateur de stratégies ; le gardien héroïque d'un match perdu est fréquent (29,6 %) ; les parties durent ~21 manches.
 - **Bloqué :** rien — la suite v1 reste verte (24/26, les deux dettes de poids connues), le jeu n'a pas bougé d'une ligne.
 - **Prochaine tâche :** la validation du rapport par Gabriel (3 arbitrages proposés en fin de rapport), puis l'implémentation en phases, recettes rouges d'abord.
+
+## Session 59 — 30 août 2026 : Gabriel valide — la simulation figée, les cinq critères verts
+
+- **Fait :** les trois arbitrages de Gabriel (paliers vers 50 %, dégâts vers la durée v1, masse 6 % rôle réécrit) sont chiffrés et figés (**décision 77**, addendum au rapport, M2 tours 12-14). Le tour 12 a démasqué un piège d'instrument : la molette des paliers plafonnait à 43-45 % parce que l'écrêtage des stats à 99 tronquait les boosts des bases hautes (le gardien perdait 8 points de réflexes) — corrigé en lisant le vrai boost (`j.boosts`) et en levant le plafond dans la simulation. Résultat : paliers ×2 → **50,3 %** à +20 % de budget, gradient sain (65,7 % à budget égal, 36,7 % à +40 %). Dégâts ×1,4 → **médiane 18 manches**. Effet de bord recalé : la suffisance mordait trop fort (44,3 %), pente 0,75 → 0,5 → **33,9 %** (contre-test coupé : 11,3 %). Campagne complète à la config figée : **cinq critères verts**.
+- **Bloqué :** rien. La règle d'or est levée.
+- **Prochaine tâche :** phase 1 de l'implémentation (concept §11) — recette rouge d'abord (`tests/effectif-v2.spec.js`) : onze titulaires dès la manche 1, effectif plafonné à 15, achat à effectif plein = remplacement.
