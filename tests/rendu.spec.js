@@ -204,6 +204,10 @@ async function empreinteVisuel(page, indice, zone) {
           // l'habillage voulu. Le NOM, lui, reste à un tap.
           if (!texte || texte === "+" || /^[0-9·★🧪🧰🛂🏺🌟\s]+$/u.test(texte)) continue;
           const par = n.parentElement;
+          // v2 (décision 77) : les six promus du onze de départ jouent en
+          // SILHOUETTE NEUTRE — le glyphe de poste dans .dessin-carte.absent
+          // est le repli déclaré (règle M4 : « bouche-trou », pas « cassé »)
+          if (par.closest(".dessin-carte.absent") && /^[GDMA]$/.test(texte)) continue;
           const r = par.getBoundingClientRect();
           if (r.width < 1 || r.height < 1 || getComputedStyle(par).visibility === "hidden") continue;
           restes.push(texte.slice(0, 20));
@@ -277,9 +281,34 @@ async function empreinteVisuel(page, indice, zone) {
     zoneTerrain.width = Math.min(zoneTerrain.width, taille.l - zoneTerrain.x);
     zoneTerrain.height = Math.min(zoneTerrain.height, taille.h - zoneTerrain.y);
 
-    let terrainKO = 0;
+    /* v2 (décision 77) : au coup d'envoi le terrain porte ONZE cartes —
+       elles se chevauchent (budget de recouvrement déclaré) et tombent à
+       ~24 px. La photographie différentielle ne sait isoler que les
+       cartes ASSEZ GRANDES (≥ 40 px) et NON RECOUVERTES par une voisine
+       peinte après (> 25 % de sa boîte) : pour les autres, le contrat
+       devient « le visuel est là et occupe ses pixels déclarés » —
+       la preuve au pixel reste portée par les montages de lisibilité
+       plus bas et par le banc. */
+    const recouvert = (k) => {
+      const a = surLeGazon[k].box;
+      const aireA = Math.max(1, a.width * a.height);
+      for (let j2 = k + 1; j2 < surLeGazon.length; j2++) {
+        const b = surLeGazon[j2].box;
+        const ix = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+        const iy = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+        if ((ix * iy) / aireA > 0.25) return true;
+      }
+      return false;
+    };
+    let terrainKO = 0, mesures = 0;
     const parts = [], ecarts = [];
     for (const [k, j] of surLeGazon.entries()) {
+      const present = j.charge && j.visuel && j.visuel.w >= 8 && j.visuel.h >= 12;
+      if (j.box.width < 40 || recouvert(k)) {
+        if (!present) { terrainKO++; console.log(`   ↳ joueur ${k} (non mesurable) : chargé ${j.charge}, visuel ${JSON.stringify(j.visuel)}`); }
+        continue;
+      }
+      mesures++;
       const aire = Math.max(1, Math.round(j.box.width) * Math.round(j.box.height));
       const emp = await empreinteVisuel(page, k, zoneTerrain);
       const part = emp.pixels / aire;
@@ -288,16 +317,15 @@ async function empreinteVisuel(page, indice, zone) {
       const ecart = Math.hypot(emp.centre.x - (j.box.x + j.box.width / 2),
         emp.centre.y - (j.box.y + j.box.height / 2));
       parts.push(part); ecarts.push(ecart);
-      const ok = j.charge && j.visuel && j.visuel.w >= 8 && j.visuel.h >= 12 &&
-        part >= PART_MINIMALE && ecart <= Math.max(12, j.box.width * 0.5);
+      const ok = present && part >= PART_MINIMALE && ecart <= Math.max(12, j.box.width * 0.5);
       if (!ok) { terrainKO++; console.log(`   ↳ joueur ${k} : chargé ${j.charge}, visuel ${JSON.stringify(j.visuel)}, empreinte ${(part * 100).toFixed(0)} % de sa boîte, centre à ${ecart.toFixed(1)} px de sa case`); }
     }
     const pire = parts.length ? Math.min(...parts) : 0;
     const pireEcart = ecarts.length ? Math.max(...ecarts) : 0;
-    verifier(`${taille.nom} : les ${surLeGazon.length} joueurs du terrain peignent leur silhouette sur leur case ` +
-      `(la plus discrète couvre ${(pire * 100).toFixed(0)} % de sa boîte — seuil ${(PART_MINIMALE * 100).toFixed(0)} % ; ` +
+    verifier(`${taille.nom} : les ${surLeGazon.length} joueurs du terrain portent leur visuel (${mesures} isolables prouvés au pixel — ` +
+      `la plus discrète couvre ${(pire * 100).toFixed(0)} % de sa boîte, seuil ${(PART_MINIMALE * 100).toFixed(0)} % ; ` +
       `centre au plus à ${pireEcart.toFixed(1)} px de sa case)`,
-      surLeGazon.length >= 4 && terrainKO === 0, `${terrainKO} joueur(s) sans silhouette visible`);
+      surLeGazon.length >= 4 && terrainKO === 0, `${terrainKO} joueur(s) sans visuel`);
 
     /* LE CONTRE-TEST. Une recette qui ne sort pas rouge sur le défaut
        qu'elle prétend attraper n'est pas un garde-fou : on efface pour de

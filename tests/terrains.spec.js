@@ -90,7 +90,9 @@ const config = JSON.parse(fs.readFileSync(path.join(racine, "design/terrains.jso
         });
         return { plateau: { x: Math.round(p.x), y: Math.round(p.y), width: Math.round(p.width), height: Math.round(p.height) }, places };
       });
-      verifier(`${terrain.nom} · ${taille.nom} : neuf emplacements rendus`, cadre.places.length === 9,
+      // v2 (décision 77) : la taille du banc vient de TAILLE_BANC (4), plus du 9 de la refonte
+      const tailleBanc = await page.evaluate(() => ONZE_ECO.TAILLE_BANC);
+      verifier(`${terrain.nom} · ${taille.nom} : ${tailleBanc} emplacements rendus`, cadre.places.length === tailleBanc,
         String(cadre.places.length));
 
       /* (AMENDÉ PAR LA REFONTE, décision 74.) Ici vivaient deux contrats
@@ -121,14 +123,14 @@ const config = JSON.parse(fs.readFileSync(path.join(racine, "design/terrains.jso
       });
       verifier(`${terrain.nom} · ${taille.nom} : la bande du banc est opaque (${bande.alpha}) et ses ` +
         `${bande.places} places vivent dedans (${bande.dehors} dehors)`,
-        bande.alpha >= 0.88 && bande.dehors === 0 && bande.places === 9, JSON.stringify(bande));
+        bande.alpha >= 0.88 && bande.dehors === 0 && bande.places === tailleBanc, JSON.stringify(bande));
 
-      for (const [etiquette, nb] of [["banc plein", 9], ["un seul remplaçant", 1]]) {
+      for (const [etiquette, nb] of [["banc plein", tailleBanc], ["un seul remplaçant", 1]]) {
         const pose = await page.evaluate(async (nbJoueurs) => {
           const prendre = (i) => tousLesJoueurs[i % tousLesJoueurs.length];
           partie.banc = Array.from({ length: nbJoueurs }, (_, i) => ({ ...prendre(i), etoiles: (i % 3) + 1, uid: "t" + i }));
           if (nbJoueurs > 1) {   // un joueur sans dessin : il se rend en glyphe de poste
-            partie.banc[nbJoueurs - 1] = { nom: "Gilbert", cout: 0, poste: "DÉF", ligne: "DÉF",
+            partie.banc[nbJoueurs - 1] = { nom: "Anselme", cout: 0, poste: "DÉF", ligne: "DÉF",
               ecole: "", archetype: "", etoiles: 1, uid: "tx" };
           }
           afficher();
@@ -338,10 +340,11 @@ const config = JSON.parse(fs.readFileSync(path.join(racine, "design/terrains.jso
         peint: document.getElementById("plateau").classList.contains("terrain-peint"),
         decor: im && !im.classList.contains("masque") && im.complete && im.naturalWidth > 0
           ? im.currentSrc.split("/").slice(-1)[0] : null,
-        tuiles: document.querySelectorAll("#banc .place-banc, #banc .jeton").length };
+        tuiles: document.querySelectorAll("#banc .place-banc, #banc .jeton").length,
+        tailleBanc: ONZE_ECO.TAILLE_BANC };
     });
     verifier(`stockage vierge : le décor peint s'affiche d'emblée (${vu.stade} → ${vu.decor})`,
-      vu.peint && !!vu.decor && vu.tuiles === 9, JSON.stringify(vu));
+      vu.peint && !!vu.decor && vu.tuiles === vu.tailleBanc, JSON.stringify(vu));
     await neuf.close();
   }
 

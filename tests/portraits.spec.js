@@ -10,9 +10,11 @@
      ONZE_<id>_<Nom>[_frontale].webp
    où <id> est l'IDENTIFIANT du joueur, selon d'où il vient :
      · joueur du roster  → son index dans design/joueurs.json (1-based)
-     · un des CINQ DE DÉPART (const STARTERS de partie.html, coût 0,
-       sans École) → « S » + son rang, S1 à S5 : ils ne sont pas au
-       roster, ils ont donc leur propre suite
+     · un du ONZE DE DÉPART (const STARTERS de partie.html, coût 0)
+       → « S » + son rang, S1 à S11 : ils ne sont pas au roster, ils
+       ont donc leur propre suite. v2 (décision 77) : S1-S5 sont les
+       historiques avec leur art ; S6-S11 (les promus) sont la dette
+       d'art déclarée — silhouette neutre en jeu en attendant
      · unité d'Icône (design/icones.md) → le préfixe à lettre de
        Gabriel (I1, H1, H2)
    Le contrôle n'est donc PAS desserré pour les hors-roster : il est
@@ -210,12 +212,22 @@ verifier(`les entrées d'Icône sont déclarées dans icones.js (${horsRoster.jo
 //        C'est l'assertion qui manquait : ce sont ces cinq-là qui
 //        s'affichaient en rectangles vides sur le terrain.
 const parNomDeTable = new Map(entrees.map(([cle, v]) => [plier(decouper(cle).nom) + (decouper(cle).variante ? "|" + plier(decouper(cle).variante) : ""), v]));
-const departSansVisuel = starters.filter((nom) => {
+/* v2 (décision 77) : le onze de départ compte les six anciens réservistes
+   promus (S6-S11) — leur art n'existe pas encore, ils jouent avec la
+   SILHOUETTE NEUTRE (le mécanisme prévu pour les joueurs sans
+   illustration). Le contrat devient : tout starter QUI A une entrée dans
+   la table porte ses deux visuels, et les cinq historiques (S1-S5) en
+   ont forcément une — perdre l'un d'eux redeviendrait le rectangle vide
+   d'origine. Les sans-entrée sont la dette d'art déclarée. */
+const startersAvecEntree = starters.filter((nom) => parNomDeTable.get(plier(nom)));
+const departSansVisuel = startersAvecEntree.filter((nom) => {
   const v = parNomDeTable.get(plier(nom));
-  return !v || !v.carte || !v.frontale;
+  return !v.carte || !v.frontale;
 });
-verifier(`les ${starters.length} joueurs de la formation de départ ont leurs deux visuels`,
-  starters.length > 0 && departSansVisuel.length === 0, "sans visuel : " + departSansVisuel.join(", "));
+const detteArt = starters.filter((nom) => !parNomDeTable.get(plier(nom)));
+if (detteArt.length) console.log(`   dette d'art v2 (silhouette neutre en jeu) : ${detteArt.join(", ")}`);
+verifier(`les ${startersAvecEntree.length} joueurs de la formation de départ qui ont une entrée portent leurs deux visuels (dont les 5 historiques)`,
+  startersAvecEntree.length >= 5 && departSansVisuel.length === 0, "sans visuel : " + departSansVisuel.join(", "));
 
 // ---- 4 ter. les DOUBLES VERSIONS sont bien deux entrées distinctes ----
 //        Gus et Titi jouent en maillot du club au coup d'envoi et en violet
@@ -313,9 +325,12 @@ verifier("aucun visuel ne dépasse 150 Ko (budget mobile)", pire.ko <= 150, `${p
   const sansFigurine = roster.filter((j) => !servis.has(plier(j.nom))).map((j) => j.nom);
   verifier(`les ${roster.length} joueurs du roster ont leur figurine`,
     sansFigurine.length === 0, "sans figurine : " + sansFigurine.join(", "));
-  const departSansFigurine = starters.filter((n) => !servis.has(plier(n)));
-  verifier(`les ${starters.length} joueurs de la formation de départ ont leur figurine`,
-    departSansFigurine.length === 0, departSansFigurine.join(", "));
+  // v2 (décision 77) : les six promus (S6-S11) sont la dette d'art
+  // déclarée — seuls les cinq historiques exigent leur figurine
+  const historiques = starters.slice(0, 5);
+  const departSansFigurine = historiques.filter((n) => !servis.has(plier(n)));
+  verifier(`les ${historiques.length} joueurs historiques de la formation de départ ont leur figurine`,
+    historiques.length === 5 && departSansFigurine.length === 0, departSansFigurine.join(", "));
 
   // ---- 4. les ancrages sont plausibles, et le repli est là ----
   const hors = Object.entries(mesures).filter(([, v]) =>

@@ -157,13 +157,15 @@ const verifier = (nom, ok, detail) => {
       const jeu = document.querySelector(".ligne-terrain .jeton, #terrain-scene");
       const basTerrain = jeu ? [...document.querySelectorAll(".ligne-terrain .jeton")]
         .reduce((m, j) => Math.max(m, j.getBoundingClientRect().bottom), 0) : 0;
-      return { places: b.children.length, sousLeTerrain: rb.top >= basTerrain - 2,
+      return { places: b.children.length, attendu: ONZE_ECO.TAILLE_BANC,
+        sousLeTerrain: rb.top >= basTerrain - 2,
         surLaBoutique: rb.bottom <= barre.top + 2, y: Math.round(rb.y), basTerrain: Math.round(basTerrain),
         hautBarre: Math.round(barre.top) };
     });
+    // v2 (décision 77) : le nombre de places vient de TAILLE_BANC (4), plus du 9 de la refonte
     verifier(`${taille.nom} : le banc (${banc.places} places) vit entre le terrain et la boutique ` +
       `(banc y=${banc.y}, terrain jusqu'à ${banc.basTerrain}, boutique à ${banc.hautBarre})`,
-      banc.places === 9 && banc.sousLeTerrain && banc.surLaBoutique, JSON.stringify(banc));
+      banc.places === banc.attendu && banc.sousLeTerrain && banc.surLaBoutique, JSON.stringify(banc));
 
     /* ---- 7 · L'ARGENT SANS GRAND CADRE DORÉ ---- */
     const argent = await page.evaluate(() => {

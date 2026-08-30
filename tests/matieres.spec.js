@@ -57,6 +57,12 @@ const NEON_AUTORISE = [
   ".coach-ligne.moi",                                   // le liseré d'appartenance
   ".mini-adn .barre-mini > div.forte",                  // force d'axe (paire vert/rouge signifiante)
   ".fermer", ".volet button",                           // les actions des volets
+  /* v2 (décision 77) : le onze de départ arrive avec ses familles — les
+     pastilles actives de la rangée mercato (décision 75) existent donc
+     dès la manche 1 et la recette les voit enfin. Elles sont TAPPABLES
+     (elles se déplient) : « palier atteint » est un état interactif au
+     sens déclaré de la DA. */
+  ".pastille-synergie.active", ".ecusson-badge.actif",
 ];
 
 (async () => {

@@ -237,9 +237,11 @@ const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n -
   //      TERRAIN (1★ 100 % · 2★ 118 %), 3★ seul auréolé d'or, aucun nom.
   const scene = await page.evaluate(() => {
     const parPoste = (p, n = 0) => tousLesJoueurs.filter((j) => j.poste === p && ONZE_PORTRAITS.carte(j))[n];
+    // v2 (décision 77) : le banc fait 4 places — trois remplaçants, pour
+    // qu'un emplacement vide reste observable dans la même photographie
     partie.banc = [
-      { ...parPoste("GAR"), etoiles: 1, uid: "e1" }, { ...parPoste("DÉF"), etoiles: 1, uid: "e2" },
-      { ...parPoste("MIL"), etoiles: 1, uid: "e3" }, { ...parPoste("ATT"), etoiles: 2, uid: "e4" },
+      { ...parPoste("GAR"), etoiles: 1, uid: "e1" },
+      { ...parPoste("ATT"), etoiles: 2, uid: "e4" },
       { ...parPoste("DÉF", 1), etoiles: 3, uid: "e5" },
     ];
     partie.niveau = 8;

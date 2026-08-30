@@ -59,19 +59,24 @@ const verifier = (nom, ok, detail) => {
     /* ---- 6 · PLUS DE BULLE PERMANENTE, ET L'INDICE VIT AU MENU ----
        AMENDÉ PAR LA REFONTE (28/08, décision 74) : la version d'avant
        fermait la bulle au premier geste ; la refonte la supprime — le
-       terrain ne porte QUE les joueurs. L'indice vit dans le volet
-       Synergies du menu, seulement quand le club n'a aucune synergie. */
+       terrain ne porte QUE les joueurs. AMENDÉ PAR LA v2 (décision 77) :
+       le onze de départ arrive AVEC ses familles, donc le club a presque
+       toujours des synergies dès la manche 1 — le volet du menu montre
+       alors la liste vivante, et l'indice ne sert que le cas (devenu
+       rare) du club sans aucune synergie. L'esprit du contrat tient :
+       rien sur le terrain, le contenu au menu. */
     const indice = await page.evaluate(async () => {
       const surTerrain = document.querySelector(".indice-synergies");
       ouvrirSynergies();
       await new Promise((r) => setTimeout(r, 200));
       const auVolet = document.querySelector(".volet .indice-synergies");
+      const badges = document.querySelectorAll(".volet .synergies [data-famille], .volet .synergies .badge-synergie").length;
       const texte = auVolet ? auVolet.textContent : "";
       document.querySelectorAll(".volet").forEach((v) => v.remove());
-      return { surTerrain: !!surTerrain, auVolet: !!auVolet, texte };
+      return { surTerrain: !!surTerrain, auVolet: !!auVolet, badges, texte };
     });
-    verifier(`${taille.nom} : aucune bulle permanente sur le terrain — l'indice vit au menu`,
-      !indice.surTerrain && indice.auVolet && /École|archétype/.test(indice.texte),
+    verifier(`${taille.nom} : aucune bulle permanente sur le terrain — le menu porte l'indice ou les synergies vivantes`,
+      !indice.surTerrain && (indice.badges > 0 || (indice.auVolet && /École|archétype/.test(indice.texte))),
       JSON.stringify(indice));
 
     /* ---- 3 · LE MÉDAILLON NE CHEVAUCHE AUCUNE CARTE (mercato déplié) ---- */

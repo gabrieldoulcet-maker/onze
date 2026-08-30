@@ -455,6 +455,15 @@
       display: flex; align-items: flex-start; gap: 4px; z-index: 6;
       flex-wrap: nowrap;
     }
+    /* v2 (décision 77) : à ~14 familles dès la manche 1, les pastilles
+       vivent dans un ROULEAU qui défile — la rangée ne déborde jamais
+       sur la fiche adversaire ; le panneau déplié reste hors du rouleau
+       (un overflow sur la rangée le clipperait). */
+    .rouleau-synergies {
+      display: flex; gap: 4px; flex-wrap: nowrap; min-width: 0;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .rouleau-synergies::-webkit-scrollbar { display: none; }
     .pastille-synergie {
       display: inline-flex; align-items: center; gap: 3px; flex: 0 0 auto;
       cursor: pointer; background: var(--panneau); color: var(--ivoire);
@@ -1737,16 +1746,21 @@
        six anciens réservistes de dépannage sont promus titulaires. Un
        4-3-3 de départ ; les familles sont TIRÉES à chaque partie
        (« tirés avec leurs familles », concept-v2 §2) dans nouvellePartie. */
+    /* L'ORDRE du tableau est l'IDENTITÉ des visuels (S1-S11, recette
+       portraits) : les cinq historiques gardent leurs rangs S1-S5, les
+       six promus prennent S6-S11 (dette d'art déclarée — silhouette
+       neutre en attendant). L'ordre n'a aucun effet de jeu : le
+       placement se fait par poste. */
     const STARTERS = [
       { nom: "Gus",      cout: 0, poste: "GAR", ecole: "", archetype: "", unique: null },
       { nom: "Marcel",   cout: 0, poste: "DÉF", ecole: "", archetype: "", unique: null },
       { nom: "Rachid",   cout: 0, poste: "DÉF", ecole: "", archetype: "", unique: null },
+      { nom: "Momo",     cout: 0, poste: "MIL", ecole: "", archetype: "", unique: null },
+      { nom: "Titi",     cout: 0, poste: "ATT", ecole: "", archetype: "", unique: null },
       { nom: "Gilbert",  cout: 0, poste: "DÉF", ecole: "", archetype: "", unique: null },
       { nom: "Norbert",  cout: 0, poste: "DÉF", ecole: "", archetype: "", unique: null },
-      { nom: "Momo",     cout: 0, poste: "MIL", ecole: "", archetype: "", unique: null },
       { nom: "Fernand",  cout: 0, poste: "MIL", ecole: "", archetype: "", unique: null },
       { nom: "Marius",   cout: 0, poste: "MIL", ecole: "", archetype: "", unique: null },
-      { nom: "Titi",     cout: 0, poste: "ATT", ecole: "", archetype: "", unique: null },
       { nom: "Lucien",   cout: 0, poste: "ATT", ecole: "", archetype: "", unique: null },
       { nom: "Célestin", cout: 0, poste: "ATT", ecole: "", archetype: "", unique: null },
     ];
@@ -2378,11 +2392,25 @@
         return `🌟 Personne à sublimer… <strong>+4M</strong> de compensation.<br><small>Il fallait une spécialisation sur le terrain.</small>`;
       }
       const nombre = orbe.type === "duo" ? 2 : 1;
-      for (let n = 0; n < nombre; n++) placerAuClub({ ...orbe.fiche, etoiles: 1 });
+      /* v2 (décision 77) : avec l'effectif plafonné à 15, « tout est
+         plein » est un état normal — la copie qui ne trouve pas de place
+         RETOURNE AU POOL (jamais perdue : la conservation des 1344) et
+         se paie en or. */
+      let recales = 0;
+      for (let n = 0; n < nombre; n++) {
+        if (!placerAuClub({ ...orbe.fiche, etoiles: 1 })) {
+          const original = tousLesJoueurs.find((j) => j.nom === orbe.fiche.nom);
+          if (original) partie.pool.push(original);
+          partie.or += orbe.fiche.cout;
+          recales++;
+        }
+      }
       const fusions = ONZE.fusionnerEffectif(partie.terrain, partie.banc);
       if (fusions.length) celebrerFusions(fusions);
+      if (recales === nombre)
+        return `⚽ Effectif plein — <strong>${orbe.fiche.nom}</strong> est revendu aussitôt : <strong>+${orbe.fiche.cout * recales}M</strong>`;
       return orbe.type === "duo"
-        ? `⚽⚽ <strong>${orbe.fiche.nom} × 2</strong> — le duo du centre de formation !`
+        ? `⚽⚽ <strong>${orbe.fiche.nom}${recales ? "" : " × 2"}</strong> — le duo du centre de formation !${recales ? ` <small>(effectif plein : le second est revendu, +${orbe.fiche.cout}M)</small>` : ""}`
         : `⚽ <strong>${orbe.fiche.nom}</strong> signe gratuitement ! <small>${orbe.fiche.ecole || "Sans École"} · ${orbe.fiche.archetype || "sans archétype"}</small>`;
     }
     /* Le ramassage façon TFT : les orbes tombent sur le terrain, puis se
@@ -3996,7 +4024,16 @@
             const original = partie.pool.find((x) => x.nom === j.nom.replace(/ ★+$/, ""));
             if (original) {
               partie.pool.splice(partie.pool.indexOf(original), 1);
-              placerAuClub({ ...original, etoiles: 1 });
+              // v2 (décision 77) : effectif plein = la copie retourne au
+              // pool et le consommable est rendu (jamais de copie perdue)
+              if (!placerAuClub({ ...original, etoiles: 1 })) {
+                partie.pool.push(original);
+                partie.staff.push(nom);
+                signaler("Effectif plein — la Doublure attendra.");
+                voile.remove();
+                afficher();
+                return;
+              }
               const fusions = ONZE.fusionnerEffectif(partie.terrain, partie.banc);
               if (fusions.length) celebrerFusions(fusions);
               ONZE_JUICE.jouer("achat");
@@ -4933,7 +4970,19 @@
           <div>Ils comptent : ${noms.join(", ") || "personne"}</div>
         </div>`;
       };
-      rangee.innerHTML = [...familles].map(([nom, f]) => pastille(nom, f)).join("") + panneau();
+      /* v2 (décision 77) : le onze de départ arrive avec ses familles —
+         jusqu'à ~14 pastilles dès la manche 1. Le SIGNAL d'abord :
+         paliers atteints, puis « presque » (à un joueur du palier), puis
+         le reste par compte décroissant ; la rangée défile si elle
+         déborde (elle ne recouvre jamais la fiche adversaire). */
+      const rang = ([nom, f]) => {
+        const paliers = paliersDe(nom, f.type);
+        const atteint = paliers.some((x) => x <= f.nb);
+        const presque = !atteint && paliers.some((x) => x - f.nb === 1);
+        return (atteint ? 2000 : presque ? 1000 : 0) + f.nb;
+      };
+      const triees = [...familles].sort((a, b) => rang(b) - rang(a));
+      rangee.innerHTML = `<div class="rouleau-synergies">${triees.map(([nom, f]) => pastille(nom, f)).join("")}</div>` + panneau();
     }
 
     /* ================= LE MENU (refonte 28/08) =================
