@@ -424,7 +424,8 @@ const dette = (nom, ok, quand) => {
   const denominateur = await page.evaluate(async () => {
     const md = await (await fetch("/tests/RECETTES.md")).text();
     const annonce = (md.match(/\*\*(\d+) fichiers de recette\.?\*\*/) || [])[1];
-    const listes = (md.match(/`tests\/[a-z-]+\.spec\.js`/g) || [])
+    // v2 : un nom de recette peut porter un chiffre (effectif-v2.spec.js)
+    const listes = (md.match(/`tests\/[a-z0-9-]+\.spec\.js`/g) || [])
       .map((x) => x.slice(8, -10)).filter((v, i, l) => l.indexOf(v) === i);
     return { annonce: annonce ? Number(annonce) : null, listes: listes.length };
   });
