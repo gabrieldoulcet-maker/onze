@@ -354,6 +354,10 @@ Registre des décisions actées. Une décision qui n'est pas ici n'existe pas.
 
     **Le prix, mesuré et déclaré** : l'ouverture charge désormais les key arts des cartes du terrain — la dette de poids passe à **1 623 Ko** (d1) et **1 742 Ko** (d2), +41 Ko, même cause première (`match-scene.js` à différer), chiffres dans la table des dettes. Garde-fou de l'ensemble : `tests/refonte.spec.js` (26 assertions, sorties rouges avant le code).
 
+75. **Les synergies en tenue mercato : une rangée de mini-pastilles repliées (décision de Gabriel, 30/08 — prolonge la 74).** En phase MERCATO seulement, une seule ligne discrète en haut à gauche du terrain : **écusson + compte** (« ◈ 2/3 », le compte vise le prochain palier), palette de la refonte, bord vert quand un palier est atteint. **Un tap déplie UNE pastille** — palier atteint avec son effet, prochain palier avec le sien, les joueurs qui comptent — **un tap ailleurs la referme**, et le passage en Placement ou en Match fait disparaître la rangée entière. Les bannières de palier restent, le panneau complet reste au menu.
+
+    **« Rien d'elle ne recouvre le terrain » est structurel, pas un coup de chance** : la rangée se réserve sa ligne dans la grille comme le bandeau réserve la sienne (`margeHaut` += sa hauteur en mercato), et le panneau déplié est plafonné au-dessus de la bande du banc (le surplus défile). Les deux avaient d'abord été mesurés en défaut par la recette — 16 px² de pastille sur un défenseur, 2 585 px² de panneau sur le banc à 667×375 — avant le correctif. Au passage : le volet de famille générique écoutait aussi `[data-famille]` en délégation et s'ouvrait PAR-DESSUS la pastille dépliée — la rangée coupe la propagation, la pastille est un accès à elle seule. Garde-fou : `tests/synergies-mercato.spec.js`.
+
 ## Backlog priorisé (battue TFT, août 2026 — dans cet ordre)
 
 1. ✅ **Le clone fantôme** (fait) : nombre impair de survivants → au lieu d'un exempt, un coach affronte « l'équipe B » (le clone) d'un club vivant, traitée comme une entité à part entière dans l'appariement.
