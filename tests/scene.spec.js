@@ -793,12 +793,15 @@ const dette = (nom, ok, quand) => {
   /* Les ÉPISODES de l'étape 3 se cumulent d'un match à l'autre, comme le
      marquage : un match ne donne que cinq appels et sept pressings, et
      une distribution ne se juge pas sur sept points (décision 43). */
-  const sacE3 = { hauteurs: [], postures: {}, lignes: [], appels: [], pressings: [], options: [], dureesOption: [] };
+  const sacE3 = { hauteurs: [], postures: {}, lignes: [], appels: [], pressings: [], options: [], dureesOption: [],
+    distPressBallon: [], pressTicks: 0, pressTicksSansPorteur: 0, tempoParGabarit: {} };
   /* La tenue de ligne se cumule sur TOUS les matchs du passage, par
      régime : le verdict sur un seul match tirait à pile ou face autour
      du seuil (6,5 · 6,7 · 8,3 · 9,2 mesurés sur le même code). */
   const sacLignes = { repos: { n: 0, somme: 0 }, action: { n: 0, somme: 0 } };
   const lignesReposParMatch = [];
+  // le test de projection aussi : un match retenu peut n'avoir vu aucun appel
+  const sacProjection = { vus: 0, enCourse: 0 };
   /* Le FOOTBALL RENDU, en secondes cumulées : c'est le dénominateur du
      taux de pressing. Un TAUX se stabilise sur le nombre de MATCHS, pas
      sur le nombre d'épisodes — neuf matchs suffisent là où la
@@ -835,11 +838,18 @@ const dette = (nom, ok, quand) => {
         lignesReposParMatch.push(releve.lignesParRegime.repos.somme / releve.lignesParRegime.repos.n);
       }
     }
+    sacProjection.vus += releve.appelsVus || 0;
+    sacProjection.enCourse += releve.appelsEnCourse || 0;
     secondesRendues += (releve.duree || 0) / 1000;
     episodesParMatch.push(((releve.etape3 && releve.etape3.pressings) || []).filter((p) => p.duree >= 1).length);
     if (releve.etape3) {
-      for (const k of ["hauteurs", "lignes", "appels", "pressings", "options", "dureesOption"]) {
+      for (const k of ["hauteurs", "lignes", "appels", "pressings", "options", "dureesOption", "distPressBallon"]) {
         sacE3[k].push(...(releve.etape3[k] || []));
+      }
+      sacE3.pressTicks += releve.etape3.pressTicks || 0;
+      sacE3.pressTicksSansPorteur += releve.etape3.pressTicksSansPorteur || 0;
+      for (const [g, v] of Object.entries(releve.etape3.tempoParGabarit || {})) {
+        (sacE3.tempoParGabarit[g] = sacE3.tempoParGabarit[g] || []).push(...v);
       }
       for (const k in releve.etape3.postures) sacE3.postures[k] = (sacE3.postures[k] || 0) + releve.etape3.postures[k];
     }
@@ -1164,7 +1174,13 @@ const dette = (nom, ok, quand) => {
       // ÉTAPE 3 : les distributions du cerveau
       etape3: { ...e3, postures: physique.tiragesPosture || {},
         appels: physique.appels || [], pressings: physique.pressings || [],
-        options: physique.optionsPasse || [], dureesOption: physique.dureesOption || [] },
+        options: physique.optionsPasse || [], dureesOption: physique.dureesOption || [],
+        // étape 4, levier C : le temps de rôle presseur, avec/sans porteur
+        pressTicks: physique.pressTicks || 0,
+        pressTicksSansPorteur: physique.pressTicksSansPorteur || 0,
+        distPressBallon: physique.distPressBallon || [],
+        // étape 4 : la progression rendue, par gabarit (m/s par temps joué)
+        tempoParGabarit: physique.tempoParGabarit || {} },
       // ÉTAPE 1 : la physique
       physique, vMaxPlusHaut,
       vitesseChampMediane: med(vitessesChamp), vitesseChampP90: pct(vitessesChamp, 0.9),
@@ -1232,8 +1248,8 @@ const dette = (nom, ok, quand) => {
     releve.sansRaison === 0);
   verifier(`Décision 33 — test de pause : les pions convergent vers leur cible (écart médian ${releve.ecartMedian.toFixed(1)} m)`,
     releve.ecartMedian > 0 && releve.ecartMedian < 14);
-  verifier(`Décision 33 — test de projection : le receveur attendu est DÉJÀ en course (${releve.appelsEnCourse}/${releve.appelsVus} appels mesurés en mouvement)`,
-    releve.appelsVus >= 2 && releve.appelsEnCourse / releve.appelsVus >= 0.8);
+  verifier(`Décision 33 — test de projection : le receveur attendu est DÉJÀ en course (${sacProjection.enCourse}/${sacProjection.vus} appels mesurés en mouvement, sur tous les matchs du passage — un match seul pouvait n'en voir aucun)`,
+    sacProjection.vus >= 2 && sacProjection.enCourse / sacProjection.vus >= 0.8);
   /* Zéro sinusoïde : le vrai test est comportemental. Sans ballon qui
      bouge et sans temps joué, une scène pilotée par une fonction du
      temps oscillerait sans fin ; une scène pilotée par des intentions
@@ -1463,6 +1479,37 @@ const dette = (nom, ok, quand) => {
   const PDepTous = bruts.map((p) => p.depart);
   const PU2 = episodes.map((p) => p.duree);
   const PMin = episodes.map((p) => p.mini);
+  /* Étape 4, LEVIER C (design/etape4-prediction.md, amendement II) — la
+     mission de pressing s'arrête quand le ballon est parti. Mesuré AVANT
+     le correctif, avec CET instrument (protocole : publier avant
+     d'écrire) : 90 % du temps de rôle SANS porteur, distance
+     presseur→ballon médiane 7,0 · p90 19,4 m — et des « épisodes » à
+     44 m de minimum. Prédiction pré-enregistrée : part sous 20 %, p90
+     sous 12 m ; effet attendu sur densité et fermeture : AUCUN (si l'un
+     des deux bouge en réparant C seul, le mécanisme n'était pas
+     compris). Le seuil est une CONDITION D'ARRÊT, pas un comportement
+     émergent — d'où la confiance forte. */
+  const partSansPorteur = e3.pressTicks ? e3.pressTicksSansPorteur / e3.pressTicks : 0;
+  const DPB = e3.distPressBallon;
+  /* La moitié TENUE de la prédiction : plus de poursuite à vingt mètres. */
+  verifier(`Étape 4, levier C — le presseur reste SUR le ballon : distance presseur→ballon p90 ${q(DPB, 0.9).toFixed(1)} m (avant : 19,4 ; prédit et tenu : < 12) sur ${e3.pressTicks} ticks de rôle`,
+    e3.pressTicks >= 500 && q(DPB, 0.9) < 12);
+  /* La moitié RATÉE, écrite comme telle (la prédiction ne se retouche
+     pas, elle se compare) : la part sans porteur devait tomber sous
+     20 %, elle est restée à ~74 %. La cause est NOMMÉE : nos passes
+     voyagent loin (options de passe médiane 0 — le levier A), donc le
+     rôle ne vit guère que pendant les vols locaux ; le pressing sur
+     porteur tenu existe (il ferme à 100 % sous 3 m quand il a lieu)
+     mais meurt sous la seconde quand la passe part. Elle se paiera avec
+     le levier A, pas en désarmant la mesure. */
+  dette(`Étape 4, levier C — la part du temps de rôle SANS porteur : ${Math.round(partSansPorteur * 100)} % (avant : 90 % ; prédit < 20 % — prédiction RATÉE en l'état, cause nommée : les passes longues du levier A)`,
+    e3.pressTicks >= 500 && partSansPorteur < 0.20,
+    "ÉCHÉANCE levier A (les options rapprochées) — quand un soutien vivra à distance de passe courte, le rôle survivra à la passe et la part tombera ; en attendant le chiffre reste affiché");
+  /* ÉTAPE 4 — le tempo rendu, par gabarit, PUBLIÉ avant d'asserter
+     (protocole : la marge du verdict se calera sur la mesure). */
+  const TG = e3.tempoParGabarit;
+  const detailTempo = Object.entries(TG).map(([g, v]) => `${g} ${q(v, 0.5).toFixed(1)} m/s (${v.length})`).join(" · ");
+  console.log(`   📐 tempo rendu par gabarit : ${detailTempo || "—"}`);
   /* Le VERDICT sur départ et durée a déménagé sur le sac cumulé entre
      exécutions, plus bas : un passage ne livre plus que ~4 épisodes finis
      en jeu, et un verdict à n = 4 est un tirage au sort. Même remède que
@@ -1584,8 +1631,19 @@ const dette = (nom, ok, quand) => {
      l'indépendance ; des pressings groupés dans un même temps fort
      rendraient le p optimiste. L'indice de dispersion (variance/moyenne)
      doit rester proche de 1 — mesuré 1,02 sur les cumuls de référence. */
-  verifier(`Étape 3 — l'hypothèse du test de densité tient : indice de dispersion ${indice === null ? "—" : indice.toFixed(2)} sur ${cumul.parMatch.length} matchs cumulés (Poisson pur = 1 ; SOUS 1 le test est conservateur, donc sans risque ; AU-DELÀ DE 2 les épisodes se groupent et le p deviendrait optimiste — c'est ce seul côté qu'on surveille)`,
-    indice !== null && indice < 2);
+  /* UN INDICE SANS MATIÈRE NE DIT RIEN — et il peut dire « vert ».
+     Pendant le chantier de l'étape 4, le pressing réel est passé par
+     0,13/min : à un épisode par passage, l'indice vaut mécaniquement ~1
+     et la dette de dispersion sortait 🟡 « verte » sur un phénomène
+     DISPARU. C'est le vert obtenu faute d'échantillon (M6) : tous les
+     verdicts de dispersion exigent désormais 40 épisodes cumulés. */
+  const matiereDispersion = cumul.episodesTous >= 40;
+  if (!matiereDispersion) {
+    console.log(`   ⚠ Étape 3 — dispersion : ${cumul.episodesTous} épisodes cumulés (< 40), l'indice ${indice === null ? "—" : indice.toFixed(2)} ne porte rien — NON CONCLUANT, relancer la recette cumule`);
+  } else {
+    verifier(`Étape 3 — l'hypothèse du test de densité tient : indice de dispersion ${indice === null ? "—" : indice.toFixed(2)} sur ${cumul.parMatch.length} matchs cumulés (Poisson pur = 1 ; SOUS 1 le test est conservateur, donc sans risque ; AU-DELÀ DE 2 les épisodes se groupent et le p deviendrait optimiste — c'est ce seul côté qu'on surveille)`,
+      indice !== null && indice < 2);
+  }
   /* LA VOLATILITÉ DE L'INSTRUMENT — une question DIFFÉRENTE, et un
      remède différent. Le cumul répond « combien » ; la répétition répond
      « la mesure est-elle fiable ». Une recette peut osciller pour des
@@ -1634,8 +1692,11 @@ const dette = (nom, ok, quand) => {
   const ddl = cumul.parMatch.length - 1;
   const chi2 = indice === null ? null : (ddl * indice) / 1.05;
   const pDisp = chi2 === null ? 1 : chi2Cumul(chi2, ddl);
-  dette(`Étape 3 — les matchs ne se ressemblent pas : indice de dispersion des pressings ${indice === null ? "—" : indice.toFixed(2)} sur ${cumul.parMatch.length} matchs cumulés (référence 1,05 pour une fenêtre courte — 1,02 à la fenêtre décision 73, écart de 3 % dans le sens indulgent, déclaré ; le vrai football est à 5,56 sur des matchs entiers) → χ² = ${chi2 === null ? "—" : chi2.toFixed(1)} à ${ddl} ddl, p = ${pDisp.toFixed(4)}`,
-    ddl >= 6 && pDisp >= 0.05,
+  /* La même garde de matière que l'hypothèse : une dispersion « verte »
+     parce qu'il ne reste presque plus d'épisodes n'est pas une dette
+     payée, c'est le phénomène qui a disparu. */
+  dette(`Étape 3 — les matchs ne se ressemblent pas : indice de dispersion des pressings ${indice === null ? "—" : indice.toFixed(2)} sur ${cumul.parMatch.length} matchs et ${cumul.episodesTous} épisodes cumulés (référence 1,05 pour une fenêtre courte — 1,02 à la fenêtre décision 73, écart de 3 % dans le sens indulgent, déclaré ; le vrai football est à 5,56 sur des matchs entiers) → χ² = ${chi2 === null ? "—" : chi2.toFixed(1)} à ${ddl} ddl, p = ${pDisp.toFixed(4)}${matiereDispersion ? "" : " — SANS MATIÈRE (< 40 épisodes), l'indice ne porte rien"}`,
+    matiereDispersion && ddl >= 6 && pDisp >= 0.05,
     "ÉCHÉANCE étape 4 — un match-bataille et un match-promenade doivent contenir des quantités de pressing différentes ; c'est le tempo qui les distinguera. Quatrième distribution à atteindre, et la seule qui se mesure sur n = MATCHS");
   /* LE PORTEUR, SUR LE CUMUL (même mécanique que le marquage). */
   const pTrie = cumul.porteur.slice().sort((a, b) => a - b);

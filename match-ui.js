@@ -193,6 +193,9 @@ const ONZE_UI = (() => {
     courte.situation = action.situation;
     courte.equipe = action.equipe;
     courte.style = action.style;
+    // étape 4 : le gabarit voyage avec le format court — depuis la
+    // décision 73 TOUT passe par ici, l'oublier le perdait partout
+    courte.gabarit = action.gabarit;
     return courte;
   }
   /* Un but et un presque-but gagnent un temps d'arrêt sur image : sans

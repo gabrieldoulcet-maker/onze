@@ -354,3 +354,61 @@ sur 10-14 pions** à une référence à 22. Elle doit soit se restreindre aux ma
 forcer le niveau 9 et rejouer — et c'est un arbitrage à rendre. En attendant, la ligne
 reste suspendue plutôt que rouge, et **le fait à retenir est celui de la cellule appariée :
 un excédent démontré en direction, d'ampleur à confirmer** (IC 90 % : +14 à +123 %).
+
+---
+
+## Amendement V — premiers résultats mesurés (leviers C et tempo), 30 août
+
+*Écrit au moment de la livraison de l'incrément « levier C + pilotage par gabarit ». Le
+tableau des prédictions ne se retouche pas ; il se compare, ligne à ligne.*
+
+### 1. Le casting n'atteignait pas la scène — un bug d'un autre étage
+
+Le gabarit était calculé (étape 4a) et attaché à la séquence… puis **perdu par
+`actionCourte`**, qui recopie une séquence raccourcie sans son champ `gabarit`. Or depuis la
+décision 73, TOUS les rendus passent par le format court : le casting ne pilotait donc
+rien du tout. Trouvé par l'instrumentation du tempo qui revenait vide — une mesure qui ne
+mesure rien est aussi un détecteur.
+
+### 2. Prédiction C : une moitié tenue, une moitié ratée — et un fantôme plus gros que prévu
+
+- **Tenue** : distance presseur→ballon p90 **19,4 → 7,9-9,9 m** (prédit < 12).
+- **Ratée** : part du temps de rôle sans porteur **90 % → 62-74 %** (prédit < 20 %). Notre
+  « avant » mesuré était d'ailleurs 90 %, pas les 60 % de l'analyse externe.
+- **Le mécanisme, compris en route** : (a) le bloc pressing ne vérifiait pas `jeuVivant` —
+  on « pressait » des ballons morts pendant le repos, contrairement au commentaire du code
+  lui-même ; (b) le rôle ne s'allumait guère que quand le ballon TRAVERSAIT le bloc en vol
+  (< 6,5 m d'un défenseur au passage) — presque jamais sur un porteur tenu, car le défenseur
+  le plus proche d'un porteur est à **10,3 m en médiane** (p10 4,3, p90 28,4 — mesuré).
+
+**Conséquence lourde : notre densité de pressing était un fantôme.** Fantômes retirés, la
+densité réelle tombe à **0,13-0,78/min** (contre 5,50 affichés avant, et 3,3-3,7 sous la
+décision 73). Les chiffres de dette de l'étape 3 (fermeture 53 %, etc.) étaient mesurés sur
+une population dominée par ces fantômes — épisodes à 44 m de minimum compris. Le vrai
+pressing qui reste est authentique : départ ~7,9 m, minimum médian 2,0-2,2 m (réel 2,27),
+fermeture 5/7 puis 2/7 selon le tirage — trop rare pour conclure, et c'est le point.
+
+**Pourquoi il est rare, et où ça mène** : la sortie à 8 m fonctionne, mais l'épisode meurt
+sous la seconde dès que la passe part — et nos passes voyagent LOIN parce qu'aucun soutien
+ne vit à distance courte (options médiane 0, 18-30 % dans 1-3). Tout converge vers le
+**levier A** : libérer les pions tenus par la chorégraphie pour qu'ils offrent des options
+rapprochées. La part sans porteur est inscrite en dette, échéance levier A.
+
+### 3. Le porteur roulait à la peur — le tempo l'a remplacée
+
+Fantômes supprimés, l'allure du porteur d'occasion chaude est tombée à **2,26-2,34 m/s**
+(référence 3,4 ±25 %) : c'était la fuite devant les faux presseurs qui le faisait courir.
+Le pilotage par gabarit la lui rend par le bon mécanisme — le tempo ne commande que la
+composante **vers le but** (création 1,3 m/s, jeu direct 13), le pas **latéral** complète la
+course pour que l'allure du porteur ne dépende pas de la situation. Mesuré après : 2,93 m/s
+(vert), création rendue à 0,4-1,4 m/s net, finition/jeu direct 7-10.
+
+### 4. Postures et garde-fou de matière
+
+- Le camp qui défend tire désormais sa posture sous le **biais du gabarit** (contre → haute
+  en retard, jeu direct/finition → bloc bas, chaos/transition → désorganisée), multiplié par
+  le penchant d'École. Distribution mesurée : toujours sous les plafonds (bas 35 % pour un
+  plafond à 48 %).
+- **Un piège M6 attrapé en route** : la dette de dispersion est sortie 🟡 « verte » à
+  1 épisode par passage — l'indice d'un phénomène disparu vaut mécaniquement ~1. Tous les
+  verdicts de dispersion exigent désormais **40 épisodes cumulés** de matière.

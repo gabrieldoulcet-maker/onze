@@ -115,12 +115,13 @@ retouche à glisser en fin de livraison.
 
 | Dette | Mesuré (cumul) | Cible | Échéance |
 |---|---|---|---|
-| 1 à 3 options de passe ouvertes | **19-29 %** sur ~190 passes par passage (la décision 73 a **aggravé** la mesure, comme prévu qualitativement : fenêtres plus courtes, moins de mouvement installé — cumul redémarré, empreinte nouvelle) | **88 %** (médiane 2) | étape 4 |
-| Densité de pressing | ⏸ **SUSPENDUE** — 3,4-3,7/min sur les passages décision 73 (épisodes ≥ 1 s **tronqués inclus** : un épisode coupé a eu lieu ; 5,50 avant la 73), matchs à 10-14 pions, référence 7,01 valable à 22 joueurs ; à effectif apparié (22 pions, **27 épisodes**) : **excédent démontré en direction, ampleur à confirmer** (11,3/min ; IC 90 % : +14 à +123 %) | référence à apparier | *se lève en mesurant à 22 pions* |
-| Part des pressings fermant sous 3 m | la démonstration (53 % sur 197, p = 0,0002) vaut pour l'**ancien code** — la décision 73 a changé le code ET la population (épisodes **finis en jeu**), le cumul est reparti de zéro et n'avance que de **2-4 épisodes par passage** (troncature ~85-90 %) | **65,9 %** (épisodes ≥ 1 s finis en jeu) | étape 4 |
-| Dispersion des pressings entre matchs | cumul redémarré avec l'empreinte 73 (0,64 à 1,16 sur l'ancien code) | **≈ 1,05** (le vrai football : 5,56 sur des matchs entiers) | étape 4 — *la seule qui se mesure sur n = MATCHS* |
-| Poids à l'ouverture, PIRE tirage, densité 1 (`da.spec.js`) | **1 631 Ko** (socle 1 259 + les 5 key arts les plus lourds 372 — 1 580 → 1 595 → 1 631 : refonte +41 Ko de key arts du terrain, synergies mercato +8) | **≤ 1 500 Ko** | la livraison qui différera `match-scene.js` — attention : 1 631 − 130 = **1 501**, le différé seul ne suffit plus, il faudra raboter le Ko restant |
-| Poids à l'ouverture, PIRE tirage, densité 2 (`terrains.spec.js`) | **1 749 Ko** (même dérive, passage P-260830-063032) | **≤ 1 700 Ko** | la même : différer `match-scene.js` (1 749 − 130 = 1 619) |
+| 1 à 3 options de passe ouvertes | **18-30 %** sur ~170-215 passes par passage | **88 %** (médiane 2) | étape 4, levier A |
+| Part du temps de rôle presseur SANS porteur | **62-74 %** (avant le levier C : 90 %) — la moitié ratée de la prédiction C, cause nommée : les passes longues | **< 20 %** | étape 4, levier A |
+| Densité de pressing | ⏸ **SUSPENDUE** — et **repeuplée** : les fantômes retirés (ballons morts, ballons partis — amendement V), la densité RÉELLE vaut **0,13-0,78/min**. Les 5,50/min d'avant étaient ~9/10 de fantômes ; la référence 7,01 vaut à 22 joueurs et reste non appariée ; à effectif apparié (22 pions, 27 épisodes, mesuré sur l'ancienne population fantôme) : chiffre à REFAIRE | référence à apparier, population vraie | *se lève en mesurant à 22 pions sur la population dé-fantômée* |
+| Part des pressings fermant sous 3 m | cumul reparti de zéro sur la population VRAIE (fantômes retirés — l'ancienne démonstration « 53 % sur 197 » comptait des épisodes à 44 m de minimum) ; premiers passages : 5/7 puis 2/7, minimum médian 2,0-3,5 m | **65,9 %** (épisodes ≥ 1 s finis en jeu) | étape 4 |
+| Dispersion des pressings entre matchs | **SANS MATIÈRE** tant que le pressing réel reste rare (garde M6 : 40 épisodes cumulés minimum) | **≈ 1,05** (le vrai football : 5,56 sur des matchs entiers) | étape 4 — *la seule qui se mesure sur n = MATCHS* |
+| Poids à l'ouverture, PIRE tirage, densité 1 (`da.spec.js`) | **1 637 Ko** (socle 1 265 + les 5 key arts les plus lourds 372 — 1 580 → 1 595 → 1 631 → 1 637 : refonte +41 Ko, synergies mercato +8, instrumentation étape 4 +6) | **≤ 1 500 Ko** | la livraison qui différera `match-scene.js` — attention : 1 637 − 130 = **1 507**, le différé seul ne suffit plus, il faudra raboter les Ko restants |
+| Poids à l'ouverture, PIRE tirage, densité 2 (`terrains.spec.js`) | **1 755 Ko** (même dérive, passage P-260830-080559) | **≤ 1 700 Ko** | la même : différer `match-scene.js` (1 755 − 130 = 1 625) |
 
 ### Ce que le cumul a changé, en chiffres
 
@@ -311,3 +312,27 @@ promesses rendues » est sortie rouge (3 rendus pour 4 phases chaudes) parce que
 retiré de la sélection — c'est le format court qui tient la durée totale, le garde-fou
 de durée (≤ 39 s) le vérifie. Contre-test grandeur nature : la recette garde bien ce
 qu'elle prétend garder.
+
+### L'étape 4 commence : le pressing-fantôme démasqué, et les gardes qui l'ont permis
+
+Trois choses gravées avec l'incrément « levier C + pilotage par gabarit » (le détail est
+dans `design/etape4-prediction.md`, amendement V) :
+
+**1. La densité de pressing d'avant était un fantôme aux ~9/10.** Le rôle s'allumait sur
+des ballons morts (le bloc ne vérifiait pas `jeuVivant`) et sur des ballons en vol qui
+traversaient le bloc — d'où des « épisodes » à 44 m de minimum. Fantômes retirés, la
+densité réelle vaut 0,13-0,78/min. **Tous les cumuls de pressing repartent de zéro sur une
+population enfin vraie**, et les chiffres d'avant (5,50/min, fermeture 53 % sur 197) ne se
+comparent plus à ceux d'après — règle M2, déclarée ici.
+
+**2. Un vert de disparition attrapé (M6)** : la dette de dispersion sortait « verte » à un
+épisode par passage. Les verdicts de dispersion exigent désormais 40 épisodes cumulés,
+sinon ⚠ SANS MATIÈRE.
+
+**3. Deux verdicts mono-match déménagés sur le passage** (tenue de ligne, test de
+projection) : un match seul tirait au sort — 6,5→9,2 m d'un run à l'autre pour la ligne,
+0 appel vu pour la projection.
+
+La dette nouvelle : « part du temps de rôle sans porteur » (62-74 % contre < 20 % prédit),
+échéance **levier A** — les options rapprochées. C'est la moitié ratée de la prédiction C,
+écrite comme telle.

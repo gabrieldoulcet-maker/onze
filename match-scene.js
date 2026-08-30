@@ -729,10 +729,25 @@ const ONZE_SCENE = (() => {
       total:      { bas: 0.5, median: 1.1, haut: 2.6,  chaos: 0.9 },
     };
     const posture = { moi: "median", eux: "median" };
-    function tirerPosture(camp) {
+    /* ÉTAPE 4 : la posture défensive adverse est SIGNÉE par le gabarit
+       (design/scene-simulation.md §6) — un contre trouve une défense
+       haute et clairsemée en retard, un jeu direct un bloc bas déjà prêt,
+       un chaos une défense désorganisée. Le penchant d'École reste : les
+       deux se multiplient, comme deux causes réelles se composent. */
+    const GABARIT_POSTURE = {
+      construction: { median: 2.5 },
+      creation:     { median: 1.5, bas: 1.3 },
+      chaos:        { chaos: 4 },
+      contre:       { haut: 3, chaos: 1.5 },
+      transition:   { chaos: 2.5, haut: 1.5 },
+      jeu_direct:   { bas: 4 },
+      finition:     { bas: 4 },
+    };
+    function tirerPosture(camp, biaisGabarit) {
       const p = PENCHANT[styles[camp].style] || {};
+      const g = biaisGabarit || {};
       const noms = Object.keys(POSTURES);
-      const poids = noms.map((n) => POSTURES[n].part * (p[n] !== undefined ? p[n] : 1));
+      const poids = noms.map((n) => POSTURES[n].part * (p[n] !== undefined ? p[n] : 1) * (g[n] !== undefined ? g[n] : 1));
       const total = poids.reduce((a, b) => a + b, 0);
       let tirage = Math.random() * total;
       let choisie = "median";
@@ -1077,7 +1092,13 @@ const ONZE_SCENE = (() => {
       // 4. le pressing : les 2 défenseurs les plus proches du ballon,
       //    côté but. Fidélité moteur : le défenseur que le moteur a
       //    désigné battu est justement celui qui arrive en retard.
-      if (campDef) {
+      /* jeuVivant, comme les sections 1-3 et 5 : c'était LA fuite du
+         levier C. Sans cette garde, la possession survivant au repos,
+         des défenseurs restaient « presseurs » d'un ballon mort — 88 %
+         du temps de rôle sans porteur même après la condition d'arrêt
+         sur la distance. Le commentaire du régime le promettait déjà :
+         personne ne presse un ballon mort. */
+      if (jeuVivant && campDef) {
         const sens = sensDe(campDef);
         const zoneBasse = Math.abs(ballon.x - BUTS[campDef].x) < 30;
         const candidatsPress = listePions
@@ -1097,7 +1118,24 @@ const ONZE_SCENE = (() => {
                n'a l'air pressé — le vrai football ferme à 2,6 m, une
                longueur de corps. C'est la différence entre « un défenseur
                a couru vers lui » et « un défenseur est sur lui ». */
-            (q.pressJusqua > horloge || distance(q, ballon) < 6.5) &&
+            /* LEVIER C (étape 4, prédiction pré-enregistrée) : la mission
+               s'arrête quand le ballon est PARTI. Mesuré avant : 90 % du
+               temps de rôle sans porteur, distance p90 19,4 m — un
+               presseur qui poursuit un ballon à vingt mètres n'est pas un
+               presseur, et ces queues fabriquaient des « épisodes » à
+               44 m de minimum. On garde une tolérance locale : pendant
+               une passe courte (ballon à moins de 10 m), le presseur
+               reste engagé — c'est le relais des chaînes réelles (trois
+               joueurs en médiane), pas une poursuite. */
+            (ballon.porteur || distance(q, ballon) < 10) &&
+            /* LA SORTIE (étape 4) : l'entrée se déclenche jusqu'à 8 m
+               d'un porteur TENU. Mesuré avant : le défenseur le plus
+               proche d'un porteur est à 10,3 m en médiane (p10 4,3) — à
+               6,5 m de seuil, la moitié du temps de possession n'offrait
+               AUCUNE entrée possible et le pressing réel tombait à
+               0,13/min. À 8 m, le départ d'épisode reste dans la
+               fourchette réelle (6,41 m ±35 % → 4,2-8,7). */
+            (q.pressJusqua > horloge || distance(q, ballon) < 8) &&
             !(zoneBasse && q.ligne === "ATT"));  // le point haut ne redescend pas presser
         // INERTIE : celui qui pressait déjà garde la mission (6 m de
         // bonus) — sinon les deux plus proches changent chaque frame
@@ -1232,6 +1270,10 @@ const ONZE_SCENE = (() => {
            quotient ne veut rien dire (décision 57). --- */
         if (p.role === "pressing") {
           const d = distance(p, ballon);
+          // levier C : le rôle se compte au tick, porteur présent ou pas
+          mesures.pressTicks++;
+          if (!ballon.porteur) mesures.pressTicksSansPorteur++;
+          ranger(mesures.distPressBallon, d);
           if (!p.episodePress) p.episodePress = { t0: horloge, depart: d, mini: d };
           else p.episodePress.mini = Math.min(p.episodePress.mini, d);
         } else if (p.episodePress) {
@@ -1460,6 +1502,7 @@ const ONZE_SCENE = (() => {
     /* ---- LE CUT (R2) : carton sec minute + score entre deux temps forts ---- */
     function cut(info, duree = 900) {
       regime = "cut";
+      mesureTempo = null;   // une coupe n'est pas une progression
       avancerTimeline();        // le cut ouvre un temps fort : le point s'allume
       bande.classList.remove("visible");
       barrePossession.classList.remove("visible");
@@ -1510,6 +1553,7 @@ const ONZE_SCENE = (() => {
        ============================================================ */
     function miseEnPlace(sequence, duree = 3000) {
       regime = "miseEnPlace";
+      mesureTempo = null;   // le décor se repose, on ne mesure pas ça
       barrePossession.classList.remove("visible");
       const camp = sequence.equipe ? campDe(sequence.equipe) : "moi";
       const situation = sequence.situation || "placee";
@@ -1517,8 +1561,12 @@ const ONZE_SCENE = (() => {
       indexCourant = -1;
       situationCourante = situation;
       possession = camp;
-      // décision 57 : une posture par phase, tenue — pas une fonction du ballon
-      tirerPosture("moi"); tirerPosture("eux");
+      // décision 57 : une posture par phase, tenue — pas une fonction du
+      // ballon. Étape 4 : le camp qui DÉFEND tire sa posture sous le
+      // biais du gabarit ; l'attaquant garde son penchant d'École seul.
+      const gab = sequence.gabarit && sequence.gabarit.gabarit;
+      tirerPosture(camp);
+      tirerPosture(adverse(camp), GABARIT_POSTURE[gab]);
       const sens = sensDe(camp);
       // où naît l'action, selon la situation (données du moteur)
       const zone = {
@@ -1612,6 +1660,25 @@ const ONZE_SCENE = (() => {
        L'ancienne fonction `coursesAppel` envoyait des coéquipiers vers
        l'avant sans motif : c'était le bruit que ce chantier supprime. */
 
+    /* ÉTAPE 4 : LE TEMPO DU GABARIT PILOTE LA PROGRESSION.
+       « La vitesse de progression du ballon vers le but distingue les
+       situations mieux que leur forme » (design/scene-simulation.md §6).
+       Le pas d'un temps = tempo du gabarit × durée jouée, borné : une
+       construction (0,04 m/s) circule sans avancer, un jeu direct
+       (13 m/s) avale le terrain. C'est le SEUL paramètre — la même
+       passe, le même relais, changent de nature selon la situation. */
+    const gabaritCourant = () => (sequenceCourante && sequenceCourante.gabarit) || null;
+    function pasDeTempo(ms, mini, maxi) {
+      const g = gabaritCourant();
+      const tempo = g ? g.tempo : 1.3;             // défaut : création
+      return borne(tempo * (ms / 1000), mini, maxi);
+    }
+    /* La mesure du tempo RENDU, par gabarit : l'avance du ballon vers le
+       but entre deux temps joués, en m/s. C'est la recette de l'étape 4
+       (« les tempos classent dans le bon ordre ») qui la lit. Les temps
+       d'issue sont exclus : une frappe à 27 m/s mesurerait le tir, pas
+       la situation. */
+    let mesureTempo = null;
     function jouerTemps(t, duree, surIssue) {
       const ms = Math.max(400, duree || 800);
       // où en est-on dans la chorégraphie ? (pour l'appel du receveur suivant)
@@ -1622,6 +1689,19 @@ const ONZE_SCENE = (() => {
       const camp = t.equipe ? campDe(t.equipe) : "moi";
       const sens = sensDe(camp);
       if (!t.issue) regime = "action";
+      if (mesureTempo) {
+        const dt = horloge - mesureTempo.t0;
+        if (dt > 0.3) {
+          const avance = (ballon.x - mesureTempo.x0) * sensDe(mesureTempo.camp);
+          const liste = mesures.tempoParGabarit[mesureTempo.g] = mesures.tempoParGabarit[mesureTempo.g] || [];
+          ranger(liste, avance / dt);
+        }
+        mesureTempo = null;
+      }
+      const gCourant = gabaritCourant();
+      if (gCourant && !t.issue && t.type !== "frappe") {
+        mesureTempo = { g: gCourant.gabarit, x0: ballon.x, t0: horloge, camp };
+      }
 
       switch (t.type) {
 
@@ -1642,9 +1722,10 @@ const ONZE_SCENE = (() => {
           const p = pionDe(t.acteur, camp);
           if (p) { donnerLeBallon(p.nom, 19, camp); p.flash = 400; etiqueter([p]); }
           // tout le bloc part vers l'avant : c'est CE mouvement qui dit « contre »
+          const pasContre = pasDeTempo(ms, 8, 16);
           for (const q of listePions) {
             if (q.camp !== camp || q.gardien) continue;
-            q.cx = dansLeJeu(q.x + sens * (10 + (q.ligne === "ATT" ? 7 : 0)));
+            q.cx = dansLeJeu(q.x + sens * (pasContre + (q.ligne === "ATT" ? 5 : 0)));
             q.cy = dansLaLargeur(lerp(q.y, q.baseY, 0.35) + q.baseY * 0.12);
             q.roleScenario = "contre";
           }
@@ -1666,7 +1747,9 @@ const ONZE_SCENE = (() => {
             const cadence = { tiki: 19, kickrush: 21, catenaccio: 15, rue: 16, total: 18, grinta: 19 };
             passer(t.de, t.vers, { vitesse: cadence[styles[camp].style] || 17, camp });
             if (de) { de.cx = dansLeJeu(de.x + sens * 2); de.roleScenario = "suit"; }   // il suit sa passe
-            vers.cx = dansLeJeu(vers.x + sens * 2);
+            /* le tempo décide de ce que le relais GAGNE : une construction
+               circule quasi sur place, une transition monte le terrain */
+            vers.cx = dansLeJeu(vers.x + sens * pasDeTempo(ms, 0.5, 10));
             etiqueter([de, vers]);
           }
           break;
@@ -1677,7 +1760,7 @@ const ONZE_SCENE = (() => {
           const vers = pionDe(t.vers, camp);
           if (vers) {
             // la cloche : le ballon monte, l'ombre au sol le trahit
-            vers.cx = dansLeJeu(vers.x + sens * 9);
+            vers.cx = dansLeJeu(vers.x + sens * pasDeTempo(ms, 6, 16));
             vers.cy = dansLaLargeur(lerp(vers.y, vers.baseY, 0.4));
             passer(t.de, t.vers, { vitesse: 16, cloche: true, camp });
           } else {
@@ -1699,8 +1782,13 @@ const ONZE_SCENE = (() => {
             const genant = listePions.filter((q) => q.camp !== p.camp && !q.gardien)
               .sort((a, b) => distance(a, p) - distance(b, p))[0];
             const cote = genant ? (genant.y > p.y ? -1 : 1) : (p.y > 0 ? -1 : 1);
-            p.cx = dansLeJeu(p.x + sens * 5);
-            p.cy = dansLaLargeur(p.y + cote * 4);
+            /* Le tempo ne pilote que la composante VERS LE BUT : un
+               porteur de construction porte autant qu'un autre (3-4 m/s
+               réels), mais latéralement. Le pas latéral complète la
+               course pour que l'allure ne dépende pas du gabarit. */
+            const pasAvant = pasDeTempo(ms, 0.5, 12);
+            p.cx = dansLeJeu(p.x + sens * pasAvant);
+            p.cy = dansLaLargeur(p.y + cote * Math.max(4, 6 - pasAvant));
             p.roleScenario = "conduite";
             etiqueter([p]);
           }
@@ -2253,7 +2341,15 @@ const ONZE_SCENE = (() => {
        Coût : trois comparaisons par pion et par frame. */
     const mesures = { accelMax: 0, vitesseMax: 0, surVitesse: 0, surAccel: 0, nonFinis: 0, ticks: 0,
       // étape 3 : les ÉPISODES, relevés du début à la fin d'un rôle
-      appels: [], pressings: [], optionsPasse: [], dureesOption: [], tiragesPosture: {} };
+      appels: [], pressings: [], optionsPasse: [], dureesOption: [], tiragesPosture: {},
+      /* étape 4, levier C (design/etape4-prediction.md, amendement II) :
+         le temps passé EN RÔLE de presseur, ventilé selon qu'un porteur
+         existe, et la distance presseur→ballon pendant le rôle. Avant le
+         correctif : 60 % du temps sans porteur, distance p90 29,4 m —
+         un presseur qui poursuit un ballon parti n'est pas un presseur. */
+      pressTicks: 0, pressTicksSansPorteur: 0, distPressBallon: [],
+      // étape 4 : la vitesse de progression rendue, par gabarit (m/s)
+      tempoParGabarit: {} };
     // le nombre d'options VIVANTES à cet instant — lu au moment de la passe
     let optionsVivantes = 0;
 
@@ -2498,6 +2594,8 @@ const ONZE_SCENE = (() => {
         mesures: { ...mesures,
           appels: mesures.appels.slice(), pressings: mesures.pressings.slice(),
           optionsPasse: mesures.optionsPasse.slice(), dureesOption: mesures.dureesOption.slice(),
+          distPressBallon: mesures.distPressBallon.slice(),
+          tempoParGabarit: Object.fromEntries(Object.entries(mesures.tempoParGabarit).map(([k, v]) => [k, v.slice()])),
           tiragesPosture: { ...mesures.tiragesPosture } },
         // décision 33 : l'échelle des pions, mesurée par la recette
         rayonPion: geo ? rayonPion(0) : null,
