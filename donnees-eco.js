@@ -15,7 +15,7 @@ const ONZE_ECO = {
   XP_PAR_ACHAT: 4,
   XP_GRATUITE_PAR_MANCHE: 2,
   TAILLE_BOUTIQUE: 5,
-  TAILLE_BANC: 9,
+  TAILLE_BANC: 4,   // v2 (décision 77) : effectif plafonné à 15 = 11 titulaires + 4 remplaçants
   // le pool de copies partagé (30/25/18/10/9 = les sacs TFT)
   POOL_PAR_COUT: { 1: 30, 2: 25, 3: 18, 4: 10, 5: 9 },
   // les odds officielles par niveau de club
@@ -25,7 +25,9 @@ const ONZE_ECO = {
     9: [10, 20, 25, 35, 10], 10: [5, 10, 20, 40, 25],
   },
   XP_POUR_MONTER: { 3: 6, 4: 10, 5: 20, 6: 36, 7: 60, 8: 68, 9: 68 },
-  TITULAIRES_PAR_NIVEAU: { 3: 5, 4: 6, 5: 7, 6: 8, 7: 9, 8: 10, 9: 11, 10: 11 },
+  // v2 (décision 77) : onze dès le coup d'envoi — plus de montée 5→11,
+  // le niveau n'ouvre plus que le talent (les odds ci-dessus)
+  TITULAIRES_PAR_NIVEAU: { 3: 11, 4: 11, 5: 11, 6: 11, 7: 11, 8: 11, 9: 11, 10: 11 },
 
   /* ---- les revenus ---- */
   droitsTV: (manche) => [2, 2, 3, 4][manche - 1] ?? 5,

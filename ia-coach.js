@@ -45,16 +45,17 @@ const ONZE_IA = (() => {
     optimiseur: { scorePaire: 13, bonusEcole: 7, bruit: 0, relancesPlafond: 14, planchers: true,
       staffMalin: true, alignMalin: true, niveauMax: 10, pivote: false, alignSynergie: true },
   };
-  /* Les réservistes de départ des IA (coût 0, hors pool) — un espace de
-     noms par club, jamais ceux du joueur ni du pool. */
+  /* Le onze de départ des IA (coût 0, hors pool) — un espace de noms
+     par club, jamais ceux du joueur ni du pool. v2 (décision 77) :
+     onze noms par club, onze dès le coup d'envoi. */
   const STARTERS_IA = {
-    "Fortezza Nero": ["Enzo", "Furio", "Santo", "Aldo", "Nino F."],
-    "La Masia Rebelle": ["Pau", "Biel", "Quim", "Jordi", "Cesc"],
-    "Union Bitume": ["Driss", "Kylian B.", "Sofiane", "Wesh", "Tonio"],
-    "Royal Toundra": ["Sven", "Olaf", "Magnus", "Bjorn", "Nils"],
-    "Clockwork XI": ["Daan", "Stijn", "Roel", "Bram", "Coen"],
-    "Barrio Bravo": ["Chucho", "Pancho", "Rulo", "Tigre", "Beto"],
-    "Le Consortium": ["Serge", "Hervé", "Patrice", "Gilles", "Yvon"],
+    "Fortezza Nero": ["Enzo G.", "Furio", "Santo", "Aldo P.", "Nino F.", "Beppe", "Dario", "Gigi", "Mimmo", "Rocco", "Ugo"],
+    "La Masia Rebelle": ["Pau", "Biel", "Quim", "Jordi", "Cesc", "Martí", "Oriol", "Roger", "Aleix", "Nil", "Arnau"],
+    "Union Bitume": ["Driss", "Kylian B.", "Sofiane", "Wesh", "Tonio", "Mehdi", "Samir", "Ibra", "Ryad", "Issa", "Nabil"],
+    "Royal Toundra": ["Sven B.", "Olaf", "Magnus", "Bjorn", "Nils", "Erik", "Lasse", "Gunnar", "Thor", "Axel", "Finn"],
+    "Clockwork XI": ["Daan", "Stijn", "Roel", "Bram V.", "Coen", "Pim", "Sjaak", "Teun", "Gijs", "Huub", "Niek"],
+    "Barrio Bravo": ["Chucho", "Pancho", "Rulo", "Tigre", "Beto", "Lalo", "Memo", "Nacho", "Pipa", "Toto", "Vato"],
+    "Le Consortium": ["Serge", "Hervé", "Patrice", "Gilles", "Yvon", "Bernard", "Francis", "Denis", "Roland", "Maurice", "Edmond"],
   };
   const MEMBRES_STAFF = ["Prépa physique", "Coach mental", "Analyste vidéo", "Coach de finition",
     "Coach technique", "Kiné", "Adjoint tactique", "Scout"];
@@ -67,12 +68,21 @@ const ONZE_IA = (() => {
 
   const hasard = (t) => t[Math.floor(Math.random() * t.length)];
 
-  function initCoach(coach) {
-    const postes = ["GAR", "DÉF", "DÉF", "MIL", "ATT"];
-    const noms = STARTERS_IA[coach.nom] || ["Rémi", "Jojo", "Fred", "Léon", "Marco"];
+  /* v2 (décision 77) : onze dès le coup d'envoi, en 4-3-3. `familles`
+     ({ ecoles, archetypes }) est optionnel : fourni par partie.html, le
+     onze de départ est tiré AVEC ses familles (concept-v2 §2) ; absent
+     (vieilles simulations node), les réservistes restent sans famille. */
+  function initCoach(coach, familles) {
+    const postes = ["GAR", "DÉF", "DÉF", "DÉF", "DÉF", "MIL", "MIL", "MIL", "ATT", "ATT", "ATT"];
+    const noms = STARTERS_IA[coach.nom] || ["Jojo", "Fred", "Léon", "Marco", "Dédé", "Riri", "Loulou", "Nono", "Popol", "Toto B.", "Mimile"];
     coach.etatIA = {
       or: 0, niveau: 3, xp: 0,
-      effectif: postes.map((poste, i) => ({ nom: noms[i], cout: 0, poste, ecole: "", archetype: "", unique: null, etoiles: 1 })),
+      effectif: postes.map((poste, i) => ({
+        nom: noms[i], cout: 0, poste,
+        ecole: familles ? hasard(familles.ecoles) : "",
+        archetype: familles ? hasard(familles.archetypes) : "",
+        unique: null, etoiles: 1,
+      })),
       staff: [], sacStaff: null,
     };
     coach.copiesPrises = coach.copiesPrises || [];
@@ -190,6 +200,26 @@ const ONZE_IA = (() => {
           coach.copiesPrises.push(boutique[meilleur.i]); // la copie du pool reste « prise »
           boutique[meilleur.i] = null;
           M.fusionnerEffectif(ia.effectif, []);
+          // v2 (décision 77) : effectif plafonné à 15 — l'achat de trop est
+          // un remplacement : le moins précieux sort (jamais le dernier
+          // gardien, l'École cible protégée), revendu, ses copies rendues
+          // au pool (la conservation des 1344 reste vraie).
+          const cap = ECO.TITULAIRES_PAR_NIVEAU[ia.niveau] + ECO.TAILLE_BANC;
+          while (ia.effectif.length > cap) {
+            const nbGardiens = ia.effectif.filter((j) => j.poste === "GAR").length;
+            const candidats = ia.effectif.filter((j) => !(j.poste === "GAR" && nbGardiens <= 1));
+            const prix = (j) => j.cout * (j.etoiles || 1) + (viseEcole(j) ? 2 : 0);
+            candidats.sort((a, b) => prix(a) - prix(b));
+            const sortant = candidats[0];
+            if (!sortant) break;
+            ia.effectif.splice(ia.effectif.indexOf(sortant), 1);
+            const copies = Math.pow(3, (sortant.etoiles || 1) - 1);
+            ia.or += sortant.cout * copies;
+            for (let c = 0; c < copies && sortant.cout > 0; c++) {
+              const k = coach.copiesPrises.findIndex((f) => f.nom === sortant.nom);
+              if (k >= 0) pool.push(coach.copiesPrises.splice(k, 1)[0]);
+            }
+          }
           achete = true;
         }
       }

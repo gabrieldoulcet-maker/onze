@@ -69,6 +69,7 @@ Deux garde-fous, complémentaires :
 | `tests/casting.spec.js` | le casting des gabarits (étape 4a) : chaque phase du moteur reçoit un gabarit avec sa raison, la Catenaccio joue des contres et la Tiki des créations SANS scripting — recette PURE, moteur réel, zéro navigateur |
 | `tests/refonte.spec.js` | la refonte de l'interface (28/08, décision 74) : plus de panneau gauche, la fiche du prochain adversaire, le bandeau vie/phase/manche+menu, cartes carrées cadre-poste, le banc en bande, l'argent sans or, panneaux vert-nuit, les trois phases |
 | `tests/synergies-mercato.spec.js` | les synergies en tenue mercato (décision 75) : la rangée n'existe qu'en MERCATO, pastilles muettes au repos (écusson + compte), une seule dépliée à la fois, un tap ailleurs referme, et rien ne recouvre terrain/banc/boutique |
+| `tests/effectif-v2.spec.js` | la phase 1 du pivot v2 (concept §2, décision 77) : onze dès la manche 1 tiré avec ses familles, l'IA à onze aussi, plus de montée 5→11, effectif 15 (banc 4), achat à effectif plein = volet de remplacement, jamais sous onze |
 | `tests/da.spec.js` | la direction artistique : luminosité des illustrations, arène, épuration |
 | `tests/drag.spec.js` | le glisser-déposer JOUÉ AU POINTEUR, du pointerdown au pointerup (règle M1) |
 | `tests/gardien.spec.js` | un seul gardien sur le terrain |

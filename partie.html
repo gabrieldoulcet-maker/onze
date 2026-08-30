@@ -1486,6 +1486,22 @@
       width: 100%; margin-top: 10px; background: var(--ligne); color: var(--craie-claire);
       border: none; border-radius: 10px; padding: 9px; font-weight: 700; cursor: pointer;
     }
+    /* v2 (décision 77) : le volet « qui sort ? » de l'achat-remplacement */
+    .corps-remplacement h3 { margin: 0 0 4px; font-family: var(--police-display); font-weight: 400; }
+    .corps-remplacement .sous-titre { opacity: 0.75; margin-bottom: 10px; }
+    .rangs-remplacement { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .ligne-remplacement {
+      display: flex; align-items: center; gap: 6px; padding: 7px 8px;
+      background: rgba(255, 255, 255, 0.06); color: var(--ivoire, #FDF8EA);
+      border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px;
+      font-size: 0.78rem; cursor: pointer; text-align: left;
+    }
+    .ligne-remplacement b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ligne-remplacement .prix-sortant { opacity: 0.8; font-variant-numeric: tabular-nums; }
+    .bouton-annuler-remplacement {
+      width: 100%; margin-top: 10px; background: var(--ligne); color: var(--craie-claire);
+      border: none; border-radius: 10px; padding: 9px; font-weight: 700; cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -1716,13 +1732,36 @@
       "Reconversion": { desc: "Relance une spécialisation d'un joueur en une autre, au hasard." },
       "La Doublure": { desc: "Duplique un de tes joueurs coût 1-3 (une copie gratuite, prise dans le pool)." },
     };
+    /* v2 (décision 77) : onze dès le coup d'envoi — les cinq starters
+       historiques gardent leur place (la quête « Gus et Titi » vit), les
+       six anciens réservistes de dépannage sont promus titulaires. Un
+       4-3-3 de départ ; les familles sont TIRÉES à chaque partie
+       (« tirés avec leurs familles », concept-v2 §2) dans nouvellePartie. */
     const STARTERS = [
-      { nom: "Gus",    cout: 0, poste: "GAR", ecole: "", archetype: "", unique: null },
-      { nom: "Marcel", cout: 0, poste: "DÉF", ecole: "", archetype: "", unique: null },
-      { nom: "Rachid", cout: 0, poste: "DÉF", ecole: "", archetype: "", unique: null },
-      { nom: "Momo",   cout: 0, poste: "MIL", ecole: "", archetype: "", unique: null },
-      { nom: "Titi",   cout: 0, poste: "ATT", ecole: "", archetype: "", unique: null },
+      { nom: "Gus",      cout: 0, poste: "GAR", ecole: "", archetype: "", unique: null },
+      { nom: "Marcel",   cout: 0, poste: "DÉF", ecole: "", archetype: "", unique: null },
+      { nom: "Rachid",   cout: 0, poste: "DÉF", ecole: "", archetype: "", unique: null },
+      { nom: "Gilbert",  cout: 0, poste: "DÉF", ecole: "", archetype: "", unique: null },
+      { nom: "Norbert",  cout: 0, poste: "DÉF", ecole: "", archetype: "", unique: null },
+      { nom: "Momo",     cout: 0, poste: "MIL", ecole: "", archetype: "", unique: null },
+      { nom: "Fernand",  cout: 0, poste: "MIL", ecole: "", archetype: "", unique: null },
+      { nom: "Marius",   cout: 0, poste: "MIL", ecole: "", archetype: "", unique: null },
+      { nom: "Titi",     cout: 0, poste: "ATT", ecole: "", archetype: "", unique: null },
+      { nom: "Lucien",   cout: 0, poste: "ATT", ecole: "", archetype: "", unique: null },
+      { nom: "Célestin", cout: 0, poste: "ATT", ecole: "", archetype: "", unique: null },
     ];
+    /* Le tirage des familles du onze de départ : n'importe quelle École,
+       n'importe quel archétype sauf Capitaine (trait unique). */
+    function famillesDuRoster() {
+      return {
+        ecoles: [...new Set(tousLesJoueurs.map((j) => j.ecole).filter(Boolean))],
+        archetypes: [...new Set(tousLesJoueurs.map((j) => j.archetype).filter((a) => a && a !== "Capitaine"))],
+      };
+    }
+    function familleTiree(familles) {
+      const tire = (t) => t[Math.floor(Math.random() * t.length)];
+      return { ecole: tire(familles.ecoles), archetype: tire(familles.archetypes) };
+    }
     const COACHS_IA = [
       { nom: "Fortezza Nero", ecole: "Catenaccio" },
       { nom: "La Masia Rebelle", ecole: "Tiki-Taka" },
@@ -1845,11 +1884,12 @@
       // IA — jamais sur leurs stats (sprint post-playtest, point 1).
       let difficulte = "pro";
       try { difficulte = localStorage.getItem("onze-difficulte") || "pro"; } catch (e) {}
-      for (const c of coachs) if (c.ia) ONZE_IA.initCoach(c);
+      const familles = famillesDuRoster();
+      for (const c of coachs) if (c.ia) ONZE_IA.initCoach(c, familles);
       partie = {
         manche: 1, coachs, difficulte,
         or: OR_DEPART, niveau: 3, xp: 0, staff: [],
-        terrain: STARTERS.map((j) => ({ ...j, etoiles: 1 })), banc: [], boutique: [], pool: [],
+        terrain: STARTERS.map((j) => ({ ...j, etoiles: 1, ...familleTiree(familles) })), banc: [], boutique: [], pool: [],
         butin: planifierButin(),
         orbesEnAttente: [], verrou: false, dernierAdversaire: null,
         appariement: null, historique: [], exempt: null, matchEnCours: false,
@@ -1938,10 +1978,20 @@
       if (fiche.estIcone) return acheterIcone(indice);
       if (partie.or < fiche.cout) return signaler("Pas assez d'or pour " + fiche.nom + ".");
       const max = maxTitulaires();
-      if (partie.terrain.length + partie.banc.length >= max + TAILLE_BANC)
-        return signaler("Effectif complet — vends quelqu'un.");
+      if (partie.terrain.length + partie.banc.length >= max + TAILLE_BANC) {
+        // v2 (décision 77) : à effectif plein, chaque achat est un
+        // remplacement — « qui sort ? » est LA décision d'entraîneur.
+        if (partie.matchEnCours) return signaler("Effectif complet — la compo ne bouge pas en plein match.");
+        return ouvrirVoletRemplacement(indice);
+      }
       if (partie.matchEnCours && partie.banc.length >= TAILLE_BANC)
         return signaler("Banc plein — pendant le match, les recrues vont au banc.");
+      finaliserAchat(indice);
+    }
+    /* La conclusion d'un achat (guards déjà passés) : débit, arrivée au
+       club, fanfare d'Unique, fusions. */
+    function finaliserAchat(indice) {
+      const fiche = partie.boutique[indice];
       partie.or -= fiche.cout;
       partie.compteurs.depensesMercato = (partie.compteurs.depensesMercato || 0) + fiche.cout; // le Mercenaire
       partie.boutique[indice] = null;
@@ -1957,9 +2007,40 @@
       if (fusions.length) celebrerFusions(fusions);
       afficher();
     }
+    /* v2 (décision 77) : le volet « qui sort ? » — tout le club est
+       candidat, le sortant est vendu au prix normal, la recrue prend
+       la place. Annuler ne coûte rien (l'achat n'est pas encore débité). */
+    function ouvrirVoletRemplacement(indice) {
+      const fiche = partie.boutique[indice];
+      document.querySelectorAll(".volet-remplacement").forEach((v) => v.remove());
+      const volet = document.createElement("div");
+      volet.className = "volet volet-remplacement";
+      const rang = (nomListe) => partie[nomListe].map((j, i) =>
+        `<button class="ligne-remplacement" data-sortant="${j.uid || j.nom}" data-liste="${nomListe}" data-indice="${i}">
+          ${pastilleHTML(j)}<b>${j.nom}</b><span class="prix-sortant">+${j.cout * Math.pow(3, (j.etoiles || 1) - 1)}M</span>
+        </button>`).join("");
+      volet.innerHTML = `<div class="panneau corps-remplacement">
+        <h3>${fiche.nom} arrive — qui sort ?</h3>
+        <div class="sous-titre">Effectif plein : chaque achat est un remplacement. Le sortant est vendu.</div>
+        <div class="rangs-remplacement">${rang("terrain")}${rang("banc")}</div>
+        <button class="bouton-annuler-remplacement">Annuler</button></div>`;
+      volet.addEventListener("click", (e) => {
+        const ligne = e.target.closest("[data-sortant]");
+        if (ligne) {
+          volet.remove();
+          vendre(ligne.getAttribute("data-liste"), Number(ligne.getAttribute("data-indice")));
+          return finaliserAchat(indice);
+        }
+        if (e.target.closest(".bouton-annuler-remplacement") || e.target === volet) volet.remove();
+      });
+      document.body.appendChild(volet);
+    }
     function vendre(nomListe, indice) {
       if (partie.matchEnCours && nomListe === "terrain")
         return signaler("Le match se joue — les titulaires ne se vendent pas en plein match.");
+      // v2 (décision 77) : un club ne descend jamais sous le onze de départ
+      if (partie.terrain.length + partie.banc.length <= 11)
+        return signaler("Un club ne descend jamais sous onze joueurs — recrute d'abord.");
       const liste = partie[nomListe];
       const fiche = liste[indice];
       // le staff du joueur vendu revient à l'inventaire (la relique aussi —
@@ -2026,7 +2107,7 @@
       while (seuil && partie.xp >= seuil) {
         partie.xp -= seuil;
         partie.niveau++;
-        signaler("🎉 Niveau " + partie.niveau + " — " + TITULAIRES_PAR_NIVEAU[partie.niveau] + " titulaires !");
+        signaler("🎉 Niveau " + partie.niveau + " — le marché s'ouvre à de meilleurs joueurs !");
         seuil = XP_POUR_MONTER[partie.niveau];
       }
     }
@@ -2087,9 +2168,9 @@
     }
 
     /* ============ L'intégrité de l'effectif (post-playtest, bloquants) ============
-       La limite de titulaires = le niveau de club (5→11). Centralisée ici
-       pour qu'un futur +1 (palier chimère du Douzième Homme) se branche
-       à UN seul endroit. */
+       v2 (décision 77) : onze titulaires à tous les niveaux. Centralisée
+       ici pour qu'un futur +1 (palier chimère du Douzième Homme) se
+       branche à UN seul endroit. */
     function maxTitulaires() { return TITULAIRES_PAR_NIVEAU[partie.niveau]; }
     /* Chaque instance de joueur porte un identifiant unique dès son entrée
        au club : la duplication devient détectable, et les invariants la
@@ -2518,9 +2599,9 @@
 
     /* Auto-complétion au coup d'envoi (règle TFT) : les places vides se
        remplissent depuis le banc, le plus à GAUCHE d'abord — un joueur
-       monte sur sa ligne naturelle, jamais en 2ᵉ gardien. Les réservistes
-       du centre ne servent que si le banc est vide. */
-    const NOMS_RESERVISTES = ["Gilbert", "Norbert", "Fernand", "Marius", "Lucien", "Célestin"];
+       monte sur sa ligne naturelle, jamais en 2ᵉ gardien. v2 (décision
+       77) : plus de réservistes de dépannage — l'effectif ne descend
+       jamais sous onze, le banc suffit toujours. */
     function autoCompleter() {
       const max = maxTitulaires();
       const montes = [];
@@ -2534,15 +2615,6 @@
         monte.ligne = undefined; // sa ligne naturelle (libre par définition, sauf GAR géré ci-dessus)
         partie.terrain.push(monte);
         montes.push(monte.nom);
-      }
-      // banc vide : les réservistes du centre dépannent
-      let reserviste = 0;
-      while (partie.terrain.length < max && reserviste < NOMS_RESERVISTES.length) {
-        const gardienPris = partie.terrain.some((j) => ligneDe(j) === "GAR");
-        const poste = !gardienPris ? "GAR" : ["DÉF", "MIL", "ATT"][reserviste % 3];
-        const nom = NOMS_RESERVISTES[reserviste++];
-        partie.terrain.push({ nom, cout: 0, poste, ecole: "", archetype: "", unique: null, etoiles: 1, uid: nouvelUid() });
-        montes.push(nom + " (réserviste)");
       }
       if (montes.length) {
         afficher(); // les pions glissent du banc au terrain, visibles avant le coup d'envoi
@@ -3507,7 +3579,7 @@
         texte: "⚽ Voici ton <strong>mercato</strong>. Chaque manche, 5 joueurs se présentent.<br>Touche le <strong>bouton-prix vert</strong> d'une carte pour engager ton premier joueur (tu as reçu quelques millions).",
         attend: "achat" },
       { id: "terrain", cible: "terrain-scene", position: "centre",
-        texte: "👕 Tes recrues rejoignent le <strong>terrain</strong> (ou le banc s'il est plein).<br>Glisse un joueur pour le déplacer, touche-le pour voir sa fiche.",
+        texte: "👕 Ton club aligne déjà son <strong>onze</strong> — tes recrues arrivent sur le <strong>banc</strong>.<br>Glisse une recrue sur un titulaire pour l'échanger, touche un joueur pour voir sa fiche.",
         attend: "ok" },
       { id: "synergies", cible: "page-synergies", position: "gauche",
         texte: "✦ Deux joueurs d'une même <strong>École</strong> ou d'un même <strong>archétype</strong> allument un badge ici — c'est le cœur du jeu : les familles rendent l'équipe plus forte.<br>Touche un badge pour les détails.",
@@ -5081,7 +5153,7 @@
     const CLE_SAUVEGARDE = "onze-partie-v1";
     // Incrémenter quand le schéma de partie change : une sauvegarde d'une
     // autre version est écartée au chargement (plus jamais de partie coincée)
-    const VERSION_SAUVEGARDE = 4; // v4 : uid d'instance par joueur (les sauvegardes v3 pouvaient porter des doublons)
+    const VERSION_SAUVEGARDE = 5; // v5 : effectif v2 (décision 77) — les sauvegardes à 5 titulaires / banc de 9 sont écartées
     function sauvegarder() {
       if (!partie || partie.matchEnCours) return;
       try {
