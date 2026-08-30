@@ -462,3 +462,11 @@ Trois lignes par session : **fait / bloqué / prochaine tâche**. C'est ce qui p
 - **Bloqué :** rien.
 - **Comment tester :** ouvre le jeu, lance un match. Les passes partent d'un pied — un joueur contrôle, choisit, joue ; des coéquipiers se proposent autour du porteur ; des défenseurs sortent au duel et le pressing se voit. La construction circule, le contre file.
 - **Prochaine tâche :** allonger les chaînes locales (plusieurs passes courtes par temps de construction) — c'est LA cause commune des six dettes.
+
+## Session 58 — 30 août 2026 : le pivot v2, consigné puis simulé
+
+- **Fait :** le chantier du brief v2, dans l'ordre du brief. (1) Le concept validé est au dépôt (`design/concept-v2.md`), la **décision 76** grave le pivot et la règle des 9 manches, les décisions caduques (pool, fusion, montée 5→11, staff-objets) sont annotées jamais effacées. (2) Les **prédictions** ont été poussées AVANT le premier passage (`design/simulation-v2-prediction.md`), tailles d'échantillon calculées (M7). (3) `simulations/v2.js` : l'économie v2 complète sur le moteur actuel — notes, fourchette+progression, valeur+revente, masse salariale, suffisance, sponsors, centre de formation — jouée par 5 stratégies contrastées, 2 000 parties de référence, graine 76, contre-tests M6 et bancs d'essai (`--pieges`, `--h2h`, `--diag`). (4) Le **rapport chiffré** : `design/simulation-v2-rapport.md`.
+- **Les verdicts** : critères 1, 2, 3, 4 ✅ — critère 5 🟠 (synergies 42,3 % contre +20 % de budget, bande 45-55 : molette identifiée, décision à Gabriel). Onze tours de molette, tous consignés (M2). Deux instruments réparés en route : le classement des éliminés départageait par ordre de tableau (trader à « 99,7 % »), et la qualité comptait double (tier + note) avant le châssis commun.
+- **Les surprises** : la boule de neige est douce PAR STRUCTURE (22 % contre 70-80 prédits) — la masse salariale n'est pas un frein, c'est un égalisateur de stratégies ; le gardien héroïque d'un match perdu est fréquent (29,6 %) ; les parties durent ~21 manches.
+- **Bloqué :** rien — la suite v1 reste verte (24/26, les deux dettes de poids connues), le jeu n'a pas bougé d'une ligne.
+- **Prochaine tâche :** la validation du rapport par Gabriel (3 arbitrages proposés en fin de rapport), puis l'implémentation en phases, recettes rouges d'abord.
