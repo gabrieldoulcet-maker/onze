@@ -412,3 +412,63 @@ course pour que l'allure du porteur ne dépende pas de la situation. Mesuré apr
 - **Un piège M6 attrapé en route** : la dette de dispersion est sortie 🟡 « verte » à
   1 épisode par passage — l'indice d'un phénomène disparu vaut mécaniquement ~1. Tous les
   verdicts de dispersion exigent désormais **40 épisodes cumulés** de matière.
+
+---
+
+## Amendement VI — leviers A et B livrés : ce que les prédictions ont donné, ligne à ligne
+
+*Écrit à la livraison du second incrément, 30 août.*
+
+### Prédiction A (options 53 % → 75-88 %) : la direction est là, l'ampleur pas encore
+
+**Mesuré : 21-30 % → 42-48 %, médiane 0 → 1.** (Le « 53 % » de la prédiction datait d'avant
+la décision 73, qui avait raccourci les fenêtres — la base réelle au moment du levier était
+21-30 %.) Trois verrous sont tombés, chacun mesuré à l'instant des passes par une
+instrumentation de décision (rôles, portée, lignes ouvertes) :
+
+1. **Le séquenceur jouait au flipper** : les relais partaient à l'horloge, ballon encore en
+   vol — à l'instant de « décision », personne ne tenait le ballon. Une passe attend
+   désormais que le ballon soit TENU (contrôle 0,8 s, limite dure 2,5 s) — c'est le
+   « chaque temps est un objectif donné au cerveau » du plan (§7).
+2. **Le receveur d'un relais était une cible écrite** : sur 3 coéquipiers de champ,
+   2-3 étaient tenus par le scénario à l'instant des passes. Le receveur appartient
+   maintenant au système d'appels (une course qui se voit ET se compte).
+3. **La pose de mise en place était une laisse** : cibles à 2-4 s de course, tenues
+   pendant les premières passes. Rendue au cerveau dès le premier temps d'action.
+
+Le reste de l'écart (47 vs 88 %) : chaînes encore courtes, et un contexte à 3 coéquipiers
+de champ (la référence 88 % est du football à 22 — la question d'appariement de la densité
+se posera ici aussi).
+
+### Prédiction B (fermeture 53 → 59-60 %) : le levier est posé, la mesure a changé de sol
+
+La mission n'est plus un minuteur : **tirage log-normal** calé sur la distribution réelle
+(médiane 2,10, p90 4,40, plafond 7 s). Mais la prédiction B avait été calculée sur la
+population FANTÔME (53 % de fermeture sur des épisodes dont beaucoup poursuivaient des
+ballons partis). Sur la population vraie, la fermeture mesurée est **30-45 %, démontrée
+trop loin** (p = 0,0001-0,05 selon le passage) : le pressing réel entre à 8 m et son
+épisode meurt à ~1,0-1,4 s — avant d'avoir fermé. **La mission tirée est prête à durer ;
+c'est l'épisode qui ne dure pas**, parce que le ballon repart trop vite (chaînes courtes).
+Dette réinscrite avec cette cause.
+
+**Et un bug d'inertie réparé en route** : `pressFin` (posé au départ de mission) était
+testé AVANT `pressJusqua` dans le score d'engagement — le presseur en mission rendait
+−999 et perdait sa place au premier concurrent plus proche. L'inertie documentée était
+morte ; l'ordre des tests est le comportement.
+
+### Le fil commun, chiffré
+
+Trois dettes mesurent la même grandeur : **la longueur de nos chaînes de possession**.
+Contrôle 0,8 s + un relais par temps → épisodes de pressing 1,0-1,4 s (réel 2,10), appels
+1,0 s (réel 2,1), part de rôle sans porteur 49-60 % (cible < 20). Les leviers sont posés
+(mission tirée, receveurs libres, contrôle) ; c'est le NOMBRE de passes locales par chaîne
+qui doit monter. Prochain incrément.
+
+### Gains nets de l'incrément
+
+- densité de pressing réelle : 0,13-0,78 → **2,4-4,1/min** (toujours ⏸ suspendue de référence) ;
+- porteur d'occasion chaude : 2,93 m/s (vert) par le tempo des gabarits, plus par la peur ;
+- distance presseur→ballon sans porteur p90 : **7,9-9,9 m** tenu (< 12 prédit), population
+  séparée de la course derrière un porteur qui s'échappe (du football, affichée à part) ;
+- appel médian rendu à 2,1 s pile AVANT le levier A (population censurée déclarée), puis
+  la population a changé avec les receveurs libérés — verdict déménagé sur le cumul.

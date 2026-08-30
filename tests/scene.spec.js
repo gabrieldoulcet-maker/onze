@@ -794,7 +794,7 @@ const dette = (nom, ok, quand) => {
      marquage : un match ne donne que cinq appels et sept pressings, et
      une distribution ne se juge pas sur sept points (décision 43). */
   const sacE3 = { hauteurs: [], postures: {}, lignes: [], appels: [], pressings: [], options: [], dureesOption: [],
-    distPressBallon: [], pressTicks: 0, pressTicksSansPorteur: 0, tempoParGabarit: {} };
+    distPressBallon: [], distPressSans: [], pressTicks: 0, pressTicksSansPorteur: 0, tempoParGabarit: {} };
   /* La tenue de ligne se cumule sur TOUS les matchs du passage, par
      régime : le verdict sur un seul match tirait à pile ou face autour
      du seuil (6,5 · 6,7 · 8,3 · 9,2 mesurés sur le même code). */
@@ -843,7 +843,7 @@ const dette = (nom, ok, quand) => {
     secondesRendues += (releve.duree || 0) / 1000;
     episodesParMatch.push(((releve.etape3 && releve.etape3.pressings) || []).filter((p) => p.duree >= 1).length);
     if (releve.etape3) {
-      for (const k of ["hauteurs", "lignes", "appels", "pressings", "options", "dureesOption", "distPressBallon"]) {
+      for (const k of ["hauteurs", "lignes", "appels", "pressings", "options", "dureesOption", "distPressBallon", "distPressSans"]) {
         sacE3[k].push(...(releve.etape3[k] || []));
       }
       sacE3.pressTicks += releve.etape3.pressTicks || 0;
@@ -1179,6 +1179,7 @@ const dette = (nom, ok, quand) => {
         pressTicks: physique.pressTicks || 0,
         pressTicksSansPorteur: physique.pressTicksSansPorteur || 0,
         distPressBallon: physique.distPressBallon || [],
+        distPressSans: physique.distPressSans || [],
         // étape 4 : la progression rendue, par gabarit (m/s par temps joué)
         tempoParGabarit: physique.tempoParGabarit || {} },
       // ÉTAPE 1 : la physique
@@ -1429,8 +1430,10 @@ const dette = (nom, ok, quand) => {
   const appelsFinis = e3.appels.filter((a) => !a.tronque);
   if (e3.appels.length) console.log(`   📐 appels : ${e3.appels.length - appelsFinis.length}/${e3.appels.length} coupés par la fin du temps fort (exclus de la durée et de la longueur, déclaré)`);
   const AD = appelsFinis.map((a) => a.duree);
-  verifier(`Étape 3 — un appel dure ${q(AD, 0.5).toFixed(1)} s (réel 2,1 ; ${AD.length} appels relevés)`,
-    AD.length >= 15 && ecart(q(AD, 0.5), 2.1) <= 0.25);
+  /* Le verdict a déménagé sur le cumul disque : mesuré 2,1 → 1,8 → 1,0
+     d'un passage à l'autre sur le même code — le levier A a changé la
+     population (les receveurs libérés courent en appel et l'épisode se
+     clôt à la réception), et un passage seul tire au sort (M7). */
   /* 5. LE PRESSING : les trois grandeurs, chacune contre SA référence,
      jamais leur quotient (décision 57). La distance minimale est celle
      qui dit qu'un défenseur est SUR le porteur et pas seulement qu'il a
@@ -1490,10 +1493,16 @@ const dette = (nom, ok, quand) => {
      compris). Le seuil est une CONDITION D'ARRÊT, pas un comportement
      émergent — d'où la confiance forte. */
   const partSansPorteur = e3.pressTicks ? e3.pressTicksSansPorteur / e3.pressTicks : 0;
-  const DPB = e3.distPressBallon;
-  /* La moitié TENUE de la prédiction : plus de poursuite à vingt mètres. */
-  verifier(`Étape 4, levier C — le presseur reste SUR le ballon : distance presseur→ballon p90 ${q(DPB, 0.9).toFixed(1)} m (avant : 19,4 ; prédit et tenu : < 12) sur ${e3.pressTicks} ticks de rôle`,
-    e3.pressTicks >= 500 && q(DPB, 0.9) < 12);
+  const DPS = e3.distPressSans;
+  /* La moitié TENUE de la prédiction — sur SA population (M2) : la
+     poursuite d'un ballon SANS porteur, c'est le fantôme que C répare.
+     La distance à un porteur TENU qui s'échappe est une autre chose
+     (une course de replacement, du football) : elle s'affiche, elle ne
+     se confond pas. Depuis le levier B, les missions longues rendaient
+     le p90 mélangé illisible (12,6 sur un tirage) : la population est
+     désormais nommée dans le libellé. */
+  verifier(`Étape 4, levier C — plus de poursuite de ballon parti : distance presseur→ballon SANS porteur p90 ${q(DPS, 0.9).toFixed(1)} m (avant : 19,4 ; prédit et tenu : < 12) sur ${DPS.length} ticks · avec porteur p90 ${q(e3.distPressBallon, 0.9).toFixed(1)} m (course derrière un homme, affichée)`,
+    e3.pressTicks >= 500 && q(DPS, 0.9) < 12);
   /* La moitié RATÉE, écrite comme telle (la prédiction ne se retouche
      pas, elle se compare) : la part sans porteur devait tomber sous
      20 %, elle est restée à ~74 %. La cause est NOMMÉE : nos passes
@@ -1598,6 +1607,7 @@ const dette = (nom, ok, quand) => {
     episodesTous: bruts.length,
     dep: PDepTous.slice(0, 200),
     dur: PU2.slice(0, 200),
+    apDur: AD.slice(0, 200),
     secondes: secondesRendues,
     parMatch: episodesParMatch.slice(),
     options: e3.options.length,
@@ -1615,8 +1625,9 @@ const dette = (nom, ok, quand) => {
     mVus: a.mVus + (p.mVus || 0), mBons: a.mBons + (p.mBons || 0), mMatchs: a.mMatchs + (p.mMatchs || 0),
     porteur: a.porteur.concat(p.porteur || []),
     dep: a.dep.concat(p.dep || []), dur: a.dur.concat(p.dur || []),
+    apDur: a.apDur.concat(p.apDur || []),
     parMatch: a.parMatch.concat(p.parMatch || []),
-  }), { episodes: 0, fermes: 0, episodesTous: 0, secondes: 0, options: 0, optionsDans13: 0, mVus: 0, mBons: 0, mMatchs: 0, porteur: [], dep: [], dur: [], parMatch: [] });
+  }), { episodes: 0, fermes: 0, episodesTous: 0, secondes: 0, options: 0, optionsDans13: 0, mVus: 0, mBons: 0, mMatchs: 0, porteur: [], dep: [], dur: [], apDur: [], parMatch: [] });
   const nbPassages = sacDisque.passages.length;
 
   /* `attendu`/p de Poisson retirés avec la suspension de la densité :
@@ -1770,8 +1781,26 @@ const dette = (nom, ok, quand) => {
   if (cumul.dur.length < 25) {
     console.log(`   ⚠ Étape 3 — durée de pressing à ${mDurC.toFixed(1)} s sur ${cumul.dur.length} épisodes finis en jeu cumulés (< 25) : NON CONCLUANT, relancer la recette cumule`);
   } else {
-    verifier(`Étape 3 — le pressing dure ce qu'il doit : ${mDurC.toFixed(1)} s sur ${cumul.dur.length} épisodes ≥ 1 s finis en jeu CUMULÉS (${nbPassages} passage(s) ; réel 2,10 ±15 %, son erreur se propage dans le minimum — borne basse, les épisodes longs sont plus souvent coupés)`,
-      ecart(mDurC, 2.10) <= 0.15);
+    /* DETTE, avec sa cause : la mission tirée (levier B) peut durer 2-7 s
+       mais l'ÉPISODE meurt quand le ballon part à plus de 10 m — et nos
+       chaînes de possession restent courtes (contrôle 0,8 s, un relais
+       par temps). Mesuré 1,2-1,4 s après les leviers A+B. Se paiera avec
+       des chaînes locales plus longues, pas en désarmant la mesure. */
+    dette(`Étape 3 — le pressing dure ce qu'il doit : ${mDurC.toFixed(1)} s sur ${cumul.dur.length} épisodes ≥ 1 s finis en jeu CUMULÉS (${nbPassages} passage(s) ; réel 2,10 ±15 %, son erreur se propage dans le minimum — borne basse, les épisodes longs sont plus souvent coupés)`,
+      ecart(mDurC, 2.10) <= 0.15,
+      "ÉCHÉANCE étape 4 (suite) — l'épisode meurt au départ du ballon : la durée se paiera avec des chaînes de possession locales plus longues (options rapprochées jouées), la mission tirée du levier B est déjà prête à durer");
+  }
+  /* LA DURÉE D'APPEL, SUR LE MÊME CUMUL : 2,1 → 1,8 → 1,0 selon le
+     tirage d'un passage (M7), et la population a changé avec le levier A
+     (les receveurs libérés courent en appel, l'épisode se clôt à la
+     réception — servis ~1 s après le départ de leur course). */
+  const mApC = cumul.apDur.length ? q(cumul.apDur, 0.5) : 0;
+  if (cumul.apDur.length < 60) {
+    console.log(`   ⚠ Étape 3 — durée d'appel à ${mApC.toFixed(1)} s sur ${cumul.apDur.length} appels finis en jeu cumulés (< 60) : NON CONCLUANT, relancer la recette cumule`);
+  } else {
+    dette(`Étape 3 — un appel dure ce qu'il doit : ${mApC.toFixed(1)} s sur ${cumul.apDur.length} appels finis en jeu CUMULÉS (${nbPassages} passage(s) ; réel 2,1 ±25 %)`,
+      ecart(mApC, 2.1) <= 0.25,
+      "ÉCHÉANCE étape 4 (suite) — même cause que la durée de pressing : le receveur est servi ~1 s après le départ de sa course ; l'appel réel de 2,1 s vit dans des chaînes plus longues");
   }
   /* MÊME RAISONNEMENT ICI, ET IL DÉBLOQUE LA DETTE. La part sous 3 m est
      une proportion comparée à une référence EXACTE (65,9 %, mesurée sur

@@ -999,6 +999,15 @@ const ONZE_SCENE = (() => {
       let y = p.baseY * resserre + glisseY;
       if (attaque && p.ligne === "ATT") x += sens * 4;
       if (!attaque && p.ligne === "ATT") x -= sens * 2.5;
+      /* Levier A : l'élan du contre vit ICI, dans la forme — le camp qui
+         attaque pousse vers l'avant tant que la situation est un contre
+         ou une transition (le tempo du gabarit donne l'ampleur). Les
+         pions gardent leur rôle : c'est un déplacement de la forme, pas
+         une chorégraphie qui les saisit. */
+      const g = gabaritCourant();
+      if (attaque && g && (g.gabarit === "contre" || g.gabarit === "transition") && regime === "action") {
+        x += sens * Math.min(10, (g.tempo || 4) * 2);
+      }
       return { x: borne(x, -DEMI_L + 1, DEMI_L - 1), y: dansLaLargeur(y) };
     }
 
@@ -1075,11 +1084,17 @@ const ONZE_SCENE = (() => {
         receveur.cible = ancrer(receveur, "appel", () => cibleAppel(receveur), 1.5);
       }
       // 3. les soutiens : les 2 plus proches du porteur
-      if (jeuVivant && porteur) {
+      /* Levier A : le soutien SURVIT à la passe. Pendant le vol, il
+         s'organise autour du RECEVEUR attendu — au vrai football, le jeu
+         se déplace avant le ballon. Sans ça, chaque passe éteignait tous
+         les soutiens et aucune option ne vivait à la réception. */
+      const ancreSoutien = porteur ||
+        (ballon.vol && ballon.vol.versNom ? pions[ballon.vol.versNom] : null);
+      if (jeuVivant && ancreSoutien) {
         listePions
-          .filter((q) => q.camp === porteur.camp && !q.gardien && !q.cible &&
-            distance(q, porteur) < 32)          // on ne traverse pas le terrain pour se proposer
-          .sort((a, b) => distance(a, porteur) - distance(b, porteur))
+          .filter((q) => q.camp === ancreSoutien.camp && !q.gardien && !q.cible && q !== ancreSoutien &&
+            distance(q, ancreSoutien) < 32)     // on ne traverse pas le terrain pour se proposer
+          .sort((a, b) => distance(a, ancreSoutien) - distance(b, ancreSoutien))
           /* TROIS, pas deux. La référence « deux options » venait de la
              colonne corrigée en décision 57 : les options VIVANTES au
              même instant valent p10 1 · médiane 2 · p90 4. Avec un appel
@@ -1087,7 +1102,7 @@ const ONZE_SCENE = (() => {
              en médiane ; avec trois, la distribution retombe sur la
              mesure. Ça reste « quelques solutions, pas dix ». */
           .slice(0, 3)
-          .forEach((q) => { q.role = "soutien"; q.cible = cibleSoutien(q, porteur); });
+          .forEach((q) => { q.role = "soutien"; q.cible = cibleSoutien(q, ancreSoutien); });
       }
       // 4. le pressing : les 2 défenseurs les plus proches du ballon,
       //    côté but. Fidélité moteur : le défenseur que le moteur a
@@ -1149,9 +1164,17 @@ const ONZE_SCENE = (() => {
            secondes, celui qui pressait rend la main et retombe dans le
            bloc ; sans ce plafond un presseur restait onze secondes sur
            le ballon. */
+        /* L'ORDRE DES TESTS EST LE COMPORTEMENT. pressFin est posé au
+           DÉPART de mission (fin prévue + repli) : le tester en premier
+           rendait −999 pendant TOUTE la mission — l'inertie promise deux
+           commentaires plus haut était morte, le presseur perdait sa
+           place au premier concurrent plus proche et les épisodes
+           duraient 1,2 s au lieu de leur mission. En mission d'abord,
+           repli ensuite. */
         const engage = (q) => {
+          if (q.pressJusqua > horloge) return 30;       // en mission : il la garde
           if (q.pressFin > horloge) return -999;        // il vient de rendre la main
-          return q.pressJusqua > horloge ? 30 : q.pressait ? 6 : 0;
+          return q.pressait ? 6 : 0;
         };
         candidatsPress
           .sort((a, b) => (distance(a, ballon) - engage(a)) - (distance(b, ballon) - engage(b)))
@@ -1159,14 +1182,21 @@ const ONZE_SCENE = (() => {
           .forEach((q) => {
             q.role = "pressing";
             if (!(q.pressJusqua > horloge)) {
-              /* 2,0 s. La médiane réelle d'un ÉPISODE de pressing — la
-                 population que nous mesurons, celle des pressings qui ont
-                 duré au moins une seconde — vaut 2,10 s, pas 1,60 : le
-                 1,60 est la médiane sur TOUTE la population, amorces
-                 comprises. Le retour à 1,6 s avait été décidé contre ce
-                 mauvais repère (décision 63 · M2). */
-              q.pressJusqua = horloge + 2.0;
-              q.pressFin = horloge + 3.0 + 1.2;   // 3 s de mission, puis 1,2 s de repli
+              /* LEVIER B (étape 4, prédiction pré-enregistrée) : la
+                 mission n'est plus un minuteur de 2,0 s en dur. Nos
+                 durées étaient un PIC (p10 1,36 · méd 2,01 · p90 2,02)
+                 là où le réel est une DISTRIBUTION (1,10 · 2,10 · 4,40)
+                 — aucun pressing ne durait plus que le minuteur, et les
+                 pressings longs sont ceux qui ferment (87 % sous 3 m
+                 au-delà de 5 s). Tirage log-normal calé sur la médiane
+                 réelle et le p90 : sigma = ln(4,40/2,10)/1,2816 ≈ 0,577,
+                 p10 ≈ 1,0. Plafond à 7 s : les chaînes réelles durent,
+                 pas onze secondes. */
+              const u = Math.random(), v = Math.random();
+              const z = Math.sqrt(-2 * Math.log(Math.max(u, 1e-9))) * Math.cos(6.2832 * v);
+              const mission = Math.min(7, 2.10 * Math.exp(0.577 * z));
+              q.pressJusqua = horloge + mission;
+              q.pressFin = horloge + mission + 1.2;   // la mission, puis 1,2 s de repli
             }
             /* Il ferme À 2,6 M, côté but — la distance minimale mesurée.
                Sa VITESSE est la sienne (le manuel donne 4,94 m/s en
@@ -1270,10 +1300,14 @@ const ONZE_SCENE = (() => {
            quotient ne veut rien dire (décision 57). --- */
         if (p.role === "pressing") {
           const d = distance(p, ballon);
-          // levier C : le rôle se compte au tick, porteur présent ou pas
+          // levier C : le rôle se compte au tick, porteur présent ou pas.
+          // Deux populations de distance (M2) : SANS porteur, c'est la
+          // poursuite d'un ballon parti (le fantôme que C répare) ; AVEC
+          // porteur, c'est la course derrière un homme qui s'échappe —
+          // du football, pas un fantôme.
           mesures.pressTicks++;
-          if (!ballon.porteur) mesures.pressTicksSansPorteur++;
-          ranger(mesures.distPressBallon, d);
+          if (!ballon.porteur) { mesures.pressTicksSansPorteur++; ranger(mesures.distPressSans, d); }
+          else ranger(mesures.distPressBallon, d);
           if (!p.episodePress) p.episodePress = { t0: horloge, depart: d, mini: d };
           else p.episodePress.mini = Math.min(p.episodePress.mini, d);
         } else if (p.episodePress) {
@@ -1335,6 +1369,28 @@ const ONZE_SCENE = (() => {
       const y1 = vers ? borne(vers.y + vers.vy * avance, -DEMI_W, DEMI_W) : (opts.y1 !== undefined ? opts.y1 : ballon.y);
       // décision 57 : les options se comptent À L'INSTANT DE LA DÉCISION
       ranger(mesures.optionsPasse, optionsVivantes);
+      // instrumentation levier A : le détail de l'instant de décision —
+      // c'est elle qui a montré 2-3 coéquipiers sur 3 tenus par le
+      // scénario, et elle resservira pour mener les options vers 88 %
+      if (mesures.optionsDetail) {
+        const pd = ballon.porteur ? pions[ballon.porteur] : null;
+        const detail = { porteur: !!pd, roles: 0, aPortee: 0, ouvertes: 0, regime,
+          equipiers: 0, tenus: 0, dans32: 0, rolesVus: {} };
+        if (pd) {
+          for (const q of Object.values(pions)) {
+            if (q === pd || q.camp !== pd.camp || q.gardien) continue;
+            detail.equipiers++;
+            detail.rolesVus[q.role || "libre"] = (detail.rolesVus[q.role || "libre"] || 0) + 1;
+            if (q.cible && q.role !== "appel" && q.role !== "soutien") detail.tenus++;
+            if (distance(q, pd) < 32) detail.dans32++;
+            if (q.role !== "appel" && q.role !== "soutien") continue;
+            detail.roles++;
+            const dq = distance(q, pd);
+            if (dq >= 7 && dq <= 30.3) { detail.aPortee++; if (ligneOuverte(pd, q, pd.camp)) detail.ouvertes++; }
+          }
+        }
+        ranger(mesures.optionsDetail, detail);
+      }
       const dist = Math.hypot(x1 - ballon.x, y1 - ballon.y);
       // vitesses réelles : passe au sol 15-20 m/s, frappe 25-30
       const vitesse = opts.vitesse || 17;                       // m/s
@@ -1363,7 +1419,7 @@ const ONZE_SCENE = (() => {
       const p = pionDe(nom, camp);
       if (!p) return 0;
       const dist = Math.hypot(p.x - ballon.x, p.y - ballon.y);
-      if (dist < 2 && !ballon.vol) { ballon.vol = null; ballon.porteur = p.cle; return 0; }
+      if (dist < 2 && !ballon.vol) { ballon.vol = null; ballon.porteur = p.cle; ballon.tenuDepuis = horloge; return 0; }
       return passer(null, nom, { vitesse: vitesse || 17, devantLaCourse: false, camp });
     }
 
@@ -1377,7 +1433,7 @@ const ONZE_SCENE = (() => {
         ballon.z = v.hauteur * Math.sin(Math.PI * t);
         if (v.t >= 1) {
           ballon.z = 0;
-          ballon.porteur = v.versNom;
+          ballon.porteur = v.versNom; ballon.tenuDepuis = horloge;
           const fin = v.apres;
           ballon.vol = null;
           if (fin) fin();
@@ -1458,6 +1514,7 @@ const ONZE_SCENE = (() => {
     }
     function repos() {
       regime = "repos";
+      differees.length = 0;
       sequenceCourante = null; indexCourant = -1;
       bande.classList.remove("visible");
       barrePossession.classList.add("visible");
@@ -1503,6 +1560,7 @@ const ONZE_SCENE = (() => {
     function cut(info, duree = 900) {
       regime = "cut";
       mesureTempo = null;   // une coupe n'est pas une progression
+      differees.length = 0; // une passe différée ne traverse pas une coupe
       avancerTimeline();        // le cut ouvre un temps fort : le point s'allume
       bande.classList.remove("visible");
       barrePossession.classList.remove("visible");
@@ -1554,6 +1612,7 @@ const ONZE_SCENE = (() => {
     function miseEnPlace(sequence, duree = 3000) {
       regime = "miseEnPlace";
       mesureTempo = null;   // le décor se repose, on ne mesure pas ça
+      differees.length = 0; // rien d'un temps fort passé ne se rejoue ici
       barrePossession.classList.remove("visible");
       const camp = sequence.equipe ? campDe(sequence.equipe) : "moi";
       const situation = sequence.situation || "placee";
@@ -1585,6 +1644,12 @@ const ONZE_SCENE = (() => {
         const glisse = zone.x * (attaque ? 0.62 : 0.66);
         p.cx = borne(p.baseX + glisse + (attaque && p.ligne === "ATT" ? sensDe(p.camp) * 4 : 0), -DEMI_L + 1, DEMI_L - 1);
         p.cy = dansLaLargeur(p.baseY * (attaque ? 0.94 : 0.80) + zone.y * (attaque ? 0.24 : 0.38));
+        /* LEVIER A : la pose est un décor, pas une laisse. Marquée pour
+           être RENDUE au cerveau dès le premier temps d'action — sans
+           ça, les trois coéquipiers de champ restaient « scenario »
+           pendant les premières passes (cibles de pose à 2-4 s de
+           course) et aucune option ne vivait. */
+        p.poseMeP = true;
       }
       // le ballon rejoint le premier acteur de la séquence
       const premier = sequence.find && sequence.find((t) => t.acteur || t.de);
@@ -1595,7 +1660,7 @@ const ONZE_SCENE = (() => {
         // le ballon est à SES pieds tout de suite : il l'emmène en glissant
         // la mise en place suit un CUT : c'est le seul endroit où le
         // ballon peut se reposer d'un coup — la coupe le justifie.
-        ballon.vol = null; ballon.porteur = porteur.cle;
+        ballon.vol = null; ballon.porteur = porteur.cle; ballon.tenuDepuis = horloge;
         ballon.x = porteur.x; ballon.y = porteur.y; ballon.z = 0;
         if (reg.etiquettes) porteur.etiquette = true;
       } else {
@@ -1679,6 +1744,37 @@ const ONZE_SCENE = (() => {
        d'issue sont exclus : une frappe à 27 m/s mesurerait le tir, pas
        la situation. */
     let mesureTempo = null;
+    /* LEVIER A : UNE PASSE PART D'UN PIED, PAS D'UN POINT DE LA
+       TRAJECTOIRE. Le séquenceur enchaînait les relais au rythme de
+       l'horloge, ballon encore en vol — du flipper : à l'instant de la
+       « décision », personne ne tenait le ballon, donc aucune option ne
+       pouvait être comptée ni pressée. Un relais attend désormais que le
+       ballon soit TENU (réception + 0,3 s de contrôle), avec une limite
+       dure à 1,5 s pour que le spectacle ne se fige jamais. Les temps
+       d'issue ne passent pas par ici : le suspense de la révélation
+       (R7) garde son horloge à lui. */
+    const differees = [];
+    /* Le CONTRÔLE : 0,8 s ballon au pied avant de rejouer. La médiane
+       réelle d'une possession individuelle est ~1 s — et c'est cette
+       durée-là que mesurent trois recettes à la fois : un contrôle de
+       0,3 s donnait des appels de 1,0 s (réel 2,1), des pressings de
+       1,0 s (réel 2,10) et 54 % du temps de rôle sans porteur. Une seule
+       cause, trois symptômes. La limite dure à 1,5 s protège le rythme
+       de la décision 73. */
+    const CONTROLE_S = 0.8;
+    function desQueTenu(fn) {
+      /* La limite doit laisser vivre le contrôle : à 1,5 s elle coiffait
+         le vol (0,5-1 s) + les 0,8 s de contrôle, et les mesures ne
+         bougeaient pas. Les garde-fous de la décision 73 (durée totale,
+         format 4-8 s) surveillent ce que ce desserrage coûte au rythme. */
+      const echeance = horloge + 2.5;
+      const tenter = () => {
+        const controle = ballon.porteur && horloge - (ballon.tenuDepuis || 0) >= CONTROLE_S;
+        if (controle || horloge >= echeance) return fn();
+        differees.push({ quand: horloge + 0.08, fn: tenter });
+      };
+      tenter();
+    }
     function jouerTemps(t, duree, surIssue) {
       const ms = Math.max(400, duree || 800);
       // où en est-on dans la chorégraphie ? (pour l'appel du receveur suivant)
@@ -1689,6 +1785,10 @@ const ONZE_SCENE = (() => {
       const camp = t.equipe ? campDe(t.equipe) : "moi";
       const sens = sensDe(camp);
       if (!t.issue) regime = "action";
+      // levier A : l'action commence, la pose rend la main au cerveau
+      for (const p of listePions) {
+        if (p.poseMeP) { p.poseMeP = false; if (!p.roleScenario) { p.cx = null; p.cy = null; } }
+      }
       if (mesureTempo) {
         const dt = horloge - mesureTempo.t0;
         if (dt > 0.3) {
@@ -1721,20 +1821,15 @@ const ONZE_SCENE = (() => {
           possession = camp;
           const p = pionDe(t.acteur, camp);
           if (p) { donnerLeBallon(p.nom, 19, camp); p.flash = 400; etiqueter([p]); }
-          // tout le bloc part vers l'avant : c'est CE mouvement qui dit « contre »
-          const pasContre = pasDeTempo(ms, 8, 16);
-          for (const q of listePions) {
-            if (q.camp !== camp || q.gardien) continue;
-            q.cx = dansLeJeu(q.x + sens * (pasContre + (q.ligne === "ATT" ? 5 : 0)));
-            q.cy = dansLaLargeur(lerp(q.y, q.baseY, 0.35) + q.baseY * 0.12);
-            q.roleScenario = "contre";
-          }
-          // la défense adverse est prise à revers : elle se replie en courant
-          for (const q of listePions) {
-            if (q.camp === camp || q.gardien) continue;
-            q.cx = dansLeJeu(q.x - sens * 9);
-            q.roleScenario = "repli";
-          }
+          /* LEVIER A (étape 4) : plus de saisie des 22 pions. L'ancienne
+             chorégraphie écrivait une cible à chaque joueur des deux
+             camps — pendant tout le temps, personne ne pouvait offrir un
+             appel, un soutien ou un pressing (41 % du temps de rôle
+             était tenu ainsi). L'élan du contre vit désormais dans la
+             FORME : cibleEquilibre pousse le camp qui attaque vers
+             l'avant tant que le gabarit est un contre/une transition, et
+             la posture adverse (haute, en retard) vient du gabarit. Les
+             pions restent au cerveau — libres de jouer au football. */
           chipEtSynergie(t.ev, ballon, ms);
           break;
         }
@@ -1745,11 +1840,17 @@ const ONZE_SCENE = (() => {
           if (vers) {
             // m/s : le Tiki joue vite et court, le Catenaccio pose
             const cadence = { tiki: 19, kickrush: 21, catenaccio: 15, rue: 16, total: 18, grinta: 19 };
-            passer(t.de, t.vers, { vitesse: cadence[styles[camp].style] || 17, camp });
+            desQueTenu(() => passer(t.de, t.vers, { vitesse: cadence[styles[camp].style] || 17, camp }));
             if (de) { de.cx = dansLeJeu(de.x + sens * 2); de.roleScenario = "suit"; }   // il suit sa passe
-            /* le tempo décide de ce que le relais GAGNE : une construction
-               circule quasi sur place, une transition monte le terrain */
-            vers.cx = dansLeJeu(vers.x + sens * pasDeTempo(ms, 0.5, 10));
+            /* LEVIER A : le receveur n'a PLUS de cible écrite. Sa course
+               appartient au cerveau — receveurAttendu le fait courir en
+               APPEL (une option qui se voit et se compte), et la passe
+               part devant sa course. Avec 3 coéquipiers de champ par
+               camp, une seule cible écrite éteignait un tiers des
+               options possibles ; mesuré à l'instant des passes : 2-3
+               tenus sur 3, zéro option la moitié du temps. La
+               progression du relais vient de la forme (refBloc, élan de
+               gabarit), plus d'un cx sur le receveur. */
             etiqueter([de, vers]);
           }
           break;
@@ -1762,9 +1863,9 @@ const ONZE_SCENE = (() => {
             // la cloche : le ballon monte, l'ombre au sol le trahit
             vers.cx = dansLeJeu(vers.x + sens * pasDeTempo(ms, 6, 16));
             vers.cy = dansLaLargeur(lerp(vers.y, vers.baseY, 0.4));
-            passer(t.de, t.vers, { vitesse: 16, cloche: true, camp });
+            desQueTenu(() => passer(t.de, t.vers, { vitesse: 16, cloche: true, camp }));
           } else {
-            passer(t.de, null, { x1: dansLeJeu(ballon.x + sens * 22), y1: dansLaLargeur((Math.random() - 0.5) * TERRAIN.W * 0.6), vitesse: 16, cloche: true });
+            desQueTenu(() => passer(t.de, null, { x1: dansLeJeu(ballon.x + sens * 22), y1: dansLaLargeur((Math.random() - 0.5) * TERRAIN.W * 0.6), vitesse: 16, cloche: true }));
           }
           etiqueter([pionDe(t.de, camp), vers]);
           chipEtSynergie(t.ev, ballon, ms);
@@ -2347,9 +2448,10 @@ const ONZE_SCENE = (() => {
          existe, et la distance presseur→ballon pendant le rôle. Avant le
          correctif : 60 % du temps sans porteur, distance p90 29,4 m —
          un presseur qui poursuit un ballon parti n'est pas un presseur. */
-      pressTicks: 0, pressTicksSansPorteur: 0, distPressBallon: [],
+      pressTicks: 0, pressTicksSansPorteur: 0, distPressBallon: [], distPressSans: [],
       // étape 4 : la vitesse de progression rendue, par gabarit (m/s)
-      tempoParGabarit: {} };
+      tempoParGabarit: {},
+      optionsDetail: [] };   // instrumentation levier A (détail des décisions)
     // le nombre d'options VIVANTES à cet instant — lu au moment de la passe
     let optionsVivantes = 0;
 
@@ -2452,6 +2554,10 @@ const ONZE_SCENE = (() => {
       separerDisques(listePions, TERRAIN, RAYON_PION_M);
       majFigurants(dt, dtBrut);      // règle 11 : arbitre et assistants
       majBallon(dt);
+      // les passes différées « dès que tenu » (levier A)
+      for (let i = differees.length - 1; i >= 0; i--) {
+        if (horloge >= differees[i].quand) { const d = differees.splice(i, 1)[0]; d.fn(); }
+      }
 
       // le tampon du replay (~3 s à 30 états/s)
       if (!replay && (!tampon.length || temps - tampon[tampon.length - 1].t > 33)) {
@@ -2579,7 +2685,7 @@ const ONZE_SCENE = (() => {
           p.y = (p.gardien ? 0 : (p.num % 2 ? -1 : 1) * (DEMI_W - 3));
           p.vx = 0; p.vy = 0; p.cx = p.x; p.cy = p.y;
         }
-        if (pris.length) { ballon.vol = null; ballon.porteur = pris[0].cle; ballon.x = pris[0].x; ballon.y = pris[0].y; }
+        if (pris.length) { ballon.vol = null; ballon.porteur = pris[0].cle; ballon.tenuDepuis = horloge; ballon.x = pris[0].x; ballon.y = pris[0].y; }
         return pris.map((p) => p.cle);
       },
       diagnostic: () => ({
@@ -2595,6 +2701,7 @@ const ONZE_SCENE = (() => {
           appels: mesures.appels.slice(), pressings: mesures.pressings.slice(),
           optionsPasse: mesures.optionsPasse.slice(), dureesOption: mesures.dureesOption.slice(),
           distPressBallon: mesures.distPressBallon.slice(),
+          distPressSans: mesures.distPressSans.slice(),
           tempoParGabarit: Object.fromEntries(Object.entries(mesures.tempoParGabarit).map(([k, v]) => [k, v.slice()])),
           tiragesPosture: { ...mesures.tiragesPosture } },
         // décision 33 : l'échelle des pions, mesurée par la recette

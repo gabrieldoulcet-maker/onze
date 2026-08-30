@@ -115,13 +115,15 @@ retouche à glisser en fin de livraison.
 
 | Dette | Mesuré (cumul) | Cible | Échéance |
 |---|---|---|---|
-| 1 à 3 options de passe ouvertes | **18-30 %** sur ~170-215 passes par passage | **88 %** (médiane 2) | étape 4, levier A |
-| Part du temps de rôle presseur SANS porteur | **62-74 %** (avant le levier C : 90 %) — la moitié ratée de la prédiction C, cause nommée : les passes longues | **< 20 %** | étape 4, levier A |
-| Densité de pressing | ⏸ **SUSPENDUE** — et **repeuplée** : les fantômes retirés (ballons morts, ballons partis — amendement V), la densité RÉELLE vaut **0,13-0,78/min**. Les 5,50/min d'avant étaient ~9/10 de fantômes ; la référence 7,01 vaut à 22 joueurs et reste non appariée ; à effectif apparié (22 pions, 27 épisodes, mesuré sur l'ancienne population fantôme) : chiffre à REFAIRE | référence à apparier, population vraie | *se lève en mesurant à 22 pions sur la population dé-fantômée* |
-| Part des pressings fermant sous 3 m | cumul reparti de zéro sur la population VRAIE (fantômes retirés — l'ancienne démonstration « 53 % sur 197 » comptait des épisodes à 44 m de minimum) ; premiers passages : 5/7 puis 2/7, minimum médian 2,0-3,5 m | **65,9 %** (épisodes ≥ 1 s finis en jeu) | étape 4 |
+| 1 à 3 options de passe ouvertes | **42-48 %**, médiane 1 (18-30 % avant les leviers A+B ; trois verrous tombés : flipper du séquenceur, receveur-cible, pose-laisse — amendement VI) | **88 %** (médiane 2) | étape 4 (suite) : chaînes locales |
+| Part du temps de rôle presseur SANS porteur | **49-60 %** (90 % avant le levier C, 62-74 avant A+B) | **< 20 %** | étape 4 (suite) : chaînes locales |
+| Durée d'un épisode de pressing (finis en jeu) | **1,0-1,4 s** — la mission tirée (levier B) est prête à durer, c'est l'épisode qui meurt au départ du ballon | **2,10 s ±15 %** | étape 4 (suite) : chaînes locales |
+| Durée d'un appel (finis en jeu) | **1,0 s** — le receveur est servi ~1 s après le départ de sa course | **2,1 s ±25 %** | étape 4 (suite) : même cause |
+| Densité de pressing | ⏸ **SUSPENDUE** — population vraie (fantômes retirés, amendement V) : **2,4-4,1/min** après les leviers A+B (0,13-0,78 avant eux ; les 5,50 historiques étaient ~9/10 de fantômes) ; référence 7,01 non appariée (22 joueurs) | référence à apparier, population vraie | *se lève en mesurant à 22 pions sur la population dé-fantômée* |
+| Part des pressings fermant sous 3 m | **30-45 %, DÉMONTRÉ trop loin** (p = 0,0001-0,05) sur la population vraie — l'épisode meurt à ~1 s, avant d'avoir fermé depuis ses 8 m d'entrée | **65,9 %** (épisodes ≥ 1 s finis en jeu) | étape 4 (suite) : chaînes locales |
 | Dispersion des pressings entre matchs | **SANS MATIÈRE** tant que le pressing réel reste rare (garde M6 : 40 épisodes cumulés minimum) | **≈ 1,05** (le vrai football : 5,56 sur des matchs entiers) | étape 4 — *la seule qui se mesure sur n = MATCHS* |
-| Poids à l'ouverture, PIRE tirage, densité 1 (`da.spec.js`) | **1 637 Ko** (socle 1 265 + les 5 key arts les plus lourds 372 — 1 580 → 1 595 → 1 631 → 1 637 : refonte +41 Ko, synergies mercato +8, instrumentation étape 4 +6) | **≤ 1 500 Ko** | la livraison qui différera `match-scene.js` — attention : 1 637 − 130 = **1 507**, le différé seul ne suffit plus, il faudra raboter les Ko restants |
-| Poids à l'ouverture, PIRE tirage, densité 2 (`terrains.spec.js`) | **1 755 Ko** (même dérive, passage P-260830-080559) | **≤ 1 700 Ko** | la même : différer `match-scene.js` (1 755 − 130 = 1 625) |
+| Poids à l'ouverture, PIRE tirage, densité 1 (`da.spec.js`) | **1 643 Ko** (socle 1 272 + les 5 key arts les plus lourds 372 — 1 580 → 1 631 → 1 643 : refonte +41 Ko, synergies +8, étape 4 +12) | **≤ 1 500 Ko** | la livraison qui différera `match-scene.js` — attention : 1 643 − 130 = **1 513**, le différé seul ne suffit plus, il faudra raboter les Ko restants |
+| Poids à l'ouverture, PIRE tirage, densité 2 (`terrains.spec.js`) | **1 762 Ko** (même dérive, passage P-260830-095434) | **≤ 1 700 Ko** | la même : différer `match-scene.js` (1 762 − 130 = 1 632) |
 
 ### Ce que le cumul a changé, en chiffres
 
